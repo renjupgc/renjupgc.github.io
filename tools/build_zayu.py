@@ -123,20 +123,21 @@ def read_manual():
       matches_extra       新增对局（winner 编码与源库一致：1 / 0 / 0.5 / f0 / 0f / ff）
     """
     if not os.path.exists(MANUAL_DB):
-        return [], [], set()
+        return [], [], set(), set()
     m = sqlite3.connect(MANUAL_DB)
     m.row_factory = sqlite3.Row
     extra_t = [dict(r) for r in m.execute('SELECT * FROM tournaments_extra')]
     extra_m = [dict(r) for r in m.execute('SELECT * FROM matches_extra')]
     hidden = {r['name'] for r in m.execute('SELECT name FROM hidden_tournaments')}
+    forfeit = {r['name'] for r in m.execute('SELECT name FROM forfeit_players')}
     m.close()
-    return extra_t, extra_m, hidden
+    return extra_t, extra_m, hidden, forfeit
 
 
 def fetch(src):
     s = sqlite3.connect(src)
     s.row_factory = sqlite3.Row
-    extra_t, extra_m, hidden = read_manual()
+    extra_t, extra_m, hidden, forfeit = read_manual()
     ts = [dict(r) for r in s.execute('SELECT * FROM tournaments WHERE is_public = 1')
           if (r['name'] or '').strip() not in hidden]
     ts += [dict(r) for r in extra_t if (r['name'] or '').strip() not in hidden]
@@ -150,6 +151,18 @@ def fetch(src):
     ms += [dict(r) for r in extra_m if r['tournament_id'] in kept]
     ms.sort(key=lambda m: (m['tournament_id'], m['round'] or 0,
                            m['board_number'] or 0, m['id']))
+    # 弃权名单：这些棋手的所有对局都改记为本人弃权负
+    for m in ms:
+        p1, p2 = m['player1'], m['player2']
+        if p1 in (None, '') or p2 in (None, '') or BYE in (p1, p2):
+            continue
+        a, b = p1 in forfeit, p2 in forfeit
+        if a and b:
+            m['winner'] = 'ff'
+        elif a:
+            m['winner'] = 'f0'
+        elif b:
+            m['winner'] = '0f'
     idmap = {r['name']: r['id'] for r in s.execute('SELECT name, id FROM players')}
     unis = {r['name']: (r['university'] or '').strip()
             for r in s.execute('SELECT name, university FROM players')}
@@ -361,11 +374,19 @@ def compute_ratings(ms, unis, regions):
     games = [(a, b, r, (d - first).days) for a, b, r, d in played]
 
     stats = {}
+    events = {}
 
     def bump(name):
         s = stats.setdefault(name, {'games': 0, 'wins': 0, 'draws': 0, 'losses': 0})
         s['games'] += 1
         return s
+
+    for m in ms:
+        p1, p2 = m['player1'], m['player2']
+        if p1 in (None, '', BYE) or p2 in (None, '', BYE):
+            continue
+        for p in (p1, p2):
+            events.setdefault(p, set()).add(m['tournament_id'])
 
     for a, b, r, _ in games:
         if r == 'B':
@@ -391,7 +412,14 @@ def compute_ratings(ms, unis, regions):
                      'rating': hist[-1][1] + RATING_BASE,
                      'games': s['games'], 'wins': s['wins'],
                      'draws': s['draws'], 'losses': s['losses'],
+                     'events': len(events.get(name, ())),
                      'as_of': as_of})
+
+    # 入榜门槛：本省高校选手须下满 4 局；外省高校选手须至少参加 2 场比赛
+    rows = [r for r in rows
+            if (r['games'] > 3 if '河南' in (r['uni'] or '')
+                else r['events'] >= 2)]
+
     for r in rows:
         r['pt'] = round(r['rating'], 2)       # 等级分保留两位小数
     rows.sort(key=lambda r: (-r['pt'], -r['games'], r['name']))
