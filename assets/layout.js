@@ -83,9 +83,10 @@
 
     var TRACK = {
         src: 'assets/audio/qingbawo-zailushang-jiaoxing.mp3',
+        cover: 'assets/img/music-cover-born-in-hesitation.jpg',
         title: '请把我在路上叫醒',
         artist: '汪峰',
-        album: '连珠杂箱 · 音乐盒',
+        album: '生来彷徨',
         volume: 0.5
     };
 
@@ -116,28 +117,11 @@
     var ICON_SOUND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 9.5h3.1L12 5.1v13.8L7.3 14.5H4.2z" fill="currentColor"/><path d="M15.4 8.7a5 5 0 0 1 0 6.6M17.8 6.4a8.3 8.3 0 0 1 0 11.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
     var ICON_MUTE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.2 9.5h3.1L12 5.1v13.8L7.3 14.5H4.2z" fill="currentColor"/><path d="M15.6 9.7l5 4.6m0-4.6l-5 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
+    /* 唱片用专辑封面：播放时缓缓转动，暂停时停在原角度 */
     var DISC = [
-        '<svg viewBox="0 0 64 64" aria-hidden="true">',
-        '<defs>',
-        '<radialGradient id="mb-disc-grad" cx="33%" cy="26%" r="80%">',
-        '<stop offset="0%" stop-color="#5a5246"/>',
-        '<stop offset="45%" stop-color="#3a342c"/>',
-        '<stop offset="100%" stop-color="#241f1a"/>',
-        '</radialGradient>',
-        '</defs>',
-        '<circle cx="32" cy="32" r="30.5" fill="#f8f1e0" stroke="#e0d2b2"/>',
-        '<g class="mb-rotor">',
-        '<circle cx="32" cy="32" r="26.5" fill="url(#mb-disc-grad)" stroke="#1d1915" stroke-width="0.8"/>',
-        '<g fill="none" stroke="#d9ccb4" stroke-opacity="0.45" stroke-width="0.9">',
-        '<circle cx="32" cy="32" r="23.4"/><circle cx="32" cy="32" r="20.6"/>',
-        '<circle cx="32" cy="32" r="17.8"/>',
-        '</g>',
-        '<circle cx="32" cy="32" r="11.8" fill="#f7ebca" stroke="#d3bc8b" stroke-width="1"/>',
-        '<text x="32" y="37.6" text-anchor="middle" font-size="15" font-weight="bold" fill="#7b6026"',
-        ' font-family="Segoe UI Symbol, Apple Symbols, Georgia, serif">&#9834;</text>',
-        '<circle cx="32" cy="32" r="1.2" fill="#8a6f36"/>',
-        '</g>',
-        '</svg>'
+        '<span class="mb-rotor">',
+        '<img class="mb-cover" src="' + base + TRACK.cover + '" alt="" draggable="false">',
+        '</span>'
     ].join('');
 
     var box = document.createElement('div');
@@ -385,7 +369,8 @@
             navigator.mediaSession.metadata = new window.MediaMetadata({
                 title: TRACK.title,
                 artist: TRACK.artist,
-                album: TRACK.album
+                album: TRACK.album,
+                artwork: [{ src: base + TRACK.cover, sizes: '220x220', type: 'image/jpeg' }]
             });
             navigator.mediaSession.setActionHandler('play', play);
             navigator.mediaSession.setActionHandler('pause', pause);
