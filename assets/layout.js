@@ -28,6 +28,7 @@
         { text: '杂论', href: '#' },
         { text: '杂究', href: '#' },
         { text: '杂史', href: 'zashi.html' },
+        { text: '杂豫', href: 'zayu.html' },
         { text: '关于', href: '#' }
     ];
 
