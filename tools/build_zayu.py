@@ -249,7 +249,7 @@ def compute(ms):
 
     对手分：所有对手的虚拟积分之和。轮空补一个「总轮数一半」的虚拟对手；
     某一轮根本没有对局（空着的格子）则视为一个 0 分的虚拟对手。
-    中间对手分：去掉最高、最低各一个后求和，空局的那个 0 分虚拟对手不计入。
+    中间对手分：去掉最高、最低各一个后求和，虚拟对手同样参与（0 分自然成为最低分被剔除）。
     """
     rounds = sorted({m['round'] for m in ms if m['round'] is not None})
     total_rounds = max(rounds) if rounds else 0
@@ -318,11 +318,12 @@ def compute(ms):
     rows = []
     for name, d in p.items():
         opp_vals = []          # 对手分：含虚拟对手（轮空按总轮数一半 / 空局按 0 分）
-        mid_vals = []          # 中间对手分：空局不计入
+        mid_vals = []          # 中间对手分：同样含虚拟对手（0 分通常会被当作最低分剔除）
         for r in rounds:
             c = d['cells'].get(r)
             if not c:
                 opp_vals.append(0.0)                 # 这一轮没有对局
+                mid_vals.append(0.0)
                 continue
             if c[0] == 'bye':
                 v = total_rounds / 2.0               # 轮空
