@@ -34,7 +34,7 @@ RATING_OUT = os.path.join(DETAIL_DIR, 'rating.html')
 # 等级分参数：沿用 WHR 公开实现（renjurating）的取值
 RATING_W2 = 19.3          # 等级分随时间的波动幅度
 RATING_VIRTUAL = 2        # 首日附加两个虚拟和棋
-RATING_BASE = 1900.0      # 输出基准分
+RATING_BASE = 2000.0      # 输出基准分
 
 # 久未参赛的衰减：超过 365 天开始，按周衰减，最多累计到 730 天
 RATING_DECAY_AFTER = 365
@@ -366,7 +366,7 @@ def compute_ratings(ms, unis, regions):
 
     只统计真正下完的对局：轮空、弃权（f0 / 0f / ff）与无结果的对局都不计入，
     和局按 0.5 计（因此「对局数」也只含非弃权、非轮空的对局）。
-    参数：w2 = 19.3，每人首日附加两个虚拟和棋，输出「WHR 分数 + 基准分 1900」。
+    参数：w2 = 19.3，每人首日附加两个虚拟和棋，输出「WHR 分数 + 基准分 2000」。
     超过 365 天未再参赛者按 0.9995 每周衰减，最多累计 730 天。
     """
     try:
