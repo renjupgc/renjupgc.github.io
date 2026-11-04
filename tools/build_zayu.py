@@ -247,10 +247,12 @@ def write_db(ts, ms, ratings=None):
 def compute(ms):
     """按瑞士制成绩表口径计算每人：逐轮对手、积分、对手分、中间对手分、胜局数。
 
-    对手分：所有对手的虚拟积分之和；没有对手的对局（轮空）补一个 0 分的虚拟对手。
-    中间对手分：去掉最高、最低各一个后求和，轮空不参与。
+    对手分：所有对手的虚拟积分之和。轮空补一个「总轮数一半」的虚拟对手；
+    某一轮根本没有对局（空着的格子）则视为一个 0 分的虚拟对手。
+    中间对手分：去掉最高、最低各一个后求和，空局的那个 0 分虚拟对手不计入。
     """
     rounds = sorted({m['round'] for m in ms if m['round'] is not None})
+    total_rounds = max(rounds) if rounds else 0
 
     p = {}
 
@@ -315,16 +317,17 @@ def compute(ms):
 
     rows = []
     for name, d in p.items():
-        opp_vals = []          # 对手分用：轮空补一个 0 分的虚拟对手
-        mid_vals = []          # 中间对手分用：轮空不计入
+        opp_vals = []          # 对手分：含虚拟对手（轮空按总轮数一半 / 空局按 0 分）
+        mid_vals = []          # 中间对手分：空局不计入
         for r in rounds:
             c = d['cells'].get(r)
             if not c:
+                opp_vals.append(0.0)                 # 这一轮没有对局
                 continue
             if c[0] == 'bye':
-                opp_vals.append(0.0)
-                continue
-            v = virtual.get(c[1], 0.0)
+                v = total_rounds / 2.0               # 轮空
+            else:
+                v = virtual.get(c[1], 0.0)
             opp_vals.append(v)
             mid_vals.append(v)
 
