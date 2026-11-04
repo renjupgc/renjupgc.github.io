@@ -1,4 +1,5 @@
-/* 连珠杂箱 - 全站基础样式 */
+/* 连珠杂箱 - 全站基础样式
+   页面结构（页头、导航）由 assets/layout.js 统一渲染 */
 
 body {
     margin: 0;
@@ -35,11 +36,6 @@ a:hover {
     color: #222222;
 }
 
-.site-description {
-    font-size: 14px;
-    color: #777777;
-}
-
 nav {
     border-top: 1px solid #cccccc;
     border-bottom: 1px solid #cccccc;
@@ -49,6 +45,11 @@ nav {
 
 nav a {
     margin-right: 25px;
+}
+
+nav a.active {
+    color: #222222;
+    font-weight: bold;
 }
 
 section {
@@ -76,14 +77,6 @@ li {
     color: #999999;
     margin-left: 8px;
     white-space: nowrap;
-}
-
-footer {
-    border-top: 1px solid #cccccc;
-    margin-top: 45px;
-    padding-top: 15px;
-    color: #888888;
-    font-size: 13px;
 }
 
 /* ---------- 文章页 ---------- */
