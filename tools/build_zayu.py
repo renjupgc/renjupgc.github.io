@@ -393,7 +393,7 @@ def compute_ratings(ms, unis, regions):
                      'draws': s['draws'], 'losses': s['losses'],
                      'as_of': as_of})
     for r in rows:
-        r['pt'] = int(r['rating'] + 0.5)      # 等级分取整
+        r['pt'] = round(r['rating'], 2)       # 等级分保留两位小数
     rows.sort(key=lambda r: (-r['pt'], -r['games'], r['name']))
 
     # 等级分相同者并列
@@ -429,7 +429,7 @@ def rating_page(rows, as_of, n_tournaments, n_games):
         body.append('                <tr><td class="r-rank">%d</td>'
                     '<td class="r-name">%s</td>'
                     '<td class="r-region">%s</td><td class="r-uni">%s</td>'
-                    '<td class="r-pt">%d</td></tr>'
+                    '<td class="r-pt">%.2f</td></tr>'
                     % (r['rank'], esc(r['name']), esc(r['region'] or '—'),
                        esc(r['uni'] or '—'), r['pt']))
 
