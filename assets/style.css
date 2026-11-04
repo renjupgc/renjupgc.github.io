@@ -416,3 +416,188 @@ table.ratings .r-pt {
         font-size: 20px;
     }
 }
+
+/* ---------- 音乐盒（由 assets/layout.js 渲染，全站常驻） ---------- */
+
+.music-box {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 11px 9px 10px;
+    background: #fffdf6;
+    border: 1px solid #e2d7bd;
+    border-radius: 5px;
+    box-shadow: 0 3px 14px rgba(94, 76, 42, 0.14), inset 0 1px 0 #ffffff;
+    font-family: "SimSun", "宋体", serif;
+    font-size: 13px;
+    line-height: 1.4;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* 盒盖接缝 */
+.music-box::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    right: 7px;
+    top: 4px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(226, 215, 189, 0), #e8dfc9, rgba(226, 215, 189, 0));
+}
+
+.mb-disc {
+    flex: 0 0 auto;
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    border-radius: 50%;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mb-disc svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.mb-disc:focus-visible,
+.mb-btn:focus-visible {
+    outline: 1px solid #b2914f;
+    outline-offset: 2px;
+}
+
+/* 唱片转动：暂停时保留角度，不做归零 */
+.mb-rotor {
+    transform-origin: 32px 32px;
+    animation: mb-spin 7s linear infinite;
+    animation-play-state: paused;
+}
+
+.music-box.is-playing .mb-rotor {
+    animation-play-state: running;
+}
+
+@keyframes mb-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.mb-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 120px;
+}
+
+.mb-title {
+    color: #2c2721;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mb-sub {
+    color: #a2947a;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mb-actions {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.mb-btn {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: #7a6c55;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mb-btn:hover {
+    background: #f5eddb;
+    color: #3b3327;
+}
+
+.mb-btn svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+}
+
+/* 自动播放被拦截时的提示 */
+.music-box.is-hint .mb-disc {
+    animation: mb-hint 2.4s ease-in-out infinite;
+}
+
+.music-box.is-hint .mb-sub {
+    color: #b2914f;
+}
+
+@keyframes mb-hint {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(178, 145, 79, 0); }
+    50% { box-shadow: 0 0 0 4px rgba(178, 145, 79, 0.18); }
+}
+
+.mb-audio {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .music-box {
+        right: 12px;
+        bottom: 12px;
+        gap: 8px;
+        padding: 7px 9px 7px 7px;
+    }
+
+    .mb-disc {
+        width: 42px;
+        height: 42px;
+    }
+
+    .mb-meta {
+        max-width: 96px;
+    }
+
+    .mb-sub {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-rotor {
+        animation: none;
+    }
+
+    .music-box.is-hint .mb-disc {
+        animation: none;
+    }
+}
+
+@media print {
+    .music-box {
+        display: none;
+    }
+}
