@@ -36,6 +36,11 @@ RATING_W2 = 19.3          # 等级分随时间的波动幅度
 RATING_VIRTUAL = 2        # 首日附加两个虚拟和棋
 RATING_BASE = 1900.0      # 输出基准分
 
+# 久未参赛的衰减：超过 365 天开始，按周衰减，最多累计到 730 天
+RATING_DECAY_AFTER = 365
+RATING_DECAY_CAP = 730
+RATING_DECAY_RATE = 0.9995
+
 BYE = '轮空'
 
 # winner 编码 -> (假先得点, 假后得点)；f 表示该方弃权
@@ -350,8 +355,9 @@ def compute_ratings(ms, unis, regions):
     """用 WHR（Whole-History Rating）算法预先计算每位棋手的等级分。
 
     只统计真正下完的对局：轮空、弃权（f0 / 0f / ff）与无结果的对局都不计入，
-    和局按 0.5 计。参数：w2 = 19.3，每人首日附加两个虚拟和棋，
-    输出「WHR 分数 + 基准分 1900」。
+    和局按 0.5 计（因此「对局数」也只含非弃权、非轮空的对局）。
+    参数：w2 = 19.3，每人首日附加两个虚拟和棋，输出「WHR 分数 + 基准分 1900」。
+    超过 365 天未再参赛者按 0.9995 每周衰减，最多累计 730 天。
     """
     try:
         import whr
@@ -366,27 +372,29 @@ def compute_ratings(ms, unis, regions):
             continue
         res = {'1': 'B', '0': 'W', '0.5': 'D'}.get(w)
         if res:
-            played.append((p1, p2, res, datetime.date.fromisoformat(m['date'])))
+            played.append((p1, p2, res, datetime.date.fromisoformat(m['date']),
+                           m['tournament_id']))
     if not played:
         return None, None
 
     first = min(g[3] for g in played)
-    games = [(a, b, r, (d - first).days) for a, b, r, d in played]
+    games = [(a, b, r, (d - first).days) for a, b, r, d, _ in played]
 
     stats = {}
     events = {}
+    last_played = {}
 
     def bump(name):
         s = stats.setdefault(name, {'games': 0, 'wins': 0, 'draws': 0, 'losses': 0})
         s['games'] += 1
         return s
 
-    for m in ms:
-        p1, p2 = m['player1'], m['player2']
-        if p1 in (None, '', BYE) or p2 in (None, '', BYE):
-            continue
-        for p in (p1, p2):
-            events.setdefault(p, set()).add(m['tournament_id'])
+    # 参赛场次与最后出场日期都只看真正下过的对局
+    for a, b, _r, d, tid in played:
+        for p in (a, b):
+            events.setdefault(p, set()).add(tid)
+            if p not in last_played or d > last_played[p]:
+                last_played[p] = d
 
     for a, b, r, _ in games:
         if r == 'B':
@@ -403,13 +411,20 @@ def compute_ratings(ms, unis, regions):
     base.create_games(games)
     base.iterate_until_converge(verbose=False)
 
-    as_of = max(g[3] for g in played).isoformat()
+    as_of_date = max(g[3] for g in played)
+    as_of = as_of_date.isoformat()
     rows = []
     for name, hist in base.get_ordered_ratings():
         s = stats.get(name, {'games': 0, 'wins': 0, 'draws': 0, 'losses': 0})
+        rating = hist[-1][1] + RATING_BASE
+        # 长期未参赛：超过一年后按周衰减，最多衰减两年
+        days_since = (as_of_date - last_played[name]).days
+        if days_since > RATING_DECAY_AFTER:
+            decay_days = min(days_since, RATING_DECAY_CAP)
+            rating *= RATING_DECAY_RATE ** (decay_days / 7.0)
         rows.append({'name': name, 'uni': unis.get(name, ''),
                      'region': regions.get(name, ''),
-                     'rating': hist[-1][1] + RATING_BASE,
+                     'rating': rating,
                      'games': s['games'], 'wins': s['wins'],
                      'draws': s['draws'], 'losses': s['losses'],
                      'events': len(events.get(name, ())),
