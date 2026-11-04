@@ -151,8 +151,14 @@
         '<span class="mb-sub">' + TRACK.artist + ' · 音乐盒</span>' +
         '</span>' +
         '<span class="mb-actions">' +
-        '<button class="mb-btn mb-play" type="button" aria-label="播放">' + ICON_PLAY + '</button>' +
-        '<button class="mb-btn mb-mute" type="button" aria-label="静音" aria-pressed="false">' + ICON_SOUND + '</button>' +
+        '<button class="mb-btn mb-play" type="button" aria-label="播放">' +
+        '<span class="ico ico-play">' + ICON_PLAY + '</span>' +
+        '<span class="ico ico-pause">' + ICON_PAUSE + '</span>' +
+        '</button>' +
+        '<button class="mb-btn mb-mute" type="button" aria-label="静音" aria-pressed="false">' +
+        '<span class="ico ico-sound">' + ICON_SOUND + '</span>' +
+        '<span class="ico ico-mute">' + ICON_MUTE + '</span>' +
+        '</button>' +
         '</span>';
     document.body.appendChild(box);
 
@@ -174,15 +180,22 @@
     var hinting = false;
     var armed = false;
 
+    /*
+     * 只切 class 与 aria 属性，不动 innerHTML。
+     * 早先这里是重写按钮的 innerHTML 来换图标，结果点击时事件目标
+     * （按钮里的 <svg>）被换掉、脱离文档，冒泡到盒子时 e.target.closest('button')
+     * 已经查不到祖先，盒子误判成「点了空白」又 toggle 一次——暂停刚生效就被重新 play。
+     */
     function render() {
         var playing = !audio.paused;
         box.classList.toggle('is-playing', playing);
         box.classList.toggle('is-paused', !playing);
-        playBtn.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+        box.classList.toggle('is-muted', audio.muted);
         playBtn.setAttribute('aria-label', playing ? '暂停' : '播放');
-        muteBtn.innerHTML = audio.muted ? ICON_MUTE : ICON_SOUND;
+        playBtn.setAttribute('title', playing ? '暂停' : '播放');
         muteBtn.setAttribute('aria-label', audio.muted ? '取消静音' : '静音');
         muteBtn.setAttribute('aria-pressed', audio.muted ? 'true' : 'false');
+        muteBtn.setAttribute('title', audio.muted ? '取消静音' : '静音');
         subEl.textContent = audio.muted ? '已静音 · 点喇叭' : (hinting ? '轻触开始播放' : subText);
     }
 
@@ -284,7 +297,15 @@
 
     /* 点盒子的空白或文字区域也算播放/暂停（按钮各管各的） */
     box.addEventListener('click', function (e) {
-        if (e.target.closest && e.target.closest('button')) {
+        /* 用 composedPath 判断：按钮自己的处理函数可能已经改过 DOM，
+           e.target 有可能已脱离文档，closest 就不准了 */
+        var path = e.composedPath ? e.composedPath() : [];
+        for (var i = 0; i < path.length; i++) {
+            if (path[i] && path[i].nodeName === 'BUTTON') {
+                return;
+            }
+        }
+        if (e.target && e.target.closest && e.target.closest('button')) {
             return;
         }
         togglePlay();
