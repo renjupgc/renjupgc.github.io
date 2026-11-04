@@ -559,6 +559,20 @@ table.ratings .r-pt {
     height: 16px;
 }
 
+/* 播放/暂停、有声/静音两组图标常驻 DOM，只按状态显隐
+   （不要在点击时重写 innerHTML，否则事件目标会被换掉） */
+.mb-btn .ico {
+    display: none;
+    line-height: 0;
+}
+
+.music-box.is-paused .mb-play .ico-play,
+.music-box.is-playing .mb-play .ico-pause,
+.music-box:not(.is-muted) .mb-mute .ico-sound,
+.music-box.is-muted .mb-mute .ico-mute {
+    display: block;
+}
+
 /* 自动播放被拦截时的提示 */
 .music-box.is-hint .mb-disc {
     animation: mb-hint 2.4s ease-in-out infinite;
