@@ -278,6 +278,11 @@ table.crosstab td.rt.bye {
     font-size: 12px;
 }
 
+/* 假先：阴影格；假后：白格 */
+table.crosstab td.rt.first {
+    background: #ececec;
+}
+
 table.crosstab .c-pt,
 table.crosstab .c-tb,
 table.crosstab .c-rank {

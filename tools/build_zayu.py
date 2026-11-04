@@ -307,8 +307,8 @@ def compute(ms):
 
         apply(p1, k1)
         apply(p2, k2)
-        get(p1)['cells'][r] = ('p', p2, k1)
-        get(p2)['cells'][r] = ('p', p1, k2)
+        get(p1)['cells'][r] = ('p', p2, k1, 'first')    # 假先
+        get(p2)['cells'][r] = ('p', p1, k2, 'second')   # 假后
 
     # 虚拟积分 = 积分 + (弃权次数 - 轮空次数 - 对手弃权次数) * 0.5
     virtual = {}
@@ -529,9 +529,11 @@ def crosstab(rows, rounds, idmap):
                 cells.append('<td class="rt bye">轮空</td>')
             else:
                 no = idmap.get(c[1], '')
-                cells.append('<td class="rt"><span class="opp">%s</span>'
+                # 假先的格子用阴影底，假后留白
+                cls = 'rt first' if len(c) > 3 and c[3] == 'first' else 'rt'
+                cells.append('<td class="%s"><span class="opp">%s</span>'
                              '<span class="res">%s</span></td>'
-                             % (esc(no), SYM.get(c[2], '')))
+                             % (cls, esc(no), SYM.get(c[2], '')))
 
         out.append('                    <tr>'
                    '<td class="c-no">%s</td><td class="c-name">%s</td>%s'
