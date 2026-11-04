@@ -3,30 +3,38 @@
 """
 从五子棋赛事备份库（whr_backup_*.db）中抽取「赛事表」与「对局表」，生成：
 
-    data/renju.db      新的 SQLite 数据库（tournaments / matches 两张表）
-    zayu.html          杂豫栏目页：赛事列表
+    data/renju.db      新的 SQLite 数据库（tournaments / matches / ratings 三张表）
+    zayu.html          杂豫栏目页：赛事列表 + 等级分横幅
     zayu/t{id}.html    每场赛事的独立页面：赛事信息 + 成绩表（逐轮对手 / 积分 / 名次）
+    zayu/rating.html   河南高校爱好者等级分表（WHR 算法预先计算）
 
 用法：
     python tools/build_zayu.py <源数据库路径>
 
+依赖：等级分计算需要 whr 库（pip install whr），未安装时跳过等级分部分。
+
 注：zayu.html 与 zayu/ 下的页面均为脚本生成，手工修改会在下次生成时被覆盖。
 """
 
+import datetime
 import html
 import os
 import sqlite3
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# 不收录的赛事（按名称排除，重新生成时同样生效）
-EXCLUDE = {
-    '2026暑期高校大师练习赛',
-}
 
 DB_OUT = os.path.join(ROOT, 'data', 'renju.db')
+# 手工增补库：源备份库只读，赛后补录的赛事/对局与「不收录」名单都存在这里
+MANUAL_DB = os.path.join(ROOT, 'data', 'manual.db')
 LIST_OUT = os.path.join(ROOT, 'zayu.html')
 DETAIL_DIR = os.path.join(ROOT, 'zayu')
+RATING_OUT = os.path.join(DETAIL_DIR, 'rating.html')
+
+# 等级分参数：沿用 WHR 公开实现（renjurating）的取值
+RATING_W2 = 19.3          # 等级分随时间的波动幅度
+RATING_VIRTUAL = 2        # 首日附加两个虚拟和棋
+RATING_BASE = 1900.0      # 输出基准分
 
 BYE = '轮空'
 
@@ -100,23 +108,58 @@ FOOT = '        <p class="back-link"><a href="{back}">← 返回杂豫</a> · <a
 
 # ---------------------------------------------------------------- 数据读取
 
+def region_text(raw):
+    """把「河南省,开封市,」这类地区字段整理成「河南省 开封市」。"""
+    parts = [x.strip() for x in (raw or '').split(',')]
+    return ' '.join(x for x in parts if x)
+
+
+def read_manual():
+    """读手工增补库 data/manual.db。
+
+    源备份库当作只读原件，赛后补录与排除名单都写在这个库里：
+      hidden_tournaments  不收录的赛事（按名称）
+      tournaments_extra   新增赛事
+      matches_extra       新增对局（winner 编码与源库一致：1 / 0 / 0.5 / f0 / 0f / ff）
+    """
+    if not os.path.exists(MANUAL_DB):
+        return [], [], set()
+    m = sqlite3.connect(MANUAL_DB)
+    m.row_factory = sqlite3.Row
+    extra_t = [dict(r) for r in m.execute('SELECT * FROM tournaments_extra')]
+    extra_m = [dict(r) for r in m.execute('SELECT * FROM matches_extra')]
+    hidden = {r['name'] for r in m.execute('SELECT name FROM hidden_tournaments')}
+    m.close()
+    return extra_t, extra_m, hidden
+
+
 def fetch(src):
     s = sqlite3.connect(src)
     s.row_factory = sqlite3.Row
-    ts = [dict(r) for r in s.execute(
-        'SELECT * FROM tournaments WHERE is_public = 1 ORDER BY date DESC, id DESC')
-        if (r['name'] or '').strip() not in EXCLUDE]
+    extra_t, extra_m, hidden = read_manual()
+    ts = [dict(r) for r in s.execute('SELECT * FROM tournaments WHERE is_public = 1')
+          if (r['name'] or '').strip() not in hidden]
+    ts += [dict(r) for r in extra_t if (r['name'] or '').strip() not in hidden]
+    ts.sort(key=lambda t: ((t['date'] or ''), t['id']), reverse=True)
     ids = [t['id'] for t in ts]
     ph = ','.join('?' * len(ids))
     ms = [dict(r) for r in s.execute(
         'SELECT * FROM matches WHERE tournament_id IN (%s) '
         'ORDER BY tournament_id, round, board_number, id' % ph, ids)]
+    kept = set(ids)
+    ms += [dict(r) for r in extra_m if r['tournament_id'] in kept]
+    ms.sort(key=lambda m: (m['tournament_id'], m['round'] or 0,
+                           m['board_number'] or 0, m['id']))
     idmap = {r['name']: r['id'] for r in s.execute('SELECT name, id FROM players')}
+    unis = {r['name']: (r['university'] or '').strip()
+            for r in s.execute('SELECT name, university FROM players')}
+    regions = {r['name']: region_text(r['region'])
+               for r in s.execute('SELECT name, region FROM players')}
     s.close()
-    return ts, ms, idmap
+    return ts, ms, idmap, unis, regions
 
 
-def write_db(ts, ms):
+def write_db(ts, ms, ratings=None):
     os.makedirs(os.path.dirname(DB_OUT), exist_ok=True)
     if os.path.exists(DB_OUT):
         os.remove(DB_OUT)
@@ -148,6 +191,18 @@ def write_db(ts, ms):
         five_a        TEXT
     );
     CREATE INDEX idx_matches_tournament ON matches(tournament_id, round, board_number);
+    CREATE TABLE ratings (
+        name       TEXT PRIMARY KEY,
+        region     TEXT,
+        university TEXT,
+        rating     REAL,
+        games      INTEGER,
+        wins       INTEGER,
+        draws      INTEGER,
+        losses     INTEGER,
+        rank       INTEGER,
+        as_of      TEXT
+    );
     """)
     for t in ts:
         d.execute('INSERT INTO tournaments VALUES (?,?,?,?,?,?,?,?,?)',
@@ -159,6 +214,12 @@ def write_db(ts, ms):
                     RESULT.get(m['winner'], ('', ''))[0], m['date'],
                     m['board_record'] or '', m['swap_sequence'] or '', m['five_a'] or '')
                    for m in ms])
+    if ratings:
+        d.executemany('INSERT INTO ratings VALUES (?,?,?,?,?,?,?,?,?,?)',
+                      [(r['name'], r['region'], r['uni'], round(r['rating'], 1),
+                        r['games'], r['wins'], r['draws'], r['losses'],
+                        r['rank'], r['as_of'])
+                       for r in ratings])
     d.commit()
     d.close()
 
@@ -270,6 +331,128 @@ def compute(ms):
     return rows, rounds
 
 
+# ---------------------------------------------------------------- 等级分
+
+def compute_ratings(ms, unis, regions):
+    """用 WHR（Whole-History Rating）算法预先计算每位棋手的等级分。
+
+    只统计真正下完的对局：轮空、弃权（f0 / 0f / ff）与无结果的对局都不计入，
+    和局按 0.5 计。参数：w2 = 19.3，每人首日附加两个虚拟和棋，
+    输出「WHR 分数 + 基准分 1900」。
+    """
+    try:
+        import whr
+    except ImportError:
+        print('！ 未安装 whr 库，跳过等级分（python -m pip install whr）')
+        return None, None
+
+    played = []
+    for m in ms:
+        p1, p2, w = m['player1'], m['player2'], m['winner']
+        if p1 in (None, '', BYE) or p2 in (None, '', BYE) or not m['date']:
+            continue
+        res = {'1': 'B', '0': 'W', '0.5': 'D'}.get(w)
+        if res:
+            played.append((p1, p2, res, datetime.date.fromisoformat(m['date'])))
+    if not played:
+        return None, None
+
+    first = min(g[3] for g in played)
+    games = [(a, b, r, (d - first).days) for a, b, r, d in played]
+
+    stats = {}
+
+    def bump(name):
+        s = stats.setdefault(name, {'games': 0, 'wins': 0, 'draws': 0, 'losses': 0})
+        s['games'] += 1
+        return s
+
+    for a, b, r, _ in games:
+        if r == 'B':
+            bump(a)['wins'] += 1
+            bump(b)['losses'] += 1
+        elif r == 'W':
+            bump(a)['losses'] += 1
+            bump(b)['wins'] += 1
+        else:
+            bump(a)['draws'] += 1
+            bump(b)['draws'] += 1
+
+    base = whr.Base(config={'w2': RATING_W2, 'virtual_games': RATING_VIRTUAL})
+    base.create_games(games)
+    base.iterate_until_converge(verbose=False)
+
+    as_of = max(g[3] for g in played).isoformat()
+    rows = []
+    for name, hist in base.get_ordered_ratings():
+        s = stats.get(name, {'games': 0, 'wins': 0, 'draws': 0, 'losses': 0})
+        rows.append({'name': name, 'uni': unis.get(name, ''),
+                     'region': regions.get(name, ''),
+                     'rating': hist[-1][1] + RATING_BASE,
+                     'games': s['games'], 'wins': s['wins'],
+                     'draws': s['draws'], 'losses': s['losses'],
+                     'as_of': as_of})
+    rows.sort(key=lambda r: (-round(r['rating'], 1), -r['games'], r['name']))
+
+    # 等级分（保留一位小数）相同者并列
+    rank, prev = 0, None
+    for i, r in enumerate(rows, 1):
+        key = round(r['rating'], 1)
+        if key != prev:
+            rank, prev = i, key
+        r['rank'] = rank
+    return rows, as_of
+
+
+def rating_page(rows, as_of, n_tournaments, n_games):
+    note = ('按 WHR（Whole-History Rating）算法计算：w2 = %g，每人首日附加两个虚拟和棋，'
+            '结果加基准分 %d。统计范围为本栏目 %d 场赛事、%d 局有效对局'
+            '（轮空与弃权不计，和局按 0.5 计），共 %d 名棋手。'
+            % (RATING_W2, int(RATING_BASE), n_tournaments, n_games, len(rows)))
+
+    body = ['        <header class="article-header">',
+            '            <h1 class="article-title">河南高校爱好者等级分</h1>',
+            '            <div class="article-meta">',
+            '                <span>栏目：<a href="../zayu.html">杂豫</a></span>',
+            '                <span>%s 更新</span>' % esc(as_of),
+            '            </div>',
+            '        </header>',
+            '',
+            '        <p class="rating-note">%s</p>' % esc(note),
+            '',
+            '        <div class="table-scroll">',
+            '        <table class="ratings">',
+            '            <thead><tr>',
+            '                <th class="r-name">姓名</th>',
+            '                <th class="r-region">地区</th>',
+            '                <th class="r-uni">学校</th>',
+            '                <th class="r-pt">等级分</th>',
+            '            </tr></thead>',
+            '            <tbody>']
+
+    for r in rows:
+        body.append('                <tr><td class="r-name">%s</td>'
+                    '<td class="r-region">%s</td><td class="r-uni">%s</td>'
+                    '<td class="r-pt">%.1f</td></tr>'
+                    % (esc(r['name']), esc(r['region'] or '—'),
+                       esc(r['uni'] or '—'), r['rating']))
+
+    body += ['            </tbody>',
+             '        </table>',
+             '        </div>',
+             '',
+             FOOT.format(back='../zayu.html', home='../index.html')]
+
+    page = HEAD.format(
+        title='河南高校爱好者等级分（%s 更新） - 杂豫 - 连珠杂箱' % as_of,
+        desc='河南高校五子棋爱好者等级分，WHR 算法计算，%s 更新。' % as_of,
+        base='../',
+        base_attr=' data-base="../"',
+        body='\n'.join(body))
+    with open(RATING_OUT, 'w', encoding='utf-8') as f:
+        f.write(page)
+
+
 # ---------------------------------------------------------------- 页面
 
 def crosstab(rows, rounds, idmap):
@@ -316,8 +499,21 @@ def crosstab(rows, rounds, idmap):
     return out
 
 
-def detail_page(t, ms, idmap):
+def roster_ids(t, ms):
+    """赛事内编号：按参赛名单顺序从 1 开始，名单外出场的棋手依次续编。"""
+    names = [x.strip() for x in (t['participants'] or '').split(',') if x.strip()]
+    seen = set(names)
+    for m in ms:
+        for p in (m['player1'], m['player2']):
+            if p and p != BYE and p not in seen:
+                seen.add(p)
+                names.append(p)
+    return {n: i for i, n in enumerate(names, 1)}
+
+
+def detail_page(t, ms):
     rows, rounds = compute(ms)
+    idmap = roster_ids(t, ms)
 
     info = []
     if t['organizer']:
@@ -330,7 +526,7 @@ def detail_page(t, ms, idmap):
         info.append('用时：' + esc(t['time_limit']))
     if rows:
         info.append('棋手：%d 人' % len(rows))
-        info.append('轮次：%d 轮' % (len(rounds)))
+        info.append('轮次：%d 轮' % max(rounds))
         info.append('对局：%d 局' % sum(
             1 for m in ms if m['player1'] != BYE and m['player2'] != BYE))
 
@@ -370,10 +566,18 @@ def detail_page(t, ms, idmap):
         f.write(page)
 
 
-def list_page(ts, by_tid):
-    body = ['        <section>',
-            '            <h2>杂豫</h2>',
-            '            <ul class="tournament-list">']
+def list_page(ts, by_tid, as_of=None):
+    body = []
+    if as_of:
+        body += ['        <a class="banner" href="zayu/rating.html">',
+                 '            <span class="banner-text">河南高校爱好者等级分'
+                 '（%s 更新）</span>' % esc(as_of),
+                 '            <span class="banner-more">查看 →</span>',
+                 '        </a>',
+                 '']
+    body += ['        <section>',
+             '            <h2>杂豫</h2>',
+             '            <ul class="tournament-list">']
     for t in ts:
         n = sum(1 for m in by_tid.get(t['id'], [])
                 if m['player1'] != BYE and m['player2'] != BYE)
@@ -394,7 +598,7 @@ def list_page(ts, by_tid):
 
 
 def main(src):
-    ts, ms, idmap = fetch(src)
+    ts, ms, idmap, unis, regions = fetch(src)
     by_tid = {}
     for m in ms:
         by_tid.setdefault(m['tournament_id'], []).append(m)
@@ -404,15 +608,22 @@ def main(src):
         if old.startswith('t') and old.endswith('.html'):
             os.remove(os.path.join(DETAIL_DIR, old))
 
-    write_db(ts, ms)
+    ratings, as_of = compute_ratings(ms, unis, regions)
+    write_db(ts, ms, ratings)
     for t in ts:
-        detail_page(t, by_tid.get(t['id'], []), idmap)
-    list_page(ts, by_tid)
+        detail_page(t, by_tid.get(t['id'], []))
+    list_page(ts, by_tid, as_of)
+    if ratings:
+        rating_page(ratings, as_of, len(ts),
+                    sum(r['games'] for r in ratings) // 2)
 
     print('赛事 %d 场 / 对局 %d 局' % (len(ts), len(ms)))
     print('db     ->', DB_OUT)
     print('list   ->', LIST_OUT)
     print('detail ->', DETAIL_DIR, '(%d 页)' % len(ts))
+    if ratings:
+        print('rating ->', RATING_OUT,
+              '(%d 人，截至 %s)' % (len(ratings), as_of))
 
 
 if __name__ == '__main__':
