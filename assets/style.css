@@ -337,7 +337,7 @@ table.crosstab .c-rank {
 
 table.ratings {
     border-collapse: collapse;
-    table-layout: fixed;
+    table-layout: auto;
     font-size: 14px;
     line-height: 1.6;
     width: 100%;
@@ -358,6 +358,7 @@ table.ratings th {
 table.ratings td {
     padding: 4px 8px;
     border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
 }
 
 table.ratings tbody tr:hover td {
