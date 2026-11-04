@@ -300,6 +300,90 @@ table.crosstab .c-rank {
     color: #111111;
 }
 
+/* ---------- 杂豫：等级分 ---------- */
+
+.banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
+    padding: 10px 14px;
+    margin: 0 0 26px;
+    border: 1px solid #e6e6e6;
+    border-left: 3px solid #7d8fa5;
+    background: #fafbfc;
+    color: #222222;
+}
+
+.banner:hover {
+    background: #f3f5f7;
+    text-decoration: none;
+}
+
+.banner-text {
+    font-size: 16px;
+}
+
+.banner-more {
+    margin-left: auto;
+    font-size: 13px;
+    color: #666666;
+}
+
+.rating-note {
+    font-size: 13px;
+    line-height: 1.8;
+    color: #777777;
+    margin: 0 0 10px;
+}
+
+table.ratings {
+    border-collapse: collapse;
+    font-size: 14px;
+    line-height: 1.6;
+    width: 100%;
+}
+
+table.ratings th {
+    font-weight: normal;
+    font-size: 12px;
+    color: #666666;
+    text-align: left;
+    padding: 6px 8px;
+    border-top: 1px solid #dddddd;
+    border-bottom: 1px solid #dddddd;
+    background: #f7f7f7;
+    white-space: nowrap;
+}
+
+table.ratings td {
+    padding: 4px 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+table.ratings tbody tr:hover td {
+    background: #fbfbfb;
+}
+
+table.ratings .r-name {
+    min-width: 68px;
+    white-space: nowrap;
+}
+
+table.ratings .r-region,
+table.ratings .r-uni {
+    font-size: 13px;
+    color: #777777;
+}
+
+table.ratings .r-pt {
+    width: 80px;
+    text-align: right;
+    color: #111111;
+    padding-left: 12px;
+    white-space: nowrap;
+}
+
 .empty {
     color: #999999;
     font-size: 14px;
