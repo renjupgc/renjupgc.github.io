@@ -1,0 +1,201 @@
+/* 连珠杂箱 - 全站基础样式 */
+
+body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    color: #222222;
+    font-family: "SimSun", "宋体", serif;
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+a {
+    color: #0645ad;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.container {
+    max-width: 850px;
+    margin: 35px auto;
+    padding: 0 25px;
+}
+
+.site-title {
+    font-size: 28px;
+    font-weight: normal;
+    margin: 0;
+}
+
+.site-title a {
+    color: #222222;
+}
+
+.site-description {
+    font-size: 14px;
+    color: #777777;
+}
+
+nav {
+    border-top: 1px solid #cccccc;
+    border-bottom: 1px solid #cccccc;
+    margin: 20px 0 30px;
+    padding: 8px 0;
+}
+
+nav a {
+    margin-right: 25px;
+}
+
+section {
+    margin-bottom: 30px;
+}
+
+h2 {
+    font-size: 20px;
+    font-weight: normal;
+    border-bottom: 1px solid #eeeeee;
+    padding-bottom: 5px;
+    margin-bottom: 12px;
+}
+
+ul {
+    padding-left: 25px;
+}
+
+li {
+    margin-bottom: 6px;
+}
+
+.date {
+    font-size: 12px;
+    color: #999999;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+footer {
+    border-top: 1px solid #cccccc;
+    margin-top: 45px;
+    padding-top: 15px;
+    color: #888888;
+    font-size: 13px;
+}
+
+/* ---------- 文章页 ---------- */
+
+.article-header {
+    border-bottom: 1px solid #eeeeee;
+    padding-bottom: 14px;
+    margin-bottom: 24px;
+}
+
+.article-title {
+    font-size: 24px;
+    font-weight: normal;
+    line-height: 1.5;
+    margin: 0 0 10px;
+}
+
+.article-meta {
+    font-size: 13px;
+    color: #888888;
+}
+
+.article-meta span {
+    margin-right: 16px;
+}
+
+.lead {
+    color: #333333;
+    background: #fafafa;
+    border-left: 3px solid #dddddd;
+    padding: 12px 16px;
+    margin: 0 0 22px;
+}
+
+article p {
+    margin: 0 0 16px;
+}
+
+figure {
+    margin: 24px 0;
+}
+
+figure img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #eeeeee;
+    box-sizing: border-box;
+}
+
+figcaption {
+    font-size: 13px;
+    color: #888888;
+    margin-top: 8px;
+    text-align: center;
+}
+
+h3.subhead {
+    font-size: 17px;
+    font-weight: bold;
+    margin: 30px 0 12px;
+    padding-left: 10px;
+    border-left: 3px solid #999999;
+}
+
+.rank-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0 0 16px;
+}
+
+.rank-list li {
+    padding: 6px 0;
+    border-bottom: 1px dotted #e5e5e5;
+}
+
+.rank-list li:last-child {
+    border-bottom: none;
+}
+
+.rank-list .medal {
+    display: inline-block;
+    min-width: 30px;
+}
+
+.article-footer {
+    border-top: 1px solid #eeeeee;
+    margin-top: 36px;
+    padding-top: 14px;
+    font-size: 13px;
+    color: #888888;
+}
+
+.article-footer p {
+    margin: 0 0 6px;
+}
+
+.back-link {
+    margin-top: 26px;
+}
+
+@media (max-width: 600px) {
+    .container {
+        margin: 20px auto;
+        padding: 0 18px;
+    }
+
+    nav a {
+        margin-right: 15px;
+    }
+
+    .article-title {
+        font-size: 20px;
+    }
+}
