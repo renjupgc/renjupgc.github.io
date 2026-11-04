@@ -35,24 +35,37 @@
     var base = document.body.getAttribute('data-base') || '';
     var active = document.body.getAttribute('data-nav') || '';
 
-    var navHtml = NAV.map(function (item) {
-        var isActive = item.text === active;
-        var href = item.href === '#' ? '#' : base + item.href;
-        return '<a href="' + href + '"' +
-            (isActive ? ' class="active"' : '') +
-            '>' + item.text + '</a>';
-    }).join('\n        ');
+    function renderHeader() {
+        var navHtml = NAV.map(function (item) {
+            var isActive = item.text === active;
+            var href = item.href === '#' ? '#' : base + item.href;
+            return '<a href="' + href + '"' +
+                (isActive ? ' class="active"' : '') +
+                '>' + item.text + '</a>';
+        }).join('\n        ');
 
-    var html =
-        '<header>\n' +
-        '    <h1 class="site-title"><a href="' + base + 'index.html">' + SITE.title + '</a></h1>\n' +
-        '    <nav>\n        ' + navHtml + '\n    </nav>\n' +
-        '</header>';
+        var html =
+            '<header>\n' +
+            '    <h1 class="site-title"><a href="' + base + 'index.html">' + SITE.title + '</a></h1>\n' +
+            '    <nav>\n        ' + navHtml + '\n    </nav>\n' +
+            '</header>';
 
-    var mount = document.getElementById('site-header');
-    if (mount) {
-        mount.innerHTML = html;
+        var mount = document.getElementById('site-header');
+        if (mount) {
+            mount.innerHTML = html;
+        }
     }
+
+    renderHeader();
+
+    /* 供站内无刷新跳转（见文件末尾）在换页后重新高亮导航 */
+    window.ZBX = {
+        renderHeader: function () {
+            base = document.body.getAttribute('data-base') || '';
+            active = document.body.getAttribute('data-nav') || '';
+            renderHeader();
+        }
+    };
 })();
 
 /*
@@ -269,23 +282,81 @@
     playBtn.addEventListener('click', togglePlay);
     muteBtn.addEventListener('click', toggleMute);
 
+    /* 点盒子的空白或文字区域也算播放/暂停（按钮各管各的） */
+    box.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('button')) {
+            return;
+        }
+        togglePlay();
+    });
+
     audio.addEventListener('play', render);
     audio.addEventListener('pause', render);
     audio.addEventListener('volumechange', render);
 
-    audio.addEventListener('loadedmetadata', function () {
-        var t = parseFloat(read('sessionStorage', K_TIME) || '0');
-        if (t > 2 && audio.duration && t < audio.duration - 4) {
-            try {
-                audio.currentTime = t;
-            } catch (e) {
-                /* 忽略 */
-            }
+    /*
+     * 播放位置：边播边存，翻页接着放
+     * ------------------------------------------------------------
+     * 只在 pagehide 保存是不够的——页面卸载的瞬间，部分浏览器已经把
+     * currentTime 复位成 0，反而会把刚存好的位置覆盖掉，导致翻页后重播。
+     * 所以改为播放中即时记录，离开时只补最后一笔，并且拒绝用 0 覆盖进度。
+     */
+
+    var savedPos = parseFloat(read('sessionStorage', K_TIME) || '0') || 0;
+    var lastWrite = -1;
+    var seekTries = 0;
+
+    function applySeek() {
+        if (!(savedPos > 2) || !isFinite(savedPos)) {
+            return;
         }
+        var total = audio.duration;
+        if (!total || !isFinite(total) || savedPos > total - 3) {
+            return;
+        }
+        if (audio.currentTime > savedPos - 1) {
+            return; /* 已在这个位置之后，不往回拉 */
+        }
+        if (seekTries >= 4) {
+            return; /* 媒体不可定位时不要反复试 */
+        }
+        seekTries++;
+        try {
+            audio.currentTime = savedPos;
+        } catch (e) {
+            /* 忽略 */
+        }
+    }
+
+    function saveTime(force) {
+        var t = audio.currentTime;
+        if (!t || !isFinite(t) || t <= 0.5) {
+            return; /* 不用 0 覆盖已有进度 */
+        }
+        if (!force && Math.abs(t - lastWrite) < 1.5) {
+            return;
+        }
+        lastWrite = t;
+        write('sessionStorage', K_TIME, String(Math.floor(t)));
+    }
+
+    audio.addEventListener('loadedmetadata', applySeek);
+    audio.addEventListener('canplay', applySeek);
+    audio.addEventListener('playing', applySeek);
+    audio.addEventListener('timeupdate', function () {
+        saveTime(false);
     });
+    window.setInterval(function () {
+        saveTime(false);
+    }, 1000);
 
     window.addEventListener('pagehide', function () {
-        write('sessionStorage', K_TIME, String(audio.currentTime || 0));
+        saveTime(true);
+    });
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            saveTime(true);
+        }
     });
 
     if ('mediaSession' in navigator && typeof window.MediaMetadata === 'function') {
@@ -306,8 +377,121 @@
     var stopped = read('sessionStorage', K_OFF) === '1';
 
     render();
+    applySeek();
 
     if (!muted && !stopped) {
         play();
     }
+})();
+
+/*
+ * 站内无刷新跳转
+ * ------------------------------------------------------------
+ * 点站内链接时不再整页重载，只把目标页的 <main> 换进来。
+ * 常驻的 <audio> 因此不会被销毁——音乐一路接着放，不会重播。
+ *
+ * - 地址栏由 History API 维护，前进/后退、刷新、直接访问、收藏都照常；
+ * - 换页后同步 data-nav / data-base 并重绘导航高亮；
+ * - fetch 失败（离线、404、被拦截）就退回整页跳转，功能不受影响；
+ * - 外站链接、带修饰键、中键、target=_blank、锚点、非 .html 资源
+ *   一律交给浏览器默认行为。
+ */
+(function () {
+    'use strict';
+
+    if (!window.fetch || !window.DOMParser || !window.history || !history.pushState) {
+        return;
+    }
+
+    var busy = false;
+
+    function load(url, opts) {
+        opts = opts || {};
+        if (busy) {
+            return;
+        }
+        busy = true;
+
+        fetch(url, { credentials: 'same-origin' })
+            .then(function (res) {
+                if (!res.ok) {
+                    throw new Error('HTTP ' + res.status);
+                }
+                return res.text();
+            })
+            .then(function (text) {
+                var doc = new DOMParser().parseFromString(text, 'text/html');
+                var incoming = doc.querySelector('main');
+                var current = document.querySelector('main');
+                if (!incoming || !current) {
+                    throw new Error('缺少 main 容器');
+                }
+
+                if (opts.push !== false) {
+                    history.replaceState({ zbx: 1, scrollY: window.pageYOffset }, '', location.href);
+                    history.pushState({ zbx: 1, scrollY: 0 }, '', url);
+                }
+
+                current.innerHTML = incoming.innerHTML;
+                document.title = doc.title;
+                document.body.setAttribute('data-nav', doc.body.getAttribute('data-nav') || '');
+                document.body.setAttribute('data-base', doc.body.getAttribute('data-base') || '');
+                if (window.ZBX && window.ZBX.renderHeader) {
+                    window.ZBX.renderHeader();
+                }
+                window.scrollTo(0, typeof opts.scrollY === 'number' ? opts.scrollY : 0);
+                busy = false;
+            })
+            .catch(function () {
+                busy = false;
+                window.location.href = url; /* 退回整页跳转 */
+            });
+    }
+
+    document.addEventListener('click', function (e) {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+            return;
+        }
+
+        var el = e.target;
+        while (el && el.nodeType === 1 && el.nodeName.toLowerCase() !== 'a') {
+            el = el.parentNode;
+        }
+        if (!el || el.nodeName.toLowerCase() !== 'a') {
+            return;
+        }
+        if ((el.target && el.target !== '_self') || el.hasAttribute('download') || el.hasAttribute('data-full')) {
+            return;
+        }
+
+        var href = el.getAttribute('href');
+        if (!href || href.charAt(0) === '#' || /^(mailto:|tel:|javascript:)/i.test(href)) {
+            return;
+        }
+
+        var url;
+        try {
+            url = new URL(el.href, location.href);
+        } catch (err) {
+            return;
+        }
+
+        if (url.protocol !== location.protocol || url.host !== location.host) {
+            return;
+        }
+        if (!/\.html?$/i.test(url.pathname) || url.hash) {
+            return;
+        }
+        if (url.href === location.href) {
+            e.preventDefault();
+            return;
+        }
+
+        e.preventDefault();
+        load(url.href, { scrollY: 0 });
+    });
+
+    window.addEventListener('popstate', function (e) {
+        load(location.href, { push: false, scrollY: (e.state && e.state.scrollY) || 0 });
+    });
 })();
