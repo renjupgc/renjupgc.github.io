@@ -440,10 +440,12 @@ def compute_ratings(ms, unis, regions):
                      'events': len(events.get(name, ())),
                      'as_of': as_of})
 
-    # 入榜门槛：本省高校选手须下满 4 局；外省高校选手须至少参加 2 场比赛
+    # 入榜门槛：地区或学校沾河南的，须下满 4 局；其余的须至少参加 2 场比赛
+    def is_henan(r):
+        return '河南' in (r['region'] or '') or '河南' in (r['uni'] or '')
+
     rows = [r for r in rows
-            if (r['games'] > 3 if '河南' in (r['uni'] or '')
-                else r['events'] >= 2)]
+            if (r['games'] > 3 if is_henan(r) else r['events'] >= 2)]
 
     for r in rows:
         r['pt'] = round(r['rating'], 2)       # 等级分保留两位小数
