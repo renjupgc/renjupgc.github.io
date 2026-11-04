@@ -251,12 +251,6 @@ table.matches .c-result {
     white-space: nowrap;
 }
 
-table.matches .c-date {
-    color: #999999;
-    font-size: 13px;
-    white-space: nowrap;
-}
-
 .empty {
     color: #999999;
     font-size: 14px;
@@ -274,9 +268,5 @@ table.matches .c-date {
 
     .article-title {
         font-size: 20px;
-    }
-
-    table.matches .c-date {
-        display: none;
     }
 }
