@@ -332,6 +332,7 @@ table.crosstab .c-rank {
 
 table.ratings {
     border-collapse: collapse;
+    table-layout: fixed;
     font-size: 14px;
     line-height: 1.6;
     width: 100%;
@@ -359,28 +360,34 @@ table.ratings tbody tr:hover td {
 }
 
 table.ratings .r-rank {
-    width: 46px;
+    width: 44px;
     text-align: right;
     color: #888888;
     padding-right: 6px;
 }
 
 table.ratings .r-name {
-    min-width: 68px;
+    width: 76px;
     white-space: nowrap;
 }
 
-table.ratings .r-region,
+table.ratings .r-region {
+    width: 122px;
+    font-size: 13px;
+    color: #777777;
+    white-space: nowrap;
+}
+
 table.ratings .r-uni {
     font-size: 13px;
     color: #777777;
 }
 
 table.ratings .r-pt {
-    width: 84px;
+    width: 66px;
     text-align: right;
     color: #111111;
-    padding-left: 12px;
+    padding-left: 8px;
     white-space: nowrap;
 }
 
