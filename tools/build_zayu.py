@@ -171,19 +171,17 @@ def detail_page(t, ms):
 
     if ms:
         body.append('            <table class="matches">')
-        body.append('                <thead><tr><th>轮</th><th>台</th><th>选手一</th>'
-                    '<th>结果</th><th>选手二</th><th>日期</th></tr></thead>')
+        body.append('                <thead><tr><th>轮</th><th>台</th><th>假先</th>'
+                    '<th>结果</th><th>假后</th></tr></thead>')
         body.append('                <tbody>')
         for m in ms:
             res, _ = RESULT.get(m['winner'], ('—', ''))
             body.append('                    <tr><td class="c-round">%s</td>'
                         '<td class="c-board">%s</td><td class="c-player">%s</td>'
-                        '<td class="c-result">%s</td><td class="c-player">%s</td>'
-                        '<td class="c-date">%s</td></tr>' %
+                        '<td class="c-result">%s</td><td class="c-player">%s</td></tr>' %
                         ('—' if m['round'] is None else m['round'],
                          '—' if m['board_number'] is None else m['board_number'],
-                         esc(m['player1']), res or '—', esc(m['player2']),
-                         esc(m['date'] or '')))
+                         esc(m['player1']), res or '—', esc(m['player2'])))
         body.append('                </tbody>')
         body.append('            </table>')
     else:
