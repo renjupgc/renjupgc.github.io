@@ -216,7 +216,7 @@ def write_db(ts, ms, ratings=None):
                    for m in ms])
     if ratings:
         d.executemany('INSERT INTO ratings VALUES (?,?,?,?,?,?,?,?,?,?)',
-                      [(r['name'], r['region'], r['uni'], round(r['rating'], 1),
+                      [(r['name'], r['region'], r['uni'], r['pt'],
                         r['games'], r['wins'], r['draws'], r['losses'],
                         r['rank'], r['as_of'])
                        for r in ratings])
@@ -392,24 +392,20 @@ def compute_ratings(ms, unis, regions):
                      'games': s['games'], 'wins': s['wins'],
                      'draws': s['draws'], 'losses': s['losses'],
                      'as_of': as_of})
-    rows.sort(key=lambda r: (-round(r['rating'], 1), -r['games'], r['name']))
+    for r in rows:
+        r['pt'] = int(r['rating'] + 0.5)      # 等级分取整
+    rows.sort(key=lambda r: (-r['pt'], -r['games'], r['name']))
 
-    # 等级分（保留一位小数）相同者并列
+    # 等级分相同者并列
     rank, prev = 0, None
     for i, r in enumerate(rows, 1):
-        key = round(r['rating'], 1)
-        if key != prev:
-            rank, prev = i, key
+        if r['pt'] != prev:
+            rank, prev = i, r['pt']
         r['rank'] = rank
     return rows, as_of
 
 
 def rating_page(rows, as_of, n_tournaments, n_games):
-    note = ('按 WHR（Whole-History Rating）算法计算：w2 = %g，每人首日附加两个虚拟和棋，'
-            '结果加基准分 %d。统计范围为本栏目 %d 场赛事、%d 局有效对局'
-            '（轮空与弃权不计，和局按 0.5 计），共 %d 名棋手。'
-            % (RATING_W2, int(RATING_BASE), n_tournaments, n_games, len(rows)))
-
     body = ['        <header class="article-header">',
             '            <h1 class="article-title">河南高校爱好者等级分</h1>',
             '            <div class="article-meta">',
@@ -418,11 +414,10 @@ def rating_page(rows, as_of, n_tournaments, n_games):
             '            </div>',
             '        </header>',
             '',
-            '        <p class="rating-note">%s</p>' % esc(note),
-            '',
             '        <div class="table-scroll">',
             '        <table class="ratings">',
             '            <thead><tr>',
+            '                <th class="r-rank">名次</th>',
             '                <th class="r-name">姓名</th>',
             '                <th class="r-region">地区</th>',
             '                <th class="r-uni">学校</th>',
@@ -431,11 +426,12 @@ def rating_page(rows, as_of, n_tournaments, n_games):
             '            <tbody>']
 
     for r in rows:
-        body.append('                <tr><td class="r-name">%s</td>'
+        body.append('                <tr><td class="r-rank">%d</td>'
+                    '<td class="r-name">%s</td>'
                     '<td class="r-region">%s</td><td class="r-uni">%s</td>'
-                    '<td class="r-pt">%.1f</td></tr>'
-                    % (esc(r['name']), esc(r['region'] or '—'),
-                       esc(r['uni'] or '—'), r['rating']))
+                    '<td class="r-pt">%d</td></tr>'
+                    % (r['rank'], esc(r['name']), esc(r['region'] or '—'),
+                       esc(r['uni'] or '—'), r['pt']))
 
     body += ['            </tbody>',
              '        </table>',

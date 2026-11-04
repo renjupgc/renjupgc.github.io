@@ -330,13 +330,6 @@ table.crosstab .c-rank {
     color: #666666;
 }
 
-.rating-note {
-    font-size: 13px;
-    line-height: 1.8;
-    color: #777777;
-    margin: 0 0 10px;
-}
-
 table.ratings {
     border-collapse: collapse;
     font-size: 14px;
@@ -365,6 +358,13 @@ table.ratings tbody tr:hover td {
     background: #fbfbfb;
 }
 
+table.ratings .r-rank {
+    width: 46px;
+    text-align: right;
+    color: #888888;
+    padding-right: 6px;
+}
+
 table.ratings .r-name {
     min-width: 68px;
     white-space: nowrap;
@@ -377,7 +377,7 @@ table.ratings .r-uni {
 }
 
 table.ratings .r-pt {
-    width: 80px;
+    width: 72px;
     text-align: right;
     color: #111111;
     padding-left: 12px;
