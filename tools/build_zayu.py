@@ -20,6 +20,11 @@ import sqlite3
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 不收录的赛事（按名称排除，重新生成时同样生效）
+EXCLUDE = {
+    '2026暑期高校大师练习赛',
+}
+
 DB_OUT = os.path.join(ROOT, 'data', 'renju.db')
 LIST_OUT = os.path.join(ROOT, 'zayu.html')
 DETAIL_DIR = os.path.join(ROOT, 'zayu')
@@ -74,7 +79,8 @@ def fetch(src):
     s = sqlite3.connect(src)
     s.row_factory = sqlite3.Row
     ts = [dict(r) for r in s.execute(
-        'SELECT * FROM tournaments WHERE is_public = 1 ORDER BY date DESC, id DESC')]
+        'SELECT * FROM tournaments WHERE is_public = 1 ORDER BY date DESC, id DESC')
+        if (r['name'] or '').strip() not in EXCLUDE]
     ids = [t['id'] for t in ts]
     ph = ','.join('?' * len(ids))
     ms = [dict(r) for r in s.execute(
