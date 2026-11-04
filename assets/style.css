@@ -178,6 +178,19 @@ h3.subhead {
     margin-top: 26px;
 }
 
+/* 文末「相关」跳转 */
+.related {
+    font-size: 14px;
+    color: #555555;
+    line-height: 1.9;
+    margin: 22px 0 0;
+}
+
+.related .k {
+    color: #999999;
+    margin-right: 4px;
+}
+
 /* ---------- 杂豫：赛事与对局 ---------- */
 
 .tournament-list li {
