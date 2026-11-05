@@ -130,6 +130,25 @@
 
     .ml-toolbar .ml-spacer { flex: 1; }
 
+    .ml-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 16px;
+    }
+
+    .ml-bar .ml-spacer { flex: 1; }
+
+    .ml-note {
+        font-family: var(--sans);
+        font-size: 12.5px;
+        line-height: 1.7;
+        color: var(--muted);
+    }
+
+    .ml-note b { color: var(--ink-2); font-weight: 600; }
+
     /* ---------- 破同分 ---------- */
     .ml-tb { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 
@@ -446,6 +465,9 @@
     .ml-case .ml-cond-tag { color: var(--faint); font-size: 11.5px; margin-left: 6px; }
 
     @media (max-width: 640px) {
+        .ml-bar { flex-wrap: wrap; }
+        .ml-bar .ml-spacer { display: none; }
+        .ml-bar .ml-note { flex: 1 0 100%; }
         .ml-card { padding: 16px 14px 18px; border-radius: 14px; }
         .ml-solve-grid { grid-template-columns: 1fr; }
         .ml-tb .ml-tb-hint { display: none; }
@@ -468,27 +490,23 @@
             <p class="page-desc">只看每轮的累计积分，用相邻两轮的分差还原成绩；破同分顺序随你排，算出最后一轮要什么结果才能进目标名次。</p>
         </header>
 
-        <section class="ml-card" id="card-roster">
-            <h2><span class="ml-step">01</span>名单</h2>
-            <div class="ml-toolbar">
-                <button class="ml-btn is-primary" id="btn-roster">导入名单</button>
-                <button class="ml-btn" id="btn-demo">载入示例</button>
-                <span class="ml-spacer"></span>
-                <button class="ml-btn is-quiet" id="btn-export">导出存档</button>
-                <button class="ml-btn is-quiet" id="btn-import">导入存档</button>
-                <button class="ml-btn is-quiet" id="btn-reset">清空</button>
-            </div>
-            <p class="ml-hint" id="roster-hint">尚未导入名单。</p>
-        </section>
+        <div class="ml-bar">
+            <span class="ml-note" id="roster-hint">还没有名单，粘贴任意一轮成绩就会自动建出来。</span>
+            <span class="ml-spacer"></span>
+            <button class="ml-btn is-quiet" id="btn-demo">载入示例</button>
+            <button class="ml-btn is-quiet" id="btn-export">导出存档</button>
+            <button class="ml-btn is-quiet" id="btn-import">导入存档</button>
+            <button class="ml-btn is-quiet" id="btn-reset">清空</button>
+        </div>
 
         <section class="ml-card" id="card-tb">
-            <h2><span class="ml-step">02</span>破同分</h2>
+            <h2><span class="ml-step">01</span>破同分</h2>
             <ul class="ml-tb" id="tb-list"></ul>
             <p class="ml-hint">默认顺序：<b>对手分 → 中间对手分 → 胜局数</b>。中间对手分去头去尾，去 1／去 2 只去最低的。</p>
         </section>
 
         <section class="ml-card" id="card-entry">
-            <h2><span class="ml-step">03</span>逐轮录入</h2>
+            <h2><span class="ml-step">02</span>逐轮录入</h2>
 
             <div class="ml-tabs" id="round-tabs"></div>
             <div class="ml-rounds">
@@ -520,7 +538,7 @@
         </section>
 
         <section class="ml-card" id="card-solve">
-            <h2><span class="ml-step">04</span>末轮推算</h2>
+            <h2><span class="ml-step">03</span>末轮推算</h2>
             <div class="ml-solve-grid">
                 <label class="ml-field">
                     <span>选手</span>
@@ -1483,7 +1501,7 @@
     function syncSetup() {
         var hint = $('#roster-hint');
         if (!state.players.length) {
-            hint.textContent = '尚未导入名单。';
+            hint.textContent = '还没有名单，粘贴任意一轮成绩就会自动建出来。';
         } else {
             var units = {};
             state.players.forEach(function (p) { if (p.unit) { units[p.unit] = 1; } });
@@ -1549,8 +1567,9 @@
         hint.hidden = true;
 
         if (!state.players.length) {
-            host.innerHTML = '<div class="ml-empty">还没有名单。<br>先导入「编号 姓名 单位」，再逐轮填积分。' +
-                '<br><button class="ml-btn" data-act="roster">导入名单</button></div>';
+            host.innerHTML = '<div class="ml-empty">还没有名单。<br>点「粘贴本轮」贴入任意一轮成绩，' +
+                '名单会按编号自动建立。' +
+                '<br><button class="ml-btn" data-act="paste">粘贴本轮</button></div>';
             bindEmpty();
             return;
         }
@@ -1688,29 +1707,27 @@
     }
 
     function bindEmpty() {
-        var b = entryHost.querySelector('[data-act="roster"]');
-        if (b) { b.addEventListener('click', openRoster); }
+        var b = entryHost.querySelector('[data-act="paste"]');
+        if (b) { b.addEventListener('click', openCurrentPaste); }
     }
 
-    /* ---------------- 粘贴 / 名单 ---------------- */
+    /* ---------------- 粘贴 ---------------- */
 
-    var pasteMode = 'score';
-
-    function openPaste(text, mode) {
-        pasteMode = mode || 'score';
+    function openPaste(text) {
         var box = $('#paste-box');
         box.hidden = false;
         if (text != null) { $('#paste-text').value = text; }
-        $('#btn-apply-paste').textContent = pasteMode === 'roster' ? '更新名单' : '填入本轮';
         $('#paste-hint').textContent = '';
         box.scrollIntoView({ behavior: 'smooth', block: 'center' });
         $('#paste-text').focus();
     }
 
-    $('#btn-paste').addEventListener('click', function () {
-        openPaste(null, 'score');
-        $('#paste-hint').textContent = '第 ' + curRound + ' 轮：可整段粘贴成绩单文字';
-    });
+    function openCurrentPaste() {
+        openPaste(null);
+        $('#paste-hint').textContent = '第 ' + curRound + ' 轮：整段粘贴成绩单，名单按编号自动建立';
+    }
+
+    $('#btn-paste').addEventListener('click', openCurrentPaste);
 
     $('#btn-close-paste').addEventListener('click', function () { $('#paste-box').hidden = true; });
 
@@ -1718,38 +1735,26 @@
         var text = $('#paste-text').value;
         if (!text.trim()) { return; }
 
-        if (pasteMode === 'roster') {
-            var rr = ML.parseText(text, []);
-            if (!rr.rows.length) {
-                $('#paste-hint').textContent = '没认出名单，每行写成「编号 姓名 单位」';
-                return;
-            }
-            state.players = rr.rows.map(function (r) {
-                return { id: r.id, name: r.name, unit: r.unit || '' };
-            });
-            state.players.sort(function (a, b) { return a.id - b.id; });
-            $('#paste-hint').textContent = '名单已更新为 ' + state.players.length + ' 人' +
-                (rr.bad.length ? '，' + rr.bad.length + ' 行没认出来' : '');
-            save();
-            renderTabs(); syncSetup(); renderEntry(); refreshAll();
-            return;
-        }
-
         var first = ML.parseText(text, state.players);
         if (!first.rows.length) {
             $('#paste-hint').textContent = '没认出任何一行，检查是否以编号开头';
             return;
         }
 
-        /* 名单为空或出现新编号时补进名单 */
+        /* 名单按编号自动建立：没见过的新编号补进来，已有的只补空的姓名/单位 */
         var added = 0;
         first.rows.forEach(function (r) {
-            var exists = state.players.some(function (p) { return p.id === r.id; });
-            if (!exists) {
+            var p = null;
+            state.players.forEach(function (x) { if (x.id === r.id) { p = x; } });
+            if (!p) {
                 state.players.push({ id: r.id, name: r.name, unit: r.unit || '' });
                 added++;
+            } else {
+                if (!p.name) { p.name = r.name; }
+                if (!p.unit && r.unit) { p.unit = r.unit; }
             }
         });
+        state.players.sort(function (a, b) { return a.id - b.id; });
 
         /* 名单补齐后重解析一次，这次能认出对手编号 */
         var res = ML.parseText(text, state.players);
@@ -1769,18 +1774,6 @@
     }
 
     $('#btn-apply-paste').addEventListener('click', applyPaste);
-
-    function openRoster() {
-        openPaste(state.players.map(function (p) {
-            return p.id + ' ' + p.name + (p.unit ? ' ' + p.unit : '');
-        }).join('\n'), 'roster');
-        $('#paste-hint').textContent = '每行「编号 姓名 单位」，改完点「更新名单」';
-    }
-
-    $('#btn-roster').addEventListener('click', openRoster);
-
-    /* 名单粘贴时不该填成绩：单独一个入口 */
-    $('#btn-roster').addEventListener('dblclick', function () {});
 
    $('#btn-clear').addEventListener('click', function () {
         if (!confirm('清空第 ' + curRound + ' 轮的积分与对手？')) { return; }
