@@ -477,20 +477,15 @@ table.ratings .r-name a:hover {
     margin: 0 0 8px;
 }
 
-.mention-rank {
-    color: #8a6d28;
-}
-
-.mention-note {
-    font-size: 12px;
-    color: #999999;
-    margin: 0 0 10px;
-}
-
+/* 报道清单：日期沿用全站 .date 的淡灰小字，紧跟在标题之后 */
 .mention-list {
     font-size: 13px;
     margin: 0;
     padding-left: 20px;
+}
+
+.mention-list li {
+    margin: 3px 0;
 }
 
 table.crosstab.p-games {
@@ -499,6 +494,44 @@ table.crosstab.p-games {
 
 table.crosstab.p-games td.c-opp {
     min-width: 76px;
+}
+
+/* 赛事名称长短差别大，名次列固定窄宽即可 */
+table.crosstab.p-events .c-rank {
+    width: 84px;
+}
+
+/* 参赛记录前三名：实心徽标，第一名为金 */
+table.crosstab .rank-badge {
+    display: inline-block;
+    min-width: 22px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+table.crosstab .rank-badge.r1 {
+    color: #ffffff;
+    background: #b2914f;
+    box-shadow: 0 0 0 2px #f1e9d6;
+}
+
+table.crosstab .rank-badge.r2 {
+    color: #4a3f28;
+    background: #d8cbaa;
+}
+
+table.crosstab .rank-badge.r3 {
+    color: #5f5334;
+    background: #eae2cf;
+}
+
+.table-note {
+    font-size: 12px;
+    color: #999999;
+    margin: 10px 0 0;
 }
 
 table.crosstab td.res-win {
