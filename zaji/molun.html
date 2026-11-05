@@ -406,6 +406,22 @@
 
     .ml-empty .ml-btn { margin-top: 10px; }
 
+    /* ---------- 退赛识别 ---------- */
+    .ml-wd {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
+        margin: 2px 0 10px;
+        font-family: var(--sans);
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--ink-3);
+    }
+
+    .ml-wd-k { color: var(--faint); letter-spacing: 0.06em; }
+    .ml-wd-i i { font-style: normal; margin-left: 4px; font-size: 11px; color: var(--faint); }
+
     .ml-paste { margin: 0 0 14px; }
     .ml-paste[hidden] { display: none; }
 
@@ -652,12 +668,82 @@
         color: var(--gold-deep);
     }
 
-    .ml-rep-games { margin: 0 0 6px; color: var(--ink-3); font-size: 12px; }
+    .ml-rep-games {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 6px;
+        align-items: center;
+        margin: 0 0 6px;
+        color: var(--ink-3);
+        font-size: 12px;
+    }
+
+    /* 顶部固定区：逐场选 胜/平/负 */
+    .ml-pin-select {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin: 0 0 10px;
+        padding: 8px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--surface-2);
+    }
+
+    .ml-pin-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .ml-pin-pair { color: var(--ink-2); font-size: 12px; }
+
+    .ml-pin-opts {
+        display: inline-flex;
+        gap: 0;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .ml-pin-opt {
+        border: 0;
+        background: var(--surface);
+        color: var(--muted);
+        font-family: var(--sans);
+        font-size: 12px;
+        line-height: 1.7;
+        padding: 1px 10px;
+        cursor: pointer;
+        transition: background-color 0.14s ease, color 0.14s ease;
+    }
+
+    .ml-pin-opt + .ml-pin-opt { border-left: 1px solid var(--line); }
+    .ml-pin-opt:hover { color: var(--ink); background: var(--gold-tint); }
+    .ml-pin-opt.is-on { color: #fff; background: var(--gold); font-weight: 600; }
+
+    .ml-pin-all {
+        align-self: flex-start;
+        border: 0;
+        background: none;
+        padding: 1px 2px;
+        font-family: var(--sans);
+        font-size: 11.5px;
+        color: var(--faint);
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .ml-pin-all:hover { color: var(--ink-2); }
 
     .ml-rep-none { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
 
     .ml-cmp-wrap {
-        overflow-x: auto;
+        overflow: auto;
+        max-height: 340px;
         border-radius: 6px;
         -webkit-overflow-scrolling: touch;
     }
@@ -673,11 +759,15 @@
     }
 
     table.ml-cmp th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
         font-weight: 600;
         font-size: 11px;
         color: var(--faint);
         text-align: left;
         padding: 4px 8px;
+        background: var(--surface);
         border-bottom: 1px solid var(--line-soft);
         white-space: nowrap;
     }
@@ -702,6 +792,7 @@
         .ml-tb .ml-tb-hint { display: none; }
         .ml-table-wrap { max-height: 56vh; }
         .ml-term-detail { padding: 9px 8px; }
+        .ml-cmp-wrap { max-height: 300px; }
         table.ml-cmp { font-size: 11.5px; }
         table.ml-cmp th,
         table.ml-cmp td { padding: 4px 6px; }
@@ -734,6 +825,7 @@
         <section class="ml-card" id="card-tb">
             <h2><span class="ml-step">01</span>破同分</h2>
             <ul class="ml-tb" id="tb-list"></ul>
+            <p class="ml-hint" id="tb-note">对手分按 FIDE 调整：没下成的局都占一个槽位，不能丢。轮空那一槽按虚拟对手「总轮数×0.5」计，未弈和退赛那一槽按虚拟对手 0 计。虚拟积分（别人算你时你算几分）= 积分 + 0.5×(弃权次数 + 退赛轮数 + 未弈轮数) − 0.5×(轮空次数 + 对手弃权次数)，也就是没下成的局一律按和棋 0.5 分算。退赛的人按对阵表自动识别（哪一轮起名单上没有他），对别人一律按虚拟分 0 计。</p>
         </section>
 
         <section class="ml-card" id="card-entry">
@@ -764,6 +856,7 @@
                 </div>
             </div>
 
+            <p class="ml-wd" id="wd-line" hidden></p>
             <div id="entry-host"></div>
             <p class="ml-hint" id="entry-hint" hidden></p>
         </section>
@@ -806,7 +899,7 @@
  *     totalRounds: 7,
  *     players: [{ id, name, unit }],
  *     rounds: [{ r: 3, pre: {1: 2, 2: 1.5}, opps: {1: 2, 2: 1}, ff: [3] }],
- *     withdrawn: { 33: 6 },          // 编号 -> 从第几轮起退赛
+ *     withdrawn: { 33: 6 },          // 可选：编号 -> 从第几轮起退赛；不给就按对阵表自动识别
  *     tiebreaks: ['buch', 'med', 'wins']
  *   }
  *
@@ -825,8 +918,13 @@
         byePoint: 1,          // 轮空得几分
         byeAsWin: false,      // 轮空算不算胜局数
         ffWinAsWin: false,    // 对手弃权白捡的一胜算不算胜局数
-        ffSign: -1,           // 自身弃权的虚拟分调整方向
-        noneAsHalf: true,     // 未弈按和棋计入虚拟分
+        /* 虚拟积分（别人算对手分时，这个人算几分）：
+         *   积分 + 0.5×(弃权次数 + 退赛轮数 + 未弈轮数) − 0.5×(轮空次数 + 对手弃权次数)
+         * 一句话：没下成的局一律按和棋 0.5 分算；轮空、对手弃权白捡的一分要减回去。
+         * 每一局都占一个对手分槽位，不能丢：
+         *   轮空那一槽 = 虚拟对手「总轮数×0.5」
+         *   未弈、退赛那一槽 = 虚拟对手 0
+         * 整场退赛的人，对别人一律按虚拟分 0 计（vsOf 里直接返回 0）。 */
         medianMode: 'both',   // both = 去头去尾，high = 只去最高
         byeBuch: 'half'       // 轮空在对手分里按 total×0.5 的虚拟对手
     };
@@ -868,6 +966,52 @@
 
     /* ---------------- 基础累计 ---------------- */
 
+    /* 这一轮的对阵表上有没有他：自己有对手栏，或者被别人写成对手 */
+    function inTable(rd, id) {
+        var opps = (rd && rd.opps) || {};
+        if (opps[id] != null && opps[id] !== '') { return true; }
+        return Object.keys(opps).some(function (k) { return num(opps[k]) === id; });
+    }
+
+    /*
+     * 退赛：只看他有没有出现在那一轮的对阵表上。
+     * 最后一轮露过面、之后就没影了 → 从缺席的第一轮起算退赛，后面都算。
+     * 只认「贴得比较全」的轮次（对阵条数不到半数的不看），免得贴一半就误判。
+     */
+    function detectWithdrawn(state) {
+        var out = {};
+        var total = Math.max(1, Number(state.totalRounds) || 9);
+        var list = (state.players || []).map(function (p) { return Number(p.id); });
+        if (!list.length) { return out; }
+
+        var need = Math.max(4, Math.ceil(list.length * 0.5));
+        var rs = [];
+        (state.rounds || []).forEach(function (rd) {
+            if (!rd || rd.r > total - 1) { return; }
+            var opps = rd.opps || {};
+            if (Object.keys(opps).length < need) { return; }
+            var has = {};
+            Object.keys(opps).forEach(function (k) {
+                var v = opps[k];
+                if (num(k) != null) { has[Number(k)] = 1; }   /* 自己有对手栏 */
+                var o = num(v);
+                if (o != null) { has[o] = 1; }                /* 被别人写成对手，也算在表上 */
+            });
+            rs.push({ r: rd.r, has: has });
+        });
+        rs.sort(function (a, b) { return a.r - b.r; });
+        if (rs.length < 2) { return out; }
+
+        var lastR = rs[rs.length - 1].r;
+        list.forEach(function (id) {
+            var lp = 0;
+            rs.forEach(function (x) { if (x.has[id]) { lp = x.r; } });
+            if (!lp || lp >= lastR) { return; }
+            out[id] = lp + 1;
+        });
+        return out;
+    }
+
     function build(state, opt) {
         opt = opt || {};
         var upto = opt.upto == null ? Infinity : opt.upto;
@@ -886,7 +1030,8 @@
             });
         }
 
-        var withdrawn = state.withdrawn || {};
+        /* 退赛：没显式给出就按对阵表自动识别 */
+        var withdrawn = state.withdrawn || detectWithdrawn(state);
         var warnings = [];
 
         var allRounds = (state.rounds || []).filter(function (rd) {
@@ -956,18 +1101,22 @@
                     seen[k] = 1;
                     P[k].pts += delta[k];
                     P[k].byes++;
-                    push(k, { t: 'bye' });
+                    push(k, { t: 'bye', d: delta[k] });
                     P[k].log.push({ r: rd.r, d: delta[k], t: 'bye' });
                     continue;
                 }
+
+                /* 退赛的人，成绩单上可能还挂着名字：之后的轮次算退赛，不算「没录对手」 */
+                var gone = withdrawn[players[k].id] != null && rd.r >= withdrawn[players[k].id];
+
                 if (oid == null) {
                     /* 对手没录：分数照算，对手分槽位记 0 */
                     if (!has[k]) { continue; }
                     paired[k] = true; seen[k] = 1;
                     P[k].pts += delta[k];
-                    P[k].none++;
-                    push(k, { t: 'none' });
-                    P[k].log.push({ r: rd.r, d: delta[k], t: 'none' });
+                    if (gone) { P[k].wd++; } else { P[k].none++; }
+                    push(k, { t: gone ? 'wd' : 'none', d: delta[k] });
+                    P[k].log.push({ r: rd.r, d: delta[k], t: gone ? 'wd' : 'none' });
                     continue;
                 }
 
@@ -977,7 +1126,7 @@
                     paired[k] = true; seen[k] = 1;
                     P[k].pts += delta[k];
                     P[k].none++;
-                    push(k, { t: 'none' });
+                    push(k, { t: 'none', d: delta[k] });
                     continue;
                 }
                 if (j === k) { continue; }
@@ -1039,16 +1188,14 @@
         };
     }
 
-    /* 算别人对手分时，这个人算几分 */
+    /* 算别人对手分时，这个人算几分（FIDE 调整后的虚拟分）：
+     *   积分 + 0.5×(弃权 + 未弈) − 0.5×(轮空 + 对手弃权)
+     * 退赛的人整体按 0 计——他退赛之后那些轮次没成绩，不能拿他的调整分去抬高别人的对手分。 */
     function vsOf(b, i) {
         var P = b.P[i], pid = b.players[i].id;
         var wd = (b.withdrawnOf ? b.withdrawnOf[pid] : null);
         if (wd != null && P.wd > 0) { return 0; }
-        var v = P.pts
-            + CFG.ffSign * 0.5 * (P.ff + P.wd)
-            + 0.5 * (P.byes + P.oppFF);
-        if (CFG.noneAsHalf) { v += 0.5 * P.none; }
-        return v;
+        return P.pts + 0.5 * (P.ff + P.none) - 0.5 * (P.byes + P.oppFF);
     }
 
     function slotValueOf(b, s, vs) {
@@ -1165,9 +1312,17 @@
         var t = index[targetId];
         if (t === undefined) { return { error: '名单里没有这个选手' }; }
 
+        var wdMap = state.withdrawn || (base.b && base.b.withdrawnOf) || {};
+        if (wdMap[targetId] != null && Number(wdMap[targetId]) <= total) {
+            return { error: '这个人在第 ' + wdMap[targetId] + ' 轮已退赛，没有末轮' };
+        }
+
         var last = null;
         (state.rounds || []).forEach(function (rd) { if (rd.r === total) { last = rd; } });
         if (!last) { return { error: '缺第 ' + total + ' 轮的对阵' }; }
+        if (!inTable(last, targetId)) {
+            return { error: '这个人没出现在第 ' + total + ' 轮的对阵表上，按退赛算，没有末轮' };
+        }
 
         var opps = last.opps || {};
         var keys = base.keys;
@@ -1181,17 +1336,33 @@
             bvs[i] = rowsByI[i].vs;
         }
 
+        /* 末轮前退赛的人：别人算对手分时按虚拟分 0 计（槽位仍在） */
+        for (i = 0; i < n; i++) {
+            var wid = base.players[i].id;
+            if (wdMap[wid] != null && Number(wdMap[wid]) <= total) { bvs[i] = 0; }
+        }
+
         var lastOpp = [], lastKind = [], paired = {};
         for (i = 0; i < n; i++) { lastOpp[i] = -1; lastKind[i] = 'none'; }
 
+        /* 末轮已标未弈 / 已经退赛的人：这一局不会下，不进枚举 */
+        var lastFF = {};
+        (last.ff || []).forEach(function (id) { lastFF[id] = 1; });
+        function outOfLast(i2) {
+            var pid = base.players[i2].id;
+            if (lastFF[pid]) { return true; }
+            return wdMap[pid] != null && Number(wdMap[pid]) <= total;
+        }
+
         var games = [];
         for (i = 0; i < n; i++) {
+            if (outOfLast(i)) { continue; }
             var o = opps[base.players[i].id];
             if (o === 'bye') { lastKind[i] = 'bye'; continue; }
             var oid = num(o);
             if (oid == null || paired[i]) { continue; }
             var j = index[oid];
-            if (j == null || j === i || paired[j]) { continue; }
+            if (j == null || j === i || paired[j] || outOfLast(j)) { continue; }
             paired[i] = paired[j] = true;
             lastOpp[i] = j; lastOpp[j] = i;
             lastKind[i] = 'opp'; lastKind[j] = 'opp';
@@ -1422,6 +1593,35 @@
             return out;
         }
 
+        /* 台次字典序：先按这一场两人的编号排（小的在前），再按结果（胜/平/负） */
+        function pairKey(idA, idB) {
+            var lo = Math.min(idA, idB), hi = Math.max(idA, idB);
+            return lo * 1000003 + hi;
+        }
+
+        /* 一条条件展开成字典序序列，用来给同一段里的条件排序 */
+        function termSeq(pat) {
+            var arr = [];
+            for (var q = 0; q < m; q++) {
+                if (pat[q] < 0 || q === gt) { continue; }
+                arr.push({
+                    k: pairKey(base.players[enumGames[q].a].id, base.players[enumGames[q].b].id),
+                    c: pat[q]
+                });
+            }
+            arr.sort(function (x, y) { return x.k - y.k; });
+            return arr;
+        }
+
+        function cmpSeq(A, B) {
+            var len = Math.min(A.length, B.length);
+            for (var z = 0; z < len; z++) {
+                if (A[z].k !== B[z].k) { return A[z].k - B[z].k; }
+                if (A[z].c !== B[z].c) { return A[z].c - B[z].c; }
+            }
+            return A.length - B.length;
+        }
+
         var groups = [];
         if (!always && playCount > 0 && gt >= 0) {
             [0, 1, 2].forEach(function (v) {
@@ -1439,9 +1639,13 @@
                 }).concat(playPats.map(function (p) {
                     return { pat: p, playoff: true };
                 }));
+                /* 条件按台次字典序排：先比第一场（台次靠前的优先），一样再比第二场…… */
+                picks.forEach(function (x) { x.seq = termSeq(x.pat); });
                 picks.sort(function (x, y) {
+                    var c = cmpSeq(x.seq, y.seq);
+                    if (c) { return c; }
                     if (x.playoff !== y.playoff) { return x.playoff ? 1 : -1; }
-                    return countLiterals(x.pat) - countLiterals(y.pat);
+                    return 0;
                 });
 
                 var code = CODES[v];
@@ -1457,11 +1661,14 @@
                         for (var q = 0; q < m; q++) {
                             if (pick.pat[q] < 0 || q === gt) { continue; }
                             parts.push({
+                                gi: q,      /* 内部用：这一场在枚举里的序号，可用来固定结果 */
                                 a: base.players[enumGames[q].a].id,
                                 b: base.players[enumGames[q].b].id,
                                 code: CODES[pick.pat[q]]
                             });
                         }
+                        /* 一条条件里的对局也按台次排，跟列表顺序一致 */
+                        parts.sort(function (x, y) { return pairKey(x.a, x.b) - pairKey(y.a, y.b); });
                         return {
                             parts: parts,
                             playoff: pick.playoff ? base.players[t].id : 0,
@@ -1500,17 +1707,19 @@
             for (q = 0; q < m; q++) { applyGame(enumGames[q], CODES[p[q]], 1); }
 
             var pT = ptsOf(t);
-            var ev = evaluate();
 
-            /* 池子里的人（含自己）按「积分 → 破同分项」两两比，算出各自名次 */
-            var all = [];
-            for (q = 0; q < pool.length; q++) {
-                var x = pool[q];
-                all.push({ i: x, id: base.players[x].id, name: base.players[x].name,
-                           pts: ptsOf(x), tb: tbOf(x) });
+            /* 全名单按「积分 → 破同分项」两两比，算出整张名次表（不止到自己为止） */
+            var rows = [];
+            for (q = 0; q < n; q++) {
+                rows.push({
+                    i: q,
+                    id: base.players[q].id,
+                    name: base.players[q].name,
+                    pts: ptsOf(q),
+                    tb: tbOf(q),
+                    me: q === t
+                });
             }
-            all.push({ i: t, id: base.players[t].id, name: base.players[t].name,
-                       pts: pT, tb: tbOf(t), me: true });
 
             function cmp2(A, B) {
                 if (Math.abs(A.pts - B.pts) > 1e-9) { return A.pts > B.pts ? 1 : -1; }
@@ -1521,42 +1730,40 @@
                 return 0;
             }
 
-            var me = null, rivals = [];
-            all.forEach(function (a) {
+            rows.forEach(function (a) {
                 var up = 0;
                 /* 名次 = 1 + 比自己强的人数 */
-                all.forEach(function (b) { if (b !== a && cmp2(b, a) > 0) { up++; } });
+                rows.forEach(function (b) { if (b !== a && cmp2(b, a) > 0) { up++; } });
                 a.rank = up + 1;
-                if (a.me) { me = a; }
             });
-            all.forEach(function (a) {
-                if (a.me || a.pts < pT - 1e-9) { return; }
-                var rel = cmp2(a, me);
-                a.rel = rel > 0 ? 1 : (rel === 0 ? 0 : -1);
-                rivals.push(a);
+            rows.sort(function (x, y) {
+                if (x.rank !== y.rank) { return x.rank - y.rank; }
+                if (!!x.me !== !!y.me) { return x.me ? -1 : 1; }
+                return x.id - y.id;
             });
+
+            var me = null, ties = 0;
+            rows.forEach(function (r) { if (r.me) { me = r; } });
+            rows.forEach(function (r) { if (r !== me && cmp2(r, me) === 0) { ties++; } });
 
             var games = [];
             for (q = 0; q < m; q++) {
                 if (q === gt || p[q] < 0) { continue; }
                 if (holes && holes.indexOf(q) < 0) { continue; }
                 games.push({
+                    gi: q,
                     a: base.players[enumGames[q].a].id,
                     b: base.players[enumGames[q].b].id,
                     code: CODES[p[q]]
                 });
             }
+            games.sort(function (x, y) { return pairKey(x.a, x.b) - pairKey(y.a, y.b); });
 
             for (q = 0; q < m; q++) { applyGame(enumGames[q], CODES[p[q]], -1); }
 
-            rivals.sort(function (x, y) {
-                if (x.rank !== y.rank) { return x.rank - y.rank; }
-                return x.id - y.id;
-            });
-
             return {
-                pts: pT, rank: me.rank, worst: ev.worst, ties: ev.ties,
-                me: me, rivals: rivals, games: games
+                pts: pT, rank: me.rank, worst: me.rank + ties, ties: ties,
+                me: me, rows: rows, games: games
             };
         }
 
@@ -1564,12 +1771,19 @@
             var holes = [], q;
             for (q = 0; q < m; q++) { if (pattern[q] < 0) { holes.push(q); } }
 
+            /* 未锁对局按台次排好，供「字典序」和顶部选择器共用 */
+            var holeOrder = holes.slice().sort(function (a, b) {
+                return pairKey(base.players[enumGames[a].a].id, base.players[enumGames[a].b].id) -
+                    pairKey(base.players[enumGames[b].a].id, base.players[enumGames[b].b].id);
+            });
+
             var st = {
                 pts: 0,
                 total: pow3[holes.length],
                 keys: keys.slice(),
-                holes: holes.map(function (idx) {
+                holes: holeOrder.map(function (idx) {
                     return {
+                        gi: idx,
                         a: base.players[enumGames[idx].a].id,
                         b: base.players[enumGames[idx].b].id
                     };
@@ -1587,7 +1801,10 @@
                 var key = 0, z;
                 for (z = 0; z < m; z++) { key += wp[z] * pow3[z]; }
                 var ev = evaluate();
-                st.subs.push({ key: key, rank: ev.rank, worst: ev.worst, ties: ev.ties });
+                /* 字典序键：未锁对局按台次排，每场取 胜0/平1/负2 拼成序列 */
+                var lex = '';
+                for (z = 0; z < holeOrder.length; z++) { lex += String(wp[holeOrder[z]]); }
+                st.subs.push({ key: key, rank: ev.rank, worst: ev.worst, ties: ev.ties, lex: lex });
                 st.pts = ptsOf(t);
             }
 
@@ -1607,24 +1824,26 @@
                 if (pattern[q] >= 0) { applyGame(enumGames[q], CODES[pattern[q]], -1); }
             }
 
-            /* 可达名次（每种名次多少种细分），给上方的名次标签用 */
+            /* 可达名次段（第 N 名 / 第 N-M 名，M>N 表示这一档要加赛），给上方的标签用 */
             var seen = {};
             st.subs.forEach(function (s) {
-                if (!seen[s.rank]) {
-                    seen[s.rank] = { rank: s.rank, count: 0 };
-                    st.ranks.push(seen[s.rank]);
+                var id = s.rank + '-' + s.worst;
+                if (!seen[id]) {
+                    seen[id] = { id: id, from: s.rank, to: s.worst, count: 0 };
+                    st.ranks.push(seen[id]);
                 }
-                seen[s.rank].count++;
+                seen[id].count++;
             });
-            st.ranks.sort(function (x, y) { return x.rank - y.rank; });
+            st.ranks.sort(function (x, y) {
+                if (x.from !== y.from) { return x.from - y.from; }
+                return x.to - y.to;
+            });
 
             st.needPlay = st.subs.filter(function (s) { return s.worst > targetRank; }).length;
 
-            /* 从险到不险：最差名次靠后的在前，其次当前名次靠后、并列的人多 */
+            /* 细分按字典序排：未锁对局按台次，每场胜0/平1/负2，序列小者在前 */
             st.subs.sort(function (x, y) {
-                if (x.worst !== y.worst) { return y.worst - x.worst; }
-                if (x.rank !== y.rank) { return y.rank - x.rank; }
-                if (x.ties !== y.ties) { return y.ties - x.ties; }
+                if (x.lex !== y.lex) { return x.lex < y.lex ? -1 : 1; }
                 return x.key - y.key;
             });
 
@@ -1730,6 +1949,7 @@
         CFG: CFG,
         TB_DEFS: TB_DEFS,
         DEFAULT_TIEBREAK: DEFAULT_TIEBREAK,
+        detectWithdrawn: detectWithdrawn,
         tbKeys: tbKeys,
         normalizeTiebreaks: normalizeTiebreaks,
         build: build,
@@ -1773,8 +1993,7 @@
             byePoint: 1,
             tiebreaks: ML.DEFAULT_TIEBREAK.slice(),
             players: [],
-            rounds: [],
-            withdrawn: {}
+            rounds: []
         };
     }
 
@@ -1789,6 +2008,8 @@
             if (!s || !Array.isArray(s.players)) { return null; }
             s.tiebreaks = ML.normalizeTiebreaks(s.tiebreaks);
             if (!s.tiebreaks.length) { s.tiebreaks = ML.DEFAULT_TIEBREAK.slice(); }
+            delete s.withdrawn;    /* 退赛现在按对阵表自动识别，旧数据里的手工登记不再用 */
+            delete s.wdOff;
             return s;
         } catch (e) { return null; }
     }
@@ -2030,6 +2251,7 @@
         var host = $('#entry-host');
         var hint = $('#entry-hint');
         hint.hidden = true;
+        renderWd();
 
         if (!state.players.length) {
             host.innerHTML = '<div class="ml-empty">还没有名单。<br>点「粘贴本轮」贴入任意一轮对阵表，' +
@@ -2074,7 +2296,8 @@
         host.innerHTML = '<div class="ml-table-wrap"><table class="ml-table">' +
             '<thead><tr>' +
             '<th>编号</th><th>姓名</th><th>单位</th>' +
-            '<th class="c-score">上轮积分</th><th>对手编号</th><th class="c-score">得分</th><th>弃权</th>' +
+            '<th class="c-score">上轮积分</th><th>对手编号</th><th class="c-score">得分</th>' +
+            '<th title="本轮没下（弃权 / 未到 / 对手退赛）：按未弈计，对手分按平局折算">未弈</th>' +
             '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 
         updateEntryHint();
@@ -2331,12 +2554,40 @@
         flash('已清空第 ' + curRound + ' 轮' + (curRound === 1 ? '，名单也一并清空' : ''));
     });
 
+    /* ---------------- 退赛识别 ----------------
+
+       只看他有没有出现在那一轮的对阵表上：最后一轮露过面、之后就没影了，
+       从缺席的那一轮起算退赛，后面都算。规则在引擎里（ML.detectWithdrawn），
+       这里只把结果显示出来。
+    */
+
+    function renderWd() {
+        var el = $('#wd-line');
+        if (!el) { return; }
+        var wd = ML.detectWithdrawn({
+            totalRounds: state.totalRounds,
+            players: state.players,
+            rounds: state.rounds
+        });
+        var ids = Object.keys(wd).sort(function (a, b) { return wd[a] - wd[b] || a - b; });
+        if (!ids.length) { el.hidden = true; el.innerHTML = ''; return; }
+
+        var names = {};
+        state.players.forEach(function (p) { names[p.id] = nameOf(p); });
+
+        el.innerHTML = '<span class="ml-wd-k">退赛</span>' + ids.map(function (id) {
+            return '<span class="ml-wd-i">' + esc(names[id] || (id + ' 号')) +
+                '<i>第 ' + wd[id] + ' 轮起</i></span>';
+        }).join('');
+        el.hidden = false;
+    }
+
     /* ---------------- 名次表 ---------------- */
 
     var standTimer = 0;
     function scheduleStand() {
         clearTimeout(standTimer);
-        standTimer = setTimeout(function () { renderSolveSelect(); }, 180);
+        standTimer = setTimeout(function () { renderWd(); renderSolveSelect(); }, 180);
     }
 
     function currentState() {
@@ -2344,7 +2595,6 @@
             totalRounds: state.totalRounds,
             players: state.players,
             rounds: state.rounds,
-            withdrawn: state.withdrawn,
             tiebreaks: state.tiebreaks
         };
     }
@@ -2401,11 +2651,35 @@
     var lastAns = null;      /* 最近一次推算，用来按需展开 */
     var lastNm = function (id) { return String(id); };
     var detailCache = {};    /* 已算过的展开结果，键 = 组序号-条序号 */
-    var detailState = {};    /* 每条展开的当前名次标签与页码 */
 
-    function detailView(key) {
-        if (!detailState[key]) { detailState[key] = { tab: 'all', page: 0 }; }
-        return detailState[key];
+    /* 一条条件展开后的状态：基础条件（pat）+ 手动固定的对局 + 当前看到的细分 */
+    function makeDetail(gi, ti) {
+        var g = lastAns.groups[gi];
+        var term = g && g.terms[ti];
+        if (!term || !term.pat) { return null; }
+        var c = { pat: term.pat.slice(), pins: [], view: { tab: 'all', page: 0 }, st: null };
+        c.st = lastAns.explore(c.pat);
+        /* 顶部选择器用的可固定对局列表（这条条件里没锁的对局，按台次排好） */
+        c.holes = c.st.holes.slice();
+        return c;
+    }
+
+    function patOf(c) {
+        var p = c.pat.slice();
+        c.pins.forEach(function (x) { p[x.gi] = x.v; });
+        return p;
+    }
+
+    function pinIndexOf(c, gi) {
+        for (var z = 0; z < c.pins.length; z++) { if (c.pins[z].gi === gi) { return z; } }
+        return -1;
+    }
+
+    /* 固定/解除后重算细分，回到第一页 */
+    function refreshDetail(c) {
+        c.st = lastAns.explore(patOf(c));
+        c.view.tab = 'all';
+        c.view.page = 0;
     }
 
     function tbNameOf(k) {
@@ -2427,68 +2701,84 @@
             '</button>';
     }
 
-    /* 一个细分示例：其余对局 + 按名次排的破同分对比表 */
+    /* 一个细分：完整名次表（按名次排，自己那行高亮） */
     function repBlock(s, keys, nm, title) {
         var out = '<div class="ml-rep">';
         if (title) { out += '<p class="ml-rep-title">' + title + '</p>'; }
-        if (s.games.length) {
-            out += '<p class="ml-rep-games">' + s.games.map(function (x) {
-                return condText(x, nm);
-            }).join('，') + '</p>';
+
+        var head = '<tr><th>名次</th><th>选手</th><th>积分</th>' +
+            keys.map(function (k) { return '<th>' + esc(tbNameOf(k)) + '</th>'; }).join('') +
+            '</tr>';
+
+        function cells(o) {
+            return '<td>' + o.rank + '</td>' +
+                '<td>' + esc(o.me ? (nm(o.id) + '（你）') : nm(o.id)) + '</td>' +
+                '<td>' + fmt(o.pts) + '</td>' +
+                keys.map(function (k) { return '<td>' + fmt(o.tb[k]) + '</td>'; }).join('');
         }
 
-        if (s.rivals.length) {
-            var list = s.rivals.slice(0, 12).concat([s.me]);
-            list.sort(function (x, y) {
-                if (x.rank !== y.rank) { return x.rank - y.rank; }
-                if (!!x.me !== !!y.me) { return x.me ? -1 : 1; }
-                return x.id - y.id;
-            });
+        var rows = s.rows.map(function (o) {
+            return '<tr' + (o.me ? ' class="is-me"' : '') + '>' + cells(o) + '</tr>';
+        }).join('');
 
-            var head = '<tr><th>名次</th><th>选手</th><th>积分</th>' +
-                keys.map(function (k) { return '<th>' + esc(tbNameOf(k)) + '</th>'; }).join('') +
-                '</tr>';
-
-            function cells(o) {
-                return '<td>' + o.rank + '</td>' +
-                    '<td>' + esc(o.me ? (nm(o.id) + '（你）') : nm(o.id)) + '</td>' +
-                    '<td>' + fmt(o.pts) + '</td>' +
-                    keys.map(function (k) { return '<td>' + fmt(o.tb[k]) + '</td>'; }).join('');
-            }
-
-            var rows = list.map(function (o) {
-                if (o.me) { return '<tr class="is-me">' + cells(o) + '</tr>'; }
-                return '<tr>' + cells(o) + '</tr>';
-            }).join('');
-
-            out += '<div class="ml-cmp-wrap"><table class="ml-cmp"><thead>' + head +
-                '</thead><tbody>' + rows + '</tbody></table></div>';
-            if (s.rivals.length > 12) {
-                out += '<p class="ml-rep-none">另有 ' + (s.rivals.length - 12) + ' 人同分或在分上领先，未列出。</p>';
-            }
-        } else {
-            out += '<p class="ml-rep-none">这个结果下没有人与你同分或在分上领先。</p>';
-        }
+        out += '<div class="ml-cmp-wrap"><table class="ml-cmp"><thead>' + head +
+            '</thead><tbody>' + rows + '</tbody></table></div>';
 
         return out + '</div>';
     }
 
-    function detailHtml(st, key, nm) {
-        var view = detailView(key);
+    /* 名次表很长时，把自己那行滚到中间，免得要往下翻着找 */
+    function revealMe(box) {
+        var wrap = box.querySelector('.ml-cmp-wrap');
+        var tr = wrap && wrap.querySelector('tr.is-me');
+        if (!wrap || !tr) { return; }
+        var top = tr.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
+        wrap.scrollTop += top - wrap.clientHeight / 2 + tr.clientHeight / 2;
+    }
+
+    function detailHtml(c, key, nm) {
+        var st = c.st, view = c.view;
         var list = view.tab === 'all' ? st.subs : st.subs.filter(function (s) {
-            return s.rank === view.tab;
+            return (s.rank + '-' + s.worst) === view.tab;
         });
         if (!list.length) { view.tab = 'all'; list = st.subs; }
         var page = Math.min(Math.max(0, view.page | 0), Math.max(0, list.length - 1));
         view.page = page;
         var cur = list[page];
 
+        function span(from, to) {
+            return from === to ? ('第 ' + from + ' 名') : ('第 ' + from + '-' + to + ' 名');
+        }
+
+        var out = '';
+
+        /* 顶部固定区：这条条件里没锁的对局，逐场选 胜/平/负（点已选的取消） */
+        if (c.holes && c.holes.length) {
+            out += '<div class="ml-pin-select">' +
+                c.holes.map(function (h) {
+                    var curV = -1;
+                    var pi = pinIndexOf(c, h.gi);
+                    if (pi >= 0) { curV = c.pins[pi].v; }
+                    var opts = ['胜', '平', '负'].map(function (w, v) {
+                        return '<button type="button" class="ml-pin-opt' + (curV === v ? ' is-on' : '') +
+                            '" data-gi="' + h.gi + '" data-v="' + v + '" title="' + nm(h.a) + ' ' + w + ' ' + nm(h.b) + '">' +
+                            w + '</button>';
+                    }).join('');
+                    return '<div class="ml-pin-row"><span class="ml-pin-pair">' +
+                        esc(nm(h.a)) + ' — ' + esc(nm(h.b)) + '</span><span class="ml-pin-opts">' +
+                        opts + '</span></div>';
+                }).join('') +
+                (c.pins.length ? '<button type="button" class="ml-pin-all" data-pin-all="1">全部解除</button>' : '') +
+                '</div>';
+        }
+
         var tabs = st.subs.length > 1 ? '<div class="ml-d-tabs">' +
             '<button type="button" class="ml-d-tab' + (view.tab === 'all' ? ' is-on' : '') +
             '" data-tab="all">全部 <b>' + st.subs.length + '</b></button>' +
             st.ranks.map(function (r) {
-                return '<button type="button" class="ml-d-tab' + (view.tab === r.rank ? ' is-on' : '') +
-                    '" data-tab="' + r.rank + '">第 ' + r.rank + ' 名 <b>' + r.count + '</b></button>';
+                return '<button type="button" class="ml-d-tab' + (view.tab === r.id ? ' is-on' : '') +
+                    '" data-tab="' + r.id + '">' + span(r.from, r.to) +
+                    ' <b>' + r.count + '</b></button>';
             }).join('') +
             '</div>' : '';
 
@@ -2496,26 +2786,26 @@
             ? repBlock(st.detailOf(cur.key), st.keys, nm, '')
             : '<p class="ml-rep-none">没有细分。</p>';
 
-        if (list.length <= 1) { return tabs + body; }
+        out += tabs + body;
+
+        if (list.length <= 1) { return out; }
 
         var atTop = page <= 0, atEnd = page >= list.length - 1;
         var pos = '第 ' + (page + 1) + ' / ' + list.length + ' 种';
-        if (cur) {
-            pos += '｜第 ' + cur.rank + ' 名' + (cur.worst > cur.rank ? '，需加赛' : '');
-        }
-        var pager = '<div class="ml-d-pager">' +
-            '<button type="button" class="ml-d-pg" data-pg="first" title="最险的一种"' +
+        if (cur) { pos += '｜' + span(cur.rank, cur.worst); }
+        out += '<div class="ml-d-pager">' +
+            '<button type="button" class="ml-d-pg" data-pg="first" title="第一种"' +
             (atTop ? ' disabled' : '') + '>«</button>' +
             '<button type="button" class="ml-d-pg" data-pg="prev" title="上一种"' +
             (atTop ? ' disabled' : '') + '>‹</button>' +
             '<span class="ml-d-pos">' + pos + '</span>' +
             '<button type="button" class="ml-d-pg" data-pg="next" title="下一种"' +
             (atEnd ? ' disabled' : '') + '>›</button>' +
-            '<button type="button" class="ml-d-pg" data-pg="last" title="最不险的一种"' +
+            '<button type="button" class="ml-d-pg" data-pg="last" title="最后一种"' +
             (atEnd ? ' disabled' : '') + '>»</button>' +
             '</div>';
 
-        return tabs + body + pager;
+        return out;
     }
 
     function runSolve() {
@@ -2547,7 +2837,6 @@
         lastAns = ans;
         lastNm = nm;
         detailCache = {};
-        detailState = {};
 
         var self = esc(ans.target.name || ('#' + ans.target.id));
         var head = '<div class="ml-banner' + (ans.always ? ' is-ok' : (ans.never ? ' is-no' : '')) + '">';
@@ -2601,36 +2890,86 @@
         host.innerHTML = head + body + '<p class="ml-hint">' + tail + '。</p>';
     }
 
-    /* 点一条条件 → 展开它下面的细分；再点名次标签 / 翻页按钮，在同一块里换页 */
+    /* 找某个按钮所在的展开块及其状态 */
+    function detailCtxOf(el) {
+        var box = el.closest ? el.closest('.ml-term-detail') : null;
+        if (!box) { return null; }
+        var k = box.dataset.detail;
+        var c = k && detailCache[k];
+        return c ? { box: box, key: k, c: c } : null;
+    }
+
+    function pairOrder(a, b) {
+        return Math.min(a, b) * 1000003 + Math.max(a, b);
+    }
+
+    /* 点一条条件 → 展开它下面的细分；点对局可固定结果，点名次标签 / 翻页换页 */
     $('#solve-host').addEventListener('click', function (e) {
         var tgt = e.target && e.target.closest ? e.target : null;
-        var nav = tgt ? tgt.closest('.ml-d-tab, .ml-d-pg') : null;
-        if (nav) {
-            var box0 = nav.closest('.ml-term-detail');
-            var k0 = box0 && box0.dataset.detail;
-            var st0 = k0 ? detailCache[k0] : null;
-            if (!st0) { return; }
-            var view = detailView(k0);
-            if (nav.classList.contains('ml-d-tab')) {
-                view.tab = nav.dataset.tab === 'all' ? 'all' : Number(nav.dataset.tab);
-                view.page = 0;
-            } else {
-                var list = view.tab === 'all' ? st0.subs : st0.subs.filter(function (s) {
-                    return s.rank === view.tab;
-                });
-                var last = Math.max(0, list.length - 1);
-                var pg = nav.dataset.pg;
-                if (pg === 'first') { view.page = 0; }
-                else if (pg === 'last') { view.page = last; }
-                else if (pg === 'prev') { view.page = Math.max(0, view.page - 1); }
-                else { view.page = Math.min(last, view.page + 1); }
+        if (!tgt || !lastAns) { return; }
+
+        /* 顶部固定区：给某一场选 胜/平/负，点已选的取消 */
+        var optBtn = tgt.closest('.ml-pin-opt');
+        if (optBtn) {
+            var oc = detailCtxOf(optBtn);
+            if (!oc) { return; }
+            var ogi = Number(optBtn.dataset.gi);
+            var ov = Number(optBtn.dataset.v);
+            var h = null;
+            for (var z = 0; z < oc.c.holes.length; z++) {
+                if (oc.c.holes[z].gi === ogi) { h = oc.c.holes[z]; break; }
             }
-            box0.innerHTML = detailHtml(st0, k0, lastNm);
+            if (!h) { return; }
+            var pi = pinIndexOf(oc.c, ogi);
+            if (pi >= 0 && oc.c.pins[pi].v === ov) {
+                oc.c.pins.splice(pi, 1);          /* 再点一次 → 取消 */
+            } else {
+                if (pi >= 0) { oc.c.pins.splice(pi, 1); }
+                oc.c.pins.push({ gi: ogi, v: ov, a: h.a, b: h.b });
+            }
+            oc.c.pins.sort(function (x, y) { return pairOrder(x.a, x.b) - pairOrder(y.a, y.b); });
+            refreshDetail(oc.c);
+            oc.box.innerHTML = detailHtml(oc.c, oc.key, lastNm);
+            revealMe(oc.box);
             return;
         }
 
-        var btn = tgt ? tgt.closest('.ml-term-q') : null;
-        if (!btn || !lastAns) { return; }
+        if (tgt.closest('.ml-pin-all')) {
+            var ac = detailCtxOf(tgt);
+            if (!ac) { return; }
+            ac.c.pins = [];
+            refreshDetail(ac.c);
+            ac.box.innerHTML = detailHtml(ac.c, ac.key, lastNm);
+            revealMe(ac.box);
+            return;
+        }
+
+        var nav = tgt.closest('.ml-d-tab, .ml-d-pg');
+        if (nav) {
+            var nc = detailCtxOf(nav);
+            if (!nc) { return; }
+            var st0 = nc.c.st, view = nc.c.view;
+            if (nav.classList.contains('ml-d-tab')) {
+                view.tab = nav.dataset.tab;
+                view.page = 0;
+            } else {
+                var list = view.tab === 'all' ? st0.subs : st0.subs.filter(function (s) {
+                    return (s.rank + '-' + s.worst) === view.tab;
+                });
+                var last = Math.max(0, list.length - 1);
+                var pg2 = nav.dataset.pg;
+                if (pg2 === 'first') { view.page = 0; }
+                else if (pg2 === 'last') { view.page = last; }
+                else if (pg2 === 'prev') { view.page = Math.max(0, view.page - 1); }
+                else { view.page = Math.min(last, view.page + 1); }
+            }
+            nc.box.innerHTML = detailHtml(nc.c, nc.key, lastNm);
+            revealMe(nc.box);
+            return;
+        }
+
+        var btn = tgt.closest('.ml-term-q');
+        if (!btn) { return; }
         var gi = Number(btn.dataset.g), ti = Number(btn.dataset.t);
         var box = this.querySelector('[data-detail="' + gi + '-' + ti + '"]');
         if (!box) { return; }
@@ -2642,24 +2981,20 @@
         }
 
         if (!box.dataset.done) {
-            var g = lastAns.groups[gi];
-            var term = g && g.terms[ti];
-            if (!term || !term.pat) {
+            var c = makeDetail(gi, ti);
+            if (!c) {
                 box.innerHTML = '<p class="ml-d-note">这一条没有可展开的细分。</p>';
             } else {
                 var key = gi + '-' + ti;
-                var st = detailCache[key];
-                if (!st) {
-                    st = lastAns.explore(term.pat);
-                    detailCache[key] = st;
-                }
+                detailCache[key] = c;
                 box.dataset.detail = key;
-                box.innerHTML = detailHtml(st, key, lastNm);
+                box.innerHTML = detailHtml(c, key, lastNm);
             }
             box.dataset.done = '1';
         }
         box.hidden = false;
         btn.classList.add('is-open');
+        revealMe(box);
     });
 
     $('#btn-solve').addEventListener('click', runSolve);
