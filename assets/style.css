@@ -528,12 +528,6 @@ table.crosstab .rank-badge.r3 {
     background: #eae2cf;
 }
 
-.table-note {
-    font-size: 12px;
-    color: #999999;
-    margin: 10px 0 0;
-}
-
 table.crosstab td.res-win {
     color: #a63d40;
 }

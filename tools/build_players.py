@@ -11,6 +11,10 @@
 「TA的相关报道」直接扫描 posts/ 下属于杂史栏目的文章现算，不落库：
 文章增删后重跑一次，各人主页上的报道清单会一起更新。
 
+参赛记录的名次有两种来源：成绩表算出的名次（只对名称含「高校」「大学生」
+的赛事显示），以及赛事报道里点名公布的名次——后者存在 data/manual.db 的
+event_ranks 表里，凡是表里有的（赛事 id + 姓名）一律按报道登记的名次显示。
+
 用法：
     python tools/build_players.py
 
@@ -36,7 +40,7 @@ PLAYER_DIR = os.path.join(bz.DETAIL_DIR, 'p')
 # 一篇文章属于杂史栏目，看它正文里的栏目链接
 ZASHI_MARK = '栏目：<a href="../zashi.html">'
 
-# 参赛记录里只有这几类赛事才显示名次（赛事名称包含其中任一关键词）
+# 参赛记录里只有这几类赛事才按成绩表显示名次（赛事名称包含其中任一关键词）
 RANKED_KEYWORDS = ('高校', '大学生')
 
 
@@ -104,9 +108,29 @@ def person_reports(posts):
 
 
 def ranked_event(name):
-    """赛事名称含「高校」或「大学生」的，才计入可比较的名次。"""
+    """赛事名称含「高校」或「大学生」的，才按成绩表计入可比较的名次。"""
     name = name or ''
     return any(k in name for k in RANKED_KEYWORDS)
+
+
+def load_event_ranks():
+    """读报道公布的名次：{(赛事 id, 姓名): {rank, source, note}}。
+
+    洛阳系列赛这类小型赛事，成绩表只收录了部分对局，算出来的名次不等于
+    最终成绩；报道里点名写了名次的，就按报道登记在 data/manual.db 的
+    event_ranks 表里，个人主页直接照登，不再拿残缺对局去推算。
+    """
+    if not os.path.exists(bz.MANUAL_DB):
+        return {}
+    m = sqlite3.connect(bz.MANUAL_DB)
+    m.row_factory = sqlite3.Row
+    try:
+        rows = [dict(r) for r in m.execute(
+            'SELECT tournament_id, player, rank, source, note FROM event_ranks')]
+    except sqlite3.OperationalError:        # 旧库还没建这张表
+        rows = []
+    m.close()
+    return {(r['tournament_id'], r['player']): r for r in rows}
 
 
 # ---------------------------------------------------------------- 对局
@@ -177,17 +201,28 @@ def href_player(name):
     return bz.player_href(name)
 
 
-def rank_cell(t, row):
-    """参赛记录的名次格：非高校/大学生赛事留空，前三名套一个徽标。"""
-    if not row or not ranked_event(t.get('name')):
+def rank_cell(t, row, name, arts):
+    """参赛记录的名次格。
+
+    报道里点名公布了名次的（arts 命中）以报道为准，格子上带一条出处提示；
+    否则仍只对名称含「高校」「大学生」的赛事显示成绩表算出的名次，其余留空。
+    """
+    art = arts.get((t.get('id'), name))
+    if art:
+        rk = art['rank']
+        attr = ' title="%s"' % bz.esc(art['note']) if art.get('note') else ''
+    elif row and ranked_event(t.get('name')):
+        rk, attr = row['rank'], ''
+    else:
         return ''
-    rk = row['rank']
     if isinstance(rk, int) and 1 <= rk <= 3:
-        return '<span class="rank-badge r%d">%d</span>' % (rk, rk)
+        return '<span class="rank-badge r%d"%s>%d</span>' % (rk, attr, rk)
+    if attr:
+        return '<span%s>%s</span>' % (attr, bz.esc(rk))
     return bz.esc(rk)
 
 
-def page(name, rec, events, games, reports, index, total_players):
+def page(name, rec, events, games, reports, index, total_players, arts):
     region = rec['region'] or '—'
     uni = rec['university'] or '—'
     pt = '%.2f' % rec['rating']
@@ -257,13 +292,10 @@ def page(name, rec, events, games, reports, index, total_players):
                         '<td class="c-rank">%s</td></tr>'
                         % (bz.esc(t.get('date') or ''), e['tid'],
                            bz.esc(t.get('name') or ''),
-                           rank_cell(t, row)))
+                           rank_cell(t, row, name, arts)))
         body += ['                    </tbody>',
                  '                </table>',
-                 '                </div>',
-                 '                <p class="table-note">只有名称含「高校」或'
-                 '「大学生」的赛事才标注名次；其余赛事参赛规模与赛制不一，'
-                 '不作横向比较，故留空。</p>']
+                 '                </div>']
     else:
         body.append('                <p class="empty">该棋手暂无收录的参赛记录。</p>')
     body.append('            </section>')
@@ -349,6 +381,7 @@ def main():
     zposts = zashi_posts(names)
     reports = person_reports(zposts)
     stats, games = collect(ratings, tournaments, matches)
+    arts = load_event_ranks()
 
     os.makedirs(PLAYER_DIR, exist_ok=True)
     for old in os.listdir(PLAYER_DIR):
@@ -358,7 +391,7 @@ def main():
     for rec in ratings:
         name = rec['name']
         html = page(name, rec, stats.get(name, []), games.get(name, []),
-                    reports.get(name, []), index, len(names))
+                    reports.get(name, []), index, len(names), arts)
         with open(os.path.join(PLAYER_DIR, '%s.html' % name), 'w',
                   encoding='utf-8', newline='') as f:
             f.write(html)
@@ -371,6 +404,10 @@ def main():
     print('杂史   ->', len(zposts), '篇')
     print('相关报道 ->', '，'.join('%s %d 篇' % (n, len(v)) for n, v in tops)
           or '无')
+    used = sum(1 for (tid, who) in arts
+               if who in index and any(e['tid'] == tid
+                                       for e in stats.get(who, [])))
+    print('报道名次 ->', '%d 条（实际用到 %d 条）' % (len(arts), used))
 
 
 if __name__ == '__main__':
