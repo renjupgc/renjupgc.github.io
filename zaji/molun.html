@@ -574,25 +574,66 @@
 
     .ml-term-detail .ml-d-note b { color: var(--ink-2); }
 
-    .ml-split { display: flex; flex-direction: column; gap: 4px; margin: 0 0 8px; }
-
-    .ml-split-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-
-    .ml-split-k {
-        flex: 0 0 auto;
-        font-size: 11px;
-        padding: 1px 8px;
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        color: var(--muted);
-        background: var(--surface-2);
+    /* 名次标签 + 细分翻页 */
+    .ml-d-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 0 8px;
     }
 
-    .ml-split-k.is-free { color: var(--loss); border-color: #c7d6c9; background: #f3f7f3; }
-    .ml-split-k.is-play { color: var(--win); border-color: #e2c3bd; background: #fbf3f1; }
+    .ml-d-tab {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 5px;
+        padding: 2px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface-2);
+        color: var(--ink-3);
+        font-family: var(--sans);
+        font-size: 12px;
+        line-height: 1.8;
+        cursor: pointer;
+        transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+    }
 
-    .ml-split-v { color: var(--ink-2); }
-    .ml-split-v b { color: var(--ink); font-weight: 600; }
+    .ml-d-tab b { font-weight: 600; font-size: 11px; color: var(--faint); }
+    .ml-d-tab:hover { border-color: var(--gold); color: var(--ink); }
+    .ml-d-tab.is-on { background: var(--gold-tint); border-color: var(--gold); color: var(--gold-deep); }
+    .ml-d-tab.is-on b { color: var(--gold-deep); }
+
+    .ml-d-pager {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin: 8px 0 0;
+        padding-top: 7px;
+        border-top: 1px solid var(--line-soft);
+    }
+
+    .ml-d-pg {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--ink-2);
+        font-family: var(--sans);
+        font-size: 13px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .ml-d-pg:hover:not(:disabled) { border-color: var(--gold); color: var(--ink); background: var(--gold-tint); }
+    .ml-d-pg:disabled { opacity: 0.3; cursor: default; }
+
+    .ml-d-pos { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 
     .ml-rep {
         margin: 0 0 10px;
@@ -650,9 +691,6 @@
 
     table.ml-cmp tr:last-child td { border-bottom: 0; }
     table.ml-cmp tr.is-me td { color: var(--ink); background: var(--gold-tint); font-weight: 600; }
-    table.ml-cmp td.is-tie { color: var(--win); }
-    table.ml-cmp td.is-up { color: var(--muted); }
-    table.ml-cmp td.is-down { color: var(--loss); }
 
     @media (max-width: 640px) {
         .ml-bar { flex-wrap: wrap; }
@@ -1444,8 +1482,8 @@
 
         /* ---------------- 展开某一条情形 ----------------
          * 一条条件只锁了几场对局，剩下的关键对局随便怎么下都算数。
-         * 点开时把这些没锁的对局全部枚举一遍，分成「稳进」「需加赛」两类，
-         * 各取最险的一种给出积分、名次和破同分逐项对比。
+         * 点开时把这些没锁的对局全部枚举一遍，每一种细分都留一条摘要（名次、最差名次），
+         * 按「从险到不险」排好；某一细分要看的积分、破同分对比，等翻到那一页再算。
          */
 
         function tbOf(x) {
@@ -1523,13 +1561,12 @@
         }
 
         function explore(pattern) {
-            var holes = [], q, c;
+            var holes = [], q;
             for (q = 0; q < m; q++) { if (pattern[q] < 0) { holes.push(q); } }
 
             var st = {
                 pts: 0,
                 total: pow3[holes.length],
-                rank: targetRank,
                 keys: keys.slice(),
                 holes: holes.map(function (idx) {
                     return {
@@ -1537,8 +1574,8 @@
                         b: base.players[enumGames[idx].b].id
                     };
                 }),
-                free: { count: 0, min: 0, max: 0, worst: -1, key: -1 },
-                play: { count: 0, min: 0, max: 0, worst: -1, key: -1 }
+                subs: [],
+                ranks: []
             };
 
             var wp = pattern.slice();
@@ -1547,18 +1584,10 @@
             }
 
             function tally() {
-                var key = 0;
-                for (var z = 0; z < m; z++) { key += wp[z] * pow3[z]; }
+                var key = 0, z;
+                for (z = 0; z < m; z++) { key += wp[z] * pow3[z]; }
                 var ev = evaluate();
-                var bucket = ev.worst <= targetRank ? st.free : st.play;
-                bucket.count++;
-                if (!bucket.min || ev.rank < bucket.min) { bucket.min = ev.rank; }
-                if (ev.worst > bucket.max) { bucket.max = ev.worst; }
-                /* 例子取这一类里最险的一种：名次最靠后 */
-                if (bucket.key < 0 || ev.worst > bucket.worst) {
-                    bucket.worst = ev.worst;
-                    bucket.key = key;
-                }
+                st.subs.push({ key: key, rank: ev.rank, worst: ev.worst, ties: ev.ties });
                 st.pts = ptsOf(t);
             }
 
@@ -1578,8 +1607,28 @@
                 if (pattern[q] >= 0) { applyGame(enumGames[q], CODES[pattern[q]], -1); }
             }
 
-            st.free.sample = st.free.key >= 0 ? explainOne(st.free.key, holes) : null;
-            st.play.sample = st.play.key >= 0 ? explainOne(st.play.key, holes) : null;
+            /* 可达名次（每种名次多少种细分），给上方的名次标签用 */
+            var seen = {};
+            st.subs.forEach(function (s) {
+                if (!seen[s.rank]) {
+                    seen[s.rank] = { rank: s.rank, count: 0 };
+                    st.ranks.push(seen[s.rank]);
+                }
+                seen[s.rank].count++;
+            });
+            st.ranks.sort(function (x, y) { return x.rank - y.rank; });
+
+            st.needPlay = st.subs.filter(function (s) { return s.worst > targetRank; }).length;
+
+            /* 从险到不险：最差名次靠后的在前，其次当前名次靠后、并列的人多 */
+            st.subs.sort(function (x, y) {
+                if (x.worst !== y.worst) { return y.worst - x.worst; }
+                if (x.rank !== y.rank) { return y.rank - x.rank; }
+                if (x.ties !== y.ties) { return y.ties - x.ties; }
+                return x.key - y.key;
+            });
+
+            st.detailOf = function (key) { return explainOne(key, holes); };
             return st;
         }
 
@@ -2352,6 +2401,12 @@
     var lastAns = null;      /* 最近一次推算，用来按需展开 */
     var lastNm = function (id) { return String(id); };
     var detailCache = {};    /* 已算过的展开结果，键 = 组序号-条序号 */
+    var detailState = {};    /* 每条展开的当前名次标签与页码 */
+
+    function detailView(key) {
+        if (!detailState[key]) { detailState[key] = { tab: 'all', page: 0 }; }
+        return detailState[key];
+    }
 
     function tbNameOf(k) {
         for (var i = 0; i < ML.TB_DEFS.length; i++) {
@@ -2392,7 +2447,7 @@
 
             var head = '<tr><th>名次</th><th>选手</th><th>积分</th>' +
                 keys.map(function (k) { return '<th>' + esc(tbNameOf(k)) + '</th>'; }).join('') +
-                '<th>对比</th></tr>';
+                '</tr>';
 
             function cells(o) {
                 return '<td>' + o.rank + '</td>' +
@@ -2402,11 +2457,8 @@
             }
 
             var rows = list.map(function (o) {
-                if (o.me) { return '<tr class="is-me">' + cells(o) + '<td>—</td></tr>'; }
-                var why = o.rel === 0 ? '并列' : (o.rel > 0 ? '在前' : '在后');
-                return '<tr>' + cells(o) +
-                    '<td class="' + (o.rel === 0 ? 'is-tie' : (o.rel > 0 ? 'is-up' : 'is-down')) +
-                    '">' + why + '</td></tr>';
+                if (o.me) { return '<tr class="is-me">' + cells(o) + '</tr>'; }
+                return '<tr>' + cells(o) + '</tr>';
             }).join('');
 
             out += '<div class="ml-cmp-wrap"><table class="ml-cmp"><thead>' + head +
@@ -2421,31 +2473,49 @@
         return out + '</div>';
     }
 
-    function detailHtml(st, nm) {
-        var out = [], split = '';
-        [['free', '稳进', 'is-free'], ['play', '需加赛', 'is-play']].forEach(function (it) {
-            var b = st[it[0]];
-            if (!b.count) { return; }
-            var rng = b.min === b.max
-                ? ('第 ' + b.min + ' 名')
-                : ('第 ' + b.min + '～' + b.max + ' 名');
-            split += '<div class="ml-split-row">' +
-                '<span class="ml-split-k ' + it[2] + '">' + it[1] + '</span>' +
-                '<span class="ml-split-v"><b>' + b.count + '</b> 种 · 你 ' + fmt(st.pts) + ' 分，' + rng + '</span>' +
-                '</div>';
+    function detailHtml(st, key, nm) {
+        var view = detailView(key);
+        var list = view.tab === 'all' ? st.subs : st.subs.filter(function (s) {
+            return s.rank === view.tab;
         });
-        out.push('<div class="ml-split">' + split + '</div>');
+        if (!list.length) { view.tab = 'all'; list = st.subs; }
+        var page = Math.min(Math.max(0, view.page | 0), Math.max(0, list.length - 1));
+        view.page = page;
+        var cur = list[page];
 
-        if (st.free.sample && st.play.sample) {
-            out.push(repBlock(st.free.sample, st.keys, nm, '稳进的一种（最险）'));
-            out.push(repBlock(st.play.sample, st.keys, nm, '要加赛的一种'));
-        } else if (st.free.sample) {
-            out.push(repBlock(st.free.sample, st.keys, nm,
-                st.free.max > st.free.min ? '最险的一种' : ''));
-        } else if (st.play.sample) {
-            out.push(repBlock(st.play.sample, st.keys, nm, '其中一种'));
+        var tabs = st.subs.length > 1 ? '<div class="ml-d-tabs">' +
+            '<button type="button" class="ml-d-tab' + (view.tab === 'all' ? ' is-on' : '') +
+            '" data-tab="all">全部 <b>' + st.subs.length + '</b></button>' +
+            st.ranks.map(function (r) {
+                return '<button type="button" class="ml-d-tab' + (view.tab === r.rank ? ' is-on' : '') +
+                    '" data-tab="' + r.rank + '">第 ' + r.rank + ' 名 <b>' + r.count + '</b></button>';
+            }).join('') +
+            '</div>' : '';
+
+        var body = cur
+            ? repBlock(st.detailOf(cur.key), st.keys, nm, '')
+            : '<p class="ml-rep-none">没有细分。</p>';
+
+        if (list.length <= 1) { return tabs + body; }
+
+        var atTop = page <= 0, atEnd = page >= list.length - 1;
+        var pos = '第 ' + (page + 1) + ' / ' + list.length + ' 种';
+        if (cur) {
+            pos += '｜第 ' + cur.rank + ' 名' + (cur.worst > cur.rank ? '，需加赛' : '');
         }
-        return out.join('');
+        var pager = '<div class="ml-d-pager">' +
+            '<button type="button" class="ml-d-pg" data-pg="first" title="最险的一种"' +
+            (atTop ? ' disabled' : '') + '>«</button>' +
+            '<button type="button" class="ml-d-pg" data-pg="prev" title="上一种"' +
+            (atTop ? ' disabled' : '') + '>‹</button>' +
+            '<span class="ml-d-pos">' + pos + '</span>' +
+            '<button type="button" class="ml-d-pg" data-pg="next" title="下一种"' +
+            (atEnd ? ' disabled' : '') + '>›</button>' +
+            '<button type="button" class="ml-d-pg" data-pg="last" title="最不险的一种"' +
+            (atEnd ? ' disabled' : '') + '>»</button>' +
+            '</div>';
+
+        return tabs + body + pager;
     }
 
     function runSolve() {
@@ -2477,6 +2547,7 @@
         lastAns = ans;
         lastNm = nm;
         detailCache = {};
+        detailState = {};
 
         var self = esc(ans.target.name || ('#' + ans.target.id));
         var head = '<div class="ml-banner' + (ans.always ? ' is-ok' : (ans.never ? ' is-no' : '')) + '">';
@@ -2490,7 +2561,7 @@
         } else {
             var need = ans.counts.ok - ans.counts.free;
             head += '共比较 ' + ans.counts.all + ' 种末轮结果，其中 ' +
-                ans.counts.free + ' 种稳进' +
+                ans.counts.free + ' 种不用加赛' +
                 (need ? '，' + need + ' 种需加赛' : '') + '。';
         }
         head += '</div>';
@@ -2530,9 +2601,35 @@
         host.innerHTML = head + body + '<p class="ml-hint">' + tail + '。</p>';
     }
 
-    /* 点一条条件 → 展开它下面的细分 */
+    /* 点一条条件 → 展开它下面的细分；再点名次标签 / 翻页按钮，在同一块里换页 */
     $('#solve-host').addEventListener('click', function (e) {
-        var btn = e.target && e.target.closest ? e.target.closest('.ml-term-q') : null;
+        var tgt = e.target && e.target.closest ? e.target : null;
+        var nav = tgt ? tgt.closest('.ml-d-tab, .ml-d-pg') : null;
+        if (nav) {
+            var box0 = nav.closest('.ml-term-detail');
+            var k0 = box0 && box0.dataset.detail;
+            var st0 = k0 ? detailCache[k0] : null;
+            if (!st0) { return; }
+            var view = detailView(k0);
+            if (nav.classList.contains('ml-d-tab')) {
+                view.tab = nav.dataset.tab === 'all' ? 'all' : Number(nav.dataset.tab);
+                view.page = 0;
+            } else {
+                var list = view.tab === 'all' ? st0.subs : st0.subs.filter(function (s) {
+                    return s.rank === view.tab;
+                });
+                var last = Math.max(0, list.length - 1);
+                var pg = nav.dataset.pg;
+                if (pg === 'first') { view.page = 0; }
+                else if (pg === 'last') { view.page = last; }
+                else if (pg === 'prev') { view.page = Math.max(0, view.page - 1); }
+                else { view.page = Math.min(last, view.page + 1); }
+            }
+            box0.innerHTML = detailHtml(st0, k0, lastNm);
+            return;
+        }
+
+        var btn = tgt ? tgt.closest('.ml-term-q') : null;
         if (!btn || !lastAns) { return; }
         var gi = Number(btn.dataset.g), ti = Number(btn.dataset.t);
         var box = this.querySelector('[data-detail="' + gi + '-' + ti + '"]');
@@ -2556,7 +2653,8 @@
                     st = lastAns.explore(term.pat);
                     detailCache[key] = st;
                 }
-                box.innerHTML = detailHtml(st, lastNm);
+                box.dataset.detail = key;
+                box.innerHTML = detailHtml(st, key, lastNm);
             }
             box.dataset.done = '1';
         }
