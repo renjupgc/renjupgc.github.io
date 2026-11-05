@@ -149,6 +149,28 @@
 
     .ml-note b { color: var(--ink-2); font-weight: 600; }
 
+    /* ---------- 轻提示 ---------- */
+    .ml-flash {
+        position: fixed;
+        left: 50%;
+        bottom: 30px;
+        transform: translateX(-50%) translateY(10px);
+        z-index: 90;
+        padding: 9px 18px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: var(--paper);
+        font-family: var(--sans);
+        font-size: 13px;
+        letter-spacing: 0.02em;
+        box-shadow: var(--shadow-md);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .ml-flash.is-on { opacity: 0.95; transform: translateX(-50%) translateY(0); }
+
     /* ---------- 破同分 ---------- */
     .ml-tb { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 
@@ -1422,7 +1444,17 @@
         return Math.round((b - a) * 2) / 2;
     }
 
+    /* 这一轮是否录过东西：上轮积分、对手、弃权任一有值就算录过 */
+    function roundFilled(rd) {
+        if (!rd) { return false; }
+        return Object.keys(rd.pre || {}).length > 0 ||
+               Object.keys(rd.opps || {}).length > 0 ||
+               (rd.ff || []).length > 0;
+    }
+
     function hasScores(r) {
+        /* 整轮都清空了，就不能再拿相邻轮的积分差硬算成绩 */
+        if (!roundFilled(roundOf(r))) { return false; }
         return state.players.some(function (p) { return scoreOf(p.id, r) != null; });
     }
 
@@ -1622,9 +1654,10 @@
 
         var rd = roundOf(curRound, true);
         var players = state.players.slice().sort(function (a, b) { return a.id - b.id; });
+        var recorded = roundFilled(rd);
         var rows = players.map(function (p) {
             var pre = preOf(p.id, curRound);
-            var sc = scoreOf(p.id, curRound);
+            var sc = recorded ? scoreOf(p.id, curRound) : null;
             var opp = rd.opps[p.id];
             var cls = '', label = '';
             if (sc != null) {
@@ -1634,12 +1667,14 @@
                 else { label = fmt(sc); cls = 'is-bad'; }
             }
             var fixed = curRound === 1;
+            /* 第 1 轮开赛前人人 0 分，不用填也不用显示 0，留空即「无输入」 */
+            var preCell = fixed || pre == null ? '' : fmt(pre);
             return '<tr data-id="' + p.id + '">' +
                 '<td class="c-num">' + p.id + '</td>' +
                 '<td>' + esc(nameOf(p)) + '</td>' +
                 '<td class="c-num">' + esc(p.unit || '') + '</td>' +
                 '<td><input class="ml-cell' + (fixed ? ' is-fixed' : '') + '" data-pre="' + p.id +
-                    '" inputmode="decimal" value="' + esc(pre == null ? '' : fmt(pre)) + '"' +
+                    '" inputmode="decimal" value="' + esc(preCell) + '"' +
                     (fixed ? ' readonly tabindex="-1"' : '') + ' placeholder="—"></td>' +
                 '<td><input class="ml-cell" data-opp="' + p.id + '" value="' +
                     esc(opp === 'bye' ? 'bye' : (opp == null ? '' : opp)) + '" placeholder="—"></td>' +
@@ -1663,9 +1698,10 @@
         var rd = roundOf(curRound);
         if (!rd) { hint.hidden = true; return; }
         var preN = 0, filled = 0, dist = { '1': 0, '0.5': 0, '0': 0 }, bad = 0, byes = 0;
+        var recorded = roundFilled(rd);
         state.players.forEach(function (p) {
             if (preOf(p.id, curRound) != null) { preN++; }
-            var v = scoreOf(p.id, curRound);
+            var v = recorded ? scoreOf(p.id, curRound) : null;
             if (v == null) { return; }
             filled++;
             if (v === 1 || v === 0.5 || v === 0) { dist[String(v)]++; } else { bad++; }
@@ -1794,7 +1830,6 @@
 
     function openCurrentPaste() {
         openPaste(null);
-        $('#paste-hint').textContent = '第 ' + curRound + ' 轮：整段粘贴成绩单，名单按编号自动建立';
     }
 
     $('#btn-paste').addEventListener('click', openCurrentPaste);
@@ -1829,11 +1864,18 @@
         /* 名单补齐后重解析一次，这次能认出对手编号 */
         var res = ML.parseText(text, state.players);
         var rd = roundOf(curRound, true);
-        var nPre = 0, nOpp = 0;
+
+        var idSet = {};
+        state.players.forEach(function (p) { idSet[p.id] = 1; });
 
         res.rows.forEach(function (r) {
-            if (r.pre != null) { rd.pre[r.id] = r.pre; nPre++; }
-            if (r.opp != null) { rd.opps[r.id] = r.opp; nOpp++; }
+            /* 第 1 轮开赛前人人 0 分，那唯一的一个数字其实是对手编号 */
+            if (curRound === 1) {
+                if (r.opp == null && r.pre != null && idSet[r.pre]) { r.opp = r.pre; }
+                r.pre = null;
+            }
+            if (r.pre != null && curRound > 1) { rd.pre[r.id] = r.pre; }
+            if (r.opp != null) { rd.opps[r.id] = r.opp; }
         });
 
         /* 一局只输一次：a 写了对手 b，b 那边空着就补上 a */
@@ -1843,8 +1885,8 @@
             if (rd.opps[b] == null || rd.opps[b] === '') { rd.opps[b] = r.id; }
         });
 
-        $('#paste-hint').textContent = '填入 ' + res.rows.length + ' 人，其中带上轮积分 ' + nPre +
-            ' 人、带对手 ' + nOpp + ' 人' + (added ? '，新增名单 ' + added + ' 人' : '');
+        $('#paste-hint').textContent = '填入 ' + res.rows.length + ' 人' +
+            (added ? '，新增名单 ' + added + ' 人' : '');
 
         save();
         renderTabs(); syncSetup(); renderEntry(); refreshAll();
@@ -1852,12 +1894,47 @@
 
     $('#btn-apply-paste').addEventListener('click', applyPaste);
 
-   $('#btn-clear').addEventListener('click', function () {
-        if (!confirm('清空第 ' + curRound + ' 轮的上轮积分与对手？')) { return; }
-        var rd = roundOf(curRound, true);
-        rd.pre = {}; rd.opps = {}; rd.ff = [];
-        save();
-        renderTabs(); renderEntry(); refreshAll();
+    /* ---------------- 清空本轮 ---------------- */
+
+    var flashEl = null, flashTimer = 0;
+    function flash(msg) {
+        if (!flashEl) {
+            flashEl = document.createElement('div');
+            flashEl.className = 'ml-flash';
+            document.body.appendChild(flashEl);
+        }
+        flashEl.textContent = msg;
+        flashEl.classList.add('is-on');
+        clearTimeout(flashTimer);
+        flashTimer = setTimeout(function () { flashEl.classList.remove('is-on'); }, 1800);
+    }
+
+    $('#btn-clear').addEventListener('click', function () {
+        if (!confirm('清空第 ' + curRound + ' 轮的上轮积分、对手与弃权？')) { return; }
+
+        var rd = roundOf(curRound);
+        if (rd) { rd.pre = {}; rd.opps = {}; rd.ff = []; }
+
+        /* 清空的轮次直接从存档里去掉，别留空壳影响页签圆点与推算 */
+        state.rounds = state.rounds.filter(function (x) {
+            if (x.r !== curRound) { return true; }
+            return Object.keys(x.pre || {}).length ||
+                   Object.keys(x.opps || {}).length ||
+                   (x.ff || []).length;
+        });
+
+        /* 立刻落盘，不等 220ms 防抖，马上刷新页面也不会复活 */
+        clearTimeout(saveTimer);
+        try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+
+        /* 粘贴草稿一并清掉，免得再点「填入本轮」把刚清的数据贴回来 */
+        $('#paste-text').value = '';
+        $('#paste-hint').textContent = '';
+        $('#paste-box').hidden = true;
+
+        renderTabs(); renderEntry(); renderStandings(); renderSolveSelect();
+        resetSolve();
+        flash('已清空第 ' + curRound + ' 轮' + (curRound === 1 ? '（第 1 轮积分恒为 0）' : ''));
     });
 
     /* ---------------- 名次表 ---------------- */
@@ -2211,10 +2288,17 @@
 
     /* ---------------- 启动 ---------------- */
 
+    /* 数据一改，上一轮的推算结论就作废，直接收掉，免得看着像没反应 */
+    function resetSolve() {
+        var h = $('#solve-host');
+        if (h) { h.innerHTML = ''; }
+    }
+
     function refreshAll() {
         renderStandings();
         renderSolveSelect();
         syncSetup();
+        resetSolve();
     }
 
     ML.CFG.byePoint = state.byePoint || 1;
