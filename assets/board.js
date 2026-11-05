@@ -11,14 +11,16 @@
  *        data-moves="H8 I9 J10 w:G7" data-numbers="0" data-editable></div>
  *   data-moves 用空格或逗号分隔，默认黑先、双方轮换；
  *   某一手要指定颜色就写 b:H8 / w:H8。
- *   data-numbers="0" 表示默认不显示序号；data-editable 表示可以点着落子。
+ *   data-numbers="0" 默认不显示序号；data-coords="0" 默认不显示坐标；
+ *   data-editable 表示可以点着落子。
  *
  * 用法二，脚本式：
  *   var b = GomokuBoard.mount(el, {editable: true});
  *   b.place(7, 7);      // 落子（行列为 0 起的下标）
  *   b.next(); b.prev(); b.first(); b.last();
- *   b.undo(); b.clear(); b.setNumbers(false); b.setColor('w');
- *   b.onChange(function (s) { s.moves / s.cursor / s.numbers / s.color });
+ *   b.undo(); b.clear(); b.setNumbers(false); b.setCoords(false);
+ *   b.setColor('w');
+ *   b.onChange(function (s) { s.moves / s.cursor / s.numbers / s.coords / s.color });
  *
  * 站内换页是「只换 <main>」的无刷新跳转（见 layout.js），换回来的
  * 页面里的棋盘不会再执行本文件一次，所以这里用 MutationObserver
@@ -107,6 +109,7 @@
         this.moves = [];
         this.cursor = 0;                      // 已经走到第几手（0 = 空盘）
         this.numbers = opts.numbers !== false;
+        this.coords = opts.coords !== false;  // A-O / 1-15 坐标
         this.editable = !!opts.editable;
         this.color = opts.color || null;      // null = 黑白轮换
         this.listeners = [];
@@ -172,6 +175,10 @@
             by.textContent = String(SIZE - j);
             labels.appendChild(by);
         }
+        if (!this.coords) {
+            labels.setAttribute('display', 'none');
+        }
+        this.labels = labels;
         svg.appendChild(labels);
 
         /* 落点提示：只在可摆棋时出现，鼠标移到空点上浮一个淡子 */
@@ -239,28 +246,49 @@
             self.buttons[def[0]] = btn;
         });
 
-        var sw = document.createElement('label');
-        sw.className = 'board-switch';
-        sw.title = '显示或隐藏手数';
-        var cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = this.numbers;
-        cb.addEventListener('change', function () {
-            self.setNumbers(cb.checked);
-        });
-        var track = document.createElement('span');
-        track.className = 'sw';
-        var text = document.createElement('span');
-        text.className = 'sw-text';
-        text.textContent = '序号';
-        sw.appendChild(cb);
-        sw.appendChild(track);
-        sw.appendChild(text);
+        /* 右侧两个开关：序号、坐标 */
+        var box = document.createElement('div');
+        box.className = 'board-switches';
 
-        bar.appendChild(sw);
-        this.checkbox = cb;
+        this.checkbox = this.makeSwitch(box, '序号', '显示或隐藏手数',
+            this.numbers, function (on) {
+                self.setNumbers(on);
+            });
+        this.coordBox = this.makeSwitch(box, '坐标', '显示或隐藏棋盘坐标',
+            this.coords, function (on) {
+                self.setCoords(on);
+            });
+
+        bar.appendChild(box);
         this.bar = bar;
         this.host.appendChild(bar);
+    };
+
+    /* 一个胶囊开关：label 里套隐藏的 checkbox + 轨道 + 文字 */
+    Board.prototype.makeSwitch = function (parent, text, title, on, onChange) {
+        var sw = document.createElement('label');
+        sw.className = 'board-switch';
+        sw.title = title;
+
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!on;
+        cb.addEventListener('change', function () {
+            onChange(cb.checked);
+        });
+
+        var track = document.createElement('span');
+        track.className = 'sw';
+
+        var label = document.createElement('span');
+        label.className = 'sw-text';
+        label.textContent = text;
+
+        sw.appendChild(cb);
+        sw.appendChild(track);
+        sw.appendChild(label);
+        parent.appendChild(sw);
+        return cb;
     };
 
     /* 鼠标位置 -> 最近的交叉点 */
@@ -382,6 +410,20 @@
         this.render();
     };
 
+    Board.prototype.setCoords = function (on) {
+        this.coords = !!on;
+        if (this.labels) {
+            if (this.coords) {
+                this.labels.removeAttribute('display');
+            } else {
+                this.labels.setAttribute('display', 'none');
+            }
+        }
+        if (this.coordBox && this.coordBox.checked !== this.coords) {
+            this.coordBox.checked = this.coords;
+        }
+    };
+
     Board.prototype.setColor = function (color) {
         this.color = color || null;
         this.render();
@@ -442,6 +484,9 @@
         if (this.checkbox && this.checkbox.checked !== this.numbers) {
             this.checkbox.checked = this.numbers;
         }
+        if (this.coordBox && this.coordBox.checked !== this.coords) {
+            this.coordBox.checked = this.coords;
+        }
         this.emit();
     };
 
@@ -462,6 +507,7 @@
             moves: this.getMoves(),
             cursor: this.cursor,
             numbers: this.numbers,
+            coords: this.coords,
             color: this.color
         };
         this.listeners.forEach(function (fn) {
@@ -485,6 +531,7 @@
         return mount(el, {
             moves: parseMoves(el.getAttribute('data-moves')),
             numbers: el.getAttribute('data-numbers') !== '0',
+            coords: el.getAttribute('data-coords') !== '0',
             editable: el.hasAttribute('data-editable')
         });
     }
