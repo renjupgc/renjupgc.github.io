@@ -387,6 +387,19 @@
     .ml-paste { margin: 0 0 14px; }
     .ml-paste[hidden] { display: none; }
 
+    .ml-ocr {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-2);
+        padding: 12px 14px 12px;
+        margin: 0 0 12px;
+    }
+
+    .ml-ocr[hidden] { display: none; }
+
+    .ml-ocr .ml-sub { font-size: 12px; line-height: 1.7; }
+    .ml-ocr #ocr-key { font-size: 12px; }
+
     /* ---------- 名次表 ---------- */
     .ml-stand th.is-tb, .ml-stand td.is-tb { text-align: right; font-variant-numeric: tabular-nums; }
     .ml-stand td.is-pts { font-weight: 600; color: var(--ink); text-align: right; }
@@ -434,20 +447,22 @@
         overflow: hidden;
     }
 
-    .ml-case > summary {
-        cursor: pointer;
-        padding: 10px 14px;
+    .ml-case > .ml-case-head {
+        padding: 11px 14px;
         font-family: var(--sans);
         font-size: 13.5px;
+        line-height: 1.85;
         color: var(--ink-2);
-        list-style: none;
         display: flex;
-        align-items: center;
-        gap: 8px;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 4px 9px;
     }
 
-    .ml-case > summary::-webkit-details-marker { display: none; }
-    .ml-case > summary:hover { background: var(--gold-tint); }
+    .ml-case.is-empty { background: transparent; }
+
+    .ml-case .ml-case-head .ml-case-line { color: var(--ink-2); }
+    .ml-case.is-empty .ml-case-head .ml-case-line { color: var(--muted); }
 
     .ml-case .ml-badge {
         font-size: 11px;
@@ -465,7 +480,7 @@
 
     .ml-case ul {
         margin: 0;
-        padding: 4px 16px 14px 32px;
+        padding: 0 16px 12px 34px;
         font-family: var(--sans);
         font-size: 13px;
         line-height: 2;
@@ -482,6 +497,7 @@
         .ml-bar .ml-note { flex: 1 0 100%; }
         .ml-card { padding: 16px 14px 18px; border-radius: 14px; }
         .ml-solve-grid { grid-template-columns: 1fr; }
+        .ml-toolbar .ml-spacer { display: none; }
         .ml-tb .ml-tb-hint { display: none; }
         .ml-table-wrap { max-height: 56vh; }
     }
@@ -528,11 +544,24 @@
             <div class="ml-toolbar">
                 <button class="ml-btn is-primary" id="btn-paste">粘贴本轮</button>
                 <button class="ml-btn" id="btn-ocr">识别图片</button>
+                <button class="ml-btn is-quiet" id="btn-ocr-cfg">识别 Key</button>
                 <span class="ml-spacer"></span>
                 <button class="ml-btn is-quiet" id="btn-clear">清空本轮</button>
             </div>
 
             <div class="ml-paste" id="paste-box" hidden>
+                <div class="ml-ocr" id="ocr-cfg" hidden>
+                    <label class="ml-field">
+                        <span>API Key</span>
+                        <input class="ml-input" id="ocr-key" type="password" spellcheck="false"
+                            autocomplete="off" placeholder="在 bailian.console.aliyun.com 免费领取，只存本机">
+                    </label>
+                    <div class="ml-toolbar" style="margin:10px 0 0">
+                        <button class="ml-btn is-primary" id="ocr-go">保存并识别</button>
+                        <span class="ml-spacer"></span>
+                        <span class="ml-sub" style="margin:0" id="ocr-tip">识别用通义千问 qwen3-vl-flash（免费）</span>
+                    </div>
+                </div>
                 <textarea class="ml-textarea" id="paste-text" spellcheck="false"
                     placeholder="每行一人：编号 姓名 单位 上轮积分 对手编号&#10;例如：12 张三 甲组 3.5 7&#10;姓名第二轮起可省，单位可省；对手写编号，轮空写 bye"></textarea>
                 <div class="ml-toolbar" style="margin:10px 0 0">
@@ -1911,8 +1940,14 @@
         state.players.forEach(function (p) { names[p.id] = nameOf(p); });
         function nm(id) { return names[id] || (id + ' 号'); }
         if (t.code === '1-0') { return nm(t.a) + ' 胜 ' + nm(t.b); }
-        if (t.code === '0-1') { return nm(t.b) + ' 胜 ' + nm(t.a); }
-        return nm(t.a) + ' 与 ' + nm(t.b) + ' 下和';
+        if (t.code === '0-1') { return nm(t.a) + ' 负 ' + nm(t.b); }
+        return nm(t.a) + ' 平 ' + nm(t.b);
+    }
+
+    /* 一组条件统一写成：甲 胜 乙，丙 平 丁 */
+    function condSentence(parts) {
+        if (!parts || !parts.length) { return '不需要其他对局配合'; }
+        return parts.map(condText).join('，');
     }
 
     function runSolve() {
@@ -1937,49 +1972,53 @@
             return;
         }
 
+        var self = esc(ans.target.name || ('#' + ans.target.id));
         var head = '<div class="ml-banner' + (ans.always ? ' is-ok' : (ans.never ? ' is-no' : '')) + '">';
 
         if (ans.always) {
-            head += '<b>' + esc(ans.target.name || ('#' + ans.target.id)) + '</b> 无论末轮结果如何，都至少第 ' + rank + ' 名。';
+            head += '<b>' + self + '</b> 无论末轮结果如何，都至少第 ' + rank + ' 名。';
         } else if (ans.never) {
-            head += '<b>' + esc(ans.target.name || ('#' + ans.target.id)) + '</b> 已经无法进第 ' + rank + ' 名。';
+            head += '<b>' + self + '</b> 已经无法进第 ' + rank + ' 名。';
         } else {
-            head += '<b>' + esc(ans.target.name || ('#' + ans.target.id)) + '</b> 目前 ' + fmt(ans.target.pts) + ' 分、第 ' +
-                ans.target.rank + ' 名；末轮要进第 ' + rank + ' 名，按自己胜／和／负分三种情况。' +
+            head += '<b>' + self + '</b> 目前 ' + fmt(ans.target.pts) + ' 分、第 ' +
+                ans.target.rank + ' 名；末轮进第 ' + rank + ' 名，按 胜 · 平 · 负 三种情况。' +
                 '<br><span style="color:var(--muted);font-size:12.5px">共比较 ' + ans.counts.all +
                 ' 种末轮结果，其中 ' + ans.counts.ok + ' 种达成；' + ans.assumes + '。</span>';
         }
         head += '</div>';
 
-        var order = { win: 0, draw: 1, loss: 2 };
-        var groups = ans.groups.slice().sort(function (a, b) { return order[a.tOutcome] - order[b.tOutcome]; });
-        var label = { win: '自己赢', draw: '自己下和', loss: '自己输' };
+        var label = { win: self + ' 胜', draw: self + ' 平', loss: self + ' 负' };
         var badge = { win: 'is-win', draw: 'is-draw', loss: 'is-loss' };
+        var byOut = {};
+        ans.groups.forEach(function (g) { byOut[g.tOutcome] = g; });
 
-        var body = groups.map(function (g) {
-            var terms = g.terms.slice(0, 6);
-            var lis = terms.map(function (p) {
-                if (!p.length) { return '<li class="ml-cond-none">不需要其他对局配合</li>'; }
-                return '<li>' + p.map(condText).join('，') + '</li>';
+        /* 三段恒定：胜 / 平 / 负，句式统一 */
+        var body = '';
+        if (!ans.always && !ans.never) {
+            body = ['win', 'draw', 'loss'].map(function (k) {
+                var g = byOut[k];
+                var tag = '<span class="ml-badge ' + badge[k] + '">' + esc(label[k]) + '</span>';
+                if (!g || !g.terms.length) {
+                    return '<div class="ml-case is-empty"><div class="ml-case-head">' + tag +
+                        '<span class="ml-case-line">末轮第 ' + rank + ' 名无望</span></div></div>';
+                }
+                if (g.terms.length === 1) {
+                    return '<div class="ml-case"><div class="ml-case-head">' + tag +
+                        '<span class="ml-case-line">' + condSentence(g.terms[0]) + '</span></div></div>';
+                }
+                var lis = g.terms.map(function (p) {
+                    return '<li>' + condSentence(p) + '</li>';
+                }).join('');
+                return '<div class="ml-case"><div class="ml-case-head">' + tag +
+                    '<span class="ml-case-line">满足任一条件，共 ' + g.terms.length + ' 种：</span>' +
+                    '</div><ul>' + lis + '</ul></div>';
             }).join('');
-            return '<details class="ml-case"' + (g.tOutcome === 'win' ? ' open' : '') + '>' +
-                '<summary><span class="ml-badge ' + badge[g.tOutcome] + '">' + label[g.tOutcome] + '</span>' +
-                (terms.length > 1 ? '有 ' + terms.length + ' 种走法' : '一条路') + '</summary>' +
-                '<ul>' + (lis || '<li class="ml-cond-none">没有可行组合</li>') + '</ul></details>';
-        }).join('');
+        }
 
-        /* 某种自身结果彻底无望时，明说一句，免得以为漏算 */
-        var has = {};
-        groups.forEach(function (g) { has[g.tOutcome] = 1; });
-        var missing = ['win', 'draw', 'loss'].filter(function (k) { return !has[k]; });
-        var missNote = missing.length
-            ? '<p class="ml-hint">' + missing.map(function (k) { return label[k]; }).join('、') +
-              '：无论其他对局怎么下，都到不了第 ' + rank + ' 名。</p>'
-            : '';
+        var tail = '耗时 ' + ms + ' ms，枚举 ' + ans.games + ' 场关键对局';
+        if (body) { tail += '；同一段内多条条件满足任意一条即可'; }
 
-        host.innerHTML = head + (groups.length ? body :
-            '<p class="ml-hint">没有找到可行的末轮组合。</p>') + missNote +
-            '<p class="ml-hint">耗时 ' + ms + ' ms，枚举 ' + ans.games + ' 场关键对局。条件之间是「或」的关系，满足任意一条即可。</p>';
+        host.innerHTML = head + body + '<p class="ml-hint">' + tail + '。</p>';
     }
 
     $('#btn-solve').addEventListener('click', runSolve);
@@ -2041,51 +2080,186 @@
         $('#solve-host').innerHTML = '<p class="ml-hint">录完前几轮后，这里会列出末轮条件。</p>';
     });
 
-    /* ---------------- OCR ---------------- */
+    /* ---------------- 图片识别 ---------------- */
 
-    function loadTesseract() {
-        if (window.Tesseract) { return Promise.resolve(window.Tesseract); }
+    var OCR_KEY = 'molun_ocr_v1';
+    /* 统一用通义千问的免费视觉模型，地址与模型名写死 */
+    var OCR_API = {
+        base: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+        model: 'qwen3-vl-flash'
+    };
+
+    /* 只读表格数据行，不要解释文字 */
+    var OCR_PROMPT = [
+        '这是一张棋类比赛（瑞士制）的成绩单照片，请把表格逐行读出来。',
+        '只输出数据行，一行一个选手，字段顺序固定：',
+        '编号 姓名 单位 上轮积分 对手编号',
+        '字段之间只用一个空格分隔。',
+        '要求：',
+        '1. 不要输出表头、序号、列名、说明、Markdown 代码块，只输出数据行。',
+        '2. 编号、对手编号是整数；上轮积分是数字，可能带 .5，照抄，不要换算。',
+        '3. 姓名照抄中文，不要翻译、不要改写；单位照抄，没有就写 -。',
+        '4. 对手栏是“轮空”“bye”“BYE”或空白的，统一写 bye；其他看不清的写 -。',
+        '5. 看不清的字符写 ?，不要猜。按编号从小到大排列。',
+        '6. 一张图里有多张表时，只读最后一张（最后一轮）。'
+    ].join('\n');
+
+    function ocrKey() {
+        try {
+            return (JSON.parse(localStorage.getItem(OCR_KEY) || '{}').key || '');
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function setOcrKey(k) {
+        try { localStorage.setItem(OCR_KEY, JSON.stringify({ key: k })); } catch (e) {}
+    }
+
+    function openOcrCfg(msg) {
+        $('#paste-box').hidden = false;
+        $('#ocr-cfg').hidden = false;
+        $('#ocr-key').value = ocrKey();
+        if (msg) { $('#paste-hint').textContent = msg; }
+    }
+
+    $('#btn-ocr-cfg').addEventListener('click', function () { openOcrCfg(''); });
+
+    /* 图片压缩到长边 maxSide，避免 base64 过大 */
+    function fileToImage(f, maxSide) {
         return new Promise(function (res, rej) {
-            var s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-            s.onload = function () { res(window.Tesseract); };
-            s.onerror = function () { rej(new Error('识别引擎加载失败，可能没有联网')); };
-            document.head.appendChild(s);
+            var fr = new FileReader();
+            fr.onerror = function () { rej(new Error('图片读不出来')); };
+            fr.onload = function () {
+                var raw = String(fr.result);
+                var img = new Image();
+                img.onerror = function () { rej(new Error('图片格式不支持')); };
+                img.onload = function () {
+                    var w = img.naturalWidth, h = img.naturalHeight;
+                    var k = Math.min(1, maxSide / Math.max(w, h));
+                    if (!w || !h) { return res({ url: raw, b64: raw.split(',')[1] || '', mime: f.type || 'image/jpeg' }); }
+                    if (k > 0.999 && f.size < 1.6e6) {
+                        return res({ url: raw, b64: raw.split(',')[1] || '', mime: f.type || 'image/jpeg' });
+                    }
+                    var cv = document.createElement('canvas');
+                    cv.width = Math.max(1, Math.round(w * k));
+                    cv.height = Math.max(1, Math.round(h * k));
+                    var ctx = cv.getContext('2d');
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, cv.width, cv.height);
+                    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+                    var out = cv.toDataURL('image/jpeg', 0.92);
+                    res({ url: out, b64: out.split(',')[1], mime: 'image/jpeg' });
+                };
+                img.src = raw;
+            };
+            fr.readAsDataURL(f);
         });
     }
 
+    function readJson(r) {
+        return r.text().then(function (txt) {
+            var j;
+            try { j = JSON.parse(txt); } catch (e) { throw new Error('返回不是 JSON（' + txt.slice(0, 80) + '）'); }
+            if (!r.ok) {
+                var m = (j.error && (j.error.message || j.error.code)) || j.message || ('HTTP ' + r.status);
+                throw new Error(String(m).slice(0, 160));
+            }
+            return j;
+        });
+    }
+
+    function callVision(key, img) {
+        return fetch(OCR_API.base, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + key
+            },
+            body: JSON.stringify({
+                model: OCR_API.model,
+                temperature: 0.1,
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'image_url', image_url: { url: img.url } },
+                        { type: 'text', text: OCR_PROMPT }
+                    ]
+                }]
+            })
+        }).then(readJson).then(function (j) {
+            var ch = (j.choices || [])[0] || {};
+            return (ch.message && ch.message.content) || '';
+        });
+    }
+
+    /* 只留「编号 开头」的行，去掉表头、说明、代码块 */
+    function cleanOcrText(text) {
+        var raw = String(text || '').replace(/```[a-zA-Z]*\n?/g, '').split(/\r?\n/);
+        var out = [];
+        raw.forEach(function (l) {
+            var s = l.replace(/[|│`*]/g, ' ').replace(/\s+/g, ' ').trim();
+            if (!s) { return; }
+            var m = s.match(/^(\d{1,4})[\s.、)．,，:：-]*(.*)$/);
+            if (!m) { return; }
+            out.push((m[1] + ' ' + m[2]).replace(/\s+$/, ''));
+        });
+        return out;
+    }
+
+    var pendingImage = null;
+
+    function runVision() {
+        var key = ocrKey();
+        if (!key) { openOcrCfg('先填一次 API Key，之后会记住。'); return; }
+        if (!pendingImage) { $('#paste-hint').textContent = '先点「识别图片」选一张成绩单照片。'; return; }
+
+        var btn = $('#btn-ocr');
+        btn.disabled = true;
+        $('#ocr-cfg').hidden = true;
+        $('#paste-hint').textContent = '识别中…';
+
+        fileToImage(pendingImage, 1800).then(function (img) {
+            $('#paste-hint').textContent = '识别中…（' + Math.round(img.b64.length / 1365) + ' KB）';
+            return callVision(key, img);
+        }).then(function (text) {
+            var lines = cleanOcrText(text);
+            $('#paste-text').value = lines.length ? lines.join('\n') : String(text || '').trim();
+            $('#paste-hint').textContent = lines.length
+                ? '识别出 ' + lines.length + ' 行，请核对编号、上轮积分与对手再填入'
+                : '没读出可用的行，原文已放进输入框，请手动整理';
+        }).catch(function (err) {
+            $('#paste-hint').textContent = '识别失败：' + err.message + '。检查 Key 或网络后重试。';
+            $('#ocr-cfg').hidden = false;
+            $('#ocr-key').value = key;
+        }).then(function () { btn.disabled = false; });
+    }
+
     $('#btn-ocr').addEventListener('click', function () {
-        var self = this;
         var inp = document.createElement('input');
         inp.type = 'file';
         inp.accept = 'image/*';
         inp.addEventListener('change', function () {
             var f = inp.files && inp.files[0];
             if (!f) { return; }
+            pendingImage = f;
             openPaste('');
-            $('#paste-hint').textContent = '识别中…首次要下载中文语言包，请稍等';
-            self.disabled = true;
-
-            loadTesseract().then(function (T) {
-                return T.recognize(f, 'chi_sim+eng', {
-                    logger: function (m) {
-                        if (m.status === 'recognizing text') {
-                            $('#paste-hint').textContent = '识别中… ' + Math.round((m.progress || 0) * 100) + '%';
-                        }
-                    }
-                });
-            }).then(function (out) {
-                var text = (out && out.data && out.data.text) || '';
-                var lines = text.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
-                $('#paste-text').value = lines.join('\n');
-                $('#paste-hint').textContent = '识别出 ' + lines.length + ' 行，请核对编号、上轮积分与对手再填入';
-            }).catch(function (err) {
-                $('#paste-hint').textContent = '识别失败：' + err.message + '。可以直接把成绩单文字粘贴到上面。';
-            }).then(function () {
-                self.disabled = false;
-            });
+            if (!ocrKey()) {
+                openOcrCfg('第一次用：填一次 API Key，之后会记住。');
+                return;
+            }
+            runVision();
         });
         inp.click();
+    });
+
+    $('#ocr-go').addEventListener('click', function () {
+        var k = $('#ocr-key').value.trim();
+        if (!k) { $('#ocr-tip').textContent = '先填 API Key'; return; }
+        setOcrKey(k);
+        $('#ocr-cfg').hidden = true;
+        if (!pendingImage) { $('#paste-hint').textContent = '先在「识别图片」里选一张图。'; return; }
+        runVision();
     });
 
     /* ---------------- 启动 ---------------- */
