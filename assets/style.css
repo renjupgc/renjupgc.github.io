@@ -946,37 +946,9 @@ table.crosstab td.res-floss {
     box-shadow: 0 0 0 2px rgba(125, 143, 165, 0.35);
 }
 
-/* 「设置」入口：跟开关同一行，纯文字按钮，不抢视线 */
-.board-set {
-    margin: 0;
-    padding: 0 2px;
-    font-family: inherit;
-    font-size: 13px;
-    line-height: 1.6;
-    color: #8a8a8a;
-    background: none;
-    border: 0;
-    border-bottom: 1px dotted #cfcfcf;
-    cursor: pointer;
-}
-
-.board-set:hover,
-.board-set.is-on {
-    color: #2a2a2a;
-    border-bottom-color: #9aa7b5;
-}
-
-/* 设置面板：工具栏下面一条，收起时不占位 */
+/* 设置面板：一直摆在工具栏下面，就一行，不抢视线 */
 .board-panel {
     margin-top: 8px;
-    padding: 10px 12px;
-    background: #fbfaf7;
-    border: 1px solid #e8e6e0;
-    border-radius: 3px;
-}
-
-.board-panel[hidden] {
-    display: none;
 }
 
 .bp-row {
@@ -991,6 +963,14 @@ table.crosstab td.res-floss {
     flex: none;
     min-width: 4.6em;
     color: #777777;
+}
+
+/* 右边的小字：计算中 / 第 n 层 */
+.bp-state {
+    margin-left: auto;
+    font-size: 12px;
+    color: #9a9a9a;
+    font-variant-numeric: tabular-nums;
 }
 
 /* 步进器：－ 值 ＋，拼成一整个控件 */

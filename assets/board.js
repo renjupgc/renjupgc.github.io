@@ -6,10 +6,11 @@
  * 棋子上的数字是该手序号，最后一手的序号标红；关掉「序号」时，
  * 最后一手改在棋子中心点一个红点。
  * 可落子的棋盘：点空点落子，双击某一颗棋子回退到那一手，其后的手数作废。
- * 打开「分析」开关后，Rapfi 引擎（连珠规则）会在后台一轮轮地算当前局面，
- * 在空点上画圆形小标、里面写该点胜率（百位整数），最优的那个圈更粗。
- * 落子、回退、回看都会重新分析。候选点的个数（1-225）在「设置」里调，
- * 默认 5 个；调完即时重算。
+ * 打开「分析」开关后，Rapfi 引擎（连珠规则）会在后台一直算当前局面，
+ * 每加深一层就把结果报回来一次，空点上随即出现圆形小标、里面写该点胜率
+ * （百位整数），最优的那个圈更粗。引擎不限思考时间，只有局面变了才停。
+ * 落子、回退、回看都会重新分析。候选点的个数（1-225）在工具栏下方的
+ * 「分析点数」里一直摆着，默认 3 个，改完即时重算。
  *
  * 用法一，声明式（页面里直接摆一个棋盘）：
  *   <div class="board" data-board
@@ -33,7 +34,7 @@
  *   b.place(7, 7);      // 落子（行列为 0 起的下标）
  *   b.next(); b.prev(); b.first(); b.last();
  *   b.undo(); b.truncate(3); b.clear(); b.setNumbers(false); b.setCoords(false);
- *   b.setColor('w'); b.setPoints(9); b.togglePanel(true);
+ *   b.setColor('w'); b.setPoints(9);
  *   GomokuBoard.encode(b.getMoves());   // -> 'h8i9j10'
  *   GomokuBoard.decode('#h8i9j10');     // -> [{i,j,color}, ...]
  *   b.onChange(function (s) { s.moves / s.cursor / s.numbers / s.coords / s.color });
@@ -244,12 +245,19 @@
         this.color = opts.color || null;      // null = 黑白轮换
         this.hash = !!opts.hash;              // 局面写进地址栏 #h8i9j10
         /* 引擎分析只对可落子的棋盘开放；开关状态同样记忆 */
-        this.analysis = !!this.editable && opts.analysis !== false
-            && readPref('analysis', false);
+        this.analysis = !!this.editable && (opts.analysis === undefined
+            ? readPref('analysis', false) : !!opts.analysis);
         /* 分析点数（1-225）：引擎每轮报几个候选点，同样记忆 */
         this.points = opts.points === undefined
             ? readNumPref('points', POINTS_DEF) : clampPoints(opts.points);
         this.pv = null;                       // 引擎给回来的候选点
+        this.depth = 0;                       // 算到第几层
+        this.seq = 0;                         // 每次交给引擎一个新编号
+        this.wantKey = '';                    // 当前想算的局面
+        this.sentKey = null;                  // 已经交给引擎的局面
+        this.sentNbest = null;
+        this.engineReady = false;
+        this.engineBusy = false;              // 引擎是否正卡在一轮里
         this.listeners = [];
 
         host.classList.add('board');
@@ -348,12 +356,6 @@
         this.labels = labels;
         svg.appendChild(labels);
 
-        /* 落点提示：只在可摆棋时出现，鼠标移到空点上浮一个淡子 */
-        this.ghost = svgEl('circle', {
-            r: R, fill: 'none', stroke: 'none', 'pointer-events': 'none'
-        });
-        svg.appendChild(this.ghost);
-
         this.stoneLayer = svgEl('g', {});
         svg.appendChild(this.stoneLayer);
 
@@ -374,13 +376,6 @@
 
         if (this.editable) {
             svg.classList.add('is-editable');
-            svg.addEventListener('mousemove', function (e) {
-                self.hint(e);
-            });
-            svg.addEventListener('mouseleave', function () {
-                self.ghost.setAttribute('fill', 'none');
-                self.ghost.setAttribute('stroke', 'none');
-            });
             /*
              * 双击某一颗棋子：回退到这一手，其后的手数一并作废。
              * 单击只落子，点到已有的子不响应。
@@ -445,35 +440,23 @@
                 this.analysis, function (on) {
                     self.setAnalysis(on);
                 });
-            /* 设置：点开在工具栏下方展开一行，放分析点数 */
-            var set = document.createElement('button');
-            set.type = 'button';
-            set.className = 'board-set';
-            set.title = '设置';
-            set.setAttribute('aria-expanded', 'false');
-            set.textContent = '设置';
-            set.addEventListener('click', function () {
-                self.togglePanel();
-            });
-            box.appendChild(set);
-            this.setBtn = set;
         }
 
         bar.appendChild(box);
         this.bar = bar;
         this.host.appendChild(bar);
 
+        /* 分析点数不藏在「设置」里，一直摆在工具栏下面 */
         if (this.editable) {
             this.host.appendChild(this.buildPanel());
         }
     };
 
-    /* 设置面板：默认收起，点「设置」展开 */
+    /* 设置面板：常显一行，放分析点数与当前算到第几层 */
     Board.prototype.buildPanel = function () {
         var self = this;
         var panel = document.createElement('div');
         panel.className = 'board-panel';
-        panel.hidden = true;
 
         var row = document.createElement('div');
         row.className = 'bp-row';
@@ -525,9 +508,16 @@
 
         row.appendChild(key);
         row.appendChild(step);
+
+        /* 右边实时显示算到第几层，用来判断引擎还活着没 */
+        var state = document.createElement('span');
+        state.className = 'bp-state';
+        row.appendChild(state);
+
         panel.appendChild(row);
 
         this.panel = panel;
+        this.stateEl = state;
         this.pointsNum = num;
         this.pointsMinus = minus;
         this.pointsPlus = plus;
@@ -536,16 +526,13 @@
         return panel;
     };
 
-    Board.prototype.togglePanel = function (on) {
-        if (!this.panel) {
+    /* 面板右侧那行小字：计算中 / 第 n 层 */
+    Board.prototype.showDepth = function (n) {
+        this.depth = n || 0;
+        if (!this.stateEl) {
             return;
         }
-        var open = on === undefined ? this.panel.hidden : !!on;
-        this.panel.hidden = !open;
-        if (this.setBtn) {
-            this.setBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            this.setBtn.classList.toggle('is-on', open);
-        }
+        this.stateEl.textContent = n > 0 ? '第 ' + n + ' 层' : (this.analysis ? '计算中' : '');
     };
 
     /* 一个胶囊开关：label 里套隐藏的 checkbox + 轨道 + 文字 */
@@ -593,21 +580,6 @@
             i: Math.round((x - M) / C),
             j: Math.round((y - M) / C)
         };
-    };
-
-    Board.prototype.hint = function (e) {
-        var p = this.hit(e);
-        var empty = p && this.indexOf(p.i, p.j) < 0;
-        if (!empty) {
-            this.ghost.setAttribute('fill', 'none');
-            this.ghost.setAttribute('stroke', 'none');
-            return;
-        }
-        var color = this.color || (this.moves.length % 2 === 0 ? 'b' : 'w');
-        this.ghost.setAttribute('cx', px(p.i));
-        this.ghost.setAttribute('cy', py(p.j));
-        this.ghost.setAttribute('fill', color === 'b' ? 'rgba(31,31,31,.22)' : 'rgba(255,255,255,.9)');
-        this.ghost.setAttribute('stroke', color === 'b' ? 'rgba(31,31,31,.35)' : '#b3ab99');
     };
 
     /* 已经走到的那几手里，第一个落在 (i,j) 的下标；没有则 -1 */
@@ -732,8 +704,7 @@
         }
         this.renderEval();
         if (this.analysis) {
-            this.analyzeKey = '';          /* 点数变了，同一局面也要重算 */
-            this.scheduleAnalysis(true);
+            this.scheduleAnalysis(true);   /* 点数变了，同一局面也要重算 */
         }
         return this;
     };
@@ -752,6 +723,9 @@
         } else {
             this.stopEngine();
         }
+        if (!on) {
+            this.showDepth(0);
+        }
         return this;
     };
 
@@ -761,6 +735,7 @@
         }
         var self = this;
         this.engineReady = false;
+        this.engineBusy = false;
         try {
             this.worker = new Worker(ENGINE_URL);
         } catch (e) {
@@ -783,6 +758,7 @@
         if (this.analyzeBox) {
             this.analyzeBox.checked = false;
         }
+        this.showDepth(0);
         if (window.console) {
             window.console.warn('[board] ' + why + '：' + ENGINE_URL);
         }
@@ -797,47 +773,110 @@
             this.worker = null;
         }
         this.engineReady = false;
+        this.engineBusy = false;
+        this.sentKey = null;
         this.pv = null;
-        this.analyzeKey = '';
         this.renderEval();
+    };
+
+    /*
+     * 引擎在一个命令里是同步阻塞的：不限时（timeout_turn 0）时它要一直算到
+     * 局面变了才该停，可它压根收不到外面发来的消息。所以换局面时只能把整个
+     * Worker 掐掉重开一个（wasm 有缓存，起一个约两百毫秒）。
+     */
+    Board.prototype.restartEngine = function () {
+        this.stopEngine();
+        this.showDepth(0);
+        this.startEngine();
     };
 
     Board.prototype.onEngine = function (d) {
         if (d.type === 'ready') {
             this.engineReady = true;
-            this.scheduleAnalysis(true);
+            this.pumpEngine();
         } else if (d.type === 'eval') {
             if (d.seq !== this.seq) {
                 return;                        /* 旧局面的结果，丢掉 */
             }
             this.pv = d.pv || [];
-            this.depth = d.depth || 0;
+            this.showDepth(d.depth || 0);
             this.renderEval();
+        } else if (d.type === 'round') {
+            this.engineBusy = false;           /* 这一轮自己结束了，可以接着用 */
+            this.pumpEngine();
         } else if (d.type === 'error') {
             this.failEngine(String(d.message || '引擎出错'));
         }
     };
 
-    /* 局面变了（落子、回退、回看）就重新分析；键没变就沿用这一轮 */
+    /* 当前局面的指纹：棋子位置 + 颜色，同一局面不重复算 */
+    Board.prototype.positionKey = function () {
+        var n = Math.min(this.cursor, this.moves.length);
+        var key = [];
+        for (var k = 0; k < n; k++) {
+            key.push(this.moves[k].i + '.' + this.moves[k].j + this.moves[k].color);
+        }
+        return key.join(',');
+    };
+
+    /* 局面变了（落子、回退、回看）就重新分析 */
     Board.prototype.scheduleAnalysis = function (force) {
-        if (!this.analysis || !this.worker || !this.engineReady) {
+        if (!this.analysis || !this.editable) {
+            return;
+        }
+        var key = this.positionKey();
+        if (!force && key === this.wantKey) {
+            return;
+        }
+        this.wantKey = key;
+        /* 连点几下棋时先攒一攒，免得每按一次都重启一个 Worker */
+        var self = this;
+        clearTimeout(this.anTimer);
+        this.anTimer = setTimeout(function () {
+            self.pumpEngine();
+        }, 80);
+    };
+
+    /* 把「想要的局面」与「已经交出去的」对一对，不一致就交给引擎 */
+    Board.prototype.pumpEngine = function () {
+        if (!this.analysis || !this.editable) {
+            return;
+        }
+        if (!this.worker) {
+            this.startEngine();                /* 起来后 ready 会再叫一次 */
+            return;
+        }
+        if (!this.engineReady) {
+            return;                            /* 还在解 wasm */
+        }
+        if (this.sentKey === this.wantKey && this.sentNbest === this.points) {
+            return;                            /* 这个局面已经在算 */
+        }
+        if (this.engineBusy) {
+            this.restartEngine();              /* 卡在一轮里，叫不停，整个换掉 */
+            return;
+        }
+        this.sendAnalysis();
+    };
+
+    Board.prototype.sendAnalysis = function () {
+        if (!this.worker || !this.engineReady) {
             return;
         }
         var n = Math.min(this.cursor, this.moves.length);
         var lines = [];
-        var key = [];
         for (var k = 0; k < n; k++) {
             var m = this.moves[k];
             /* 引擎坐标：x 从左 0 起，y 从下 0 起 */
             lines.push(m.i + ',' + (SIZE - 1 - m.j) + ',' + (m.color === 'b' ? 1 : 2));
-            key.push(m.i + '.' + m.j + m.color);
         }
-        key = key.join(',');
-        if (!force && key === this.analyzeKey) {
-            return;
-        }
-        this.analyzeKey = key;
         this.seq = (this.seq || 0) + 1;
+        this.sentKey = this.wantKey;
+        this.sentNbest = this.points;
+        this.engineBusy = true;
+        this.pv = null;
+        this.showDepth(0);
+        this.renderEval();
         this.worker.postMessage({
             type: 'analyze',
             seq: this.seq,
