@@ -611,9 +611,7 @@
         color: var(--gold-deep);
     }
 
-    .ml-rep-games { margin: 0 0 2px; color: var(--ink-3); font-size: 12px; }
-    .ml-rep-line { margin: 0 0 6px; color: var(--ink-2); }
-    .ml-rep-line b { color: var(--ink); font-weight: 600; }
+    .ml-rep-games { margin: 0 0 6px; color: var(--ink-3); font-size: 12px; }
 
     .ml-rep-none { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
 
@@ -1463,24 +1461,42 @@
             var p = keyToPattern(key), q;
             for (q = 0; q < m; q++) { applyGame(enumGames[q], CODES[p[q]], 1); }
 
-            var pT = ptsOf(t), bT = buchOf(t), wT = winsOf(t);
+            var pT = ptsOf(t);
             var ev = evaluate();
-            var me = { id: base.players[t].id, name: base.players[t].name, pts: pT, tb: tbOf(t) };
-            var rivals = [];
 
+            /* 池子里的人（含自己）按「积分 → 破同分项」两两比，算出各自名次 */
+            var all = [];
             for (q = 0; q < pool.length; q++) {
                 var x = pool[q];
-                var px = ptsOf(x);
-                if (px < pT - 1e-9) { continue; }
-                var rel = better(x, pT, bT, wT);
-                rivals.push({
-                    id: base.players[x].id,
-                    name: base.players[x].name,
-                    pts: px,
-                    tb: tbOf(x),
-                    rel: rel > 0 ? 1 : (rel === 0 ? 0 : -1)
-                });
+                all.push({ i: x, id: base.players[x].id, name: base.players[x].name,
+                           pts: ptsOf(x), tb: tbOf(x) });
             }
+            all.push({ i: t, id: base.players[t].id, name: base.players[t].name,
+                       pts: pT, tb: tbOf(t), me: true });
+
+            function cmp2(A, B) {
+                if (Math.abs(A.pts - B.pts) > 1e-9) { return A.pts > B.pts ? 1 : -1; }
+                for (var z = 0; z < keys.length; z++) {
+                    var k = keys[z];
+                    if (Math.abs(A.tb[k] - B.tb[k]) > 1e-9) { return A.tb[k] > B.tb[k] ? 1 : -1; }
+                }
+                return 0;
+            }
+
+            var me = null, rivals = [];
+            all.forEach(function (a) {
+                var up = 0;
+                /* 名次 = 1 + 比自己强的人数 */
+                all.forEach(function (b) { if (b !== a && cmp2(b, a) > 0) { up++; } });
+                a.rank = up + 1;
+                if (a.me) { me = a; }
+            });
+            all.forEach(function (a) {
+                if (a.me || a.pts < pT - 1e-9) { return; }
+                var rel = cmp2(a, me);
+                a.rel = rel > 0 ? 1 : (rel === 0 ? 0 : -1);
+                rivals.push(a);
+            });
 
             var games = [];
             for (q = 0; q < m; q++) {
@@ -1496,13 +1512,12 @@
             for (q = 0; q < m; q++) { applyGame(enumGames[q], CODES[p[q]], -1); }
 
             rivals.sort(function (x, y) {
-                if (x.rel !== y.rel) { return y.rel - x.rel; }
-                if (x.pts !== y.pts) { return y.pts - x.pts; }
+                if (x.rank !== y.rank) { return x.rank - y.rank; }
                 return x.id - y.id;
             });
 
             return {
-                pts: pT, rank: ev.rank, worst: ev.worst, ties: ev.ties,
+                pts: pT, rank: me.rank, worst: ev.worst, ties: ev.ties,
                 me: me, rivals: rivals, games: games
             };
         }
@@ -2357,8 +2372,8 @@
             '</button>';
     }
 
-    /* 一个细分示例：其余对局 + 积分名次 + 破同分对比表 */
-    function repBlock(s, keys, nm, title, cls) {
+    /* 一个细分示例：其余对局 + 按名次排的破同分对比表 */
+    function repBlock(s, keys, nm, title) {
         var out = '<div class="ml-rep">';
         if (title) { out += '<p class="ml-rep-title">' + title + '</p>'; }
         if (s.games.length) {
@@ -2367,41 +2382,33 @@
             }).join('，') + '</p>';
         }
 
-        var tieNames = s.rivals.filter(function (r) { return r.rel === 0; })
-            .map(function (r) { return nm(r.id); });
-        var line;
-        if (cls === 'play') {
-            line = '你 <b>' + fmt(s.pts) + '</b> 分，第 <b>' + s.rank + '</b> 名' +
-                (tieNames.length
-                    ? '；与 ' + tieNames.join('、') + ' 积分、破同分全一样，只能加赛（加赛输了算第 ' +
-                        s.worst + ' 名）'
-                    : '，要加赛');
-        } else {
-            line = '你 <b>' + fmt(s.pts) + '</b> 分，第 <b>' + s.rank + '</b> 名' +
-                (s.worst > s.rank
-                    ? '（与 ' + (tieNames.length ? tieNames.join('、') : '他人') +
-                        ' 并列时最差算第 ' + s.worst + ' 名，仍在目标名次内）'
-                    : '，不用加赛');
-        }
-        out += '<p class="ml-rep-line">' + line + '</p>';
-
         if (s.rivals.length) {
-            var head = '<tr><th>选手</th><th>积分</th>' +
+            var list = s.rivals.slice(0, 12).concat([s.me]);
+            list.sort(function (x, y) {
+                if (x.rank !== y.rank) { return x.rank - y.rank; }
+                if (!!x.me !== !!y.me) { return x.me ? -1 : 1; }
+                return x.id - y.id;
+            });
+
+            var head = '<tr><th>名次</th><th>选手</th><th>积分</th>' +
                 keys.map(function (k) { return '<th>' + esc(tbNameOf(k)) + '</th>'; }).join('') +
                 '<th>对比</th></tr>';
 
-            function cells(o, isMe) {
-                return '<td>' + esc(isMe ? (nm(o.id) + '（你）') : nm(o.id)) + '</td>' +
+            function cells(o) {
+                return '<td>' + o.rank + '</td>' +
+                    '<td>' + esc(o.me ? (nm(o.id) + '（你）') : nm(o.id)) + '</td>' +
                     '<td>' + fmt(o.pts) + '</td>' +
                     keys.map(function (k) { return '<td>' + fmt(o.tb[k]) + '</td>'; }).join('');
             }
 
-            var rows = '<tr class="is-me">' + cells(s.me, true) + '<td>—</td></tr>';
-            s.rivals.slice(0, 12).forEach(function (r) {
-                var why = r.rel === 0 ? '并列' : (r.rel > 0 ? '在前' : '在后');
-                rows += '<tr>' + cells(r) + '<td class="' + (r.rel === 0 ? 'is-tie' : (r.rel > 0 ? 'is-up' : 'is-down')) +
+            var rows = list.map(function (o) {
+                if (o.me) { return '<tr class="is-me">' + cells(o) + '<td>—</td></tr>'; }
+                var why = o.rel === 0 ? '并列' : (o.rel > 0 ? '在前' : '在后');
+                return '<tr>' + cells(o) +
+                    '<td class="' + (o.rel === 0 ? 'is-tie' : (o.rel > 0 ? 'is-up' : 'is-down')) +
                     '">' + why + '</td></tr>';
-            });
+            }).join('');
+
             out += '<div class="ml-cmp-wrap"><table class="ml-cmp"><thead>' + head +
                 '</thead><tbody>' + rows + '</tbody></table></div>';
             if (s.rivals.length > 12) {
@@ -2430,13 +2437,13 @@
         out.push('<div class="ml-split">' + split + '</div>');
 
         if (st.free.sample && st.play.sample) {
-            out.push(repBlock(st.free.sample, st.keys, nm, '稳进的一种（最险）', 'free'));
-            out.push(repBlock(st.play.sample, st.keys, nm, '要加赛的一种', 'play'));
+            out.push(repBlock(st.free.sample, st.keys, nm, '稳进的一种（最险）'));
+            out.push(repBlock(st.play.sample, st.keys, nm, '要加赛的一种'));
         } else if (st.free.sample) {
             out.push(repBlock(st.free.sample, st.keys, nm,
-                st.free.max > st.free.min ? '最险的一种' : '', 'free'));
+                st.free.max > st.free.min ? '最险的一种' : ''));
         } else if (st.play.sample) {
-            out.push(repBlock(st.play.sample, st.keys, nm, '其中一种', 'play'));
+            out.push(repBlock(st.play.sample, st.keys, nm, '其中一种'));
         }
         return out.join('');
     }
