@@ -7,8 +7,9 @@
  * 最后一手改在棋子中心点一个红点。
  * 可落子的棋盘：点空点落子，双击某一颗棋子回退到那一手，其后的手数作废。
  * 打开「分析」开关后，Rapfi 引擎（连珠规则）会在后台一直算当前局面，
- * 每加深一层就把结果报回来一次，空点上随即出现圆形小标、里面写该点胜率
- * （百位整数），最优的那个圈更粗。引擎不限思考时间，只有局面变了才停。
+ * 每加深一层就把结果报回来一次，空点上随即出现圆形小标：底色就是该点
+ * 胜率的颜色（红→黄→绿→蓝→白，越白越低），里面写胜率（百位整数），
+ * 最优的那个圈更粗。引擎不限思考时间，只有局面变了才停。
  * 落子、回退、回看都会重新分析。候选点的个数（1-225）在工具栏下方的
  * 「分析点数」里一直摆着，默认 3 个，改完即时重算。
  *
@@ -83,15 +84,53 @@
         return n;
     }
 
-    /* 胜率配色：五五开偏灰，越有把握越向红（占优）/蓝（落后）走 */
-    function wrColor(w) {
-        var hi = [178, 54, 42], mid = [110, 110, 110], lo = [45, 108, 156];
-        var a = w >= 0.5 ? mid : lo;
-        var b = w >= 0.5 ? hi : mid;
-        var t = w >= 0.5 ? (w - 0.5) * 2 : w * 2;
-        return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * t) + ','
-            + Math.round(a[1] + (b[1] - a[1]) * t) + ','
-            + Math.round(a[2] + (b[2] - a[2]) * t) + ')';
+    /*
+     * 胜率配色：一条红→黄→绿→蓝→白的色带，满盘胜率（100%）是红，
+     * 依次往下是黄、五五开的绿、蓝，0% 收到白。中间线性过渡。
+     */
+    var WR_STOPS = [
+        { w: 1.00, c: [176, 52, 40] },      // 红
+        { w: 0.75, c: [212, 168, 58] },     // 黄
+        { w: 0.50, c: [88, 148, 90] },      // 绿
+        { w: 0.25, c: [48, 104, 152] },     // 蓝
+        { w: 0.00, c: [250, 248, 241] }     // 白
+    ];
+
+    function wrRgb(w) {
+        w = Math.max(0, Math.min(1, w));
+        for (var k = 0; k < WR_STOPS.length - 1; k++) {
+            var hi = WR_STOPS[k];
+            var lo = WR_STOPS[k + 1];
+            if (w <= hi.w && w >= lo.w) {
+                var t = (hi.w - w) / (hi.w - lo.w);
+                return [
+                    Math.round(hi.c[0] + (lo.c[0] - hi.c[0]) * t),
+                    Math.round(hi.c[1] + (lo.c[1] - hi.c[1]) * t),
+                    Math.round(hi.c[2] + (lo.c[2] - hi.c[2]) * t)
+                ];
+            }
+        }
+        return WR_STOPS[WR_STOPS.length - 1].c.slice();
+    }
+
+    function rgbStr(c) {
+        return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    }
+
+    /* 数字用本色压暗，配浅色圆底 */
+    function inkRgb(c, k) {
+        return 'rgb(' + Math.round(c[0] * k) + ','
+            + Math.round(c[1] * k) + ','
+            + Math.round(c[2] * k) + ')';
+    }
+
+    /* 圆底从红到白都有，按亮度挑字色：越浅的底，字越深 */
+    function textOn(c) {
+        var l = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+        if (l > 0.82) {
+            return '#4a4a4a';              /* 接近白底（低胜率） */
+        }
+        return l > 0.58 ? inkRgb(c, 0.4) : '#fffdf7';
     }
 
     function px(i) { return M + i * C; }        // 列下标 -> x
@@ -526,13 +565,13 @@
         return panel;
     };
 
-    /* 面板右侧那行小字：计算中 / 第 n 层 */
+    /* 面板右侧那行小字：一直显示算到第几层 */
     Board.prototype.showDepth = function (n) {
         this.depth = n || 0;
         if (!this.stateEl) {
             return;
         }
-        this.stateEl.textContent = n > 0 ? '第 ' + n + ' 层' : (this.analysis ? '计算中' : '');
+        this.stateEl.textContent = n > 0 ? '第 ' + n + ' 层' : '';
     };
 
     /* 一个胶囊开关：label 里套隐藏的 checkbox + 轨道 + 文字 */
@@ -915,17 +954,18 @@
             var w = Math.max(0, Math.min(1, item.winrate));
             var cx = px(i);
             var cy = py(j);
-            var col = wrColor(w);
+            var c = wrRgb(w);
+            var col = rgbStr(c);
             var top = p === 0;
             var label = String(Math.round(w * 100));
 
-            /* 圆框比棋子小一圈，底下的交叉点仍看得见 */
+            /* 圆框比棋子小一圈：底色就是这手胜率的颜色 */
             layer.appendChild(svgEl('circle', {
                 cx: cx, cy: cy, r: top ? C * 0.43 : C * 0.4,
-                fill: '#fffdf7', 'fill-opacity': top ? 0.97 : 0.88,
-                stroke: col,
-                'stroke-width': top ? 1.6 : 0.9,
-                'stroke-opacity': top ? 1 : 0.55
+                fill: col,
+                stroke: inkRgb(c, 0.7),
+                'stroke-width': top ? 1.3 : 0.7,
+                'stroke-opacity': top ? 0.85 : 0.4
             }));
 
             /* 一位数写大些，三位数缩小才对得进圆里 */
@@ -935,8 +975,8 @@
                 'text-anchor': 'middle',
                 'font-family': 'Arial, Helvetica, sans-serif',
                 'font-size': size,
-                'font-weight': top ? 700 : 500,
-                fill: col
+                'font-weight': top ? 700 : 600,
+                fill: textOn(c)
             });
             text.textContent = label;
             layer.appendChild(text);
