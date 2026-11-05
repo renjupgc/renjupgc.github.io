@@ -1706,11 +1706,10 @@
 
             var pT = ptsOf(t);
 
-            /* 只列「有影响的选手」（pool 内 + 自己），无关的低分选手不显示；
-             * 名次按 pool 内「积分 → 破同分项」两两比，跟主流程 evaluate 口径一致。 */
+            /* 名次表显示全部选手（都显示），名次按「积分 → 破同分项」两两比，
+             * 跟主流程 evaluate 口径一致。 */
             var rows = [];
             for (q = 0; q < n; q++) {
-                if (q !== t && !inPool[q]) { continue; }
                 rows.push({
                     i: q,
                     id: base.players[q].id,
@@ -2700,7 +2699,7 @@
         return '<button type="button" class="ml-term-q' + (inHead ? ' is-head' : '') +
             '" data-g="' + gi + '" data-t="' + ti + '">' +
             '<span class="ml-term-txt">' + condSentence(term, rank, nm) + '</span>' +
-            '<span class="ml-term-more">详情</span>' +
+            /* 详情页已去掉：不再显示「详情」按钮。 */
             '</button>';
     }
 
@@ -2849,21 +2848,17 @@
         detailCache = {};
 
         var self = esc(ans.target.name || ('#' + ans.target.id));
-        var head = '<div class="ml-banner' + (ans.always ? ' is-ok' : (ans.never ? ' is-no' : '')) + '">';
 
+        /* 普通情况（有胜/平/负三种结果可看）不再显示横幅，避免空底色条；
+         * 只有「一定进前 / 不可能 / 只能加赛」这三种结论才显示带底色的横幅。 */
+        var head = '';
         if (ans.always) {
-            head += '<b>' + self + '</b> 一定进前 ' + rank + '。';
+            head = '<div class="ml-banner is-ok"><b>' + self + '</b> 一定进前 ' + rank + '。</div>';
         } else if (ans.never) {
-            head += '<b>' + self + '</b> 不可能进前 ' + rank + '。';
+            head = '<div class="ml-banner is-no"><b>' + self + '</b> 不可能进前 ' + rank + '。</div>';
         } else if (ans.alwaysPlayoff) {
-            head += '<b>' + self + '</b> 每一种末轮结果都会与他人破同分全一样，只能靠加赛；加赛赢就进前 ' + rank + '。';
-        } else {
-            var need = ans.counts.ok - ans.counts.free;
-            head += '共比较 ' + ans.counts.all + ' 种末轮结果，其中 ' +
-                ans.counts.free + ' 种不用加赛进前 ' + rank +
-                (need ? '，' + need + ' 种需加赛' : '') + '。';
+            head = '<div class="ml-banner"><b>' + self + '</b> 每一种末轮结果都会与他人破同分全一样，只能靠加赛；加赛赢就进前 ' + rank + '。</div>';
         }
-        head += '</div>';
 
         var label = { win: self + ' 胜', draw: self + ' 平', loss: self + ' 负' };
         var badge = { win: 'is-win', draw: 'is-draw', loss: 'is-loss' };
@@ -2978,6 +2973,7 @@
             return;
         }
 
+        /* ---- 详情页已去掉：点条件不再展开细分（以下代码打注释保留） ----
         var btn = tgt.closest('.ml-term-q');
         if (!btn) { return; }
         var gi = Number(btn.dataset.g), ti = Number(btn.dataset.t);
@@ -3005,6 +3001,7 @@
         box.hidden = false;
         btn.classList.add('is-open');
         revealMe(box);
+        ---- 详情页展开逻辑结束 ---- */
     });
 
     $('#btn-solve').addEventListener('click', runSolve);
