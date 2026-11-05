@@ -8,8 +8,8 @@
 
 数据全部取自 data/renju.db（tournaments / matches / ratings 三张表），
 不依赖源备份库，因此单独跑本脚本就能重建全部个人主页。
-「杂史提及排行」直接扫描 posts/ 下属于杂史栏目的文章现算，不落库：
-文章增删后重跑一次，排行与个人主页上的名次会一起更新。
+「TA的相关报道」直接扫描 posts/ 下属于杂史栏目的文章现算，不落库：
+文章增删后重跑一次，各人主页上的报道清单会一起更新。
 
 用法：
     python tools/build_players.py
@@ -36,8 +36,8 @@ PLAYER_DIR = os.path.join(bz.DETAIL_DIR, 'p')
 # 一篇文章属于杂史栏目，看它正文里的栏目链接
 ZASHI_MARK = '栏目：<a href="../zashi.html">'
 
-# 杂史提及排行取前几名
-TOP_N = 3
+# 参赛记录里只有这几类赛事才显示名次（赛事名称包含其中任一关键词）
+RANKED_KEYWORDS = ('高校', '大学生')
 
 
 # ---------------------------------------------------------------- 数据
@@ -90,26 +90,23 @@ def zashi_posts(names):
     return out
 
 
-def mention_ranking(posts, ratings):
-    """按提及次数排序。
+def person_reports(posts):
+    """每人被哪些杂史文章写到，返回 {姓名: [{fn, title, date}, ...]}。
 
-    同次数时依次按「所涉文章数」和「等级分」排定先后，保证名次唯一、可复现；
-    名次即排序后的位次（1、2、3……），不设并列。
+    posts 已按日期从新到旧排好，所以各人的报道清单也是新的在前。
     """
-    rating = {r['name']: r['rating'] for r in ratings}
-    total = collections.Counter()
-    arts = collections.Counter()
-    for _fn, _t, _d, counts in posts:
-        for n, c in counts.items():
+    out = collections.defaultdict(list)
+    for fn, title, date, counts in posts:
+        for name, c in counts.items():
             if c:
-                total[n] += c
-                arts[n] += 1
-    order = sorted(total.items(),
-                   key=lambda kv: (-kv[1], -arts[kv[0]], -(rating.get(kv[0]) or 0),
-                                   kv[0]))
-    return {name: {'count': cnt, 'rank': i, 'of': len(order),
-                   'arts': arts[name]}
-            for i, (name, cnt) in enumerate(order, 1)}
+                out[name].append({'fn': fn, 'title': title, 'date': date})
+    return out
+
+
+def ranked_event(name):
+    """赛事名称含「高校」或「大学生」的，才计入可比较的名次。"""
+    name = name or ''
+    return any(k in name for k in RANKED_KEYWORDS)
 
 
 # ---------------------------------------------------------------- 对局
@@ -180,7 +177,17 @@ def href_player(name):
     return bz.player_href(name)
 
 
-def page(name, rec, events, games, mention, zposts, index, total_players):
+def rank_cell(t, row):
+    """参赛记录的名次格：非高校/大学生赛事留空，前三名套一个徽标。"""
+    if not row or not ranked_event(t.get('name')):
+        return ''
+    rk = row['rank']
+    if isinstance(rk, int) and 1 <= rk <= 3:
+        return '<span class="rank-badge r%d">%d</span>' % (rk, rk)
+    return bz.esc(rk)
+
+
+def page(name, rec, events, games, reports, index, total_players):
     region = rec['region'] or '—'
     uni = rec['university'] or '—'
     pt = '%.2f' % rec['rating']
@@ -216,24 +223,17 @@ def page(name, rec, events, games, mention, zposts, index, total_players):
             '            </p>',
             '']
 
-    if mention and mention['rank'] <= TOP_N:
-        hit = [(fn, t, counts[name]) for fn, t, _d, counts in zposts
-               if counts.get(name)]
+    if reports:
         body += ['            <section class="mention-card">',
-                 '                <h2>杂史提及排行</h2>',
-                 '                <p class="mention-line">在「杂史」栏目全部 %d 篇文章中，'
-                 '共被提及 <b>%d</b> 次，位列 <b class="mention-rank">第 %d 名</b>'
-                 '（全栏目共 %d 位棋手被提及）。'
-                 '</p>' % (len(zposts), mention['count'], mention['rank'],
-                           mention['of']),
-                 '                <p class="mention-note">按姓名在杂史文章正文'
-                 '（含小标题与名次名单）中出现的次数统计；同次数时依次按所涉文章数、'
-                 '等级分排序。</p>',
+                 '                <h2>TA的相关报道</h2>',
+                 '                <p class="mention-line">「杂史」栏目中有 %d 篇'
+                 '文章写到 TA：</p>' % len(reports),
                  '                <ul class="mention-list">']
-        for fn, title, c in hit:
+        for r in reports:
             body.append('                    <li><a href="../../posts/%s">%s</a>'
-                        '<span class="date">%d 次</span></li>'
-                        % (quote(fn), bz.esc(title), c))
+                        '<span class="date">%s</span></li>'
+                        % (quote(r['fn']), bz.esc(r['title']),
+                           bz.esc(r['date'])))
         body += ['                </ul>',
                  '            </section>',
                  '']
@@ -242,32 +242,28 @@ def page(name, rec, events, games, mention, zposts, index, total_players):
              '                <h2>参赛记录</h2>']
     if events:
         body += ['                <div class="table-scroll">',
-                 '                <table class="crosstab p-games">',
+                 '                <table class="crosstab p-games p-events">',
                  '                    <thead><tr>',
                  '                        <th>日期</th>',
                  '                        <th class="c-name">赛事</th>',
-                 '                        <th class="c-pt">积分</th>',
-                 '                        <th class="c-tb">对局</th>',
                  '                        <th class="c-rank">名次</th>',
                  '                    </tr></thead>',
                  '                    <tbody>']
         for e in events:
             t, row = e['t'], e['row']
-            n_games = sum(1 for g in games if g['tid'] == e['tid'])
             body.append('                        <tr>'
                         '<td>%s</td>'
                         '<td class="c-name"><a href="../../zayu/t%d.html">%s</a></td>'
-                        '<td class="c-pt">%s</td>'
-                        '<td class="c-tb">%d</td>'
                         '<td class="c-rank">%s</td></tr>'
-                        % (bz.esc(t.get('date') or ''),
-                           e['tid'], bz.esc(t.get('name') or ''),
-                           bz.fmt(row['score']) if row else '—',
-                           n_games,
-                           row['rank'] if row else '—'))
+                        % (bz.esc(t.get('date') or ''), e['tid'],
+                           bz.esc(t.get('name') or ''),
+                           rank_cell(t, row)))
         body += ['                    </tbody>',
                  '                </table>',
-                 '                </div>']
+                 '                </div>',
+                 '                <p class="table-note">只有名称含「高校」或'
+                 '「大学生」的赛事才标注名次；其余赛事参赛规模与赛制不一，'
+                 '不作横向比较，故留空。</p>']
     else:
         body.append('                <p class="empty">该棋手暂无收录的参赛记录。</p>')
     body.append('            </section>')
@@ -351,7 +347,7 @@ def main():
     index = set(names)
 
     zposts = zashi_posts(names)
-    mentions = mention_ranking(zposts, ratings)
+    reports = person_reports(zposts)
     stats, games = collect(ratings, tournaments, matches)
 
     os.makedirs(PLAYER_DIR, exist_ok=True)
@@ -362,20 +358,19 @@ def main():
     for rec in ratings:
         name = rec['name']
         html = page(name, rec, stats.get(name, []), games.get(name, []),
-                    mentions.get(name), zposts, index, len(names))
+                    reports.get(name, []), index, len(names))
         with open(os.path.join(PLAYER_DIR, '%s.html' % name), 'w',
                   encoding='utf-8', newline='') as f:
             f.write(html)
 
     linked = patch_rating(names)
 
-    tops = sorted([kv for kv in mentions.items() if kv[1]['rank'] <= TOP_N],
-                  key=lambda kv: (kv[1]['rank'], -kv[1]['count']))
+    tops = sorted(reports.items(), key=lambda kv: (-len(kv[1]), kv[0]))
     print('主页   ->', PLAYER_DIR, '(%d 页)' % len(ratings))
     print('内链   ->', bz.RATING_OUT, '(%d 处)' % linked)
     print('杂史   ->', len(zposts), '篇')
-    print('提及榜 ->', '，'.join('%s 第%d名(%d 次)' % (n, m['rank'], m['count'])
-                                for n, m in tops))
+    print('相关报道 ->', '，'.join('%s %d 篇' % (n, len(v)) for n, v in tops)
+          or '无')
 
 
 if __name__ == '__main__':
