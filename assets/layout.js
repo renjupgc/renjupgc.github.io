@@ -217,6 +217,10 @@
 (function () {
     'use strict';
 
+    if (document.querySelector('.music-box')) {
+        return;
+    }
+
     var TRACK = {
         src: 'assets/audio/qingbawo-zailushang-jiaoxing.mp3',
         cover: 'assets/img/music-cover-born-in-hesitation.jpg',
@@ -554,7 +558,17 @@
      * - 同一个脚本只注入一次，来回翻页不会重复加载；
      * - 内联脚本每次进入该页执行一次，与整页加载时一致。
      */
+    if (window.__zbxRouterBound) {
+        return;
+    }
+    window.__zbxRouterBound = 1;
+
     var injected = {};
+    Array.prototype.forEach.call(document.querySelectorAll('script[src]'), function (s) {
+        if (s.src) {
+            injected[s.src] = 1;
+        }
+    });
 
     function runScripts(doc, pageUrl) {
         Array.prototype.forEach.call(doc.querySelectorAll('script'), function (old) {
@@ -565,7 +579,7 @@
                 try {
                     abs = new URL(src, pageUrl).href;
                 } catch (err) { /* 老浏览器：原样用 */ }
-                if (injected[abs]) {
+                if (injected[abs] || /\/assets\/layout\.js(?:[?#]|$)/i.test(abs)) {
                     return;
                 }
                 injected[abs] = 1;
@@ -620,7 +634,13 @@
                 current.classList.add('is-entering');
 
                 runScripts(doc, url);
-                window.scrollTo(0, typeof opts.scrollY === 'number' ? opts.scrollY : 0);
+                currentPath = location.pathname + location.search;
+                var hashTarget = location.hash ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
+                if (hashTarget && typeof opts.scrollY !== 'number') {
+                    hashTarget.scrollIntoView();
+                } else {
+                    window.scrollTo(0, typeof opts.scrollY === 'number' ? opts.scrollY : 0);
+                }
                 busy = false;
             })
             .catch(function () {
@@ -628,6 +648,8 @@
                 window.location.href = url; /* 退回整页跳转 */
             });
     }
+
+    var currentPath = location.pathname + location.search;
 
     document.addEventListener('click', function (e) {
         if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
@@ -660,7 +682,10 @@
         if (url.protocol !== location.protocol || url.host !== location.host) {
             return;
         }
-        if (!/\.html?$/i.test(url.pathname) || url.hash) {
+        if (!(/\.html?$/i.test(url.pathname) || /\/$/.test(url.pathname))) {
+            return;
+        }
+        if (url.pathname === location.pathname && url.search === location.search && url.hash) {
             return;
         }
         if (url.href === location.href) {
@@ -669,10 +694,13 @@
         }
 
         e.preventDefault();
-        load(url.href, { scrollY: 0 });
+        load(url.href, url.hash ? {} : { scrollY: 0 });
     });
 
     window.addEventListener('popstate', function (e) {
+        if (location.pathname + location.search === currentPath) {
+            return;
+        }
         load(location.href, { push: false, scrollY: (e.state && e.state.scrollY) || 0 });
     });
 })();
