@@ -387,19 +387,6 @@
     .ml-paste { margin: 0 0 14px; }
     .ml-paste[hidden] { display: none; }
 
-    .ml-ocr {
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: var(--surface-2);
-        padding: 12px 14px 12px;
-        margin: 0 0 12px;
-    }
-
-    .ml-ocr[hidden] { display: none; }
-
-    .ml-ocr .ml-sub { font-size: 12px; line-height: 1.7; }
-    .ml-ocr #ocr-key { font-size: 12px; }
-
     /* ---------- 名次表 ---------- */
     .ml-stand th.is-tb, .ml-stand td.is-tb { text-align: right; font-variant-numeric: tabular-nums; }
     .ml-stand td.is-pts { font-weight: 600; color: var(--ink); text-align: right; }
@@ -544,24 +531,11 @@
             <div class="ml-toolbar">
                 <button class="ml-btn is-primary" id="btn-paste">粘贴本轮</button>
                 <button class="ml-btn" id="btn-ocr">识别图片</button>
-                <button class="ml-btn is-quiet" id="btn-ocr-cfg">识别 Key</button>
                 <span class="ml-spacer"></span>
                 <button class="ml-btn is-quiet" id="btn-clear">清空本轮</button>
             </div>
 
             <div class="ml-paste" id="paste-box" hidden>
-                <div class="ml-ocr" id="ocr-cfg" hidden>
-                    <label class="ml-field">
-                        <span>API Key</span>
-                        <input class="ml-input" id="ocr-key" type="password" spellcheck="false"
-                            autocomplete="off" placeholder="在 bailian.console.aliyun.com 免费领取，只存本机">
-                    </label>
-                    <div class="ml-toolbar" style="margin:10px 0 0">
-                        <button class="ml-btn is-primary" id="ocr-go">保存并识别</button>
-                        <span class="ml-spacer"></span>
-                        <span class="ml-sub" style="margin:0" id="ocr-tip">识别用通义千问 qwen3-vl-flash（免费）</span>
-                    </div>
-                </div>
                 <textarea class="ml-textarea" id="paste-text" spellcheck="false"
                     placeholder="每行一人：编号 姓名 单位 上轮积分 对手编号&#10;例如：12 张三 甲组 3.5 7&#10;姓名第二轮起可省，单位可省；对手写编号，轮空写 bye"></textarea>
                 <div class="ml-toolbar" style="margin:10px 0 0">
@@ -2084,11 +2058,10 @@
 
     /* ---------------- 图片识别 ---------------- */
 
-    var OCR_KEY = 'molun_ocr_v1';
-    /* 统一用通义千问的免费视觉模型，地址与模型名写死 */
+    /* 匿名免费视觉接口：OVHcloud AI Endpoints，不需要 key（每分钟 2 次） */
     var OCR_API = {
-        base: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-        model: 'qwen3-vl-flash'
+        base: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',
+        model: 'Qwen2.5-VL-72B-Instruct'
     };
 
     /* 只读表格数据行，不要解释文字 */
@@ -2105,27 +2078,6 @@
         '5. 看不清的字符写 ?，不要猜。按编号从小到大排列。',
         '6. 一张图里有多张表时，只读最后一张（最后一轮）。'
     ].join('\n');
-
-    function ocrKey() {
-        try {
-            return (JSON.parse(localStorage.getItem(OCR_KEY) || '{}').key || '');
-        } catch (e) {
-            return '';
-        }
-    }
-
-    function setOcrKey(k) {
-        try { localStorage.setItem(OCR_KEY, JSON.stringify({ key: k })); } catch (e) {}
-    }
-
-    function openOcrCfg(msg) {
-        $('#paste-box').hidden = false;
-        $('#ocr-cfg').hidden = false;
-        $('#ocr-key').value = ocrKey();
-        if (msg) { $('#paste-hint').textContent = msg; }
-    }
-
-    $('#btn-ocr-cfg').addEventListener('click', function () { openOcrCfg(''); });
 
     /* 图片压缩到长边 maxSide，避免 base64 过大 */
     function fileToImage(f, maxSide) {
@@ -2160,6 +2112,7 @@
     }
 
     function readJson(r) {
+        if (r.status === 429) { throw new Error('免费接口每分钟只放 2 次，等一分钟再试'); }
         return r.text().then(function (txt) {
             var j;
             try { j = JSON.parse(txt); } catch (e) { throw new Error('返回不是 JSON（' + txt.slice(0, 80) + '）'); }
@@ -2171,13 +2124,14 @@
         });
     }
 
-    function callVision(key, img) {
-        return fetch(OCR_API.base, {
+    /* 匿名免费接口，不带任何 key */
+    function callVision(img) {
+        var ctrl = window.AbortController ? new AbortController() : null;
+        var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 90000) : 0;
+
+        var p = fetch(OCR_API.base, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + key
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: OCR_API.model,
                 temperature: 0.1,
@@ -2188,11 +2142,20 @@
                         { type: 'text', text: OCR_PROMPT }
                     ]
                 }]
-            })
+            }),
+            signal: ctrl ? ctrl.signal : undefined
         }).then(readJson).then(function (j) {
             var ch = (j.choices || [])[0] || {};
             return (ch.message && ch.message.content) || '';
+        }).catch(function (err) {
+            if (err && err.name === 'AbortError') { throw new Error('等了 90 秒没回应，换个网络或稍后再试'); }
+            if (err instanceof TypeError) { throw new Error('连不上识别服务，可能是网络问题'); }
+            throw err;
         });
+
+        if (timer) { p = p.then(function (v) { clearTimeout(timer); return v; },
+                                 function (e) { clearTimeout(timer); throw e; }); }
+        return p;
     }
 
     /* 只留「编号 开头」的行，去掉表头、说明、代码块 */
@@ -2212,18 +2175,15 @@
     var pendingImage = null;
 
     function runVision() {
-        var key = ocrKey();
-        if (!key) { openOcrCfg('先填一次 API Key，之后会记住。'); return; }
         if (!pendingImage) { $('#paste-hint').textContent = '先点「识别图片」选一张成绩单照片。'; return; }
 
         var btn = $('#btn-ocr');
         btn.disabled = true;
-        $('#ocr-cfg').hidden = true;
-        $('#paste-hint').textContent = '识别中…';
+        $('#paste-hint').textContent = '正在压缩图片…';
 
         fileToImage(pendingImage, 1800).then(function (img) {
-            $('#paste-hint').textContent = '识别中…（' + Math.round(img.b64.length / 1365) + ' KB）';
-            return callVision(key, img);
+            $('#paste-hint').textContent = '识别中…（' + Math.round(img.b64.length / 1365) + ' KB，首次要等十几秒）';
+            return callVision(img);
         }).then(function (text) {
             var lines = cleanOcrText(text);
             $('#paste-text').value = lines.length ? lines.join('\n') : String(text || '').trim();
@@ -2231,9 +2191,7 @@
                 ? '识别出 ' + lines.length + ' 行，请核对编号、上轮积分与对手再填入'
                 : '没读出可用的行，原文已放进输入框，请手动整理';
         }).catch(function (err) {
-            $('#paste-hint').textContent = '识别失败：' + err.message + '。检查 Key 或网络后重试。';
-            $('#ocr-cfg').hidden = false;
-            $('#ocr-key').value = key;
+            $('#paste-hint').textContent = '识别失败：' + err.message + '。';
         }).then(function () { btn.disabled = false; });
     }
 
@@ -2246,22 +2204,9 @@
             if (!f) { return; }
             pendingImage = f;
             openPaste('');
-            if (!ocrKey()) {
-                openOcrCfg('第一次用：填一次 API Key，之后会记住。');
-                return;
-            }
             runVision();
         });
         inp.click();
-    });
-
-    $('#ocr-go').addEventListener('click', function () {
-        var k = $('#ocr-key').value.trim();
-        if (!k) { $('#ocr-tip').textContent = '先填 API Key'; return; }
-        setOcrKey(k);
-        $('#ocr-cfg').hidden = true;
-        if (!pendingImage) { $('#paste-hint').textContent = '先在「识别图片」里选一张图。'; return; }
-        runVision();
     });
 
     /* ---------------- 启动 ---------------- */
