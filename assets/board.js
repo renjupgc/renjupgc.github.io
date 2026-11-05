@@ -6,6 +6,10 @@
  * 棋子上的数字是该手序号，最后一手的序号标红；关掉「序号」时，
  * 最后一手改在棋子中心点一个红点。
  * 可落子的棋盘：点空点落子，双击某一颗棋子回退到那一手，其后的手数作废。
+ * 打开「分析」开关后，Rapfi 引擎（连珠规则）会在后台一轮轮地算当前局面，
+ * 在空点上画圆形小标、里面写该点胜率（百位整数），最优的那个圈更粗。
+ * 落子、回退、回看都会重新分析。候选点的个数（1-225）在「设置」里调，
+ * 默认 5 个；调完即时重算。
  *
  * 用法一，声明式（页面里直接摆一个棋盘）：
  *   <div class="board" data-board
@@ -13,18 +17,23 @@
  *   data-moves 用空格或逗号分隔，默认黑先、双方轮换；
  *   某一手要指定颜色就写 b:H8 / w:H8。
  *   data-numbers="0" 默认不显示序号；data-coords="0" 默认不显示坐标；
+ *   data-analysis="0" 默认不开分析；data-points="9" 指定分析点数；
  *   data-editable 表示可以点着落子；data-hash 表示把局面同步到地址栏
  *   （#h8i9j10 这样，刷新、分享都能回到同一局面）。
  *
- *   两个开关的状态记在 localStorage（zbx_board_numbers / zbx_board_coords），
- *   页面没写死 data-numbers / data-coords 时沿用上次的选择。
+ *   开关和设置都记在 localStorage（zbx_board_numbers / zbx_board_coords /
+ *   zbx_board_analysis / zbx_board_points），页面没写死 data-numbers /
+ *   data-coords / data-analysis / data-points 时沿用上次的选择。
+ *
+ *   分析用的引擎是同目录下 engine/ 里的 Rapfi（WebAssembly，连珠规则），
+ *   只在第一次打开「分析」时才加载，约 1.3 MB。
  *
  * 用法二，脚本式：
  *   var b = GomokuBoard.mount(el, {editable: true});
  *   b.place(7, 7);      // 落子（行列为 0 起的下标）
  *   b.next(); b.prev(); b.first(); b.last();
  *   b.undo(); b.truncate(3); b.clear(); b.setNumbers(false); b.setCoords(false);
- *   b.setColor('w');
+ *   b.setColor('w'); b.setPoints(9); b.togglePanel(true);
  *   GomokuBoard.encode(b.getMoves());   // -> 'h8i9j10'
  *   GomokuBoard.decode('#h8i9j10');     // -> [{i,j,color}, ...]
  *   b.onChange(function (s) { s.moves / s.cursor / s.numbers / s.coords / s.color });
@@ -50,6 +59,15 @@
     var EDGE = '#a2957a';       // 边框与星位
     var LABEL = '#8d8574';      // 坐标
 
+    /*
+     * Rapfi 引擎（连珠规则）跑在 Worker 里，见 engine/rapfi-worker.js。
+     * 用本文件自己的地址推目录，子页面（zaji/dapu.html）也不会算错。
+     */
+    var SELF_SRC = (document.currentScript && document.currentScript.src) || '';
+    var ENGINE_URL = SELF_SRC
+        ? SELF_SRC.replace(/[^\/]*$/, 'engine/rapfi-worker.js')
+        : 'assets/engine/rapfi-worker.js';
+
     /* ---------------------------------------------------------- 小工具 */
 
     function svgEl(name, attrs) {
@@ -62,6 +80,17 @@
             }
         }
         return n;
+    }
+
+    /* 胜率配色：五五开偏灰，越有把握越向红（占优）/蓝（落后）走 */
+    function wrColor(w) {
+        var hi = [178, 54, 42], mid = [110, 110, 110], lo = [45, 108, 156];
+        var a = w >= 0.5 ? mid : lo;
+        var b = w >= 0.5 ? hi : mid;
+        var t = w >= 0.5 ? (w - 0.5) * 2 : w * 2;
+        return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * t) + ','
+            + Math.round(a[1] + (b[1] - a[1]) * t) + ','
+            + Math.round(a[2] + (b[2] - a[2]) * t) + ')';
     }
 
     function px(i) { return M + i * C; }        // 列下标 -> x
@@ -145,11 +174,17 @@
 
     /* ---------------------------------------------------------- 本地偏好 */
 
-    /* 两个开关的状态存在 localStorage，全站同一套 */
+    /* 开关和设置都存在 localStorage，全站同一套 */
     var PREF = {
         numbers: 'zbx_board_numbers',
-        coords: 'zbx_board_coords'
+        coords: 'zbx_board_coords',
+        analysis: 'zbx_board_analysis',
+        points: 'zbx_board_points'
     };
+
+    var POINTS_MIN = 1;         // 分析点数下限：只看最优点
+    var POINTS_MAX = 225;       // 上限：十五路盘的空点总数
+    var POINTS_DEF = 3;
 
     function readPref(key, fallback) {
         try {
@@ -168,6 +203,32 @@
         }
     }
 
+    /* 数值型设置：越界或写坏了都退回默认值 */
+    function clampPoints(n) {
+        n = Math.round(Number(n));
+        if (!isFinite(n)) {
+            return POINTS_DEF;
+        }
+        return Math.max(POINTS_MIN, Math.min(POINTS_MAX, n));
+    }
+
+    function readNumPref(key, fallback) {
+        try {
+            var v = parseInt(window.localStorage.getItem(PREF[key]), 10);
+            return isFinite(v) ? clampPoints(v) : fallback;
+        } catch (e) {
+            return fallback;
+        }
+    }
+
+    function writeNumPref(key, n) {
+        try {
+            window.localStorage.setItem(PREF[key], String(n));
+        } catch (e) {
+            /* 同上 */
+        }
+    }
+
     /* ---------------------------------------------------------- 棋盘 */
 
     function Board(host, opts) {
@@ -182,6 +243,13 @@
         this.editable = !!opts.editable;
         this.color = opts.color || null;      // null = 黑白轮换
         this.hash = !!opts.hash;              // 局面写进地址栏 #h8i9j10
+        /* 引擎分析只对可落子的棋盘开放；开关状态同样记忆 */
+        this.analysis = !!this.editable && opts.analysis !== false
+            && readPref('analysis', false);
+        /* 分析点数（1-225）：引擎每轮报几个候选点，同样记忆 */
+        this.points = opts.points === undefined
+            ? readNumPref('points', POINTS_DEF) : clampPoints(opts.points);
+        this.pv = null;                       // 引擎给回来的候选点
         this.listeners = [];
 
         host.classList.add('board');
@@ -219,6 +287,10 @@
                 self.setMoves(decodeRoute(location.hash));
             };
             window.addEventListener('hashchange', this.onHash);
+        }
+
+        if (this.analysis) {
+            this.startEngine();
         }
     }
 
@@ -284,6 +356,10 @@
 
         this.stoneLayer = svgEl('g', {});
         svg.appendChild(this.stoneLayer);
+
+        /* 引擎胜率标注：只画在空点上，不挡鼠标 */
+        this.evalLayer = svgEl('g', { 'pointer-events': 'none' });
+        svg.appendChild(this.evalLayer);
 
         svg.addEventListener('click', function (e) {
             if (!self.editable) {
@@ -351,7 +427,7 @@
             self.buttons[def[0]] = btn;
         });
 
-        /* 右侧两个开关：序号、坐标 */
+        /* 右侧开关：序号、坐标，可落子的棋盘再加一个分析 */
         var box = document.createElement('div');
         box.className = 'board-switches';
 
@@ -363,10 +439,113 @@
             this.coords, function (on) {
                 self.setCoords(on);
             });
+        if (this.editable) {
+            this.analyzeBox = this.makeSwitch(box, '分析',
+                '用 Rapfi 引擎分析当前局面，在空点上标出胜率',
+                this.analysis, function (on) {
+                    self.setAnalysis(on);
+                });
+            /* 设置：点开在工具栏下方展开一行，放分析点数 */
+            var set = document.createElement('button');
+            set.type = 'button';
+            set.className = 'board-set';
+            set.title = '设置';
+            set.setAttribute('aria-expanded', 'false');
+            set.textContent = '设置';
+            set.addEventListener('click', function () {
+                self.togglePanel();
+            });
+            box.appendChild(set);
+            this.setBtn = set;
+        }
 
         bar.appendChild(box);
         this.bar = bar;
         this.host.appendChild(bar);
+
+        if (this.editable) {
+            this.host.appendChild(this.buildPanel());
+        }
+    };
+
+    /* 设置面板：默认收起，点「设置」展开 */
+    Board.prototype.buildPanel = function () {
+        var self = this;
+        var panel = document.createElement('div');
+        panel.className = 'board-panel';
+        panel.hidden = true;
+
+        var row = document.createElement('div');
+        row.className = 'bp-row';
+
+        var key = document.createElement('span');
+        key.className = 'bp-k';
+        key.textContent = '分析点数';
+
+        /* 步进器：－ [值] ＋，值也可以直接改 */
+        var step = document.createElement('div');
+        step.className = 'bp-step';
+
+        var minus = document.createElement('button');
+        minus.type = 'button';
+        minus.className = 'bp-btn';
+        minus.textContent = '\u2212';
+        minus.title = '少一个候选点';
+        minus.setAttribute('aria-label', '减少分析点数');
+
+        var num = document.createElement('input');
+        num.type = 'number';
+        num.className = 'bp-num';
+        num.min = POINTS_MIN;
+        num.max = POINTS_MAX;
+        num.step = 1;
+        num.value = this.points;
+        num.setAttribute('aria-label', '分析点数');
+
+        var plus = document.createElement('button');
+        plus.type = 'button';
+        plus.className = 'bp-btn';
+        plus.textContent = '+';
+        plus.title = '多一个候选点';
+        plus.setAttribute('aria-label', '增加分析点数');
+
+        minus.addEventListener('click', function () {
+            self.setPoints(self.points - 1);
+        });
+        plus.addEventListener('click', function () {
+            self.setPoints(self.points + 1);
+        });
+        num.addEventListener('change', function () {
+            self.setPoints(num.value);
+        });
+
+        step.appendChild(minus);
+        step.appendChild(num);
+        step.appendChild(plus);
+
+        row.appendChild(key);
+        row.appendChild(step);
+        panel.appendChild(row);
+
+        this.panel = panel;
+        this.pointsNum = num;
+        this.pointsMinus = minus;
+        this.pointsPlus = plus;
+        minus.disabled = this.points <= POINTS_MIN;
+        plus.disabled = this.points >= POINTS_MAX;
+        return panel;
+    };
+
+    Board.prototype.togglePanel = function (on) {
+        if (!this.panel) {
+            return;
+        }
+        var open = on === undefined ? this.panel.hidden : !!on;
+        this.panel.hidden = !open;
+        if (this.setBtn) {
+            this.setBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            this.setBtn.classList.toggle('is-on', open);
+        }
     };
 
     /* 一个胶囊开关：label 里套隐藏的 checkbox + 轨道 + 文字 */
@@ -538,6 +717,193 @@
         this.render();
     };
 
+    Board.prototype.setPoints = function (n) {
+        n = clampPoints(n);
+        this.points = n;
+        writeNumPref('points', n);
+        if (this.pointsNum && Number(this.pointsNum.value) !== n) {
+            this.pointsNum.value = n;
+        }
+        if (this.pointsMinus) {
+            this.pointsMinus.disabled = n <= POINTS_MIN;
+        }
+        if (this.pointsPlus) {
+            this.pointsPlus.disabled = n >= POINTS_MAX;
+        }
+        this.renderEval();
+        if (this.analysis) {
+            this.analyzeKey = '';          /* 点数变了，同一局面也要重算 */
+            this.scheduleAnalysis(true);
+        }
+        return this;
+    };
+
+    /* ---------------------------------------------------------- 引擎分析 */
+
+    Board.prototype.setAnalysis = function (on) {
+        on = !!on && this.editable;
+        this.analysis = on;
+        writePref('analysis', on);
+        if (this.analyzeBox && this.analyzeBox.checked !== on) {
+            this.analyzeBox.checked = on;
+        }
+        if (on) {
+            this.startEngine();
+        } else {
+            this.stopEngine();
+        }
+        return this;
+    };
+
+    Board.prototype.startEngine = function () {
+        if (this.worker || !this.editable) {
+            return;
+        }
+        var self = this;
+        this.engineReady = false;
+        try {
+            this.worker = new Worker(ENGINE_URL);
+        } catch (e) {
+            this.failEngine('引擎加载失败');
+            return;
+        }
+        this.worker.onmessage = function (e) {
+            self.onEngine(e.data || {});
+        };
+        this.worker.onerror = function () {
+            self.failEngine('引擎运行出错');
+        };
+    };
+
+    /* 引擎起不来（离线、浏览器不支持 wasm）就悄悄把开关退回去 */
+    Board.prototype.failEngine = function (why) {
+        this.stopEngine();
+        this.analysis = false;
+        writePref('analysis', false);
+        if (this.analyzeBox) {
+            this.analyzeBox.checked = false;
+        }
+        if (window.console) {
+            window.console.warn('[board] ' + why + '：' + ENGINE_URL);
+        }
+    };
+
+    Board.prototype.stopEngine = function () {
+        if (this.worker) {
+            try {
+                this.worker.postMessage({ type: 'stop' });
+            } catch (e) { /* 已经没了 */ }
+            this.worker.terminate();
+            this.worker = null;
+        }
+        this.engineReady = false;
+        this.pv = null;
+        this.analyzeKey = '';
+        this.renderEval();
+    };
+
+    Board.prototype.onEngine = function (d) {
+        if (d.type === 'ready') {
+            this.engineReady = true;
+            this.scheduleAnalysis(true);
+        } else if (d.type === 'eval') {
+            if (d.seq !== this.seq) {
+                return;                        /* 旧局面的结果，丢掉 */
+            }
+            this.pv = d.pv || [];
+            this.depth = d.depth || 0;
+            this.renderEval();
+        } else if (d.type === 'error') {
+            this.failEngine(String(d.message || '引擎出错'));
+        }
+    };
+
+    /* 局面变了（落子、回退、回看）就重新分析；键没变就沿用这一轮 */
+    Board.prototype.scheduleAnalysis = function (force) {
+        if (!this.analysis || !this.worker || !this.engineReady) {
+            return;
+        }
+        var n = Math.min(this.cursor, this.moves.length);
+        var lines = [];
+        var key = [];
+        for (var k = 0; k < n; k++) {
+            var m = this.moves[k];
+            /* 引擎坐标：x 从左 0 起，y 从下 0 起 */
+            lines.push(m.i + ',' + (SIZE - 1 - m.j) + ',' + (m.color === 'b' ? 1 : 2));
+            key.push(m.i + '.' + m.j + m.color);
+        }
+        key = key.join(',');
+        if (!force && key === this.analyzeKey) {
+            return;
+        }
+        this.analyzeKey = key;
+        this.seq = (this.seq || 0) + 1;
+        this.worker.postMessage({
+            type: 'analyze',
+            seq: this.seq,
+            moves: lines,
+            nbest: this.points
+        });
+    };
+
+    /* 在空点上标胜率；已经落子的点不标 */
+    Board.prototype.renderEval = function () {
+        var layer = this.evalLayer;
+        if (!layer) {
+            return;
+        }
+        while (layer.firstChild) {
+            layer.removeChild(layer.firstChild);
+        }
+        if (!this.analysis || !this.pv || !this.pv.length) {
+            return;
+        }
+
+        var n = Math.min(this.cursor, this.moves.length);
+        var taken = {};
+        for (var k = 0; k < n; k++) {
+            taken[this.moves[k].i + ',' + this.moves[k].j] = 1;
+        }
+
+        var list = this.pv.slice(0, this.points);
+        for (var p = 0; p < list.length; p++) {
+            var item = list[p];
+            var i = item.x;
+            var j = SIZE - 1 - item.y;
+            if (i < 0 || i >= SIZE || j < 0 || j >= SIZE || taken[i + ',' + j]) {
+                continue;
+            }
+            var w = Math.max(0, Math.min(1, item.winrate));
+            var cx = px(i);
+            var cy = py(j);
+            var col = wrColor(w);
+            var top = p === 0;
+            var label = String(Math.round(w * 100));
+
+            /* 圆框比棋子小一圈，底下的交叉点仍看得见 */
+            layer.appendChild(svgEl('circle', {
+                cx: cx, cy: cy, r: top ? C * 0.43 : C * 0.4,
+                fill: '#fffdf7', 'fill-opacity': top ? 0.97 : 0.88,
+                stroke: col,
+                'stroke-width': top ? 1.6 : 0.9,
+                'stroke-opacity': top ? 1 : 0.55
+            }));
+
+            /* 一位数写大些，三位数缩小才对得进圆里 */
+            var size = label.length >= 3 ? 8.4 : (label.length === 2 ? 10 : 11.5);
+            var text = svgEl('text', {
+                x: cx, y: cy + size * 0.35,
+                'text-anchor': 'middle',
+                'font-family': 'Arial, Helvetica, sans-serif',
+                'font-size': size,
+                'font-weight': top ? 700 : 500,
+                fill: col
+            });
+            text.textContent = label;
+            layer.appendChild(text);
+        }
+    };
+
     Board.prototype.onChange = function (fn) {
         if (typeof fn === 'function') {
             this.listeners.push(fn);
@@ -621,6 +987,8 @@
             this.coordBox.checked = this.coords;
         }
         this.syncHash();
+        this.renderEval();
+        this.scheduleAnalysis();
         this.emit();
     };
 
@@ -651,9 +1019,27 @@
 
     /* ---------------------------------------------------------- 挂载 */
 
+    /* 在场的棋盘：无刷新换页把旧棋盘换掉时，要顺手把它的引擎停掉 */
+    var LIVE = [];
+
+    function prune() {
+        for (var k = LIVE.length - 1; k >= 0; k--) {
+            var b = LIVE[k];
+            if (document.documentElement.contains(b.host)) {
+                continue;
+            }
+            b.stopEngine();
+            if (b.onHash) {
+                window.removeEventListener('hashchange', b.onHash);
+            }
+            LIVE.splice(k, 1);
+        }
+    }
+
     function mount(host, opts) {
         var board = new Board(host, opts);
         host._board = board;
+        LIVE.push(board);
         return board;
     }
 
@@ -673,6 +1059,12 @@
         }
         if (el.hasAttribute('data-coords')) {
             opts.coords = el.getAttribute('data-coords') !== '0';
+        }
+        if (el.hasAttribute('data-analysis')) {
+            opts.analysis = el.getAttribute('data-analysis') !== '0';
+        }
+        if (el.hasAttribute('data-points')) {
+            opts.points = el.getAttribute('data-points');
         }
         return mount(el, opts);
     }
@@ -705,6 +1097,7 @@
             if (pending) {
                 return;
             }
+            prune();                    /* 先把离场棋盘的引擎停掉 */
             for (var i = 0; i < records.length; i++) {
                 var added = records[i].addedNodes;
                 for (var k = 0; k < added.length; k++) {
