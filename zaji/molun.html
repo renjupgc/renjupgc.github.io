@@ -1921,7 +1921,10 @@
     }
 
     $('#btn-clear').addEventListener('click', function () {
-        if (!confirm('清空第 ' + curRound + ' 轮的所有输入？')) { return; }
+        var ask = curRound === 1
+            ? '清空第 1 轮的所有输入？名单、姓名、单位、对手都会清掉。'
+            : '清空第 ' + curRound + ' 轮的所有输入？';
+        if (!confirm(ask)) { return; }
 
         var rd = roundOf(curRound);
         if (rd) { rd.pre = {}; rd.opps = {}; rd.ff = []; }
@@ -1934,6 +1937,16 @@
                    (x.ff || []).length;
         });
 
+        /* 第 1 轮连带名单一起清：姓名、单位都是粘贴时带进来的输入 */
+        if (curRound === 1) {
+            var rest = state.rounds.some(function (x) {
+                return Object.keys(x.pre || {}).length ||
+                       Object.keys(x.opps || {}).length ||
+                       (x.ff || []).length;
+            });
+            if (!rest) { state.players = []; }
+        }
+
         /* 立刻落盘，不等 220ms 防抖，马上刷新页面也不会复活 */
         clearTimeout(saveTimer);
         try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
@@ -1943,10 +1956,10 @@
         $('#paste-hint').textContent = '';
         $('#paste-box').hidden = true;
 
-        renderTabs(); renderEntry(); renderStandings(); renderSolveSelect();
+        renderTabs(); syncSetup(); renderEntry(); renderStandings(); renderSolveSelect();
         blankEntryInputs();
         resetSolve();
-        flash('已清空第 ' + curRound + ' 轮');
+        flash('已清空第 ' + curRound + ' 轮' + (curRound === 1 ? '，名单也一并清空' : ''));
     });
 
     /* ---------------- 名次表 ---------------- */
