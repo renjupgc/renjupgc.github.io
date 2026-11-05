@@ -822,7 +822,7 @@
         <section class="ml-card" id="card-tb">
             <h2><span class="ml-step">01</span>破同分</h2>
             <ul class="ml-tb" id="tb-list"></ul>
-            <p class="ml-hint" id="tb-note">对手分按 FIDE 调整：没下成的局都占一个槽位，不能丢。轮空那一槽按虚拟对手「总轮数×0.5」计，未弈和退赛那一槽按虚拟对手 0 计。虚拟积分（别人算你时你算几分）= 积分 + 0.5×(弃权次数 + 退赛轮数 + 未弈轮数) − 0.5×(轮空次数 + 对手弃权次数)，也就是没下成的局一律按和棋 0.5 分算。退赛的人按对阵表自动识别（哪一轮起名单上没有他），对别人一律按虚拟分 0 计。</p>
+            <p class="ml-hint" id="tb-note">对手分按 FIDE 调整：没下成的局都占一个槽位，不能丢。轮空那一槽按虚拟对手「总轮数×0.5」计，未弈和退赛那一槽按虚拟对手 0 计。虚拟积分（别人算你时你算几分）= 积分 + 0.5×(弃权次数 + 退赛轮数 + 未弈轮数) − 0.5×(轮空次数 + 对手弃权次数)，也就是没下成的局一律按和棋 0.5 分算。其中：弃权次数 = 自己弃权的轮数；退赛轮数 = 不在对阵表里的轮数；未弈轮数 = 在表上但没下成（对手没来 / 双方都没得分）的轮数。</p>
         </section>
 
         <section class="ml-card" id="card-entry">
@@ -1103,17 +1103,14 @@
                     continue;
                 }
 
-                /* 退赛的人，成绩单上可能还挂着名字：之后的轮次算退赛，不算「没录对手」 */
-                var gone = withdrawn[players[k].id] != null && rd.r >= withdrawn[players[k].id];
-
                 if (oid == null) {
-                    /* 对手没录：分数照算，对手分槽位记 0 */
+                    /* 对手没录：说明这轮他不在对阵表上，算退赛轮数；分数照算，对手分槽位记 0 */
                     if (!has[k]) { continue; }
                     paired[k] = true; seen[k] = 1;
                     P[k].pts += delta[k];
-                    if (gone) { P[k].wd++; } else { P[k].none++; }
-                    push(k, { t: gone ? 'wd' : 'none', d: delta[k] });
-                    P[k].log.push({ r: rd.r, d: delta[k], t: gone ? 'wd' : 'none' });
+                    P[k].wd++;
+                    push(k, { t: 'wd', d: delta[k] });
+                    P[k].log.push({ r: rd.r, d: delta[k], t: 'wd' });
                     continue;
                 }
 
@@ -1165,15 +1162,10 @@
             for (k = 0; k < n; k++) {
                 if (seen[k]) { continue; }
                 var kp = players[k].id;
-                if (withdrawn[kp] != null && rd.r >= withdrawn[kp]) {
-                    P[k].wd++;
-                    push(k, { t: 'wd' });
-                    P[k].log.push({ r: rd.r, d: 0, t: 'wd' });
-                } else {
-                    P[k].none++;
-                    push(k, { t: 'none' });
-                    P[k].log.push({ r: rd.r, d: 0, t: 'none' });
-                }
+                /* 没被配对 = 这轮不在对阵表上 → 记一次退赛轮数 */
+                P[k].wd++;
+                push(k, { t: 'wd' });
+                P[k].log.push({ r: rd.r, d: 0, t: 'wd' });
             }
         });
 
@@ -1186,13 +1178,14 @@
     }
 
     /* 算别人对手分时，这个人算几分（FIDE 调整后的虚拟分）：
-     *   积分 + 0.5×(弃权 + 未弈) − 0.5×(轮空 + 对手弃权)
-     * 退赛的人整体按 0 计——他退赛之后那些轮次没成绩，不能拿他的调整分去抬高别人的对手分。 */
+     *   积分 + 0.5×(弃权次数 + 退赛轮数 + 未弈轮数) − 0.5×(轮空次数 + 对手弃权次数)
+     * 一句话：没下成的局一律按和棋 0.5 分算；轮空、对手弃权白捡的一分要减回去。
+     * 整场退赛的人对别人一律按虚拟分 0 计（vsOf 里直接返回 0）。 */
     function vsOf(b, i) {
         var P = b.P[i], pid = b.players[i].id;
         var wd = (b.withdrawnOf ? b.withdrawnOf[pid] : null);
         if (wd != null && P.wd > 0) { return 0; }
-        return P.pts + 0.5 * (P.ff + P.none) - 0.5 * (P.byes + P.oppFF);
+        return P.pts + 0.5 * (P.ff + P.wd + P.none) - 0.5 * (P.byes + P.oppFF);
     }
 
     function slotValueOf(b, s, vs) {
