@@ -2771,7 +2771,7 @@
                 '</div>';
         }
 
-        var tabs = st.subs.length > 1 ? '<div class="ml-d-tabs">' +
+        var tabs = st.subs.length > 0 ? '<div class="ml-d-tabs">' +
             '<button type="button" class="ml-d-tab' + (view.tab === 'all' ? ' is-on' : '') +
             '" data-tab="all">全部 <b>' + st.subs.length + '</b></button>' +
             st.ranks.map(function (r) {
