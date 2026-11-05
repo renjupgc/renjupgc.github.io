@@ -946,6 +946,119 @@ table.crosstab td.res-floss {
     box-shadow: 0 0 0 2px rgba(125, 143, 165, 0.35);
 }
 
+/* 「设置」入口：跟开关同一行，纯文字按钮，不抢视线 */
+.board-set {
+    margin: 0;
+    padding: 0 2px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #8a8a8a;
+    background: none;
+    border: 0;
+    border-bottom: 1px dotted #cfcfcf;
+    cursor: pointer;
+}
+
+.board-set:hover,
+.board-set.is-on {
+    color: #2a2a2a;
+    border-bottom-color: #9aa7b5;
+}
+
+/* 设置面板：工具栏下面一条，收起时不占位 */
+.board-panel {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: #fbfaf7;
+    border: 1px solid #e8e6e0;
+    border-radius: 3px;
+}
+
+.board-panel[hidden] {
+    display: none;
+}
+
+.bp-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #666666;
+}
+
+.bp-k {
+    flex: none;
+    min-width: 4.6em;
+    color: #777777;
+}
+
+/* 步进器：－ 值 ＋，拼成一整个控件 */
+.bp-step {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid #dcdcdc;
+    border-radius: 2px;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.bp-btn {
+    width: 24px;
+    padding: 0;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    color: #555555;
+    background: #fbfbfb;
+    border: 0;
+    cursor: pointer;
+}
+
+.bp-btn:first-child {
+    border-right: 1px solid #e6e6e6;
+}
+
+.bp-btn:last-child {
+    border-left: 1px solid #e6e6e6;
+}
+
+.bp-btn:hover:not(:disabled) {
+    background: #f0f2f4;
+    color: #222222;
+}
+
+.bp-btn:disabled {
+    color: #d2d2d2;
+    cursor: default;
+}
+
+.bp-num {
+    width: 48px;
+    padding: 3px 0;
+    font-family: inherit;
+    font-size: 13px;
+    color: #333333;
+    text-align: center;
+    background: #ffffff;
+    border: 0;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* 数字框自带的上下箭头去掉，用旁边的 ± */
+.bp-num::-webkit-outer-spin-button,
+.bp-num::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.bp-num:focus {
+    outline: none;
+    background: #f8fafb;
+}
+
+
 /* ---------- 杂技：打谱 ---------- */
 
 /* 盘面居中；窄屏时铺满正文宽度 */
