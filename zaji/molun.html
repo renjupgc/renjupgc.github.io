@@ -500,6 +500,162 @@
     .ml-case .ml-cond-none { color: var(--muted); list-style: none; margin-left: -16px; }
     .ml-case .ml-cond-tag { color: var(--faint); font-size: 11.5px; margin-left: 6px; }
 
+    /* ---------- 可展开的条件 ---------- */
+    .ml-case ul.ml-terms {
+        list-style: none;
+        margin: 0;
+        padding: 0 10px 10px;
+        line-height: 1.9;
+    }
+
+    .ml-case li.ml-term { list-style: none; margin: 0; }
+
+    .ml-term-q {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        width: 100%;
+        margin: 1px 0;
+        padding: 5px 8px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        font-family: var(--sans);
+        font-size: 13px;
+        line-height: 1.9;
+        color: var(--ink-2);
+        text-align: left;
+        cursor: pointer;
+        transition: background-color 0.14s ease, border-color 0.14s ease;
+    }
+
+    .ml-term-q:hover { background: var(--surface); border-color: var(--line-soft); }
+    .ml-term-q:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+    .ml-term-q .ml-term-txt { flex: 1 1 auto; }
+
+    .ml-term-q .ml-term-more {
+        flex: 0 0 auto;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--gold-deep);
+        background: var(--gold-tint);
+        border-radius: 999px;
+        padding: 1px 8px;
+        white-space: nowrap;
+    }
+
+    .ml-term-q.is-open { background: var(--gold-tint); border-color: var(--gold); }
+    .ml-term-q.is-open .ml-term-more { color: var(--muted); background: var(--surface); }
+
+    .ml-term-q.is-head {
+        flex: 1 1 320px;
+        padding: 0 8px;
+        margin: -2px 0;
+    }
+
+    .ml-term-detail {
+        margin: 4px 0 8px;
+        padding: 10px 12px;
+        border-left: 2px solid var(--gold);
+        border-radius: 0 8px 8px 0;
+        background: var(--surface);
+        font-family: var(--sans);
+        font-size: 12.5px;
+        line-height: 1.9;
+        color: var(--ink-2);
+    }
+
+    .ml-term-detail .ml-d-note {
+        margin: 0 0 7px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+    }
+
+    .ml-term-detail .ml-d-note b { color: var(--ink-2); }
+
+    .ml-split { display: flex; flex-direction: column; gap: 4px; margin: 0 0 8px; }
+
+    .ml-split-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+
+    .ml-split-k {
+        flex: 0 0 auto;
+        font-size: 11px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        background: var(--surface-2);
+    }
+
+    .ml-split-k.is-free { color: var(--loss); border-color: #c7d6c9; background: #f3f7f3; }
+    .ml-split-k.is-play { color: var(--win); border-color: #e2c3bd; background: #fbf3f1; }
+
+    .ml-split-v { color: var(--ink-2); }
+    .ml-split-v b { color: var(--ink); font-weight: 600; }
+
+    .ml-rep {
+        margin: 0 0 10px;
+        padding: 8px 10px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--surface-2);
+    }
+
+    .ml-rep:last-child { margin-bottom: 0; }
+
+    .ml-rep-title {
+        margin: 0 0 3px;
+        font-size: 11.5px;
+        letter-spacing: 0.04em;
+        color: var(--gold-deep);
+    }
+
+    .ml-rep-games { margin: 0 0 2px; color: var(--ink-3); font-size: 12px; }
+    .ml-rep-line { margin: 0 0 6px; color: var(--ink-2); }
+    .ml-rep-line b { color: var(--ink); font-weight: 600; }
+
+    .ml-rep-none { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+    .ml-cmp-wrap {
+        overflow-x: auto;
+        border-radius: 6px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table.ml-cmp {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        line-height: 1.7;
+        background: var(--surface);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    table.ml-cmp th {
+        font-weight: 600;
+        font-size: 11px;
+        color: var(--faint);
+        text-align: left;
+        padding: 4px 8px;
+        border-bottom: 1px solid var(--line-soft);
+        white-space: nowrap;
+    }
+
+    table.ml-cmp td {
+        padding: 4px 8px;
+        border-bottom: 1px solid var(--line-soft);
+        color: var(--ink-2);
+        white-space: nowrap;
+    }
+
+    table.ml-cmp tr:last-child td { border-bottom: 0; }
+    table.ml-cmp tr.is-me td { color: var(--ink); background: var(--gold-tint); font-weight: 600; }
+    table.ml-cmp td.is-tie { color: var(--win); }
+    table.ml-cmp td.is-up { color: var(--muted); }
+    table.ml-cmp td.is-down { color: var(--loss); }
+
     @media (max-width: 640px) {
         .ml-bar { flex-wrap: wrap; }
         .ml-bar .ml-spacer { display: none; }
@@ -509,6 +665,10 @@
         .ml-toolbar .ml-spacer { display: none; }
         .ml-tb .ml-tb-hint { display: none; }
         .ml-table-wrap { max-height: 56vh; }
+        .ml-term-detail { padding: 9px 8px; }
+        table.ml-cmp { font-size: 11.5px; }
+        table.ml-cmp th,
+        table.ml-cmp td { padding: 4px 6px; }
     }
 </style>
 </head>
@@ -1266,7 +1426,11 @@
                                 code: CODES[pick.pat[q]]
                             });
                         }
-                        return { parts: parts, playoff: pick.playoff ? base.players[t].id : 0 };
+                        return {
+                            parts: parts,
+                            playoff: pick.playoff ? base.players[t].id : 0,
+                            pat: pick.pat.slice()   /* 内部用：这一条锁定/未锁定的对局，供展开细分 */
+                        };
                     })
                 });
             });
@@ -1280,6 +1444,130 @@
             if (base.rows[i].i === t) { rankNow = base.rows[i].rank; }
         }
 
+        /* ---------------- 展开某一条情形 ----------------
+         * 一条条件只锁了几场对局，剩下的关键对局随便怎么下都算数。
+         * 点开时把这些没锁的对局全部枚举一遍，分成「稳进」「需加赛」两类，
+         * 各取最险的一种给出积分、名次和破同分逐项对比。
+         */
+
+        function tbOf(x) {
+            var o = {};
+            for (var q = 0; q < keys.length; q++) {
+                var k = keys[q];
+                o[k] = k === 'buch' ? buchOf(x) : (k === 'wins' ? winsOf(x) : tbVal(x, k));
+            }
+            return o;
+        }
+
+        function explainOne(key, holes) {
+            var p = keyToPattern(key), q;
+            for (q = 0; q < m; q++) { applyGame(enumGames[q], CODES[p[q]], 1); }
+
+            var pT = ptsOf(t), bT = buchOf(t), wT = winsOf(t);
+            var ev = evaluate();
+            var me = { id: base.players[t].id, name: base.players[t].name, pts: pT, tb: tbOf(t) };
+            var rivals = [];
+
+            for (q = 0; q < pool.length; q++) {
+                var x = pool[q];
+                var px = ptsOf(x);
+                if (px < pT - 1e-9) { continue; }
+                var rel = better(x, pT, bT, wT);
+                rivals.push({
+                    id: base.players[x].id,
+                    name: base.players[x].name,
+                    pts: px,
+                    tb: tbOf(x),
+                    rel: rel > 0 ? 1 : (rel === 0 ? 0 : -1)
+                });
+            }
+
+            var games = [];
+            for (q = 0; q < m; q++) {
+                if (q === gt || p[q] < 0) { continue; }
+                if (holes && holes.indexOf(q) < 0) { continue; }
+                games.push({
+                    a: base.players[enumGames[q].a].id,
+                    b: base.players[enumGames[q].b].id,
+                    code: CODES[p[q]]
+                });
+            }
+
+            for (q = 0; q < m; q++) { applyGame(enumGames[q], CODES[p[q]], -1); }
+
+            rivals.sort(function (x, y) {
+                if (x.rel !== y.rel) { return y.rel - x.rel; }
+                if (x.pts !== y.pts) { return y.pts - x.pts; }
+                return x.id - y.id;
+            });
+
+            return {
+                pts: pT, rank: ev.rank, worst: ev.worst, ties: ev.ties,
+                me: me, rivals: rivals, games: games
+            };
+        }
+
+        function explore(pattern) {
+            var holes = [], q, c;
+            for (q = 0; q < m; q++) { if (pattern[q] < 0) { holes.push(q); } }
+
+            var st = {
+                pts: 0,
+                total: pow3[holes.length],
+                rank: targetRank,
+                keys: keys.slice(),
+                holes: holes.map(function (idx) {
+                    return {
+                        a: base.players[enumGames[idx].a].id,
+                        b: base.players[enumGames[idx].b].id
+                    };
+                }),
+                free: { count: 0, min: 0, max: 0, worst: -1, key: -1 },
+                play: { count: 0, min: 0, max: 0, worst: -1, key: -1 }
+            };
+
+            var wp = pattern.slice();
+            for (q = 0; q < m; q++) {
+                if (pattern[q] >= 0) { applyGame(enumGames[q], CODES[pattern[q]], 1); }
+            }
+
+            function tally() {
+                var key = 0;
+                for (var z = 0; z < m; z++) { key += wp[z] * pow3[z]; }
+                var ev = evaluate();
+                var bucket = ev.worst <= targetRank ? st.free : st.play;
+                bucket.count++;
+                if (!bucket.min || ev.rank < bucket.min) { bucket.min = ev.rank; }
+                if (ev.worst > bucket.max) { bucket.max = ev.worst; }
+                /* 例子取这一类里最险的一种：名次最靠后 */
+                if (bucket.key < 0 || ev.worst > bucket.worst) {
+                    bucket.worst = ev.worst;
+                    bucket.key = key;
+                }
+                st.pts = ptsOf(t);
+            }
+
+            function walk(h) {
+                if (h === holes.length) { tally(); return; }
+                var gi = enumGames[holes[h]];
+                for (var cc = 0; cc < 3; cc++) {
+                    applyGame(gi, CODES[cc], 1);
+                    wp[holes[h]] = cc;
+                    walk(h + 1);
+                    applyGame(gi, CODES[cc], -1);
+                }
+            }
+            walk(0);
+
+            for (q = 0; q < m; q++) {
+                if (pattern[q] >= 0) { applyGame(enumGames[q], CODES[pattern[q]], -1); }
+            }
+
+            st.free.sample = st.free.key >= 0 ? explainOne(st.free.key, holes) : null;
+            st.play.sample = st.play.key >= 0 ? explainOne(st.play.key, holes) : null;
+            return st;
+        }
+
         return {
             target: { id: base.players[t].id, name: base.players[t].name, pts: bp[t], rank: rankNow },
             totalRounds: total,
@@ -1289,7 +1577,8 @@
             always: always,
             alwaysPlayoff: !always && totalCount > 0 && playCount === totalCount,
             never: playCount === 0,
-            groups: groups
+            groups: groups,
+            explore: explore
         };
     }
 
@@ -2043,6 +2332,115 @@
         return list.map(function (x) { return condText(x, nm); }).join('，');
     }
 
+    /* ---------------- 推算结果的展开详情 ---------------- */
+
+    var lastAns = null;      /* 最近一次推算，用来按需展开 */
+    var lastNm = function (id) { return String(id); };
+    var detailCache = {};    /* 已算过的展开结果，键 = 组序号-条序号 */
+
+    function tbNameOf(k) {
+        for (var i = 0; i < ML.TB_DEFS.length; i++) {
+            if (ML.TB_DEFS[i].key === k) { return ML.TB_DEFS[i].name; }
+        }
+        return k;
+    }
+
+    function detailBox(gi, ti) {
+        return '<div class="ml-term-detail" data-detail="' + gi + '-' + ti + '" hidden></div>';
+    }
+
+    function termBtn(gi, ti, term, rank, nm, inHead) {
+        return '<button type="button" class="ml-term-q' + (inHead ? ' is-head' : '') +
+            '" data-g="' + gi + '" data-t="' + ti + '">' +
+            '<span class="ml-term-txt">' + condSentence(term, rank, nm) + '</span>' +
+            '<span class="ml-term-more">详情</span>' +
+            '</button>';
+    }
+
+    /* 一个细分示例：其余对局 + 积分名次 + 破同分对比表 */
+    function repBlock(s, keys, nm, title, cls) {
+        var out = '<div class="ml-rep">';
+        if (title) { out += '<p class="ml-rep-title">' + title + '</p>'; }
+        if (s.games.length) {
+            out += '<p class="ml-rep-games">' + s.games.map(function (x) {
+                return condText(x, nm);
+            }).join('，') + '</p>';
+        }
+
+        var tieNames = s.rivals.filter(function (r) { return r.rel === 0; })
+            .map(function (r) { return nm(r.id); });
+        var line;
+        if (cls === 'play') {
+            line = '你 <b>' + fmt(s.pts) + '</b> 分，第 <b>' + s.rank + '</b> 名' +
+                (tieNames.length
+                    ? '；与 ' + tieNames.join('、') + ' 积分、破同分全一样，只能加赛（加赛输了算第 ' +
+                        s.worst + ' 名）'
+                    : '，要加赛');
+        } else {
+            line = '你 <b>' + fmt(s.pts) + '</b> 分，第 <b>' + s.rank + '</b> 名' +
+                (s.worst > s.rank
+                    ? '（与 ' + (tieNames.length ? tieNames.join('、') : '他人') +
+                        ' 并列时最差算第 ' + s.worst + ' 名，仍在目标名次内）'
+                    : '，不用加赛');
+        }
+        out += '<p class="ml-rep-line">' + line + '</p>';
+
+        if (s.rivals.length) {
+            var head = '<tr><th>选手</th><th>积分</th>' +
+                keys.map(function (k) { return '<th>' + esc(tbNameOf(k)) + '</th>'; }).join('') +
+                '<th>对比</th></tr>';
+
+            function cells(o, isMe) {
+                return '<td>' + esc(isMe ? (nm(o.id) + '（你）') : nm(o.id)) + '</td>' +
+                    '<td>' + fmt(o.pts) + '</td>' +
+                    keys.map(function (k) { return '<td>' + fmt(o.tb[k]) + '</td>'; }).join('');
+            }
+
+            var rows = '<tr class="is-me">' + cells(s.me, true) + '<td>—</td></tr>';
+            s.rivals.slice(0, 12).forEach(function (r) {
+                var why = r.rel === 0 ? '并列' : (r.rel > 0 ? '在前' : '在后');
+                rows += '<tr>' + cells(r) + '<td class="' + (r.rel === 0 ? 'is-tie' : (r.rel > 0 ? 'is-up' : 'is-down')) +
+                    '">' + why + '</td></tr>';
+            });
+            out += '<div class="ml-cmp-wrap"><table class="ml-cmp"><thead>' + head +
+                '</thead><tbody>' + rows + '</tbody></table></div>';
+            if (s.rivals.length > 12) {
+                out += '<p class="ml-rep-none">另有 ' + (s.rivals.length - 12) + ' 人同分或在分上领先，未列出。</p>';
+            }
+        } else {
+            out += '<p class="ml-rep-none">这个结果下没有人与你同分或在分上领先。</p>';
+        }
+
+        return out + '</div>';
+    }
+
+    function detailHtml(st, nm) {
+        var out = [], split = '';
+        [['free', '稳进', 'is-free'], ['play', '需加赛', 'is-play']].forEach(function (it) {
+            var b = st[it[0]];
+            if (!b.count) { return; }
+            var rng = b.min === b.max
+                ? ('第 ' + b.min + ' 名')
+                : ('第 ' + b.min + '～' + b.max + ' 名');
+            split += '<div class="ml-split-row">' +
+                '<span class="ml-split-k ' + it[2] + '">' + it[1] + '</span>' +
+                '<span class="ml-split-v"><b>' + b.count + '</b> 种 · 你 ' + fmt(st.pts) + ' 分，' + rng + '</span>' +
+                '</div>';
+        });
+        out.push('<div class="ml-split">' + split + '</div>');
+
+        if (st.free.sample && st.play.sample) {
+            out.push(repBlock(st.free.sample, st.keys, nm, '稳进的一种（最险）', 'free'));
+            out.push(repBlock(st.play.sample, st.keys, nm, '要加赛的一种', 'play'));
+        } else if (st.free.sample) {
+            out.push(repBlock(st.free.sample, st.keys, nm,
+                st.free.max > st.free.min ? '最险的一种' : '', 'free'));
+        } else if (st.play.sample) {
+            out.push(repBlock(st.play.sample, st.keys, nm, '其中一种', 'play'));
+        }
+        return out.join('');
+    }
+
     function runSolve() {
         var host = $('#solve-host');
         if (!state.players.length) {
@@ -2069,6 +2467,10 @@
         state.players.forEach(function (p) { names[p.id] = nameOf(p); });
         function nm(id) { return names[id] || (id + ' 号'); }
 
+        lastAns = ans;
+        lastNm = nm;
+        detailCache = {};
+
         var self = esc(ans.target.name || ('#' + ans.target.id));
         var head = '<div class="ml-banner' + (ans.always ? ' is-ok' : (ans.never ? ' is-no' : '')) + '">';
 
@@ -2080,9 +2482,9 @@
             head += '<b>' + self + '</b> 每一种末轮结果都会与他人破同分全一样，只能靠加赛；加赛赢就进前 ' + rank + '。';
         } else {
             var need = ans.counts.ok - ans.counts.free;
-            head += '<span style="color:var(--muted);font-size:12.5px">共比较 ' + ans.counts.all +
-                ' 种末轮结果，其中 ' + ans.counts.ok + ' 种达成' +
-                (need ? '（' + need + ' 种要先赢加赛）' : '') + '。</span>';
+            head += '共比较 ' + ans.counts.all + ' 种末轮结果，其中 ' +
+                ans.counts.free + ' 种稳进' +
+                (need ? '，' + need + ' 种需加赛' : '') + '。';
         }
         head += '</div>';
 
@@ -2091,11 +2493,12 @@
         var byOut = {};
         ans.groups.forEach(function (g) { byOut[g.tOutcome] = g; });
 
-        /* 三段恒定：胜 / 平 / 负，句式统一 */
+        /* 三段恒定：胜 / 平 / 负，句式统一；每条条件都能点开看细分 */
         var body = '';
         if (!ans.always && !ans.never) {
             body = ['win', 'draw', 'loss'].map(function (k) {
                 var g = byOut[k];
+                var gi = g ? ans.groups.indexOf(g) : -1;
                 var tag = '<span class="ml-badge ' + badge[k] + '">' + esc(label[k]) + '</span>';
                 if (!g || !g.terms.length) {
                     return '<div class="ml-case is-empty"><div class="ml-case-head">' + tag +
@@ -2103,14 +2506,15 @@
                 }
                 if (g.terms.length === 1) {
                     return '<div class="ml-case"><div class="ml-case-head">' + tag +
-                        '<span class="ml-case-line">' + condSentence(g.terms[0], rank, nm) + '</span></div></div>';
+                        termBtn(gi, 0, g.terms[0], rank, nm, true) +
+                        '</div>' + detailBox(gi, 0) + '</div>';
                 }
-                var lis = g.terms.map(function (p) {
-                    return '<li>' + condSentence(p, rank, nm) + '</li>';
+                var lis = g.terms.map(function (p, ti) {
+                    return '<li class="ml-term">' + termBtn(gi, ti, p, rank, nm) + detailBox(gi, ti) + '</li>';
                 }).join('');
                 return '<div class="ml-case"><div class="ml-case-head">' + tag +
                     '<span class="ml-case-line">满足任一条件，共 ' + g.terms.length + ' 种：</span>' +
-                    '</div><ul>' + lis + '</ul></div>';
+                    '</div><ul class="ml-terms">' + lis + '</ul></div>';
             }).join('');
         }
 
@@ -2118,6 +2522,40 @@
 
         host.innerHTML = head + body + '<p class="ml-hint">' + tail + '。</p>';
     }
+
+    /* 点一条条件 → 展开它下面的细分 */
+    $('#solve-host').addEventListener('click', function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest('.ml-term-q') : null;
+        if (!btn || !lastAns) { return; }
+        var gi = Number(btn.dataset.g), ti = Number(btn.dataset.t);
+        var box = this.querySelector('[data-detail="' + gi + '-' + ti + '"]');
+        if (!box) { return; }
+
+        if (!box.hidden) {
+            box.hidden = true;
+            btn.classList.remove('is-open');
+            return;
+        }
+
+        if (!box.dataset.done) {
+            var g = lastAns.groups[gi];
+            var term = g && g.terms[ti];
+            if (!term || !term.pat) {
+                box.innerHTML = '<p class="ml-d-note">这一条没有可展开的细分。</p>';
+            } else {
+                var key = gi + '-' + ti;
+                var st = detailCache[key];
+                if (!st) {
+                    st = lastAns.explore(term.pat);
+                    detailCache[key] = st;
+                }
+                box.innerHTML = detailHtml(st, lastNm);
+            }
+            box.dataset.done = '1';
+        }
+        box.hidden = false;
+        btn.classList.add('is-open');
+    });
 
     $('#btn-solve').addEventListener('click', runSolve);
     $('#f-rank').addEventListener('keydown', function (e) { if (e.key === 'Enter') { runSolve(); } });
