@@ -20,8 +20,18 @@
     'use strict';
 
     var SITE = {
-        title: '连珠杂箱'
+        title: '连珠杂箱',
+        sub: '连珠 · 五子棋'
     };
+
+    /* 站标：棋枰上的一子，页头与 favicon 共用同一套线条 */
+    var MARK = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">' +
+        '<path d="M11 3v26M21 3v26M3 11h26M3 21h26" fill="none" ' +
+        'stroke="#c9a86f" stroke-width="1.3" opacity="0.72"/>' +
+        '<circle cx="16" cy="16" r="4.7" fill="#f2d9a8"/>' +
+        '<circle cx="16" cy="16" r="4.7" fill="none" stroke="#17150f" ' +
+        'stroke-width="0.9" opacity="0.28"/>' +
+        '</svg>';
 
     /*
      * 页脚：共建署名 + 友情链接，三个链接都指向对应公众号的主页
@@ -51,7 +61,7 @@
         { text: '杂史', href: 'zashi.html' },
         { text: '杂豫', href: 'zayu.html' },
         { text: '杂技', href: 'zaji.html' },
-        { text: '关于', href: '#' }
+        { text: '关于', href: 'index.html#about' }
     ];
 
     var base = document.body.getAttribute('data-base') || '';
@@ -64,18 +74,27 @@
             return '<a href="' + href + '"' +
                 (isActive ? ' class="active"' : '') +
                 '>' + item.text + '</a>';
-        }).join('\n        ');
+        }).join('');
 
         var html =
-            '<header>\n' +
-            '    <h1 class="site-title"><a href="' + base + 'index.html">' + SITE.title + '</a></h1>\n' +
-            '    <nav>\n        ' + navHtml + '\n    </nav>\n' +
+            '<header class="site-head">\n' +
+            '  <div class="site-head-inner">\n' +
+            '    <a class="brand" href="' + base + 'index.html">\n' +
+            '      <span class="brand-mark">' + MARK + '</span>\n' +
+            '      <span class="brand-text">\n' +
+            '        <span class="brand-name">' + SITE.title + '</span>\n' +
+            '        <span class="brand-sub">' + SITE.sub + '</span>\n' +
+            '      </span>\n' +
+            '    </a>\n' +
+            '    <nav class="site-nav">' + navHtml + '</nav>\n' +
+            '  </div>\n' +
             '</header>';
 
         var mount = document.getElementById('site-header');
         if (mount) {
             mount.innerHTML = html;
         }
+        watchSticky();
     }
 
     /* 页脚只挂在最外层容器末尾；无刷新换页不动 <main> 以外的部分，所以只渲染一次 */
@@ -103,8 +122,75 @@
             '<p class="sf-links"><span class="sf-k">友情链接</span>' + links + '</p>';
     }
 
+    /* 页头滚动后才显现分隔线与投影，静止时保持通透 */
+    function watchSticky() {
+        var head = document.querySelector('.site-head');
+        if (!head || head.dataset.watched === '1') {
+            return;
+        }
+        head.dataset.watched = '1';
+
+        function sync() {
+            head.classList.toggle('is-stuck', window.pageYOffset > 8);
+        }
+
+        window.addEventListener('scroll', sync, { passive: true });
+        sync();
+    }
+
+    /* 站点图标：避免每页手写 <link>，统一在脚本里挂上 */
+    function renderIcon() {
+        if (document.querySelector('link[rel="icon"]')) {
+            return;
+        }
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+            '<rect width="32" height="32" rx="7" fill="#1e1b16"/>' +
+            '<path d="M11 4v24M21 4v24M4 11h24M4 21h24" fill="none" ' +
+            'stroke="#c9a86f" stroke-width="1.2" opacity="0.55"/>' +
+            '<circle cx="16" cy="16" r="4.4" fill="#f0d7a6"/>' +
+            '</svg>';
+        var link = document.createElement('link');
+        link.rel = 'icon';
+        link.type = 'image/svg+xml';
+        link.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+        document.head.appendChild(link);
+    }
+
+    /* 长文阅读进度：顶部一条赭金细线 */
+    function renderProgress() {
+        var bar = document.getElementById('read-progress');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'read-progress';
+            bar.className = 'read-progress';
+            bar.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(bar);
+        }
+
+        function sync() {
+            var article = document.querySelector('main article');
+            if (!article) {
+                bar.style.transform = 'scaleX(0)';
+                return;
+            }
+            var top = article.offsetTop;
+            var total = article.offsetHeight - window.innerHeight * 0.6;
+            var done = (window.pageYOffset - top) / (total > 1 ? total : 1);
+            bar.style.transform = 'scaleX(' + Math.min(1, Math.max(0, done)) + ')';
+        }
+
+        if (!window.ZBX_PROGRESS) {
+            window.ZBX_PROGRESS = 1;
+            window.addEventListener('scroll', sync, { passive: true });
+            window.addEventListener('resize', sync);
+        }
+        sync();
+    }
+
     renderHeader();
     renderFooter();
+    renderIcon();
+    renderProgress();
 
     /* 供站内无刷新跳转（见文件末尾）在换页后重新高亮导航 */
     window.ZBX = {
@@ -113,6 +199,7 @@
             active = document.body.getAttribute('data-nav') || '';
             renderHeader();
             renderFooter();
+            renderProgress();
         }
     };
 })();
@@ -527,6 +614,11 @@
                 if (window.ZBX && window.ZBX.renderHeader) {
                     window.ZBX.renderHeader();
                 }
+                /* 重放一次淡入：先摘掉再强制回流，动画才会重新触发 */
+                current.classList.remove('is-entering');
+                void current.offsetWidth;
+                current.classList.add('is-entering');
+
                 runScripts(doc, url);
                 window.scrollTo(0, typeof opts.scrollY === 'number' ? opts.scrollY : 0);
                 busy = false;
