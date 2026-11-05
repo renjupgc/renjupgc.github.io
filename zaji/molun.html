@@ -2075,7 +2075,6 @@
                 '<input type="checkbox" class="ml-check" checked data-toggle="' + k + '">' +
                 '<span class="ml-tb-rank">' + (idx + 1) + '</span>' +
                 '<span class="ml-tb-name">' + esc(d.name) + '</span>' +
-                '<span class="ml-tb-hint">' + esc(d.hint) + '</span>' +
                 '<button class="ml-move" data-up="' + k + '"' + (idx === 0 ? ' disabled' : '') + ' title="上移">↑</button>' +
                 '<button class="ml-move" data-down="' + k + '"' + (idx === on.length - 1 ? ' disabled' : '') + ' title="下移">↓</button>' +
                 '</li>';
@@ -2086,7 +2085,6 @@
                 '<input type="checkbox" class="ml-check" data-toggle="' + k + '">' +
                 '<span class="ml-tb-rank">—</span>' +
                 '<span class="ml-tb-name">' + esc(d.name) + '</span>' +
-                '<span class="ml-tb-hint">' + esc(d.hint) + '</span>' +
                 '</li>';
         }).join('');
 
