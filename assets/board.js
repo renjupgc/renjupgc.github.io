@@ -12,7 +12,11 @@
  *   data-moves 用空格或逗号分隔，默认黑先、双方轮换；
  *   某一手要指定颜色就写 b:H8 / w:H8。
  *   data-numbers="0" 默认不显示序号；data-coords="0" 默认不显示坐标；
- *   data-editable 表示可以点着落子。
+ *   data-editable 表示可以点着落子；data-hash 表示把局面同步到地址栏
+ *   （#h8i9j10 这样，刷新、分享都能回到同一局面）。
+ *
+ *   两个开关的状态记在 localStorage（zbx_board_numbers / zbx_board_coords），
+ *   页面没写死 data-numbers / data-coords 时沿用上次的选择。
  *
  * 用法二，脚本式：
  *   var b = GomokuBoard.mount(el, {editable: true});
@@ -20,6 +24,8 @@
  *   b.next(); b.prev(); b.first(); b.last();
  *   b.undo(); b.clear(); b.setNumbers(false); b.setCoords(false);
  *   b.setColor('w');
+ *   GomokuBoard.encode(b.getMoves());   // -> 'h8i9j10'
+ *   GomokuBoard.decode('#h8i9j10');     // -> [{i,j,color}, ...]
  *   b.onChange(function (s) { s.moves / s.cursor / s.numbers / s.coords / s.color });
  *
  * 站内换页是「只换 <main>」的无刷新跳转（见 layout.js），换回来的
@@ -101,6 +107,66 @@
         return out;
     }
 
+    /* ---------------------------------------------------------- 局面路由 */
+
+    /*
+     * 局面编码：把棋子按手数写成 h8i9j10 这样的串（小写，无分隔）。
+     * 每步是「字母 + 1~2 位数字」，行号最长两位，所以贪心取两位不会有歧义。
+     */
+    function encodeMoves(moves) {
+        return moves.map(function (m) {
+            return coordOf(m.i, m.j).toLowerCase();
+        }).join('');
+    }
+
+    function decodeRoute(str) {
+        var out = [];
+        var s = String(str || '').replace(/^#/, '').toLowerCase();
+        var k = 0;
+        while (k < s.length) {
+            var m = /^([a-o])(\d{1,2})/.exec(s.slice(k));
+            if (!m) {
+                break;
+            }
+            var p = parseCoord(m[1] + m[2]);
+            if (!p) {
+                break;                     /* 编号越界（如 h16）就到此为止 */
+            }
+            out.push({
+                i: p.i,
+                j: p.j,
+                color: out.length % 2 === 0 ? 'b' : 'w'
+            });
+            k += m[0].length;
+        }
+        return out;
+    }
+
+    /* ---------------------------------------------------------- 本地偏好 */
+
+    /* 两个开关的状态存在 localStorage，全站同一套 */
+    var PREF = {
+        numbers: 'zbx_board_numbers',
+        coords: 'zbx_board_coords'
+    };
+
+    function readPref(key, fallback) {
+        try {
+            var v = window.localStorage.getItem(PREF[key]);
+            return v === '1' ? true : (v === '0' ? false : fallback);
+        } catch (e) {
+            return fallback;
+        }
+    }
+
+    function writePref(key, on) {
+        try {
+            window.localStorage.setItem(PREF[key], on ? '1' : '0');
+        } catch (e) {
+            /* 隐私模式下写不了，忽略 */
+        }
+    }
+
     /* ---------------------------------------------------------- 棋盘 */
 
     function Board(host, opts) {
@@ -108,10 +174,13 @@
         this.host = host;
         this.moves = [];
         this.cursor = 0;                      // 已经走到第几手（0 = 空盘）
-        this.numbers = opts.numbers !== false;
-        this.coords = opts.coords !== false;  // A-O / 1-15 坐标
+        this.numbers = opts.numbers === undefined
+            ? readPref('numbers', true) : !!opts.numbers;
+        this.coords = opts.coords === undefined
+            ? readPref('coords', true) : !!opts.coords;   // A-O / 1-15 坐标
         this.editable = !!opts.editable;
         this.color = opts.color || null;      // null = 黑白轮换
+        this.hash = !!opts.hash;              // 局面写进地址栏 #h8i9j10
         this.listeners = [];
 
         host.classList.add('board');
@@ -120,10 +189,35 @@
         this.buildGrid();
         this.buildToolbar();
 
-        if (opts.moves && opts.moves.length) {
-            this.setMoves(opts.moves);
+        /* 初始局面：地址栏里有局面就先用它，其次 data-moves */
+        var init = null;
+        if (this.hash) {
+            var fromHash = decodeRoute(location.hash);
+            if (fromHash.length) {
+                init = fromHash;
+            }
+        }
+        if (!init && opts.moves && opts.moves.length) {
+            init = opts.moves;
+        }
+        if (init) {
+            this.setMoves(init);
         } else {
             this.render();
+        }
+
+        /* 地址栏被改（手输、粘贴、前进后退）时按新局面上盘 */
+        if (this.hash) {
+            var self = this;
+            this.onHash = function () {
+                /* 无刷新换页后旧棋盘已离场：摘掉监听，免得在别的页面上改地址栏 */
+                if (!document.documentElement.contains(self.host)) {
+                    window.removeEventListener('hashchange', self.onHash);
+                    return;
+                }
+                self.setMoves(decodeRoute(location.hash));
+            };
+            window.addEventListener('hashchange', this.onHash);
         }
     }
 
@@ -407,11 +501,13 @@
 
     Board.prototype.setNumbers = function (on) {
         this.numbers = !!on;
+        writePref('numbers', this.numbers);
         this.render();
     };
 
     Board.prototype.setCoords = function (on) {
         this.coords = !!on;
+        writePref('coords', this.coords);
         if (this.labels) {
             if (this.coords) {
                 this.labels.removeAttribute('display');
@@ -432,6 +528,30 @@
     Board.prototype.onChange = function (fn) {
         if (typeof fn === 'function') {
             this.listeners.push(fn);
+        }
+    };
+
+    /*
+     * 把当前看到的局面写回地址栏：#h8i9j10。
+     * 只写「已经摆出来的那几手」，所以按 < 回看时地址栏跟着变短，
+     * 再按 > 又会长回来；用 replaceState 是为了不往历史里堆条目，
+     * 否则每落一子就多一条后退记录。
+     */
+    Board.prototype.syncHash = function () {
+        if (!this.hash) {
+            return;
+        }
+        var code = encodeMoves(this.moves.slice(0, Math.min(this.cursor, this.moves.length)));
+        var bare = location.pathname + location.search;
+        var url = bare + (code ? '#' + code : '');
+        if (url === bare + location.hash) {
+            return;
+        }
+        try {
+            history.replaceState(history.state, '', url);
+        } catch (e) {
+            /* file:// 等环境下不让改，退回直接设 hash（下面有比对，不会循环） */
+            location.hash = code;
         }
     };
 
@@ -487,6 +607,7 @@
         if (this.coordBox && this.coordBox.checked !== this.coords) {
             this.coordBox.checked = this.coords;
         }
+        this.syncHash();
         this.emit();
     };
 
@@ -528,12 +649,19 @@
             return el._board || null;
         }
         el.setAttribute('data-ready', '1');
-        return mount(el, {
+        var opts = {
             moves: parseMoves(el.getAttribute('data-moves')),
-            numbers: el.getAttribute('data-numbers') !== '0',
-            coords: el.getAttribute('data-coords') !== '0',
-            editable: el.hasAttribute('data-editable')
-        });
+            editable: el.hasAttribute('data-editable'),
+            hash: el.hasAttribute('data-hash')
+        };
+        /* 没有显式写死的属性，就沿用上次的开关状态（见 readPref） */
+        if (el.hasAttribute('data-numbers')) {
+            opts.numbers = el.getAttribute('data-numbers') !== '0';
+        }
+        if (el.hasAttribute('data-coords')) {
+            opts.coords = el.getAttribute('data-coords') !== '0';
+        }
+        return mount(el, opts);
     }
 
     /* 页面上所有 data-board 的棋盘都挂上（无刷新换页后由下面的观察器再调一次） */
@@ -546,7 +674,9 @@
         mount: mount,
         get: function (el) { return el && el._board; },
         coord: coordOf,
-        parse: parseMoves
+        parse: parseMoves,
+        encode: encodeMoves,
+        decode: decodeRoute
     };
 
     initAll(document);
