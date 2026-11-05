@@ -26,9 +26,9 @@
     var NAV = [
         { text: '首页', href: 'index.html' },
         { text: '杂论', href: 'zalun.html' },
-        { text: '杂究', href: '#' },
         { text: '杂史', href: 'zashi.html' },
         { text: '杂豫', href: 'zayu.html' },
+        { text: '杂技', href: '#' },
         { text: '关于', href: '#' }
     ];
 
