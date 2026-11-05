@@ -1,0 +1,2074 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>末轮计算器 - 连珠杂箱</title>
+<meta name="description" content="瑞士制比赛末轮计算器：按相邻轮次积分分差识别每轮成绩，自定义对手分、中间对手分、对手分去1、对手分去2、胜局数的优先顺序，推算目标名次所需的胜平条件。">
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+    /* ---------- 工具卡 ---------- */
+    .ml-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: 20px 22px 22px;
+        margin: 0 0 20px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .ml-card > h2 {
+        font-size: 17px;
+        font-weight: 600;
+        margin: 0 0 14px;
+        letter-spacing: 0.04em;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    .ml-card > h2 .ml-step {
+        font-family: var(--sans);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        color: var(--gold-deep);
+        background: var(--gold-tint);
+        border-radius: 999px;
+        padding: 2px 9px;
+        transform: translateY(-1px);
+    }
+
+    .ml-sub {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.75;
+        margin: 0 0 16px;
+        font-family: var(--sans);
+    }
+
+    .ml-sub b { color: var(--ink-2); font-weight: 600; }
+
+
+    .ml-field { display: flex; flex-direction: column; gap: 5px; }
+
+    .ml-field > span {
+        font-family: var(--sans);
+        font-size: 12px;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+    }
+
+    .ml-input,
+    .ml-select,
+    .ml-textarea {
+        width: 100%;
+        font-family: var(--sans);
+        font-size: 13px;
+        color: var(--ink);
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 7px 10px;
+        line-height: 1.5;
+        transition: border-color 0.16s ease, background-color 0.16s ease;
+    }
+
+    .ml-input:focus,
+    .ml-select:focus,
+    .ml-textarea:focus {
+        outline: none;
+        border-color: var(--gold);
+        background: var(--surface);
+    }
+
+    .ml-textarea {
+        min-height: 120px;
+        resize: vertical;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        line-height: 1.8;
+    }
+
+    .ml-btn {
+        font-family: var(--sans);
+        font-size: 13px;
+        line-height: 1;
+        padding: 8px 15px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--surface-2);
+        color: var(--ink-2);
+        cursor: pointer;
+        transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease;
+        white-space: nowrap;
+    }
+
+    .ml-btn:hover { border-color: var(--gold); color: var(--gold-deep); background: var(--gold-tint); }
+
+    .ml-btn.is-primary {
+        background: var(--gold);
+        border-color: var(--gold);
+        color: #fffdf7;
+    }
+
+    .ml-btn.is-primary:hover { background: var(--gold-deep); border-color: var(--gold-deep); color: #fffdf7; }
+
+    .ml-btn.is-quiet { border-color: transparent; background: transparent; color: var(--muted); }
+    .ml-btn.is-quiet:hover { color: var(--gold-deep); background: var(--gold-tint); }
+
+    .ml-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .ml-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin: 0 0 14px;
+    }
+
+    .ml-toolbar .ml-spacer { flex: 1; }
+
+    /* ---------- 破同分 ---------- */
+    .ml-tb { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+    .ml-tb li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-2);
+        font-family: var(--sans);
+        font-size: 13.5px;
+        transition: opacity 0.16s ease, border-color 0.16s ease;
+    }
+
+    .ml-tb li.is-off { opacity: 0.42; }
+    .ml-tb li.is-drag { border-color: var(--gold); background: var(--gold-tint); }
+
+    .ml-tb .ml-grip {
+        cursor: grab;
+        color: var(--faint);
+        font-size: 15px;
+        letter-spacing: -2px;
+        user-select: none;
+    }
+
+    .ml-tb .ml-tb-rank {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--gold-deep);
+        width: 16px;
+        text-align: center;
+    }
+
+    .ml-tb .ml-tb-name { flex: 1; }
+    .ml-tb .ml-tb-hint { color: var(--muted); font-size: 11.5px; }
+
+    .ml-move {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink-3);
+        border-radius: 6px;
+        width: 24px;
+        height: 24px;
+        line-height: 1;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0;
+    }
+
+    .ml-move:hover { border-color: var(--gold); color: var(--gold-deep); }
+    .ml-move:disabled { opacity: 0.3; cursor: default; }
+
+    .ml-check {
+        width: 15px;
+        height: 15px;
+        accent-color: var(--gold-deep);
+        cursor: pointer;
+        margin: 0;
+        flex: none;
+    }
+
+    /* ---------- 轮次页签 ---------- */
+    .ml-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 0 14px;
+    }
+
+    .ml-tab {
+        font-family: var(--sans);
+        font-size: 12.5px;
+        padding: 6px 13px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--surface-2);
+        color: var(--ink-3);
+        cursor: pointer;
+        line-height: 1.4;
+        transition: all 0.16s ease;
+    }
+
+    .ml-tab:hover { border-color: var(--gold); color: var(--gold-deep); }
+
+    .ml-tab.is-on {
+        background: var(--ink-2);
+        border-color: var(--ink-2);
+        color: var(--paper);
+    }
+
+    .ml-tab .ml-dot {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--gold);
+        margin-left: 5px;
+        transform: translateY(-1px);
+    }
+
+    .ml-tab.is-on .ml-dot { background: #e2c07d; }
+
+    .ml-rounds {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: -4px 0 16px;
+        font-family: var(--sans);
+        font-size: 12px;
+        color: var(--ink-3);
+    }
+
+    .ml-rounds b { color: var(--ink-2); font-weight: 600; }
+    .ml-rounds .ml-move { width: 24px; height: 24px; font-size: 13px; }
+
+    /* ---------- 表格 ---------- */
+    .ml-table-wrap {
+        overflow: auto;
+        max-height: 60vh;
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        background: var(--surface);
+    }
+
+    table.ml-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--sans);
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .ml-table th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--paper-deep);
+        color: var(--ink-3);
+        font-weight: 600;
+        font-size: 12px;
+        letter-spacing: 0.03em;
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .ml-table td {
+        padding: 3px 10px;
+        border-top: 1px solid var(--line-soft);
+        color: var(--ink-2);
+    }
+
+    .ml-table tbody tr:nth-child(even) { background: rgba(239, 232, 217, 0.3); }
+    .ml-table tbody tr:hover { background: var(--gold-tint); }
+
+    .ml-table .c-num { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+    .ml-table .c-score { text-align: right; font-variant-numeric: tabular-nums; padding-right: 14px; }
+    .ml-table .c-delta { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-3); padding-right: 16px; }
+    .ml-table .c-delta.is-win { color: var(--win); font-weight: 600; }
+    .ml-table .c-delta.is-draw { color: var(--draw); }
+    .ml-table .c-delta.is-bad { color: #b3261e; font-weight: 600; }
+
+    .ml-table input.ml-cell {
+        width: 66px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        padding: 3px 7px;
+        text-align: right;
+        border: 1px solid var(--line-soft);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--ink);
+        transition: border-color 0.14s ease, background-color 0.14s ease;
+    }
+
+    .ml-table input.ml-cell::placeholder { color: var(--faint); }
+    .ml-table input.ml-cell:hover { border-color: var(--gold); }
+    .ml-table input.ml-cell:focus { outline: none; border-color: var(--gold); background: #fffdf9; box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.12); }
+    .ml-table input.ml-cell.is-bad { border-color: #d99; background: #fdf3f2; }
+    .ml-table input.ml-cell[data-opp] { text-align: center; width: 58px; }
+
+    .ml-table tr.is-bye td { color: var(--ink-3); }
+    .ml-table .c-tag {
+        font-size: 10.5px;
+        color: var(--gold-deep);
+        background: var(--gold-tint);
+        border-radius: 4px;
+        padding: 1px 5px;
+        margin-left: 4px;
+    }
+
+    /* ---------- 提示 ---------- */
+    .ml-hint {
+        font-family: var(--sans);
+        font-size: 12.5px;
+        line-height: 1.7;
+        color: var(--muted);
+        padding: 8px 12px;
+        background: var(--surface-2);
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        margin: 12px 0 0;
+    }
+
+    .ml-hint.is-warn { color: #8a3a34; background: #fbf1ef; border-color: #e6c6c0; }
+    .ml-hint b { color: inherit; }
+
+    .ml-empty {
+        text-align: center;
+        padding: 34px 16px;
+        color: var(--muted);
+        font-family: var(--sans);
+        font-size: 13px;
+        line-height: 2;
+        border: 1px dashed var(--line);
+        border-radius: 10px;
+        background: var(--surface-2);
+    }
+
+    .ml-empty .ml-btn { margin-top: 10px; }
+
+    .ml-paste { margin: 0 0 14px; }
+    .ml-paste[hidden] { display: none; }
+
+    /* ---------- 名次表 ---------- */
+    .ml-stand th.is-tb, .ml-stand td.is-tb { text-align: right; font-variant-numeric: tabular-nums; }
+    .ml-stand td.is-pts { font-weight: 600; color: var(--ink); text-align: right; }
+    .ml-stand tr.is-cut td { background: rgba(176, 141, 87, 0.1); }
+    .ml-stand tr.is-target td { background: var(--gold-tint); }
+
+    .ml-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 10px;
+        font-family: var(--sans);
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    /* ---------- 推算 ---------- */
+    .ml-solve-grid {
+        display: grid;
+        grid-template-columns: minmax(150px, 1.4fr) minmax(90px, 0.7fr) auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    .ml-result { margin-top: 16px; }
+
+    .ml-banner {
+        font-family: var(--sans);
+        font-size: 14px;
+        line-height: 1.8;
+        padding: 12px 15px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--surface-2);
+    }
+
+    .ml-banner.is-ok { border-color: #c6dcc9; background: #f1f7f2; color: #2f5a3a; }
+    .ml-banner.is-no { border-color: #e8cdc8; background: #fbf2f0; color: #8a3a34; }
+
+    .ml-case {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-2);
+        margin-top: 10px;
+        overflow: hidden;
+    }
+
+    .ml-case > summary {
+        cursor: pointer;
+        padding: 10px 14px;
+        font-family: var(--sans);
+        font-size: 13.5px;
+        color: var(--ink-2);
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ml-case > summary::-webkit-details-marker { display: none; }
+    .ml-case > summary:hover { background: var(--gold-tint); }
+
+    .ml-case .ml-badge {
+        font-size: 11px;
+        font-family: var(--sans);
+        padding: 1px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        background: var(--surface);
+    }
+
+    .ml-case .ml-badge.is-win { color: var(--win); border-color: #e2c3bd; }
+    .ml-case .ml-badge.is-draw { color: var(--draw); }
+    .ml-case .ml-badge.is-loss { color: var(--loss); border-color: #c7d6c9; }
+
+    .ml-case ul {
+        margin: 0;
+        padding: 4px 16px 14px 32px;
+        font-family: var(--sans);
+        font-size: 13px;
+        line-height: 2;
+        color: var(--ink-2);
+    }
+
+    .ml-case li::marker { color: var(--gold); }
+    .ml-case .ml-cond-none { color: var(--muted); list-style: none; margin-left: -16px; }
+    .ml-case .ml-cond-tag { color: var(--faint); font-size: 11.5px; margin-left: 6px; }
+
+    @media (max-width: 640px) {
+        .ml-card { padding: 16px 14px 18px; border-radius: 14px; }
+        .ml-solve-grid { grid-template-columns: 1fr; }
+        .ml-tb .ml-tb-hint { display: none; }
+        .ml-table-wrap { max-height: 56vh; }
+    }
+</style>
+</head>
+
+<body data-nav="杂技" data-base="../">
+
+<div class="container">
+
+    <div id="site-header"></div>
+
+    <main>
+
+        <header class="page-head">
+            <p class="eyebrow">杂技</p>
+            <h1 class="page-title">末轮计算器</h1>
+            <p class="page-desc">只看每轮的累计积分，用相邻两轮的分差还原成绩；破同分顺序随你排，算出最后一轮要什么结果才能进目标名次。</p>
+        </header>
+
+        <section class="ml-card" id="card-roster">
+            <h2><span class="ml-step">01</span>名单</h2>
+            <div class="ml-toolbar">
+                <button class="ml-btn is-primary" id="btn-roster">导入名单</button>
+                <button class="ml-btn" id="btn-demo">载入示例</button>
+                <span class="ml-spacer"></span>
+                <button class="ml-btn is-quiet" id="btn-export">导出存档</button>
+                <button class="ml-btn is-quiet" id="btn-import">导入存档</button>
+                <button class="ml-btn is-quiet" id="btn-reset">清空</button>
+            </div>
+            <p class="ml-hint" id="roster-hint">尚未导入名单。</p>
+        </section>
+
+        <section class="ml-card" id="card-tb">
+            <h2><span class="ml-step">02</span>破同分</h2>
+            <ul class="ml-tb" id="tb-list"></ul>
+            <p class="ml-hint">默认顺序：<b>对手分 → 中间对手分 → 胜局数</b>。中间对手分去头去尾，去 1／去 2 只去最低的。</p>
+        </section>
+
+        <section class="ml-card" id="card-entry">
+            <h2><span class="ml-step">03</span>逐轮录入</h2>
+
+            <div class="ml-tabs" id="round-tabs"></div>
+            <div class="ml-rounds">
+                <span>共 <b id="round-total">7</b> 轮</span>
+                <button class="ml-move" id="btn-round-less" title="减少一轮">−</button>
+                <button class="ml-move" id="btn-round-more" title="增加一轮">＋</button>
+            </div>
+
+            <div class="ml-toolbar">
+                <button class="ml-btn is-primary" id="btn-paste">粘贴本轮</button>
+                <button class="ml-btn" id="btn-ocr">识别图片</button>
+                <span class="ml-spacer"></span>
+                <button class="ml-btn is-quiet" id="btn-clear">清空本轮</button>
+            </div>
+
+            <div class="ml-paste" id="paste-box" hidden>
+                <textarea class="ml-textarea" id="paste-text" spellcheck="false"
+                    placeholder="每行一台：编号 姓名 单位 对手编号 累计积分&#10;例如：12 张三 甲组 7 3.5&#10;对手留空表示暂无，末轮轮空填 bye"></textarea>
+                <div class="ml-toolbar" style="margin:10px 0 0">
+                    <button class="ml-btn is-primary" id="btn-apply-paste">填入本轮</button>
+                    <button class="ml-btn" id="btn-close-paste">收起</button>
+                    <span class="ml-spacer"></span>
+                    <span class="ml-sub" style="margin:0" id="paste-hint"></span>
+                </div>
+            </div>
+
+            <div id="entry-host"></div>
+            <p class="ml-hint" id="entry-hint" hidden></p>
+        </section>
+
+        <section class="ml-card" id="card-solve">
+            <h2><span class="ml-step">04</span>末轮推算</h2>
+            <div class="ml-solve-grid">
+                <label class="ml-field">
+                    <span>选手</span>
+                    <select class="ml-select" id="f-target"></select>
+                </label>
+                <label class="ml-field">
+                    <span>目标名次</span>
+                    <input class="ml-input" id="f-rank" type="number" min="1" step="1" value="8">
+                </label>
+                <button class="ml-btn is-primary" id="btn-solve" style="height:36px">推算</button>
+            </div>
+            <div class="ml-result" id="solve-host"></div>
+        </section>
+
+        <p class="back-link"><a href="../zaji.html">← 返回杂技</a> · <a href="../index.html">返回首页</a></p>
+
+    </main>
+
+</div>
+
+<script src="../assets/layout.js"></script>
+
+<script id="ml-engine">
+/*
+ * 末轮计算器 · 引擎（通用版）
+ * ------------------------------------------------------------
+ * 口径约定：
+ *   成绩只认「每轮累计积分」，本轮得分 = 本轮累计 − 上轮累计。
+ *   不读任何「胜/负」字样，胜负由分差反推，避免识别结果列出错。
+ *
+ * 数据：
+ *   state = {
+ *     totalRounds: 7,
+ *     players: [{ id, name, unit }],
+ *     rounds: [{ r: 1, scores: {1: 3.5, 2: 2}, opps: {1: 2, 2: 1}, ff: [3] }],
+ *     withdrawn: { 33: 6 },          // 编号 -> 从第几轮起退赛
+ *     tiebreaks: ['buch', 'med', 'wins']
+ *   }
+ *
+ * 破同分项：积分永远是第一顺位，其后按 tiebreaks 顺序逐项比较。
+ */
+(function (root, factory) {
+    if (typeof module === 'object' && module && module.exports) {
+        module.exports = factory();
+    } else {
+        root.ML = factory();
+    }
+}(typeof self !== 'undefined' ? self : this, function () {
+    'use strict';
+
+    var CFG = {
+        byePoint: 1,          // 轮空得几分
+        byeAsWin: false,      // 轮空算不算胜局数
+        ffWinAsWin: false,    // 对手弃权白捡的一胜算不算胜局数
+        ffSign: -1,           // 自身弃权的虚拟分调整方向
+        noneAsHalf: true,     // 未弈按和棋计入虚拟分
+        medianMode: 'both',   // both = 去头去尾，high = 只去最高
+        byeBuch: 'half'       // 轮空在对手分里按 total×0.5 的虚拟对手
+    };
+
+    var TB_DEFS = [
+        { key: 'buch', name: '对手分', hint: '全部对手的积分之和' },
+        { key: 'med', name: '中间对手分', hint: '对手分去掉最高、最低各一个' },
+        { key: 'cut1', name: '对手分去1', hint: '对手分去掉一个最低的' },
+        { key: 'cut2', name: '对手分去2', hint: '对手分去掉两个最低的' },
+        { key: 'wins', name: '胜局数', hint: '真正下赢的盘数，不含轮空与对手弃权' }
+    ];
+
+    var DEFAULT_TIEBREAK = ['buch', 'med', 'wins'];
+
+    function num(v) {
+        if (v === '' || v == null) { return null; }
+        var x = Number(v);
+        return isFinite(x) ? x : null;
+    }
+
+    function half(v) { return Math.round(v * 2) / 2; }
+
+    function tbKeys(state) {
+        var k = (state.tiebreaks || []).filter(function (x) {
+            return TB_DEFS.some(function (d) { return d.key === x; });
+        });
+        return k.length ? k : DEFAULT_TIEBREAK.slice();
+    }
+
+    function normalizeTiebreaks(list) {
+        var out = [];
+        (list || []).forEach(function (k) {
+            if (k && out.indexOf(k) < 0 && TB_DEFS.some(function (d) { return d.key === k; })) {
+                out.push(k);
+            }
+        });
+        return out;
+    }
+
+    /* ---------------- 基础累计 ---------------- */
+
+    function build(state, opt) {
+        opt = opt || {};
+        var upto = opt.upto == null ? Infinity : opt.upto;
+        var total = Math.max(1, Number(state.totalRounds) || 9);
+        var players = (state.players || []).slice().sort(function (a, b) { return a.id - b.id; });
+        var n = players.length;
+        var index = {};
+        players.forEach(function (p, i) { index[p.id] = i; });
+
+        var P = [];
+        for (var i = 0; i < n; i++) {
+            P.push({
+                pts: 0, wins: 0, draws: 0, losses: 0,
+                ff: 0, oppFF: 0, byes: 0, none: 0, wd: 0,
+                slots: [], log: []
+            });
+        }
+
+        var withdrawn = state.withdrawn || {};
+        var prev = [];
+        for (i = 0; i < n; i++) { prev.push(0); }
+        var warnings = [];
+
+        var rounds = (state.rounds || []).filter(function (rd) {
+            if (!rd || rd.r > upto) { return false; }
+            var sc = rd.scores || {};
+            return Object.keys(sc).some(function (k) { return num(sc[k]) != null; });
+        }).sort(function (a, b) { return a.r - b.r; });
+
+        rounds.forEach(function (rd) {
+            var scores = rd.scores || {};
+            var opps = rd.opps || {};
+            var ffSet = {};
+            (rd.ff || []).forEach(function (id) { ffSet[id] = 1; });
+
+            var delta = [], has = [], op = [], k;
+            for (k = 0; k < n; k++) {
+                var pid = players[k].id;
+                var sc = num(scores[pid]);
+                has[k] = sc != null;
+                delta[k] = has[k] ? half(sc - prev[k]) : 0;
+                if (has[k]) { prev[k] = sc; }
+                var o = opps[pid];
+                op[k] = (o == null || o === '') ? null : (o === 'bye' ? 'bye' : Number(o));
+            }
+
+            var seen = {}, paired = {};
+
+            function push(i2, s) { P[i2].slots.push(s); }
+
+            /* 弃权：只标本轮确实参赛的人，配对时据此只计积分不计胜局 */
+            for (k = 0; k < n; k++) {
+                if (!ffSet[players[k].id]) { continue; }
+                if (!has[k] && op[k] == null) { continue; }
+                P[k].ff++;
+                P[k].losses++;
+            }
+
+            for (k = 0; k < n; k++) {
+                if (paired[k]) { continue; }
+                var oid = op[k];
+
+                /* 只有显式标 bye 才算轮空；对手留空视为没录对手，对手分记 0 */
+                if (has[k] && oid === 'bye') {
+                    paired[k] = true;
+                    seen[k] = 1;
+                    P[k].pts += delta[k];
+                    P[k].byes++;
+                    push(k, { t: 'bye' });
+                    P[k].log.push({ r: rd.r, d: delta[k], t: 'bye' });
+                    continue;
+                }
+                if (oid == null) {
+                    /* 对手没录：分数照算，对手分槽位记 0 */
+                    if (!has[k]) { continue; }
+                    paired[k] = true; seen[k] = 1;
+                    P[k].pts += delta[k];
+                    P[k].none++;
+                    push(k, { t: 'none' });
+                    P[k].log.push({ r: rd.r, d: delta[k], t: 'none' });
+                    continue;
+                }
+
+                var j = index[oid];
+                if (j == null) {
+                    warnings.push('第 ' + rd.r + ' 轮：' + players[k].id + ' 号对手 ' + oid + ' 不在名单');
+                    paired[k] = true; seen[k] = 1;
+                    P[k].pts += delta[k];
+                    P[k].none++;
+                    push(k, { t: 'none' });
+                    continue;
+                }
+                if (j === k) { continue; }
+
+                paired[k] = true; paired[j] = true;
+                seen[k] = 1; seen[j] = 1;
+
+                var da = delta[k], db = delta[j];
+                P[k].pts += da;
+                P[j].pts += db;
+                push(k, { t: 'opp', i: j });
+                push(j, { t: 'opp', i: k });
+                P[k].log.push({ r: rd.r, d: da, t: 'opp', o: players[j].id });
+                P[j].log.push({ r: rd.r, d: db, t: 'opp', o: players[k].id });
+
+                var ki = ffSet[players[k].id], ji = ffSet[players[j].id];
+
+                if (!ki && !ji) {
+                    if (da === 1 && db === 0) {
+                        P[k].wins++; P[j].losses++;
+                    } else if (da === 0 && db === 1) {
+                        P[j].wins++; P[k].losses++;
+                    } else if (da === 0.5 && db === 0.5) {
+                        P[k].draws++; P[j].draws++;
+                    } else if (da === 0 && db === 0) {
+                        P[k].none++; P[j].none++;
+                        warnings.push('第 ' + rd.r + ' 轮：' + players[k].id + ' 对 ' + players[j].id + ' 双方都没得分，按未弈处理');
+                    } else {
+                        warnings.push('第 ' + rd.r + ' 轮：' + players[k].id + ' 对 ' + players[j].id +
+                            ' 的分差是 ' + da + ' / ' + db + '，不像一局棋，请核对积分列');
+                    }
+                } else if (ki && !ji) {
+                    P[j].oppFF++;
+                } else if (!ki && ji) {
+                    P[k].oppFF++;
+                }
+            }
+
+            for (k = 0; k < n; k++) {
+                if (seen[k]) { continue; }
+                var kp = players[k].id;
+                if (withdrawn[kp] != null && rd.r >= withdrawn[kp]) {
+                    P[k].wd++;
+                    push(k, { t: 'wd' });
+                    P[k].log.push({ r: rd.r, d: 0, t: 'wd' });
+                } else {
+                    P[k].none++;
+                    push(k, { t: 'none' });
+                    P[k].log.push({ r: rd.r, d: 0, t: 'none' });
+                }
+            }
+        });
+
+        return {
+            players: players, index: index, n: n, P: P,
+            total: total, warnings: warnings,
+            withdrawnOf: withdrawn,
+            lastRound: rounds.length ? rounds[rounds.length - 1].r : 0
+        };
+    }
+
+    /* 算别人对手分时，这个人算几分 */
+    function vsOf(b, i) {
+        var P = b.P[i], pid = b.players[i].id;
+        var wd = (b.withdrawnOf ? b.withdrawnOf[pid] : null);
+        if (wd != null && P.wd > 0) { return 0; }
+        var v = P.pts
+            + CFG.ffSign * 0.5 * (P.ff + P.wd)
+            + 0.5 * (P.byes + P.oppFF);
+        if (CFG.noneAsHalf) { v += 0.5 * P.none; }
+        return v;
+    }
+
+    function slotValueOf(b, s, vs) {
+        if (s.t === 'bye') { return CFG.byeBuch === 'zero' ? 0 : b.total * 0.5; }
+        if (s.t === 'opp') { return s.i >= 0 ? vs[s.i] : 0; }
+        return 0;
+    }
+
+    function scoreSet(b, i, vs) {
+        var vals = b.P[i].slots.map(function (s) { return slotValueOf(b, s, vs); });
+        return vals;
+    }
+
+    function tbFromVals(vals) {
+        var sum = 0, i;
+        for (i = 0; i < vals.length; i++) { sum += vals[i]; }
+        var sorted = vals.slice().sort(function (a, b) { return a - b; });
+        var len = sorted.length;
+        var cut1 = len >= 1 ? sum - sorted[0] : sum;
+        var cut2 = len >= 2 ? sum - sorted[0] - sorted[1] : cut1;
+        var med;
+        if (len > 2) {
+            med = sum - sorted[0] - sorted[len - 1];
+            if (CFG.medianMode === 'high') { med = sum - sorted[len - 1]; }
+        } else {
+            med = sum;
+        }
+        return { buch: sum, med: med, cut1: cut1, cut2: cut2, vals: vals };
+    }
+
+    /* 完整成绩表 */
+    function standings(state, opt) {
+        opt = opt || {};
+        var b = build(state, opt);
+        var n = b.n, P = b.P;
+        var vs = [], i;
+        for (i = 0; i < n; i++) { vs.push(vsOf(b, i)); }
+
+        var rows = [];
+        for (i = 0; i < n; i++) {
+            var tb = tbFromVals(scoreSet(b, i, vs));
+            var wins = P[i].wins
+                + (CFG.byeAsWin ? P[i].byes : 0)
+                + (CFG.ffWinAsWin ? P[i].oppFF : 0);
+            rows.push({
+                i: i,
+                id: b.players[i].id,
+                name: b.players[i].name,
+                unit: b.players[i].unit || '',
+                pts: P[i].pts,
+                buch: tb.buch,
+                med: tb.med,
+                cut1: tb.cut1,
+                cut2: tb.cut2,
+                wins: wins,
+                byes: P[i].byes,
+                ff: P[i].ff,
+                wd: P[i].wd,
+                vs: vs[i],
+                log: P[i].log
+            });
+        }
+
+        var keys = tbKeys(state);
+
+        function cmp(a, c) {
+            if (a.pts !== c.pts) { return c.pts - a.pts; }
+            for (var q = 0; q < keys.length; q++) {
+                var k = keys[q];
+                if (Math.abs(c[k] - a[k]) > 1e-9) { return c[k] - a[k]; }
+            }
+            return a.id - c.id;
+        }
+
+        rows.sort(cmp);
+
+        /* 先找并列组，组内所有人同分同名次 */
+        function sameRow(a, b) {
+            if (a.pts !== b.pts) { return false; }
+            for (var q = 0; q < keys.length; q++) {
+                if (Math.abs(a[keys[q]] - b[keys[q]]) > 1e-9) { return false; }
+            }
+            return true;
+        }
+        var g = 0;
+        while (g < rows.length) {
+            var end = g + 1;
+            while (end < rows.length && sameRow(rows[g], rows[end])) { end++; }
+            for (var m2 = g; m2 < end; m2++) {
+                rows[m2].rank = g + 1;
+                rows[m2].tie = (end - g) > 1;
+            }
+            g = end;
+        }
+
+        return {
+            rows: rows, b: b, n: n, index: b.index,
+            acc: P, players: b.players, keys: keys,
+            warnings: b.warnings,
+            lastRound: b.lastRound
+        };
+    }
+
+    /* ---------------- 末轮求解 ---------------- */
+
+    var CODES = ['1-0', '1/2', '0-1'];
+
+    function solve(state, targetId, targetRank, opt) {
+        opt = opt || {};
+        var MAXG = opt.maxGames || 10;
+        var total = Math.max(1, Number(state.totalRounds) || 9);
+        var base = standings(state, { upto: total - 1 });
+        var n = base.n, index = base.index;
+        var t = index[targetId];
+        if (t === undefined) { return { error: '名单里没有这个选手' }; }
+
+        var last = null;
+        (state.rounds || []).forEach(function (rd) { if (rd.r === total) { last = rd; } });
+        if (!last) { return { error: '缺第 ' + total + ' 轮的对阵' }; }
+
+        var opps = last.opps || {};
+        var keys = base.keys;
+        var rowsByI = [];
+        base.rows.forEach(function (r) { rowsByI[r.i] = r; });
+
+        var bp = [], bb = [], bvs = [];
+        for (var i = 0; i < n; i++) {
+            bp[i] = base.acc[i].pts;
+            bb[i] = rowsByI[i].buch;
+            bvs[i] = rowsByI[i].vs;
+        }
+
+        var lastOpp = [], lastKind = [], paired = {};
+        for (i = 0; i < n; i++) { lastOpp[i] = -1; lastKind[i] = 'none'; }
+
+        var games = [];
+        for (i = 0; i < n; i++) {
+            var o = opps[base.players[i].id];
+            if (o === 'bye') { lastKind[i] = 'bye'; continue; }
+            var oid = num(o);
+            if (oid == null || paired[i]) { continue; }
+            var j = index[oid];
+            if (j == null || j === i || paired[j]) { continue; }
+            paired[i] = paired[j] = true;
+            lastOpp[i] = j; lastOpp[j] = i;
+            lastKind[i] = 'opp'; lastKind[j] = 'opp';
+            games.push({ a: i, b: j });
+        }
+
+        var facedBy = [];
+        for (i = 0; i < n; i++) { facedBy.push([]); }
+        for (i = 0; i < n; i++) {
+            base.b.P[i].slots.forEach(function (s) {
+                if (s.t === 'opp' && s.i >= 0) { facedBy[s.i].push(i); }
+            });
+        }
+
+        var pT0 = bp[t] + (lastKind[t] === 'bye' ? CFG.byePoint : 0);
+        var pool = [], inPool = {};
+        for (i = 0; i < n; i++) {
+            if (i !== t && bp[i] + 1 >= pT0) { pool.push(i); inPool[i] = 1; }
+        }
+        inPool[t] = 1;
+
+        var rel = games.filter(function (g) { return inPool[g.a] || inPool[g.b]; });
+        rel.sort(function (x, y) {
+            var mx = Math.max(bp[x.a], bp[x.b]), my = Math.max(bp[y.a], bp[y.b]);
+            if (my !== mx) { return my - mx; }
+            return Math.min(bp[x.a], bp[x.b]) - Math.min(bp[y.a], bp[y.b]);
+        });
+        var enumGames = rel.slice(0, MAXG);
+        var m = enumGames.length;
+
+        var d = [], accd = [], dw = [];
+        for (i = 0; i < n; i++) { d[i] = 0; accd[i] = 0; dw[i] = 0; }
+        for (i = 0; i < n; i++) { if (lastKind[i] === 'bye') { d[i] += CFG.byePoint; } }
+
+        function vsNow(x) { return bvs[x] + d[x] + (lastKind[x] === 'bye' ? 0.5 : 0); }
+
+        function slotValue(i2) {
+            if (lastKind[i2] === 'bye') { return total * 0.5; }
+            return lastOpp[i2] >= 0 ? vsNow(lastOpp[i2]) : 0;
+        }
+
+        function deltaOf(code) {
+            if (code === '1-0') { return [1, 0, 1, 0]; }
+            if (code === '0-1') { return [0, 1, 0, 1]; }
+            return [0.5, 0.5, 0, 0];
+        }
+
+        function applyGame(g, code, sign) {
+            var dd = deltaOf(code);
+            var da = dd[0] * sign, db = dd[1] * sign;
+            d[g.a] += da; d[g.b] += db;
+            dw[g.a] += dd[2] * sign; dw[g.b] += dd[3] * sign;
+            var la = facedBy[g.a], lb = facedBy[g.b], k;
+            for (k = 0; k < la.length; k++) { accd[la[k]] += da; }
+            for (k = 0; k < lb.length; k++) { accd[lb[k]] += db; }
+            tbCache = {};
+        }
+
+        function ptsOf(x) { return bp[x] + d[x]; }
+        function buchOf(x) { return bb[x] + accd[x] + slotValue(x); }
+        function winsOf(x) { return rowsByI[x].wins + dw[x]; }
+
+        function valsOf(x) {
+            var arr = [];
+            base.b.P[x].slots.forEach(function (s) {
+                if (s.t === 'opp') { arr.push(s.i >= 0 ? vsNow(s.i) : 0); }
+                else if (s.t === 'bye') { arr.push(CFG.byeBuch === 'zero' ? 0 : total * 0.5); }
+                else { arr.push(0); }
+            });
+            if (lastKind[x] === 'opp' || lastKind[x] === 'bye') { arr.push(slotValue(x)); }
+            return arr;
+        }
+
+        var tbCache = {};
+        function tbVal(x, key) {
+            var cacheKey = x + '|' + key;
+            var hit = tbCache[cacheKey];
+            if (hit !== undefined) { return hit; }
+            var v = tbFromVals(valsOf(x))[key];
+            tbCache[cacheKey] = v;
+            return v;
+        }
+
+        function better(x, pT, bT, wT) {
+            var px = ptsOf(x);
+            if (Math.abs(px - pT) > 1e-9) { return px > pT ? 1 : -1; }
+            for (var q = 0; q < keys.length; q++) {
+                var k = keys[q], a, b;
+                if (k === 'buch') { a = buchOf(x); b = bT; }
+                else if (k === 'wins') { a = winsOf(x); b = wT; }
+                else { a = tbVal(x, k); b = tbVal(t, k); }
+                if (Math.abs(a - b) > 1e-9) { return a > b ? 1 : -1; }
+            }
+            return 0;
+        }
+
+        function evaluate() {
+            var pT = ptsOf(t), bT = buchOf(t), wT = winsOf(t);
+            var betterCnt = 0, ties = 0;
+            for (var k = 0; k < pool.length; k++) {
+                var x = pool[k];
+                if (ptsOf(x) < pT - 1e-9) { continue; }
+                var r = better(x, pT, bT, wT);
+                if (r > 0) { betterCnt++; }
+                else if (r === 0) { ties++; }
+            }
+            return { rank: betterCnt + 1, ties: ties };
+        }
+
+        var pow3 = [1];
+        for (i = 1; i <= m; i++) { pow3[i] = pow3[i - 1] * 3; }
+
+        var okSet = {}, okCount = 0, totalCount = 0, tieCount = 0, cur = new Array(m);
+
+        function rec(k) {
+            if (k === m) {
+                var key = 0;
+                for (var q = 0; q < m; q++) { key += cur[q] * pow3[q]; }
+                var r = evaluate();
+                totalCount++;
+                if (r.rank <= targetRank) {
+                    okSet[key] = 1;
+                    okCount++;
+                    if (r.ties > 0) { tieCount++; }
+                }
+                return;
+            }
+            for (var c = 0; c < 3; c++) {
+                applyGame(enumGames[k], CODES[c], 1);
+                cur[k] = c;
+                rec(k + 1);
+                applyGame(enumGames[k], CODES[c], -1);
+            }
+        }
+        rec(0);
+
+        var gt = -1;
+        for (i = 0; i < m; i++) {
+            if (enumGames[i].a === t || enumGames[i].b === t) { gt = i; }
+        }
+
+        function allOk(pattern, holes) {
+            var cnt = pow3[holes.length];
+            if (cnt > 200000) { return false; }
+            for (var z = 0; z < cnt; z++) {
+                var zz = z, key = 0, hi = 0;
+                for (var q = 0; q < m; q++) {
+                    var v = pattern[q];
+                    if (v < 0) {
+                        v = Math.floor(zz / pow3[hi]) % 3;
+                        hi++;
+                    }
+                    key += v * pow3[q];
+                }
+                if (!okSet[key]) { return false; }
+            }
+            return true;
+        }
+
+        function keyToPattern(key) {
+            var p = [];
+            for (var q = 0; q < m; q++) { p.push(Math.floor(key / pow3[q]) % 3); }
+            return p;
+        }
+
+        function countLiterals(p) {
+            var c = 0;
+            for (var q = 0; q < m; q++) { if (p[q] >= 0 && q !== gt) { c++; } }
+            return c;
+        }
+
+        var groups = [];
+        if (okCount && okCount !== totalCount && gt >= 0) {
+            var okKeys = Object.keys(okSet);
+            if (okKeys.length > 1200) {
+                var step = Math.ceil(okKeys.length / 1200);
+                okKeys = okKeys.filter(function (k, idx) { return idx % step === 0; });
+            }
+
+            [0, 1, 2].forEach(function (v) {
+                var out = [], seen = {};
+                okKeys.forEach(function (k) {
+                    var pat = keyToPattern(Number(k));
+                    if (pat[gt] !== v) { return; }
+                    var holes = [];
+                    for (var q = 0; q < m; q++) {
+                        if (q === gt || pat[q] < 0) { continue; }
+                        var old = pat[q];
+                        pat[q] = -1;
+                        holes.push(q);
+                        if (!allOk(pat, holes)) {
+                            pat[q] = old;
+                            holes.pop();
+                        }
+                    }
+                    var sig = pat.join(',');
+                    if (!seen[sig]) { seen[sig] = 1; out.push(pat); }
+                });
+
+                if (out.length <= 400) {
+                    out = out.filter(function (p1) {
+                        for (var b = 0; b < out.length; b++) {
+                            var p2 = out[b];
+                            if (p2 === p1) { continue; }
+                            if (countLiterals(p2) >= countLiterals(p1)) { continue; }
+                            var covers = true;
+                            for (var q = 0; q < m; q++) {
+                                if (p2[q] === -1) { continue; }
+                                if (p2[q] !== p1[q]) { covers = false; break; }
+                            }
+                            if (covers) { return false; }
+                        }
+                        return true;
+                    });
+                }
+                out.sort(function (x, y) { return countLiterals(x) - countLiterals(y); });
+
+                if (!out.length) { return; }
+                var code = CODES[v];
+                var tOutcome = code === '1/2' ? 'draw'
+                    : (code === '1-0' ? (enumGames[gt].a === t ? 'win' : 'loss')
+                        : (enumGames[gt].b === t ? 'win' : 'loss'));
+
+                groups.push({
+                    res: code,
+                    tOutcome: tOutcome,
+                    terms: out.slice(0, 12).map(function (p) {
+                        var parts = [];
+                        for (var q = 0; q < m; q++) {
+                            if (p[q] < 0 || q === gt) { continue; }
+                            parts.push({
+                                a: base.players[enumGames[q].a].id,
+                                b: base.players[enumGames[q].b].id,
+                                code: CODES[p[q]]
+                            });
+                        }
+                        return parts;
+                    })
+                });
+            });
+
+            var order = { win: 0, draw: 1, loss: 2 };
+            groups.sort(function (x, y) { return order[x.tOutcome] - order[y.tOutcome]; });
+        }
+
+        var rankNow = 0;
+        for (i = 0; i < base.rows.length; i++) {
+            if (base.rows[i].i === t) { rankNow = base.rows[i].rank; }
+        }
+
+        return {
+            target: { id: base.players[t].id, name: base.players[t].name, pts: bp[t], rank: rankNow },
+            totalRounds: total,
+            keys: keys,
+            games: m,
+            counts: { all: totalCount, ok: okCount, ties: tieCount },
+            always: okCount === totalCount && totalCount > 0,
+            never: okCount === 0,
+            groups: groups,
+            assumes: '未列入条件的末轮对局，按和棋计算'
+        };
+    }
+
+    /* ---------------- 文本解析 ---------------- */
+
+    var UNIT_HINTS = ['组', '队', '学校', '小学', '中学', '大学', '学院', '棋院', '俱乐部', '中心', '协会', '公司', '单位', '班'];
+
+    function looksUnit(s) {
+        return UNIT_HINTS.some(function (w) { return s.indexOf(w) >= 0; });
+    }
+
+    /*
+     * 一行一台：编号 姓名 单位 对手 累计积分
+     * 宽容处理：数字顺序不固定时，最后一个数字当积分，倒数第二个（若像编号）当对手。
+     */
+    function parseLine(line, ids) {
+        var s = String(line || '').replace(/[|｜]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!s) { return null; }
+
+        var m = s.match(/^(\d{1,4})[.、)．]?\s*(.*)$/);
+        if (!m) { return null; }
+        var id = Number(m[1]);
+        var rest = m[2].trim();
+        if (!rest) { return null; }
+
+        var nums = [];
+        rest.replace(/(\d+(?:\.\d+)?)\s*$/, function (all) { return all; });
+        var tokens = rest.split(' ');
+        var tail = [];
+        while (tokens.length) {
+            var last = tokens[tokens.length - 1];
+            if (/^\d+(?:\.\d+)?$/.test(last)) { tail.unshift(tokens.pop()); }
+            else { break; }
+        }
+
+        var score = null, opp = null;
+        if (tail.length) {
+            score = Number(tail[tail.length - 1]);
+            if (tail.length >= 2) {
+                var cand = Number(tail[tail.length - 2]);
+                if (ids && ids[cand] != null && cand !== id) { opp = cand; }
+            }
+        }
+
+        var text = tokens.join(' ');
+        var name = '', unit = '';
+        var latin = text.match(/[A-Za-z][A-Za-z.\-']*/g) || [];
+        var cjk = text.match(/[\u4e00-\u9fa5·]{2,}/g) || [];
+
+        if (cjk.length) {
+            var unitParts = cjk.filter(looksUnit);
+            if (unitParts.length) {
+                unit = unitParts[unitParts.length - 1];
+                name = cjk.filter(function (x) { return x !== unit; })[0] || '';
+            } else {
+                name = cjk[0];
+                unit = cjk.slice(1).join('');
+            }
+        }
+        if (latin.length && !name) { name = latin.join(' '); }
+
+        if (!name) { return null; }
+        return { id: id, name: name, unit: unit, score: score, opp: opp };
+    }
+
+    function parseText(text, knownPlayers) {
+        var ids = {};
+        (knownPlayers || []).forEach(function (p) { ids[p.id] = p; });
+        var out = [], bad = [];
+        String(text || '').split(/\r?\n/).forEach(function (line) {
+            if (!line.trim()) { return; }
+            var r = parseLine(line, ids);
+            if (r) { out.push(r); } else { bad.push(line); }
+        });
+        return { rows: out, bad: bad };
+    }
+
+    return {
+        CFG: CFG,
+        TB_DEFS: TB_DEFS,
+        DEFAULT_TIEBREAK: DEFAULT_TIEBREAK,
+        tbKeys: tbKeys,
+        normalizeTiebreaks: normalizeTiebreaks,
+        build: build,
+        standings: standings,
+        solve: solve,
+        parseText: parseText,
+        parseLine: parseLine
+    };
+}));
+
+</script>
+
+<script>
+(function () {
+    'use strict';
+
+    var ML = window.ML;
+    var LS_KEY = 'molun_state_v1';
+
+    var $ = function (s, r) { return (r || document).querySelector(s); };
+    var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+    }
+
+    function fmt(v) {
+        if (v == null || v === '') { return ''; }
+        var n = Math.round(Number(v) * 2) / 2;
+        if (!isFinite(n)) { return ''; }
+        return Number.isInteger(n) ? String(n) : n.toFixed(1);
+    }
+
+    /* ---------------- 状态 ---------------- */
+
+    function blank() {
+        return {
+            event: '',
+            totalRounds: 7,
+            byePoint: 1,
+            tiebreaks: ML.DEFAULT_TIEBREAK.slice(),
+            players: [],
+            rounds: [],
+            withdrawn: {}
+        };
+    }
+
+    var state = load() || blank();
+    var curRound = 1;
+
+    function load() {
+        try {
+            var raw = localStorage.getItem(LS_KEY);
+            if (!raw) { return null; }
+            var s = JSON.parse(raw);
+            if (!s || !Array.isArray(s.players)) { return null; }
+            s.tiebreaks = ML.normalizeTiebreaks(s.tiebreaks);
+            if (!s.tiebreaks.length) { s.tiebreaks = ML.DEFAULT_TIEBREAK.slice(); }
+            return s;
+        } catch (e) { return null; }
+    }
+
+    var saveTimer = 0;
+    function save() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () {
+            try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+        }, 220);
+    }
+
+    function roundOf(r, create) {
+        var rd = null;
+        state.rounds.forEach(function (x) { if (x.r === r) { rd = x; } });
+        if (!rd && create) {
+            rd = { r: r, scores: {}, opps: {}, ff: [] };
+            state.rounds.push(rd);
+        }
+        return rd;
+    }
+
+    function hasScores(r) {
+        var rd = roundOf(r);
+        if (!rd || !rd.scores) { return false; }
+        return Object.keys(rd.scores).some(function (k) { return rd.scores[k] != null && rd.scores[k] !== ''; });
+    }
+
+    function lastPlayed() {
+        var m = 0;
+        for (var r = 1; r <= state.totalRounds; r++) { if (hasScores(r)) { m = r; } }
+        return m;
+    }
+
+    function prevPtsOf(id, r) {
+        var v = 0;
+        for (var k = 1; k < r; k++) {
+            var rd = roundOf(k);
+            if (rd && rd.scores && rd.scores[id] != null && rd.scores[id] !== '') {
+                v = Number(rd.scores[id]);
+            }
+        }
+        return v;
+    }
+
+    /* ---------------- 破同分排序 ---------------- */
+
+    function renderTiebreak() {
+        var host = $('#tb-list');
+        var on = state.tiebreaks.slice();
+        var off = ML.TB_DEFS.map(function (d) { return d.key; }).filter(function (k) { return on.indexOf(k) < 0; });
+
+        host.innerHTML = on.map(function (k, idx) {
+            var d = ML.TB_DEFS.filter(function (x) { return x.key === k; })[0];
+            return '<li data-key="' + k + '" draggable="true" class="is-on">' +
+                '<span class="ml-grip">⋮⋮</span>' +
+                '<input type="checkbox" class="ml-check" checked data-toggle="' + k + '">' +
+                '<span class="ml-tb-rank">' + (idx + 1) + '</span>' +
+                '<span class="ml-tb-name">' + esc(d.name) + '</span>' +
+                '<span class="ml-tb-hint">' + esc(d.hint) + '</span>' +
+                '<button class="ml-move" data-up="' + k + '"' + (idx === 0 ? ' disabled' : '') + ' title="上移">↑</button>' +
+                '<button class="ml-move" data-down="' + k + '"' + (idx === on.length - 1 ? ' disabled' : '') + ' title="下移">↓</button>' +
+                '</li>';
+        }).join('') + off.map(function (k) {
+            var d = ML.TB_DEFS.filter(function (x) { return x.key === k; })[0];
+            return '<li data-key="' + k + '" class="is-off">' +
+                '<span class="ml-grip">·</span>' +
+                '<input type="checkbox" class="ml-check" data-toggle="' + k + '">' +
+                '<span class="ml-tb-rank">—</span>' +
+                '<span class="ml-tb-name">' + esc(d.name) + '</span>' +
+                '<span class="ml-tb-hint">' + esc(d.hint) + '</span>' +
+                '</li>';
+        }).join('');
+
+        bindDrag(host);
+    }
+
+    var dragKey = null;
+
+    function bindDrag(host) {
+        $$('li', host).forEach(function (li) {
+            li.addEventListener('dragstart', function (e) {
+                if (!li.classList.contains('is-on')) { e.preventDefault(); return; }
+                dragKey = li.dataset.key;
+                li.classList.add('is-drag');
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', dragKey); } catch (err) {}
+            });
+            li.addEventListener('dragend', function () {
+                li.classList.remove('is-drag');
+                dragKey = null;
+            });
+            li.addEventListener('dragover', function (e) {
+                if (!dragKey || !li.classList.contains('is-on')) { return; }
+                e.preventDefault();
+            });
+            li.addEventListener('drop', function (e) {
+                if (!dragKey) { return; }
+                e.preventDefault();
+                var to = li.dataset.key;
+                if (to === dragKey) { return; }
+                var arr = state.tiebreaks.slice();
+                var from = arr.indexOf(dragKey);
+                var dst = arr.indexOf(to);
+                if (from < 0 || dst < 0) { return; }
+                arr.splice(from, 1);
+                arr.splice(dst, 0, dragKey);
+                state.tiebreaks = arr;
+                dragKey = null;
+                save();
+                renderTiebreak();
+                refreshAll();
+            });
+        });
+    }
+
+    $('#tb-list').addEventListener('click', function (e) {
+        var t = e.target;
+        if (t.dataset.up) {
+            var i = state.tiebreaks.indexOf(t.dataset.up);
+            if (i > 0) {
+                var a = state.tiebreaks.slice();
+                a.splice(i - 1, 0, a.splice(i, 1)[0]);
+                state.tiebreaks = a;
+                save(); renderTiebreak(); refreshAll();
+            }
+        } else if (t.dataset.down) {
+            var j = state.tiebreaks.indexOf(t.dataset.down);
+            if (j >= 0 && j < state.tiebreaks.length - 1) {
+                var b = state.tiebreaks.slice();
+                b.splice(j + 1, 0, b.splice(j, 1)[0]);
+                state.tiebreaks = b;
+                save(); renderTiebreak(); refreshAll();
+            }
+        }
+    });
+
+    $('#tb-list').addEventListener('change', function (e) {
+        var k = e.target.dataset.toggle;
+        if (!k) { return; }
+        var i = state.tiebreaks.indexOf(k);
+        if (i >= 0) {
+            state.tiebreaks.splice(i, 1);
+        } else {
+            state.tiebreaks.push(k);
+        }
+        if (!state.tiebreaks.length) {
+            /* 全不选时留一个占位，避免排名退化成只看积分 */
+            state.tiebreaks.push('buch');
+        }
+        save();
+        renderTiebreak();
+        refreshAll();
+    });
+
+    /* ---------------- 名单与轮数 ---------------- */
+
+    function syncSetup() {
+        var hint = $('#roster-hint');
+        if (!state.players.length) {
+            hint.textContent = '尚未导入名单。';
+        } else {
+            var units = {};
+            state.players.forEach(function (p) { if (p.unit) { units[p.unit] = 1; } });
+            hint.innerHTML = '共 <b>' + state.players.length + '</b> 人' +
+                (Object.keys(units).length ? '，' + Object.keys(units).length + ' 个单位' : '') +
+                '；已录 ' + lastPlayed() + ' 轮，总 ' + state.totalRounds + ' 轮。';
+        }
+        var rt = $('#round-total');
+        if (rt) { rt.textContent = state.totalRounds; }
+        var less = $('#btn-round-less');
+        if (less) { less.disabled = state.totalRounds <= 2; }
+    }
+
+    function setTotalRounds(v) {
+        v = Math.max(2, Math.min(30, v));
+        state.totalRounds = v;
+        if (curRound > v) { curRound = v; }
+        save();
+        renderTabs(); renderEntry(); syncSetup(); refreshAll();
+    }
+
+    $('#btn-round-more').addEventListener('click', function () {
+        setTotalRounds(state.totalRounds + 1);
+    });
+
+    $('#btn-round-less').addEventListener('click', function () {
+        var last = state.totalRounds;
+        if (last <= 2) { return; }
+        if (hasScores(last) && !confirm('第 ' + last + ' 轮已录成绩，减少一轮会丢掉这轮数据，继续？')) { return; }
+        state.rounds = state.rounds.filter(function (rd) { return rd.r < last; });
+        setTotalRounds(last - 1);
+    });
+
+    /* ---------------- 轮次页签 ---------------- */
+
+    function renderTabs() {
+        var host = $('#round-tabs');
+        var html = '';
+        for (var r = 1; r <= state.totalRounds; r++) {
+            var on = r === curRound ? ' is-on' : '';
+            var played = hasScores(r);
+            html += '<button class="ml-tab' + on + '" data-round="' + r + '">第 ' + r + ' 轮' +
+                (r === state.totalRounds ? '（末轮）' : '') +
+                (played ? '<span class="ml-dot"></span>' : '') + '</button>';
+        }
+        host.innerHTML = html;
+    }
+
+    $('#round-tabs').addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-round]') : null;
+        if (!b) { return; }
+        curRound = Number(b.dataset.round);
+        renderTabs(); renderEntry();
+    });
+
+    /* ---------------- 录入表 ---------------- */
+
+    function isLastRound() { return curRound === state.totalRounds; }
+
+    function renderEntry() {
+        var host = $('#entry-host');
+        var hint = $('#entry-hint');
+        hint.hidden = true;
+
+        if (!state.players.length) {
+            host.innerHTML = '<div class="ml-empty">还没有名单。<br>先导入「编号 姓名 单位」，再逐轮填积分。' +
+                '<br><button class="ml-btn" data-act="roster">导入名单</button></div>';
+            bindEmpty();
+            return;
+        }
+
+        var rd = roundOf(curRound, true);
+        var players = state.players.slice().sort(function (a, b) { return a.id - b.id; });
+        var rows = players.map(function (p) {
+            var sc = rd.scores[p.id];
+            var v = (sc == null || sc === '') ? '' : fmt(sc);
+            var prev = prevPtsOf(p.id, curRound);
+            var d = (sc == null || sc === '') ? null : Math.round((Number(sc) - prev) * 2) / 2;
+            var opp = rd.opps[p.id];
+            var cls = '';
+            var label = '';
+            if (d != null) {
+                if (d === 1) { label = '1'; cls = 'is-win'; }
+                else if (d === 0.5) { label = '½'; cls = 'is-draw'; }
+                else if (d === 0) { label = '0'; }
+                else { label = fmt(d); cls = 'is-bad'; }
+            }
+            var badScore = d != null && (d < 0 || d > 1 || Math.abs(d * 2 - Math.round(d * 2)) > 1e-9);
+            return '<tr data-id="' + p.id + '">' +
+                '<td class="c-num">' + p.id + '</td>' +
+                '<td>' + esc(p.name) + '</td>' +
+                '<td class="c-num">' + esc(p.unit || '') + '</td>' +
+                '<td class="c-score">' + (curRound > 1 ? fmt(prev) : '—') + '</td>' +
+                '<td><input class="ml-cell' + (badScore ? ' is-bad' : '') + '" data-score="' + p.id +
+                    '" inputmode="decimal" value="' + esc(v) + '" placeholder="' + (curRound === 1 ? '0' : '') + '"></td>' +
+                '<td class="c-delta ' + cls + '" data-delta="' + p.id + '">' + label + '</td>' +
+                '<td><input class="ml-cell" data-opp="' + p.id + '" value="' +
+                    esc(opp === 'bye' ? 'bye' : (opp == null ? '' : opp)) + '" placeholder="—"></td>' +
+                '<td style="text-align:center"><input type="checkbox" class="ml-check" data-ff="' + p.id +
+                    '"' + ((rd.ff || []).indexOf(p.id) >= 0 ? ' checked' : '') + '></td>' +
+                '</tr>';
+        }).join('');
+
+        host.innerHTML = '<div class="ml-table-wrap"><table class="ml-table">' +
+            '<thead><tr>' +
+            '<th>编号</th><th>姓名</th><th>单位</th><th class="c-score">上轮累计</th>' +
+            '<th class="c-score">本轮累计</th><th class="c-score">本轮得分</th><th>对手</th><th>弃权</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+
+        updateEntryHint();
+    }
+
+    function updateEntryHint() {
+        var hint = $('#entry-hint');
+        var rd = roundOf(curRound);
+        if (!rd) { hint.hidden = true; return; }
+        var filled = 0, dist = { 1: 0, 0.5: 0, 0: 0 }, bad = 0, byes = 0;
+        state.players.forEach(function (p) {
+            var sc = rd.scores[p.id];
+            if (sc == null || sc === '') { return; }
+            filled++;
+            var d = Math.round((Number(sc) - prevPtsOf(p.id, curRound)) * 2) / 2;
+            if (d === 1 || d === 0.5 || d === 0) { dist[d]++; }
+            else { bad++; }
+            if (rd.opps[p.id] === 'bye') { byes++; }
+        });
+
+        var parts = ['已填 <b>' + filled + '</b> / ' + state.players.length + ' 人'];
+        if (filled) {
+            parts.push('本轮得分：胜 ' + dist[1] + '、和 ' + dist[0.5] + '、负 ' + dist[0]);
+        }
+        if (byes) { parts.push('轮空 ' + byes + ' 人'); }
+        if (bad) { parts.push('<b>' + bad + ' 人的分差不是 0、0.5 或 1，请核对累计分</b>'); }
+        if (isLastRound()) {
+            parts.push('末轮未赛，分数留空即可；轮空在对手列填 bye');
+        }
+        hint.innerHTML = parts.join('　·　');
+        hint.hidden = false;
+        hint.className = 'ml-hint' + (bad ? ' is-warn' : '');
+    }
+
+    var entryHost = $('#entry-host');
+
+    entryHost.addEventListener('input', function (e) {
+        var t = e.target;
+        var rd = roundOf(curRound, true);
+        if (t.dataset.score !== undefined) {
+            var id = Number(t.dataset.score);
+            var raw = t.value.trim();
+            if (raw === '') { delete rd.scores[id]; }
+            else {
+                var n = Number(raw);
+                if (!isFinite(n)) { return; }
+                rd.scores[id] = n;
+            }
+            updateDeltaCell(id, t);
+            updateEntryHint();
+            save();
+            scheduleStand();
+        } else if (t.dataset.opp !== undefined) {
+            var oid = Number(t.dataset.opp);
+            var ov = t.value.trim();
+            if (ov === '') { delete rd.opps[oid]; }
+            else if (/^bye$/i.test(ov)) { rd.opps[oid] = 'bye'; t.value = 'bye'; }
+            else {
+                var on = Number(ov);
+                if (!isFinite(on)) { return; }
+                rd.opps[oid] = on;
+            }
+            save();
+            scheduleStand();
+        }
+    });
+
+    entryHost.addEventListener('change', function (e) {
+        var t = e.target;
+        if (t.dataset.ff !== undefined) {
+            var rd = roundOf(curRound, true);
+            var id = Number(t.dataset.ff);
+            rd.ff = rd.ff || [];
+            var i = rd.ff.indexOf(id);
+            if (t.checked && i < 0) { rd.ff.push(id); }
+            if (!t.checked && i >= 0) { rd.ff.splice(i, 1); }
+            save();
+            scheduleStand();
+        }
+    });
+
+    function updateDeltaCell(id, input) {
+        var td = entryHost.querySelector('[data-delta="' + id + '"]');
+        if (!td) { return; }
+        var raw = input.value.trim();
+        if (raw === '') { td.textContent = ''; td.className = 'c-delta'; input.classList.remove('is-bad'); return; }
+        var n = Number(raw);
+        if (!isFinite(n)) { return; }
+        var d = Math.round((n - prevPtsOf(id, curRound)) * 2) / 2;
+        var label = d === 1 ? '1' : (d === 0.5 ? '½' : String(Math.round(d * 2) / 2));
+        var bad = d < 0 || d > 1 || Math.abs(d * 2 - Math.round(d * 2)) > 1e-9;
+        td.textContent = label;
+        td.className = 'c-delta ' + (bad ? 'is-bad' : (d === 1 ? 'is-win' : (d === 0.5 ? 'is-draw' : '')));
+        input.classList.toggle('is-bad', bad);
+    }
+
+    function bindEmpty() {
+        var b = entryHost.querySelector('[data-act="roster"]');
+        if (b) { b.addEventListener('click', openRoster); }
+    }
+
+    /* ---------------- 粘贴 / 名单 ---------------- */
+
+    var pasteMode = 'score';
+
+    function openPaste(text, mode) {
+        pasteMode = mode || 'score';
+        var box = $('#paste-box');
+        box.hidden = false;
+        if (text != null) { $('#paste-text').value = text; }
+        $('#btn-apply-paste').textContent = pasteMode === 'roster' ? '更新名单' : '填入本轮';
+        $('#paste-hint').textContent = '';
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        $('#paste-text').focus();
+    }
+
+    $('#btn-paste').addEventListener('click', function () {
+        openPaste(null, 'score');
+        $('#paste-hint').textContent = '第 ' + curRound + ' 轮：可整段粘贴成绩单文字';
+    });
+
+    $('#btn-close-paste').addEventListener('click', function () { $('#paste-box').hidden = true; });
+
+    function applyPaste() {
+        var text = $('#paste-text').value;
+        if (!text.trim()) { return; }
+
+        if (pasteMode === 'roster') {
+            var rr = ML.parseText(text, []);
+            if (!rr.rows.length) {
+                $('#paste-hint').textContent = '没认出名单，每行写成「编号 姓名 单位」';
+                return;
+            }
+            state.players = rr.rows.map(function (r) {
+                return { id: r.id, name: r.name, unit: r.unit || '' };
+            });
+            state.players.sort(function (a, b) { return a.id - b.id; });
+            $('#paste-hint').textContent = '名单已更新为 ' + state.players.length + ' 人' +
+                (rr.bad.length ? '，' + rr.bad.length + ' 行没认出来' : '');
+            save();
+            renderTabs(); syncSetup(); renderEntry(); refreshAll();
+            return;
+        }
+
+        var first = ML.parseText(text, state.players);
+        if (!first.rows.length) {
+            $('#paste-hint').textContent = '没认出任何一行，检查是否以编号开头';
+            return;
+        }
+
+        /* 名单为空或出现新编号时补进名单 */
+        var added = 0;
+        first.rows.forEach(function (r) {
+            var exists = state.players.some(function (p) { return p.id === r.id; });
+            if (!exists) {
+                state.players.push({ id: r.id, name: r.name, unit: r.unit || '' });
+                added++;
+            }
+        });
+
+        /* 名单补齐后重解析一次，这次能认出对手编号 */
+        var res = ML.parseText(text, state.players);
+        var rd = roundOf(curRound, true);
+        var nScore = 0, nOpp = 0;
+
+        res.rows.forEach(function (r) {
+            if (r.score != null) { rd.scores[r.id] = r.score; nScore++; }
+            if (r.opp != null) { rd.opps[r.id] = r.opp; nOpp++; }
+        });
+
+        $('#paste-hint').textContent = '填入 ' + res.rows.length + ' 人，其中带积分 ' + nScore +
+            ' 人、带对手 ' + nOpp + ' 人' + (added ? '，新增名单 ' + added + ' 人' : '');
+
+        save();
+        renderTabs(); syncSetup(); renderEntry(); refreshAll();
+    }
+
+    $('#btn-apply-paste').addEventListener('click', applyPaste);
+
+    function openRoster() {
+        openPaste(state.players.map(function (p) {
+            return p.id + ' ' + p.name + (p.unit ? ' ' + p.unit : '');
+        }).join('\n'), 'roster');
+        $('#paste-hint').textContent = '每行「编号 姓名 单位」，改完点「更新名单」';
+    }
+
+    $('#btn-roster').addEventListener('click', openRoster);
+
+    /* 名单粘贴时不该填成绩：单独一个入口 */
+    $('#btn-roster').addEventListener('dblclick', function () {});
+
+   $('#btn-clear').addEventListener('click', function () {
+        if (!confirm('清空第 ' + curRound + ' 轮的积分与对手？')) { return; }
+        var rd = roundOf(curRound, true);
+        rd.scores = {}; rd.opps = {}; rd.ff = [];
+        save();
+        renderTabs(); renderEntry(); refreshAll();
+    });
+
+    /* ---------------- 名次表 ---------------- */
+
+    var standTimer = 0;
+    function scheduleStand() {
+        clearTimeout(standTimer);
+        standTimer = setTimeout(function () { renderSolveSelect(); }, 180);
+    }
+
+    function currentState() {
+        return {
+            totalRounds: state.totalRounds,
+            players: state.players,
+            rounds: state.rounds,
+            withdrawn: state.withdrawn,
+            tiebreaks: state.tiebreaks
+        };
+    }
+
+    function renderStandings() {
+        /* 名次表不再单独展示，只维护推算用的选手下拉 */
+        renderSolveSelect();
+    }
+
+    /* ---------------- 推算 ---------------- */
+
+    var solveKey = '';
+
+    function syncSolveSelect(st) {
+        var sel = $('#f-target');
+        var keep = sel.value;
+        st = st || ML.standings(currentState());
+        var opts = st.rows.map(function (r) {
+            return '<option value="' + r.id + '">' + r.id + '　' + esc(r.name) + '（第 ' + r.rank + ' 名，' +
+                fmt(r.pts) + ' 分）</option>';
+        }).join('');
+        sel.innerHTML = opts;
+        if (keep && st.rows.some(function (r) { return String(r.id) === keep; })) {
+            sel.value = keep;
+        }
+    }
+
+    function renderSolveSelect() { if (state.players.length) { syncSolveSelect(); } }
+
+    function condText(t) {
+        var names = {};
+        state.players.forEach(function (p) { names[p.id] = p.name; });
+        function nm(id) { return names[id] || (id + ' 号'); }
+        if (t.code === '1-0') { return nm(t.a) + ' 胜 ' + nm(t.b); }
+        if (t.code === '0-1') { return nm(t.b) + ' 胜 ' + nm(t.a); }
+        return nm(t.a) + ' 与 ' + nm(t.b) + ' 下和';
+    }
+
+    function runSolve() {
+        var host = $('#solve-host');
+        if (!state.players.length) {
+            host.innerHTML = '<div class="ml-empty">先录名单和成绩。</div>';
+            return;
+        }
+        var tId = Number($('#f-target').value);
+        var rank = Math.max(1, Number($('#f-rank').value) || 1);
+
+        var t0 = Date.now();
+        var ans = ML.solve(currentState(), tId, rank, { maxGames: 10 });
+        var ms = Date.now() - t0;
+
+        if (ans.error) {
+            host.innerHTML = '<div class="ml-banner is-no">' + esc(ans.error) + '</div>';
+            return;
+        }
+
+        var nameOf = {};
+        state.players.forEach(function (p) { nameOf[p.id] = p.name; });
+        var head = '<div class="ml-banner' + (ans.always ? ' is-ok' : (ans.never ? ' is-no' : '')) + '">';
+
+        if (ans.always) {
+            head += '<b>' + esc(ans.target.name) + '</b> 无论末轮结果如何，都至少第 ' + rank + ' 名。';
+        } else if (ans.never) {
+            head += '<b>' + esc(ans.target.name) + '</b> 已经无法进第 ' + rank + ' 名。';
+        } else {
+            head += '<b>' + esc(ans.target.name) + '</b> 目前 ' + fmt(ans.target.pts) + ' 分、第 ' +
+                ans.target.rank + ' 名；末轮要进第 ' + rank + ' 名，按自己胜／和／负分三种情况。' +
+                '<br><span style="color:var(--muted);font-size:12.5px">共比较 ' + ans.counts.all +
+                ' 种末轮结果，其中 ' + ans.counts.ok + ' 种达成；' + ans.assumes + '。</span>';
+        }
+        head += '</div>';
+
+        var order = { win: 0, draw: 1, loss: 2 };
+        var groups = ans.groups.slice().sort(function (a, b) { return order[a.tOutcome] - order[b.tOutcome]; });
+        var label = { win: '自己赢', draw: '自己下和', loss: '自己输' };
+        var badge = { win: 'is-win', draw: 'is-draw', loss: 'is-loss' };
+
+        var body = groups.map(function (g) {
+            var terms = g.terms.slice(0, 6);
+            var lis = terms.map(function (p) {
+                if (!p.length) { return '<li class="ml-cond-none">不需要其他对局配合</li>'; }
+                return '<li>' + p.map(condText).join('，') + '</li>';
+            }).join('');
+            return '<details class="ml-case"' + (g.tOutcome === 'win' ? ' open' : '') + '>' +
+                '<summary><span class="ml-badge ' + badge[g.tOutcome] + '">' + label[g.tOutcome] + '</span>' +
+                (terms.length > 1 ? '有 ' + terms.length + ' 种走法' : '一条路') + '</summary>' +
+                '<ul>' + (lis || '<li class="ml-cond-none">没有可行组合</li>') + '</ul></details>';
+        }).join('');
+
+        /* 某种自身结果彻底无望时，明说一句，免得以为漏算 */
+        var has = {};
+        groups.forEach(function (g) { has[g.tOutcome] = 1; });
+        var missing = ['win', 'draw', 'loss'].filter(function (k) { return !has[k]; });
+        var missNote = missing.length
+            ? '<p class="ml-hint">' + missing.map(function (k) { return label[k]; }).join('、') +
+              '：无论其他对局怎么下，都到不了第 ' + rank + ' 名。</p>'
+            : '';
+
+        host.innerHTML = head + (groups.length ? body :
+            '<p class="ml-hint">没有找到可行的末轮组合。</p>') + missNote +
+            '<p class="ml-hint">耗时 ' + ms + ' ms，枚举 ' + ans.games + ' 场关键对局。条件之间是「或」的关系，满足任意一条即可。</p>';
+    }
+
+    $('#btn-solve').addEventListener('click', runSolve);
+    $('#f-rank').addEventListener('keydown', function (e) { if (e.key === 'Enter') { runSolve(); } });
+
+    /* ---------------- 导入导出 ---------------- */
+
+    function download(name, text) {
+        var blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 400);
+    }
+
+    $('#btn-export').addEventListener('click', function () {
+        var name = '末轮计算器-' + new Date().toISOString().slice(0, 10) + '.json';
+        download(name, JSON.stringify(state, null, 2));
+    });
+
+    $('#btn-import').addEventListener('click', function () {
+        var inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = '.json,application/json';
+        inp.addEventListener('change', function () {
+            var f = inp.files && inp.files[0];
+            if (!f) { return; }
+            var fr = new FileReader();
+            fr.onload = function () {
+                try {
+                    var s = JSON.parse(String(fr.result));
+                    if (!s || !Array.isArray(s.players)) { throw new Error('格式不对'); }
+                    state = s;
+                    state.tiebreaks = ML.normalizeTiebreaks(state.tiebreaks);
+                    if (!state.tiebreaks.length) { state.tiebreaks = ML.DEFAULT_TIEBREAK.slice(); }
+                    ML.CFG.byePoint = state.byePoint || 1;
+                    curRound = Math.min(state.totalRounds, Math.max(1, lastPlayed() + 1));
+                    save();
+                    syncSetup(); renderTiebreak(); renderTabs(); renderEntry();
+                    renderStandings(); renderSolveSelect();
+                } catch (e) {
+                    alert('导入失败：' + e.message);
+                }
+            };
+            fr.readAsText(f);
+        });
+        inp.click();
+    });
+
+    $('#btn-reset').addEventListener('click', function () {
+        if (!confirm('清空全部名单与成绩？导出过的存档不受影响。')) { return; }
+        state = blank();
+        curRound = 1;
+        localStorage.removeItem(LS_KEY);
+        syncSetup(); renderTiebreak(); renderTabs(); renderEntry();
+        renderStandings(); renderSolveSelect();
+        $('#solve-host').innerHTML = '';
+    });
+
+    $('#btn-demo').addEventListener('click', function () {
+        if (state.players.length && !confirm('示例会覆盖当前数据，继续？')) { return; }
+        state = demo();
+        curRound = 4;
+        var pb = $('#paste-box'); if (pb) { pb.hidden = true; }
+        ML.CFG.byePoint = state.byePoint;
+        save();
+        syncSetup(); renderTiebreak(); renderTabs(); renderEntry();
+        renderStandings(); renderSolveSelect();
+        $('#solve-host').innerHTML = '';
+    });
+
+    /* ---------------- 示例 ---------------- */
+
+function demo() {
+        var names = ["黄子城","李昊然","周斯远","吴涤尘","陈子墨","徐清和","孙照野","马亦寒","朱望舒","胡不归","林见鹿","何晏如","高长恭","罗青崖","谢知非","唐稚川"];
+        var units = ["甲组","乙组","丙组","甲组","乙组","丙组","甲组","乙组","丙组","甲组","乙组","丙组","甲组","乙组","丙组","甲组"];
+        var players = names.map(function (n, i) { return { id: i + 1, name: n, unit: units[i] }; });
+
+        return {
+            event: '示例：十六人五轮',
+            totalRounds: 5,
+            byePoint: 1,
+            tiebreaks: ML.DEFAULT_TIEBREAK.slice(),
+            players: players,
+            rounds: [
+                { r: 1, scores: {"1":1,"2":0.5,"3":0.5,"4":0.5,"5":1,"6":1,"7":0,"8":0.5,"9":1,"10":0.5,"11":0.5,"12":0,"13":0,"14":0,"15":0.5,"16":0.5}, opps: {"1":12,"2":11,"3":15,"4":10,"5":7,"6":14,"7":5,"8":16,"9":13,"10":4,"11":2,"12":1,"13":9,"14":6,"15":3,"16":8} },
+                { r: 2, scores: {"1":2,"2":1.5,"3":1,"4":1.5,"5":1.5,"6":1.5,"7":0.5,"8":0.5,"9":1,"10":0.5,"11":1,"12":0.5,"13":0.5,"14":0.5,"15":1.5,"16":0.5}, opps: {"1":9,"2":8,"3":11,"4":16,"5":6,"6":5,"7":13,"8":2,"9":1,"10":15,"11":3,"12":14,"13":7,"14":12,"15":10,"16":4} },
+                { r: 3, scores: {"1":2,"2":1.5,"3":2,"4":2.5,"5":2.5,"6":2.5,"7":0.5,"8":1,"9":1,"10":1.5,"11":1.5,"12":1.5,"13":0.5,"14":0.5,"15":1.5,"16":1.5}, opps: {"1":4,"2":6,"3":9,"4":1,"5":15,"6":2,"7":16,"8":11,"9":3,"10":13,"11":8,"12":14,"13":10,"14":12,"15":5,"16":7} },
+                { r: 4, scores: {"1":2.5,"2":2,"3":2,"4":3.5,"5":2.5,"6":3,"7":1.5,"8":2,"9":1,"10":2,"11":2,"12":1.5,"13":0.5,"14":1.5,"15":2,"16":2.5}, opps: {"1":6,"2":15,"3":16,"4":5,"5":4,"6":1,"7":9,"8":12,"9":7,"10":11,"11":10,"12":8,"13":14,"14":13,"15":2,"16":3} },
+                { r: 5, scores: {}, opps: {"1":16,"2":3,"3":2,"4":6,"5":10,"6":4,"7":8,"8":7,"9":12,"10":5,"11":15,"12":9,"13":14,"14":13,"15":11,"16":1} }
+            ],
+            withdrawn: {}
+        };
+    }
+
+    /* ---------------- OCR ---------------- */
+
+    function loadTesseract() {
+        if (window.Tesseract) { return Promise.resolve(window.Tesseract); }
+        return new Promise(function (res, rej) {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+            s.onload = function () { res(window.Tesseract); };
+            s.onerror = function () { rej(new Error('识别引擎加载失败，可能没有联网')); };
+            document.head.appendChild(s);
+        });
+    }
+
+    $('#btn-ocr').addEventListener('click', function () {
+        var self = this;
+        var inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = 'image/*';
+        inp.addEventListener('change', function () {
+            var f = inp.files && inp.files[0];
+            if (!f) { return; }
+            openPaste('');
+            $('#paste-hint').textContent = '识别中…首次要下载中文语言包，请稍等';
+            self.disabled = true;
+
+            loadTesseract().then(function (T) {
+                return T.recognize(f, 'chi_sim+eng', {
+                    logger: function (m) {
+                        if (m.status === 'recognizing text') {
+                            $('#paste-hint').textContent = '识别中… ' + Math.round((m.progress || 0) * 100) + '%';
+                        }
+                    }
+                });
+            }).then(function (out) {
+                var text = (out && out.data && out.data.text) || '';
+                var lines = text.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+                $('#paste-text').value = lines.join('\n');
+                $('#paste-hint').textContent = '识别出 ' + lines.length + ' 行，请核对编号、积分与对手再填入';
+            }).catch(function (err) {
+                $('#paste-hint').textContent = '识别失败：' + err.message + '。可以直接把成绩单文字粘贴到上面。';
+            }).then(function () {
+                self.disabled = false;
+            });
+        });
+        inp.click();
+    });
+
+    /* ---------------- 启动 ---------------- */
+
+    function refreshAll() {
+        renderStandings();
+        renderSolveSelect();
+        syncSetup();
+    }
+
+    ML.CFG.byePoint = state.byePoint || 1;
+    syncSetup();
+    renderTiebreak();
+    renderTabs();
+    renderEntry();
+    renderStandings();
+    syncSolveSelect();
+    if (!state.players.length) {
+        $('#solve-host').innerHTML = '<p class="ml-hint">导入名单、录完前几轮后，这里会列出末轮条件。</p>';
+    }
+})();
+</script>
+
+</body>
+</html>
