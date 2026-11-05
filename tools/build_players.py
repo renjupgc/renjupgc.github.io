@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-为「杂豫」等级分榜上的每位棋手生成个人主页，并给等级分表的姓名加上内链。
+为所有出场过的棋手生成个人主页，并给等级分表的姓名加上内链。
 
     zayu/p/<姓名>.html   个人主页：等级分概览、参赛记录、逐局对局记录
     zayu/rating.html     在姓名单元格里补上指向个人主页的内链
+
+主页覆盖两类人：等级分榜上的棋手（有等级分与榜上名次），以及只在成绩表里
+出场过、尚未达到入榜门槛的棋手（等级分一栏留「—」，写「未入榜」）。成绩表
+（zayu/t*.html）里的姓名正是靠这批页面才能点进去，所以两者必须一一对应。
 
 数据全部取自 data/renju.db（tournaments / matches / ratings 三张表），
 不依赖源备份库，因此单独跑本脚本就能重建全部个人主页。
@@ -194,6 +198,34 @@ def collect(ratings, tournaments, matches):
     return stats, games
 
 
+def tally(matches):
+    """按等级分口径统计每人：正式对局数、胜、和、负（不含轮空与弃权）。
+
+    只用于未入榜棋手——入榜者的这四项直接取等级分表里的快照。
+    """
+    s = {}
+
+    def bump(name, key):
+        d = s.setdefault(name, {'games': 0, 'wins': 0, 'draws': 0, 'losses': 0})
+        d['games'] += 1
+        d[key] += 1
+
+    for m in matches:
+        p1, p2, w = m['player1'], m['player2'], m['winner']
+        if not p1 or not p2 or bz.BYE in (p1, p2):
+            continue
+        if w == '1':
+            bump(p1, 'wins')
+            bump(p2, 'losses')
+        elif w == '0':
+            bump(p1, 'losses')
+            bump(p2, 'wins')
+        elif w == '0.5':
+            bump(p1, 'draws')
+            bump(p2, 'draws')
+    return s
+
+
 # ---------------------------------------------------------------- 页面
 
 def href_player(name):
@@ -223,40 +255,51 @@ def rank_cell(t, row, name, arts):
 
 
 def page(name, rec, events, games, reports, index, total_players, arts):
-    region = rec['region'] or '—'
-    uni = rec['university'] or '—'
-    pt = '%.2f' % rec['rating']
-    rank = rec['rank'] or '—'
-    as_of = rec['as_of'] or ''
+    rated = rec.get('rating') is not None
+    region = (rec.get('region') or '').strip()
+    uni = (rec.get('university') or '').strip()
+    pt = '%.2f' % rec['rating'] if rated else '—'
+    rank = rec.get('rank') or ''
+    as_of = rec.get('as_of') or ''
+
+    meta = ['                    <span>栏目：<a href="../../zayu.html">杂豫</a></span>',
+            '                    <span>%s</span>' % bz.esc(region or '—'),
+            '                    <span>%s</span>' % bz.esc(uni or '—')]
 
     body = ['            <header class="article-header">',
             '                <h1 class="article-title">%s</h1>' % bz.esc(name),
-            '                <div class="article-meta">',
-            '                    <span>栏目：<a href="../../zayu.html">杂豫</a></span>',
-            '                    <span>%s</span>' % bz.esc(region),
-            '                    <span>%s</span>' % bz.esc(uni),
-            '                </div>',
-            '            </header>',
-            '',
-            '            <div class="player-stats">',
-            '                <span class="ps"><span class="ps-k">等级分</span>'
-            '<span class="ps-v">%s</span></span>' % pt,
-            '                <span class="ps"><span class="ps-k">榜上名次</span>'
-            '<span class="ps-v">第 %s 名</span></span>' % rank,
-            '                <span class="ps"><span class="ps-k">对局</span>'
-            '<span class="ps-v">%d 局</span></span>' % (rec['games'] or 0),
-            '                <span class="ps"><span class="ps-k">胜 / 和 / 负</span>'
-            '<span class="ps-v">%d / %d / %d</span></span>'
-            % (rec['wins'] or 0, rec['draws'] or 0, rec['losses'] or 0),
-            '                <span class="ps"><span class="ps-k">参赛</span>'
-            '<span class="ps-v">%d 场</span></span>' % len(events),
-            '            </div>',
-            '            <p class="player-note">等级分截至 %s，在 <a href="../rating.html">'
-            '河南高校爱好者等级分</a>的 %d 人中列第 %s 位；上方对局数与胜负不含'
-            '轮空、弃权，下方的对局记录则全部分局照录。'
-            % (bz.esc(as_of), total_players, rank),
-            '            </p>',
-            '']
+            '                <div class="article-meta">']
+    body += meta
+    body += ['                </div>',
+             '            </header>',
+             '',
+             '            <div class="player-stats">',
+             '                <span class="ps"><span class="ps-k">等级分</span>'
+             '<span class="ps-v">%s</span></span>' % pt,
+             '                <span class="ps"><span class="ps-k">榜上名次</span>'
+             '<span class="ps-v">%s</span></span>'
+             % ('第 %s 名' % rank if rank else '未入榜'),
+             '                <span class="ps"><span class="ps-k">对局</span>'
+             '<span class="ps-v">%d 局</span></span>' % (rec['games'] or 0),
+             '                <span class="ps"><span class="ps-k">胜 / 和 / 负</span>'
+             '<span class="ps-v">%d / %d / %d</span></span>'
+             % (rec['wins'] or 0, rec['draws'] or 0, rec['losses'] or 0),
+             '                <span class="ps"><span class="ps-k">参赛</span>'
+             '<span class="ps-v">%d 场</span></span>' % len(events),
+             '            </div>']
+
+    if rated:
+        note = ('等级分截至 %s，在 <a href="../rating.html">河南高校爱好者等级分</a>'
+                '的 %d 人中列第 %s 位；上方对局数与胜负不含轮空、弃权，'
+                '下方的对局记录则全部分局照录。'
+                % (bz.esc(as_of), total_players, rank))
+    else:
+        note = ('等级分榜只收达到门槛的棋手（河南选手须下满 4 局，外省选手须至少'
+                '参加 2 场比赛），TA 暂未入榜，故不列等级分与榜上名次；上方对局数'
+                '与胜负不含轮空、弃权，下方的对局记录则全部分局照录。')
+    body += ['            <p class="player-note">%s' % note,
+             '            </p>',
+             '']
 
     if reports:
         body += ['            <section class="mention-card">',
@@ -346,9 +389,10 @@ def page(name, rec, events, games, reports, index, total_players, arts):
                 ' · <a href="../rating.html">等级分榜</a>'
                 ' · <a href="../../index.html">返回首页</a></p>')
 
-    desc = '%s（%s%s）的个人主页：等级分 %s，第 %s 名，参赛 %d 场。' % (
-        name, region if region != '—' else '',
-        '·' + uni if uni != '—' else '', pt, rank, len(events))
+    sub = '·'.join(x for x in (region, uni) if x)
+    desc = '%s%s的个人主页：等级分 %s，%s参赛 %d 场。' % (
+        name, '（%s）' % sub if sub else '', pt,
+        '第 %s 名，' % rank if rank else '未入榜，', len(events))
 
     return bz.HEAD.format(
         title='%s - 杂豫 - 连珠杂箱' % bz.esc(name),
@@ -375,31 +419,49 @@ def patch_rating(names):
 
 def main():
     ratings, tournaments, matches = load_db()
-    names = [r['name'] for r in ratings]
-    index = set(names)
+    rated_names = [r['name'] for r in ratings]
+    rated = set(rated_names)
 
-    zposts = zashi_posts(names)
+    zposts = zashi_posts(rated_names)
     reports = person_reports(zposts)
     stats, games = collect(ratings, tournaments, matches)
     arts = load_event_ranks()
+
+    # 只在成绩表里出场过、还没入榜的棋手也各出一页：成绩表里的姓名要能点进来。
+    # 以「出场过」为准，而不是「有正式对局」——只下过弃权局的棋手同样在表里有名。
+    tally_ = tally(matches)
+    zero = {'games': 0, 'wins': 0, 'draws': 0, 'losses': 0}
+    as_of = max((r['as_of'] or '' for r in ratings), default='')
+    unrated = sorted(n for n in bz.all_players(matches) if n not in rated)
+    extra = []
+    for name in unrated:
+        d = tally_.get(name, zero)
+        extra.append({'name': name, 'region': '', 'university': '',
+                      'rating': None, 'games': d['games'], 'wins': d['wins'],
+                      'draws': d['draws'], 'losses': d['losses'],
+                      'rank': None, 'as_of': as_of})
+
+    names = rated_names + unrated
+    index = set(names)
 
     os.makedirs(PLAYER_DIR, exist_ok=True)
     for old in os.listdir(PLAYER_DIR):
         if old.endswith('.html'):
             os.remove(os.path.join(PLAYER_DIR, old))
 
-    for rec in ratings:
+    for rec in ratings + extra:
         name = rec['name']
         html = page(name, rec, stats.get(name, []), games.get(name, []),
-                    reports.get(name, []), index, len(names), arts)
+                    reports.get(name, []), index, len(rated_names), arts)
         with open(os.path.join(PLAYER_DIR, '%s.html' % name), 'w',
                   encoding='utf-8', newline='') as f:
             f.write(html)
 
-    linked = patch_rating(names)
+    linked = patch_rating(rated_names)
 
     tops = sorted(reports.items(), key=lambda kv: (-len(kv[1]), kv[0]))
-    print('主页   ->', PLAYER_DIR, '(%d 页)' % len(ratings))
+    print('主页   ->', PLAYER_DIR,
+          '(%d 页：入榜 %d，未入榜 %d)' % (len(names), len(rated_names), len(unrated)))
     print('内链   ->', bz.RATING_OUT, '(%d 处)' % linked)
     print('杂史   ->', len(zposts), '篇')
     print('相关报道 ->', '，'.join('%s %d 篇' % (n, len(v)) for n, v in tops)

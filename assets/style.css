@@ -270,6 +270,18 @@ table.crosstab .c-name {
     min-width: 68px;
 }
 
+/* 成绩表里的姓名链到棋手主页，样式与等级分表一致（棋手主页的表格不受影响） */
+table.crosstab:not(.p-games) .c-name a {
+    color: #222222;
+    border-bottom: 1px dotted #c9d3dd;
+}
+
+table.crosstab:not(.p-games) .c-name a:hover {
+    color: #0645ad;
+    border-bottom-color: #0645ad;
+    text-decoration: none;
+}
+
 table.crosstab th.c-round,
 table.crosstab td.rt {
     width: 46px;
