@@ -8,6 +8,9 @@
     zayu/t{id}.html    每场赛事的独立页面：赛事信息 + 成绩表（逐轮对手 / 积分 / 名次）
     zayu/rating.html   河南高校爱好者等级分表（WHR 算法预先计算）
 
+等级分表里的姓名会链到各自的个人主页 zayu/p/<姓名>.html，
+那些页面由 tools/build_players.py 从 data/renju.db 生成，与本脚本互不覆盖。
+
 用法：
     python tools/build_zayu.py <源数据库路径>
 
@@ -21,6 +24,7 @@ import html
 import os
 import sqlite3
 import sys
+from urllib.parse import quote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -75,6 +79,11 @@ SYM = {
 
 def esc(s):
     return html.escape(str(s or ''), quote=True)
+
+
+def player_href(name):
+    """棋手个人主页的内链（页面由 tools/build_players.py 生成）。"""
+    return 'p/%s.html' % quote(name)
 
 
 def fmt(x):
@@ -489,11 +498,11 @@ def rating_page(rows, as_of, n_tournaments, n_games):
 
     for r in rows:
         body.append('                <tr><td class="r-rank">%d</td>'
-                    '<td class="r-name">%s</td>'
+                    '<td class="r-name"><a href="%s">%s</a></td>'
                     '<td class="r-region">%s</td><td class="r-uni">%s</td>'
                     '<td class="r-pt">%.2f</td></tr>'
-                    % (r['rank'], esc(r['name']), esc(r['region'] or '—'),
-                       esc(r['uni'] or '—'), r['pt']))
+                    % (r['rank'], player_href(r['name']), esc(r['name']),
+                       esc(r['region'] or '—'), esc(r['uni'] or '—'), r['pt']))
 
     body += ['            </tbody>',
              '        </table>',
