@@ -801,3 +801,125 @@ table.crosstab td.res-floss {
         display: none;
     }
 }
+
+/* ---------- 棋盘组件（assets/board.js） ---------- */
+
+.board {
+    max-width: 528px;
+}
+
+.board svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 3px;
+    touch-action: manipulation;
+}
+
+.board svg.is-editable {
+    cursor: pointer;
+}
+
+.board-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+/* 四个翻页键用等宽字体，<< >> 的左对齐才整齐 */
+.board-btn {
+    min-width: 34px;
+    padding: 3px 8px;
+    font-family: "Courier New", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #444444;
+    background: #ffffff;
+    border: 1px solid #dcdcdc;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.board-btn:hover:not(:disabled) {
+    background: #f6f6f6;
+    border-color: #c6c6c6;
+}
+
+.board-btn:active:not(:disabled) {
+    background: #eeeeee;
+}
+
+.board-btn:disabled {
+    color: #d2d2d2;
+    border-color: #ededed;
+    cursor: default;
+}
+
+/* 是否显示序号 */
+.board-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    font-size: 13px;
+    color: #777777;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.board-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.board-switch .sw {
+    position: relative;
+    width: 30px;
+    height: 16px;
+    border-radius: 8px;
+    background: #d8d8d8;
+    transition: background 0.15s;
+}
+
+.board-switch .sw::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: transform 0.15s;
+}
+
+.board-switch input:checked + .sw {
+    background: #7d8fa5;
+}
+
+.board-switch input:checked + .sw::after {
+    transform: translateX(14px);
+}
+
+.board-switch input:focus-visible + .sw {
+    box-shadow: 0 0 0 2px rgba(125, 143, 165, 0.35);
+}
+
+/* ---------- 杂技：打谱 ---------- */
+
+/* 盘面居中；窄屏时铺满正文宽度 */
+.dapu {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 24px;
+}
+
+.dapu .board {
+    flex: 0 1 528px;
+    min-width: 0;
+}
