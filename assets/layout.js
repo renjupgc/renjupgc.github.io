@@ -24,16 +24,24 @@
     };
 
     /*
-     * 页脚：共建署名 + 友情链接。
-     * 三个友情链接都指向对应公众号，把公众号的链接填进 href 即可
-     * （公众号主页形如 https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=...）。
+     * 页脚：共建署名 + 友情链接，三个链接都指向对应公众号的主页
+     * （__biz 取自各号文章页，在微信里点开会直接进公众号）。
      */
     var FOOTER = {
-        copy: '2026 由潘冠臣 &amp; 药博凡共创',
+        copy: '2026 由潘冠臣共创',
         links: [
-            { text: '连珠杂论', href: '#' },
-            { text: '中国五子棋', href: '#' },
-            { text: '洛阳五子棋', href: '#' }
+            {
+                text: '连珠杂论',
+                href: 'https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=Mzk0MjY4NDIyNA==&scene=124#wechat_redirect'
+            },
+            {
+                text: '中国五子棋',
+                href: 'https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=Mzk0OTQxNTc5Mw==&scene=124#wechat_redirect'
+            },
+            {
+                text: '洛阳五子棋',
+                href: 'https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=Mzk0NTQ0NjMxNQ==&scene=124#wechat_redirect'
+            }
         ]
     };
 
@@ -85,7 +93,9 @@
         }
 
         var links = FOOTER.links.map(function (item) {
-            return '<a href="' + item.href + '">' + item.text + '</a>';
+            /* href 里带 & ，写进属性要转义，否则 HTML 校验不过 */
+            return '<a href="' + item.href.replace(/&/g, '&amp;') +
+                '" target="_blank" rel="noopener">' + item.text + '</a>';
         }).join('');
 
         el.innerHTML =
