@@ -1909,8 +1909,19 @@
         flashTimer = setTimeout(function () { flashEl.classList.remove('is-on'); }, 1800);
     }
 
+    /* 把表格里所有能输入的东西按格子清空，不依赖重新渲染的结果 */
+    function blankEntryInputs() {
+        $$('#entry-host input[data-pre]').forEach(function (i) { i.value = ''; });
+        $$('#entry-host input[data-opp]').forEach(function (i) { i.value = ''; });
+        $$('#entry-host input[data-ff]').forEach(function (i) { i.checked = false; });
+        $$('#entry-host [data-delta]').forEach(function (t) {
+            t.textContent = '';
+            t.className = 'c-delta';
+        });
+    }
+
     $('#btn-clear').addEventListener('click', function () {
-        if (!confirm('清空第 ' + curRound + ' 轮的上轮积分、对手与弃权？')) { return; }
+        if (!confirm('清空第 ' + curRound + ' 轮的所有输入？')) { return; }
 
         var rd = roundOf(curRound);
         if (rd) { rd.pre = {}; rd.opps = {}; rd.ff = []; }
@@ -1933,8 +1944,9 @@
         $('#paste-box').hidden = true;
 
         renderTabs(); renderEntry(); renderStandings(); renderSolveSelect();
+        blankEntryInputs();
         resetSolve();
-        flash('已清空第 ' + curRound + ' 轮' + (curRound === 1 ? '（第 1 轮积分恒为 0）' : ''));
+        flash('已清空第 ' + curRound + ' 轮');
     });
 
     /* ---------------- 名次表 ---------------- */
@@ -1969,8 +1981,8 @@
         var keep = sel.value;
         st = st || ML.standings(currentState());
         var opts = st.rows.map(function (r) {
-            return '<option value="' + r.id + '">' + r.id + '　' + esc(nameOf(r)) + '（第 ' + r.rank + ' 名，' +
-                fmt(r.pts) + ' 分）</option>';
+            return '<option value="' + r.id + '">' + r.id + '　' + esc(nameOf(r)) +
+                '（' + fmt(r.pts) + ' 分）</option>';
         }).join('');
         sel.innerHTML = opts;
         if (keep && st.rows.some(function (r) { return String(r.id) === keep; })) {
