@@ -2609,12 +2609,17 @@
         var sel = $('#f-target');
         var keep = sel.value;
         st = st || ML.standings(currentState());
-        var opts = st.rows.map(function (r) {
+        /* 选择器按积分降序、同分按编号升序排 */
+        var rows = st.rows.slice().sort(function (a, b) {
+            if (a.pts !== b.pts) { return b.pts - a.pts; }
+            return a.id - b.id;
+        });
+        var opts = rows.map(function (r) {
             return '<option value="' + r.id + '">' + r.id + '　' + esc(nameOf(r)) +
                 '（' + fmt(r.pts) + ' 分）</option>';
         }).join('');
         sel.innerHTML = opts;
-        if (keep && st.rows.some(function (r) { return String(r.id) === keep; })) {
+        if (keep && rows.some(function (r) { return String(r.id) === keep; })) {
             sel.value = keep;
         }
     }
