@@ -1374,7 +1374,7 @@
         inPool[t] = 1;
 
         /* 只枚举「有关对局」（与 pool 相关、可能影响名次的对局）以控制规模；
-         * 其余「无关对局」结果不影响名次，其所有组合在最后计数时补全（×3 每场）。 */
+         * 无关对局不影响名次，不枚举、不补全计数。 */
         var rel = games.filter(function (g) { return inPool[g.a] || inPool[g.b]; });
         rel.sort(function (x, y) {
             var mx = Math.max(bp[x.a], bp[x.b]), my = Math.max(bp[y.a], bp[y.b]);
@@ -1383,9 +1383,6 @@
         });
         var enumGames = rel.slice(0, MAXG);
         var m = enumGames.length;
-        /* 未枚举的无关对局数：每场 3 种结果，最后计数补全 */
-        var extraGames = games.length - m;
-        var extraFactor = Math.pow(3, extraGames);
 
         var d = [], accd = [], dw = [];
         for (i = 0; i < n; i++) { d[i] = 0; accd[i] = 0; dw[i] = 0; }
@@ -1709,9 +1706,11 @@
 
             var pT = ptsOf(t);
 
-            /* 全名单按「积分 → 破同分项」两两比，算出整张名次表（不止到自己为止） */
+            /* 只列「有影响的选手」（pool 内 + 自己），无关的低分选手不显示；
+             * 名次按 pool 内「积分 → 破同分项」两两比，跟主流程 evaluate 口径一致。 */
             var rows = [];
             for (q = 0; q < n; q++) {
+                if (q !== t && !inPool[q]) { continue; }
                 rows.push({
                     i: q,
                     id: base.players[q].id,
@@ -1852,16 +1851,11 @@
             return st;
         }
 
-        /* 补全：无关对局每场 3 种结果，把稳进/需加赛/总数都乘上，让「共比较 N 种」覆盖全部组合 */
-        totalCount *= extraFactor;
-        freeCount *= extraFactor;
-        playCount *= extraFactor;
-
         return {
             target: { id: base.players[t].id, name: base.players[t].name, pts: bp[t], rank: rankNow },
             totalRounds: total,
             keys: keys,
-            games: games.length,
+            games: m,
             counts: { all: totalCount, ok: playCount, free: freeCount },
             always: always,
             alwaysPlayoff: !always && totalCount > 0 && playCount === totalCount,
@@ -2901,7 +2895,7 @@
             }).join('');
         }
 
-        var tail = '耗时 ' + ms + ' ms，共 ' + ans.counts.all + ' 种组合';
+        var tail = '耗时 ' + ms + ' ms';
 
         host.innerHTML = head + body + '<p class="ml-hint">' + tail + '。</p>';
     }
