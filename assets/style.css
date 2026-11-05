@@ -823,6 +823,7 @@ table.crosstab td.res-floss {
 .board-toolbar {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 4px;
     margin-top: 8px;
 }
@@ -856,12 +857,18 @@ table.crosstab td.res-floss {
     cursor: default;
 }
 
-/* 是否显示序号 */
+/* 是否显示序号 / 坐标 */
+.board-switches {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+}
+
 .board-switch {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin-left: auto;
+    gap: 5px;
     font-size: 13px;
     color: #777777;
     cursor: pointer;
