@@ -23,6 +23,20 @@
         title: '连珠杂箱'
     };
 
+    /*
+     * 页脚：共建署名 + 友情链接。
+     * 三个友情链接都指向对应公众号，把公众号的链接填进 href 即可
+     * （公众号主页形如 https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=...）。
+     */
+    var FOOTER = {
+        copy: '2026 由潘冠臣 &amp; 药博凡共创',
+        links: [
+            { text: '连珠杂论', href: '#' },
+            { text: '中国五子棋', href: '#' },
+            { text: '洛阳五子棋', href: '#' }
+        ]
+    };
+
     var NAV = [
         { text: '首页', href: 'index.html' },
         { text: '杂论', href: 'zalun.html' },
@@ -56,7 +70,31 @@
         }
     }
 
+    /* 页脚只挂在最外层容器末尾；无刷新换页不动 <main> 以外的部分，所以只渲染一次 */
+    function renderFooter() {
+        var host = document.querySelector('.container');
+        if (!host) {
+            return;
+        }
+        var el = document.getElementById('site-footer');
+        if (!el) {
+            el = document.createElement('footer');
+            el.id = 'site-footer';
+            el.className = 'site-footer';
+            host.appendChild(el);
+        }
+
+        var links = FOOTER.links.map(function (item) {
+            return '<a href="' + item.href + '">' + item.text + '</a>';
+        }).join('');
+
+        el.innerHTML =
+            '<p class="sf-copy">' + FOOTER.copy + '</p>' +
+            '<p class="sf-links"><span class="sf-k">友情链接</span>' + links + '</p>';
+    }
+
     renderHeader();
+    renderFooter();
 
     /* 供站内无刷新跳转（见文件末尾）在换页后重新高亮导航 */
     window.ZBX = {
@@ -64,6 +102,7 @@
             base = document.body.getAttribute('data-base') || '';
             active = document.body.getAttribute('data-nav') || '';
             renderHeader();
+            renderFooter();
         }
     };
 })();

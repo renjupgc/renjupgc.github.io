@@ -52,6 +52,35 @@ nav a.active {
     font-weight: bold;
 }
 
+/* 页脚：共建署名与友情链接，由 assets/layout.js 统一渲染 */
+.site-footer {
+    margin-top: 48px;
+    padding-top: 12px;
+    border-top: 1px solid #eeeeee;
+    font-size: 12px;
+    line-height: 1.9;
+    color: #999999;
+}
+
+.site-footer p {
+    margin: 0;
+}
+
+.site-footer .sf-k {
+    margin-right: 10px;
+    color: #b4b4b4;
+}
+
+.site-footer .sf-links a {
+    color: #7d8fa5;
+    margin-right: 12px;
+}
+
+.site-footer .sf-links a:hover {
+    color: #0645ad;
+    text-decoration: none;
+}
+
 section {
     margin-bottom: 30px;
 }
