@@ -669,13 +669,10 @@
     }
 
     .ml-rep-games {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px 6px;
-        align-items: center;
-        margin: 0 0 6px;
-        color: var(--ink-3);
+        margin: 0 0 8px;
+        color: var(--ink-2);
         font-size: 12px;
+        line-height: 1.6;
     }
 
     /* 顶部固定区：逐场选 胜/平/负 */
@@ -2701,10 +2698,17 @@
             '</button>';
     }
 
-    /* 一个细分：完整名次表（按名次排，自己那行高亮） */
+    /* 一个细分：未锁对局的结果 + 完整名次表（按名次排，自己那行高亮） */
     function repBlock(s, keys, nm, title) {
         var out = '<div class="ml-rep">';
         if (title) { out += '<p class="ml-rep-title">' + title + '</p>'; }
+
+        /* 名次表上方：这个细分里未锁对局分别是胜/平/负 */
+        if (s.games.length) {
+            out += '<p class="ml-rep-games">' + s.games.map(function (x) {
+                return esc(condText(x, nm));
+            }).join('，') + '</p>';
+        }
 
         var head = '<tr><th>名次</th><th>选手</th><th>积分</th>' +
             keys.map(function (k) { return '<th>' + esc(tbNameOf(k)) + '</th>'; }).join('') +
