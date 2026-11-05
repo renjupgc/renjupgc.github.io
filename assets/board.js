@@ -5,6 +5,7 @@
  * 横坐标 A-O（左到右），纵坐标 1-15（下到上）。
  * 棋子上的数字是该手序号，最后一手的序号标红；关掉「序号」时，
  * 最后一手改在棋子中心点一个红点。
+ * 可落子的棋盘：点空点落子，点已有棋子跳回那一手，右键退掉一手。
  *
  * 用法一，声明式（页面里直接摆一个棋盘）：
  *   <div class="board" data-board
@@ -308,6 +309,11 @@
             svg.addEventListener('mouseleave', function () {
                 self.ghost.setAttribute('fill', 'none');
                 self.ghost.setAttribute('stroke', 'none');
+            });
+            /* 右键退掉最后一手（移动端长按也会触发 contextmenu） */
+            svg.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                self.undo();
             });
         }
 
