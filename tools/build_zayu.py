@@ -89,6 +89,14 @@ def player_href(name):
     return 'p/%s.html' % quote(name)
 
 
+def name_cell(name, players):
+    """成绩表里的姓名格：有个人主页的做成内链，没有的保持纯文本。"""
+    txt = esc(name)
+    if name in players:
+        return '<a href="%s">%s</a>' % (player_href(name), txt)
+    return txt
+
+
 def fmt(x):
     """6.0 -> 6，6.5 -> 6.5"""
     return ('%g' % x)
@@ -575,7 +583,9 @@ def rating_page(rows, as_of, n_tournaments, n_games):
 
 # ---------------------------------------------------------------- 页面
 
-def crosstab(rows, rounds, idmap):
+def crosstab(rows, rounds, idmap, players=()):
+    """成绩表。姓名链到个人主页（p/<姓名>.html），并列名次按赛事编号从小到大排。"""
+    rows = sorted(rows, key=lambda r: (r['rank'], idmap.get(r['name'], 0)))
     out = ['            <div class="table-scroll">',
            '            <table class="crosstab">',
            '                <thead><tr>',
@@ -611,7 +621,7 @@ def crosstab(rows, rounds, idmap):
                    '<td class="c-pt">%s</td><td class="c-tb">%s</td>'
                    '<td class="c-tb">%s</td><td class="c-tb">%s</td>'
                    '<td class="c-rank">%s</td></tr>'
-                   % (esc(idmap.get(row['name'], '')), esc(row['name']),
+                   % (esc(idmap.get(row['name'], '')), name_cell(row['name'], players),
                       ''.join(cells), fmt(row['score']), fmt(row['buch']),
                       fmt(row['med']), row['wins'], row['rank']))
 
@@ -633,7 +643,17 @@ def roster_ids(t, ms):
     return {n: i for i, n in enumerate(names, 1)}
 
 
-def detail_page(t, ms):
+def all_players(ms):
+    """全部出场过的棋手：每个人在 zayu/p/ 下都会有一页主页（build_players.py 生成）。"""
+    out = set()
+    for m in ms:
+        for p in (m['player1'], m['player2']):
+            if p and p != BYE:
+                out.add(p)
+    return out
+
+
+def detail_page(t, ms, players=()):
     rows, rounds = compute(ms)
     idmap = roster_ids(t, ms)
 
@@ -671,7 +691,7 @@ def detail_page(t, ms):
         body.append('')
 
     if rows:
-        body += crosstab(rows, rounds, idmap)
+        body += crosstab(rows, rounds, idmap, players)
     else:
         body.append('            <p class="empty">该赛事暂无对局记录。</p>')
 
@@ -766,8 +786,9 @@ def rebuild_pages():
     for old in os.listdir(DETAIL_DIR):
         if old.startswith('t') and old.endswith('.html'):
             os.remove(os.path.join(DETAIL_DIR, old))
+    players = all_players(ms)
     for t in ts:
-        detail_page(t, by_tid.get(t['id'], []))
+        detail_page(t, by_tid.get(t['id'], []), players)
     list_page(ts, by_tid, as_of)
 
     print('赛事 %d 场 / 对局 %d 局' % (len(ts), len(ms)))
@@ -790,8 +811,9 @@ def main(src):
 
     ratings, as_of = compute_ratings(ms, unis, regions)
     write_db(ts, ms, ratings)
+    players = all_players(ms)
     for t in ts:
-        detail_page(t, by_tid.get(t['id'], []))
+        detail_page(t, by_tid.get(t['id'], []), players)
     list_page(ts, by_tid, as_of)
     if ratings:
         rating_page(ratings, as_of, len(ts),
