@@ -1738,7 +1738,7 @@
             var games = [];
             for (q = 0; q < m; q++) {
                 if (q === gt || p[q] < 0) { continue; }
-                if (holes && holes.indexOf(q) < 0) { continue; }
+                if (holes && holes.length && holes.indexOf(q) < 0) { continue; }
                 games.push({
                     gi: q,
                     a: base.players[enumGames[q].a].id,
@@ -2771,7 +2771,7 @@
                 '</div>';
         }
 
-        var tabs = st.subs.length > 0 ? '<div class="ml-d-tabs">' +
+        var tabs = st.subs.length > 1 ? '<div class="ml-d-tabs">' +
             '<button type="button" class="ml-d-tab' + (view.tab === 'all' ? ' is-on' : '') +
             '" data-tab="all">全部 <b>' + st.subs.length + '</b></button>' +
             st.ranks.map(function (r) {
