@@ -13,10 +13,13 @@
 
 用法：
     python tools/build_zayu.py <源数据库路径>
+    python tools/build_zayu.py --rebuild     # 无源库时：按 data/renju.db 重出页面
 
 依赖：等级分计算需要 whr 库（pip install whr），未安装时跳过等级分部分。
 
 注：zayu.html 与 zayu/ 下的页面均为脚本生成，手工修改会在下次生成时被覆盖。
+    --rebuild 不重算等级分，只重新套用 data/manual.db 的手工覆盖（赛事改名、
+    对局改写）并重出页面，同时把覆盖结果写回 data/renju.db。
 """
 
 import datetime
@@ -130,6 +133,14 @@ def region_text(raw):
     return ' '.join(x for x in parts if x)
 
 
+def opt_rows(conn, sql):
+    """读可选表：老版本 manual.db 里可能还没有这些表。"""
+    try:
+        return [dict(r) for r in conn.execute(sql)]
+    except sqlite3.OperationalError:
+        return []
+
+
 def read_manual():
     """读手工增补库 data/manual.db。
 
@@ -137,23 +148,63 @@ def read_manual():
       hidden_tournaments  不收录的赛事（按名称）
       tournaments_extra   新增赛事
       matches_extra       新增对局（winner 编码与源库一致：1 / 0 / 0.5 / f0 / 0f / ff）
+      forfeit_players     弃权名单，这些棋手的所有对局都记本人弃权负
+      tournament_renames  赛事改名（源库里的名称有误时在这里覆盖）
+      match_rules         对局改写规则，在弃权名单之后套用（优先级更高）
     """
     if not os.path.exists(MANUAL_DB):
-        return [], [], set(), set()
+        return [], [], set(), set(), [], {}
     m = sqlite3.connect(MANUAL_DB)
     m.row_factory = sqlite3.Row
     extra_t = [dict(r) for r in m.execute('SELECT * FROM tournaments_extra')]
     extra_m = [dict(r) for r in m.execute('SELECT * FROM matches_extra')]
     hidden = {r['name'] for r in m.execute('SELECT name FROM hidden_tournaments')}
     forfeit = {r['name'] for r in m.execute('SELECT name FROM forfeit_players')}
+    rules = opt_rows(m, 'SELECT * FROM match_rules')
+    renames = {r['old_name']: r['new_name']
+               for r in opt_rows(m, 'SELECT * FROM tournament_renames')}
     m.close()
-    return extra_t, extra_m, hidden, forfeit
+    return extra_t, extra_m, hidden, forfeit, rules, renames
+
+
+def apply_overrides(ts, ms, rules, renames):
+    """套用手工覆盖：赛事改名 + 按规则改写对局结果。
+
+    规则形如「某赛事里，凡 subject 的对局，除与 except_players 中的对手外，
+    一律改记为 winner/result」——用来纠正整批漏记、误记的成绩。
+    """
+    for t in ts:
+        new = renames.get((t['name'] or '').strip())
+        if new:
+            t['name'] = new
+
+    for rule in rules:
+        subj = (rule['subject'] or '').strip()
+        except_ = {x.strip() for x in (rule['except_players'] or '').split(',')
+                   if x.strip()}
+        for m in ms:
+            if m['tournament_id'] != rule['tournament_id']:
+                continue
+            p1, p2 = m['player1'], m['player2']
+            if p1 in (None, '') or p2 in (None, '') or BYE in (p1, p2):
+                continue
+            if subj == p1:
+                opp = p2
+            elif subj == p2:
+                opp = p1
+            else:
+                continue
+            if opp in except_:
+                continue
+            m['winner'] = rule['winner']
+            if rule['result']:
+                m['result'] = rule['result']
 
 
 def fetch(src):
     s = sqlite3.connect(src)
     s.row_factory = sqlite3.Row
-    extra_t, extra_m, hidden, forfeit = read_manual()
+    extra_t, extra_m, hidden, forfeit, rules, renames = read_manual()
     ts = [dict(r) for r in s.execute('SELECT * FROM tournaments WHERE is_public = 1')
           if (r['name'] or '').strip() not in hidden]
     ts += [dict(r) for r in extra_t if (r['name'] or '').strip() not in hidden]
@@ -179,6 +230,8 @@ def fetch(src):
             m['winner'] = 'f0'
         elif b:
             m['winner'] = '0f'
+    # 手工覆盖（改名、按规则改写对局）放在弃权名单之后，规则优先
+    apply_overrides(ts, ms, rules, renames)
     idmap = {r['name']: r['id'] for r in s.execute('SELECT name, id FROM players')}
     unis = {r['name']: (r['university'] or '').strip()
             for r in s.execute('SELECT name, university FROM players')}
@@ -666,6 +719,64 @@ def list_page(ts, by_tid, as_of=None):
         f.write(page)
 
 
+def sync_overrides(ts, ms):
+    """把手上的覆盖结果写回 data/renju.db，只更新真正有变化的那几行。"""
+    d = sqlite3.connect(DB_OUT)
+    n_t = n_m = 0
+    for t in ts:
+        cur = d.execute('UPDATE tournaments SET name = ? WHERE id = ? AND name <> ?',
+                        (t['name'], t['id'], t['name']))
+        n_t += cur.rowcount
+    for m in ms:
+        cur = d.execute(
+            'UPDATE matches SET winner = ?, result = ? WHERE id = ? '
+            'AND (winner IS NOT ? OR result IS NOT ?)',
+            (m['winner'], m['result'], m['id'], m['winner'], m['result']))
+        n_m += cur.rowcount
+    d.commit()
+    d.close()
+    return n_t, n_m
+
+
+def rebuild_pages():
+    """不碰源备份库：直接读 data/renju.db，套用手工覆盖后重建页面。
+
+    等级分沿用库内既有快照（不重算 WHR —— 弃权、轮空本来就不计入等级分，
+    把弃权改成双弃不会改变任何人的等级分），适合在没有源库、也没装 whr
+    的机器上改完数据后重出页面。
+    """
+    d = sqlite3.connect(DB_OUT)
+    d.row_factory = sqlite3.Row
+    ts = [dict(r) for r in d.execute('SELECT * FROM tournaments')]
+    ts.sort(key=lambda t: ((t['date'] or ''), t['id']), reverse=True)
+    ms = [dict(r) for r in d.execute(
+        'SELECT * FROM matches ORDER BY tournament_id, round, board_number, id')]
+    as_of = d.execute('SELECT MAX(as_of) FROM ratings').fetchone()[0] or ''
+    d.close()
+
+    _extra_t, _extra_m, _hidden, _forfeit, rules, renames = read_manual()
+    apply_overrides(ts, ms, rules, renames)
+    n_t, n_m = sync_overrides(ts, ms)
+
+    by_tid = {}
+    for m in ms:
+        by_tid.setdefault(m['tournament_id'], []).append(m)
+
+    os.makedirs(DETAIL_DIR, exist_ok=True)
+    for old in os.listdir(DETAIL_DIR):
+        if old.startswith('t') and old.endswith('.html'):
+            os.remove(os.path.join(DETAIL_DIR, old))
+    for t in ts:
+        detail_page(t, by_tid.get(t['id'], []))
+    list_page(ts, by_tid, as_of)
+
+    print('赛事 %d 场 / 对局 %d 局' % (len(ts), len(ms)))
+    print('覆盖 -> 赛事改名 %d 处，对局改写 %d 处' % (n_t, n_m))
+    print('list   ->', LIST_OUT)
+    print('detail ->', DETAIL_DIR, '(%d 页)' % len(ts))
+    print('rating -> 沿用库内快照（截至 %s），未重算' % as_of)
+
+
 def main(src):
     ts, ms, idmap, unis, regions = fetch(src)
     by_tid = {}
@@ -699,4 +810,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    main(sys.argv[1])
+    if sys.argv[1] == '--rebuild':
+        rebuild_pages()
+    else:
+        main(sys.argv[1])
