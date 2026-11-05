@@ -1373,6 +1373,8 @@
         }
         inPool[t] = 1;
 
+        /* 只枚举「有关对局」（与 pool 相关、可能影响名次的对局）以控制规模；
+         * 其余「无关对局」结果不影响名次，其所有组合在最后计数时补全（×3 每场）。 */
         var rel = games.filter(function (g) { return inPool[g.a] || inPool[g.b]; });
         rel.sort(function (x, y) {
             var mx = Math.max(bp[x.a], bp[x.b]), my = Math.max(bp[y.a], bp[y.b]);
@@ -1381,6 +1383,9 @@
         });
         var enumGames = rel.slice(0, MAXG);
         var m = enumGames.length;
+        /* 未枚举的无关对局数：每场 3 种结果，最后计数补全 */
+        var extraGames = games.length - m;
+        var extraFactor = Math.pow(3, extraGames);
 
         var d = [], accd = [], dw = [];
         for (i = 0; i < n; i++) { d[i] = 0; accd[i] = 0; dw[i] = 0; }
@@ -1847,11 +1852,16 @@
             return st;
         }
 
+        /* 补全：无关对局每场 3 种结果，把稳进/需加赛/总数都乘上，让「共比较 N 种」覆盖全部组合 */
+        totalCount *= extraFactor;
+        freeCount *= extraFactor;
+        playCount *= extraFactor;
+
         return {
             target: { id: base.players[t].id, name: base.players[t].name, pts: bp[t], rank: rankNow },
             totalRounds: total,
             keys: keys,
-            games: m,
+            games: games.length,
             counts: { all: totalCount, ok: playCount, free: freeCount },
             always: always,
             alwaysPlayoff: !always && totalCount > 0 && playCount === totalCount,
@@ -2891,7 +2901,7 @@
             }).join('');
         }
 
-        var tail = '耗时 ' + ms + ' ms，枚举 ' + ans.games + ' 场关键对局';
+        var tail = '耗时 ' + ms + ' ms，共 ' + ans.counts.all + ' 种组合';
 
         host.innerHTML = head + body + '<p class="ml-hint">' + tail + '。</p>';
     }
