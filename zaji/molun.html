@@ -1102,13 +1102,16 @@
                 if (r > 0) { betterCnt++; }
                 else if (r === 0) { ties++; }
             }
-            return { rank: betterCnt + 1, ties: ties };
+            /* 破同分完全一样就得加赛：最差名次要把这批并列的人全算在自己前面 */
+            return { rank: betterCnt + 1, ties: ties, worst: betterCnt + ties + 1 };
         }
 
         var pow3 = [1];
         for (i = 1; i <= m; i++) { pow3[i] = pow3[i - 1] * 3; }
 
-        var okSet = {}, okCount = 0, totalCount = 0, tieCount = 0, cur = new Array(m);
+        /* freeSet：不加赛也稳进前 N；playSet：加赛赢下来才进 */
+        var freeSet = {}, playSet = {}, freeCount = 0, playCount = 0, totalCount = 0;
+        var cur = new Array(m);
 
         function rec(k) {
             if (k === m) {
@@ -1117,9 +1120,9 @@
                 var r = evaluate();
                 totalCount++;
                 if (r.rank <= targetRank) {
-                    okSet[key] = 1;
-                    okCount++;
-                    if (r.ties > 0) { tieCount++; }
+                    playSet[key] = 1;
+                    playCount++;
+                    if (r.worst <= targetRank) { freeSet[key] = 1; freeCount++; }
                 }
                 return;
             }
@@ -1132,27 +1135,11 @@
         }
         rec(0);
 
+        var always = freeCount === totalCount && totalCount > 0;
+
         var gt = -1;
         for (i = 0; i < m; i++) {
             if (enumGames[i].a === t || enumGames[i].b === t) { gt = i; }
-        }
-
-        function allOk(pattern, holes) {
-            var cnt = pow3[holes.length];
-            if (cnt > 200000) { return false; }
-            for (var z = 0; z < cnt; z++) {
-                var zz = z, key = 0, hi = 0;
-                for (var q = 0; q < m; q++) {
-                    var v = pattern[q];
-                    if (v < 0) {
-                        v = Math.floor(zz / pow3[hi]) % 3;
-                        hi++;
-                    }
-                    key += v * pow3[q];
-                }
-                if (!okSet[key]) { return false; }
-            }
-            return true;
         }
 
         function keyToPattern(key) {
@@ -1167,53 +1154,100 @@
             return c;
         }
 
-        var groups = [];
-        if (okCount && okCount !== totalCount && gt >= 0) {
-            var okKeys = Object.keys(okSet);
-            if (okKeys.length > 1200) {
-                var step = Math.ceil(okKeys.length / 1200);
-                okKeys = okKeys.filter(function (k, idx) { return idx % step === 0; });
+        /* 某个局部条件下，所有补全是否都落在 set 里 */
+        function allIn(set, pattern, holes) {
+            var cnt = pow3[holes.length];
+            if (cnt > 200000) { return false; }
+            for (var z = 0; z < cnt; z++) {
+                var zz = z, key = 0, hi = 0;
+                for (var q = 0; q < m; q++) {
+                    var v = pattern[q];
+                    if (v < 0) {
+                        v = Math.floor(zz / pow3[hi]) % 3;
+                        hi++;
+                    }
+                    key += v * pow3[q];
+                }
+                if (!set[key]) { return false; }
+            }
+            return true;
+        }
+
+        /* q 的条件比 p 少，能满足 q 就一定能满足 p */
+        function covers(q, p) {
+            for (var z = 0; z < m; z++) {
+                if (q[z] === -1) { continue; }
+                if (q[z] !== p[z]) { return false; }
+            }
+            return true;
+        }
+
+        /* 把 set 里同一种自身结果的关键对局压成最小的若干组条件 */
+        function minimize(set, v) {
+            var ks = Object.keys(set).filter(function (k) {
+                return Math.floor(Number(k) / pow3[gt]) % 3 === v;
+            });
+            if (!ks.length) { return []; }
+            if (ks.length > 1200) {
+                var step = Math.ceil(ks.length / 1200);
+                ks = ks.filter(function (k, idx) { return idx % step === 0; });
             }
 
-            [0, 1, 2].forEach(function (v) {
-                var out = [], seen = {};
-                okKeys.forEach(function (k) {
-                    var pat = keyToPattern(Number(k));
-                    if (pat[gt] !== v) { return; }
-                    var holes = [];
-                    for (var q = 0; q < m; q++) {
-                        if (q === gt || pat[q] < 0) { continue; }
-                        var old = pat[q];
-                        pat[q] = -1;
-                        holes.push(q);
-                        if (!allOk(pat, holes)) {
-                            pat[q] = old;
-                            holes.pop();
-                        }
+            var out = [], seen = {};
+            ks.forEach(function (k) {
+                var pat = keyToPattern(Number(k));
+                var holes = [];
+                for (var q = 0; q < m; q++) {
+                    if (q === gt || pat[q] < 0) { continue; }
+                    var old = pat[q];
+                    pat[q] = -1;
+                    holes.push(q);
+                    if (!allIn(set, pat, holes)) {
+                        pat[q] = old;
+                        holes.pop();
                     }
-                    var sig = pat.join(',');
-                    if (!seen[sig]) { seen[sig] = 1; out.push(pat); }
+                }
+                var sig = pat.join(',');
+                if (!seen[sig]) { seen[sig] = 1; out.push(pat); }
+            });
+
+            if (out.length <= 400) {
+                out = out.filter(function (p1) {
+                    for (var b2 = 0; b2 < out.length; b2++) {
+                        var p2 = out[b2];
+                        if (p2 === p1) { continue; }
+                        if (countLiterals(p2) >= countLiterals(p1)) { continue; }
+                        if (covers(p2, p1)) { return false; }
+                    }
+                    return true;
+                });
+            }
+            out.sort(function (x, y) { return countLiterals(x) - countLiterals(y); });
+            return out;
+        }
+
+        var groups = [];
+        if (!always && playCount > 0 && gt >= 0) {
+            [0, 1, 2].forEach(function (v) {
+                var freePats = minimize(freeSet, v);
+                var playPats = minimize(playSet, v).filter(function (p) {
+                    for (var z = 0; z < freePats.length; z++) {
+                        if (covers(freePats[z], p)) { return false; }
+                    }
+                    return true;
+                });
+                if (!freePats.length && !playPats.length) { return; }
+
+                var picks = freePats.map(function (p) {
+                    return { pat: p, playoff: false };
+                }).concat(playPats.map(function (p) {
+                    return { pat: p, playoff: true };
+                }));
+                picks.sort(function (x, y) {
+                    if (x.playoff !== y.playoff) { return x.playoff ? 1 : -1; }
+                    return countLiterals(x.pat) - countLiterals(y.pat);
                 });
 
-                if (out.length <= 400) {
-                    out = out.filter(function (p1) {
-                        for (var b = 0; b < out.length; b++) {
-                            var p2 = out[b];
-                            if (p2 === p1) { continue; }
-                            if (countLiterals(p2) >= countLiterals(p1)) { continue; }
-                            var covers = true;
-                            for (var q = 0; q < m; q++) {
-                                if (p2[q] === -1) { continue; }
-                                if (p2[q] !== p1[q]) { covers = false; break; }
-                            }
-                            if (covers) { return false; }
-                        }
-                        return true;
-                    });
-                }
-                out.sort(function (x, y) { return countLiterals(x) - countLiterals(y); });
-
-                if (!out.length) { return; }
                 var code = CODES[v];
                 var tOutcome = code === '1/2' ? 'draw'
                     : (code === '1-0' ? (enumGames[gt].a === t ? 'win' : 'loss')
@@ -1222,17 +1256,17 @@
                 groups.push({
                     res: code,
                     tOutcome: tOutcome,
-                    terms: out.slice(0, 12).map(function (p) {
+                    terms: picks.slice(0, 12).map(function (pick) {
                         var parts = [];
                         for (var q = 0; q < m; q++) {
-                            if (p[q] < 0 || q === gt) { continue; }
+                            if (pick.pat[q] < 0 || q === gt) { continue; }
                             parts.push({
                                 a: base.players[enumGames[q].a].id,
                                 b: base.players[enumGames[q].b].id,
-                                code: CODES[p[q]]
+                                code: CODES[pick.pat[q]]
                             });
                         }
-                        return parts;
+                        return { parts: parts, playoff: pick.playoff ? base.players[t].id : 0 };
                     })
                 });
             });
@@ -1251,11 +1285,11 @@
             totalRounds: total,
             keys: keys,
             games: m,
-            counts: { all: totalCount, ok: okCount, ties: tieCount },
-            always: okCount === totalCount && totalCount > 0,
-            never: okCount === 0,
-            groups: groups,
-            assumes: '未列入条件的末轮对局，按和棋计算'
+            counts: { all: totalCount, ok: playCount, free: freeCount },
+            always: always,
+            alwaysPlayoff: !always && totalCount > 0 && playCount === totalCount,
+            never: playCount === 0,
+            groups: groups
         };
     }
 
@@ -1697,36 +1731,18 @@
         var hint = $('#entry-hint');
         var rd = roundOf(curRound);
         if (!rd) { hint.hidden = true; return; }
-        var preN = 0, filled = 0, dist = { '1': 0, '0.5': 0, '0': 0 }, bad = 0, byes = 0;
+        var bad = 0;
         var recorded = roundFilled(rd);
         state.players.forEach(function (p) {
-            if (preOf(p.id, curRound) != null) { preN++; }
             var v = recorded ? scoreOf(p.id, curRound) : null;
             if (v == null) { return; }
-            filled++;
-            if (v === 1 || v === 0.5 || v === 0) { dist[String(v)]++; } else { bad++; }
-            if (rd.opps[p.id] === 'bye') { byes++; }
+            if (v !== 1 && v !== 0.5 && v !== 0) { bad++; }
         });
 
-        var parts = [];
-        if (curRound > 1) {
-            parts.push('上轮积分已填 <b>' + preN + '</b> / ' + state.players.length + ' 人');
-        }
-        if (filled) {
-            parts.push('得分：胜 ' + dist['1'] + '、和 ' + dist['0.5'] + '、负 ' + dist['0']);
-        }
-        if (byes) { parts.push('轮空 ' + byes + ' 人'); }
-        if (bad) { parts.push('<b>' + bad + ' 人的分差不是 0、0.5 或 1，请核对上轮积分</b>'); }
-        if (!filled && curRound > 1 && curRound < state.totalRounds && preN) {
-            parts.push('第 ' + curRound + ' 轮的得分，要等第 ' + (curRound + 1) + ' 轮的上轮积分填进来才算得出');
-        }
-        if (curRound === state.totalRounds) {
-            parts.push('末轮未赛，填上轮积分和对手编号即可');
-        }
-        if (!parts.length) { hint.hidden = true; return; }
-        hint.innerHTML = parts.join('　·　');
+        if (!bad) { hint.hidden = true; return; }
+        hint.innerHTML = '<b>' + bad + ' 人的分差不是 0、0.5 或 1，请核对上轮积分</b>';
         hint.hidden = false;
-        hint.className = 'ml-hint' + (bad ? ' is-warn' : '');
+        hint.className = 'ml-hint is-warn';
     }
 
     var entryHost = $('#entry-host');
@@ -2011,19 +2027,20 @@
         syncSolveSelect();
     }
 
-    function condText(t) {
-        var names = {};
-        state.players.forEach(function (p) { names[p.id] = nameOf(p); });
-        function nm(id) { return names[id] || (id + ' 号'); }
+    function condText(t, nm) {
+        if (t.playoff) { return nm(t.playoff) + ' 加赛胜'; }
         if (t.code === '1-0') { return nm(t.a) + ' 胜 ' + nm(t.b); }
         if (t.code === '0-1') { return nm(t.a) + ' 负 ' + nm(t.b); }
         return nm(t.a) + ' 平 ' + nm(t.b);
     }
 
-    /* 一组条件统一写成：甲 胜 乙，丙 平 丁；无条件即稳进 */
-    function condSentence(parts, rank) {
-        if (!parts || !parts.length) { return '一定进前 ' + rank; }
-        return parts.map(condText).join('，');
+    /* 一条路：甲 胜 乙，丙 平 丁；破了同分就再带一句 张三 加赛胜 */
+    function condSentence(term, rank, nm) {
+        if (!term) { return '一定进前 ' + rank; }
+        var list = (term.parts || []).slice();
+        if (term.playoff) { list.push({ playoff: term.playoff }); }
+        if (!list.length) { return '一定进前 ' + rank; }
+        return list.map(function (x) { return condText(x, nm); }).join('，');
     }
 
     function runSolve() {
@@ -2048,6 +2065,10 @@
             return;
         }
 
+        var names = {};
+        state.players.forEach(function (p) { names[p.id] = nameOf(p); });
+        function nm(id) { return names[id] || (id + ' 号'); }
+
         var self = esc(ans.target.name || ('#' + ans.target.id));
         var head = '<div class="ml-banner' + (ans.always ? ' is-ok' : (ans.never ? ' is-no' : '')) + '">';
 
@@ -2055,11 +2076,13 @@
             head += '<b>' + self + '</b> 一定进前 ' + rank + '。';
         } else if (ans.never) {
             head += '<b>' + self + '</b> 不可能进前 ' + rank + '。';
+        } else if (ans.alwaysPlayoff) {
+            head += '<b>' + self + '</b> 每一种末轮结果都会与他人破同分全一样，只能靠加赛；加赛赢就进前 ' + rank + '。';
         } else {
-            head += '<b>' + self + '</b> 目前 ' + fmt(ans.target.pts) + ' 分、第 ' +
-                ans.target.rank + ' 名；末轮进第 ' + rank + ' 名，按 胜 · 平 · 负 三种情况。' +
-                '<br><span style="color:var(--muted);font-size:12.5px">共比较 ' + ans.counts.all +
-                ' 种末轮结果，其中 ' + ans.counts.ok + ' 种达成；' + ans.assumes + '。</span>';
+            var need = ans.counts.ok - ans.counts.free;
+            head += '<span style="color:var(--muted);font-size:12.5px">共比较 ' + ans.counts.all +
+                ' 种末轮结果，其中 ' + ans.counts.ok + ' 种达成' +
+                (need ? '（' + need + ' 种要先赢加赛）' : '') + '。</span>';
         }
         head += '</div>';
 
@@ -2070,7 +2093,6 @@
 
         /* 三段恒定：胜 / 平 / 负，句式统一 */
         var body = '';
-        var hasMulti = false;
         if (!ans.always && !ans.never) {
             body = ['win', 'draw', 'loss'].map(function (k) {
                 var g = byOut[k];
@@ -2081,12 +2103,11 @@
                 }
                 if (g.terms.length === 1) {
                     return '<div class="ml-case"><div class="ml-case-head">' + tag +
-                        '<span class="ml-case-line">' + condSentence(g.terms[0], rank) + '</span></div></div>';
+                        '<span class="ml-case-line">' + condSentence(g.terms[0], rank, nm) + '</span></div></div>';
                 }
                 var lis = g.terms.map(function (p) {
-                    return '<li>' + condSentence(p, rank) + '</li>';
+                    return '<li>' + condSentence(p, rank, nm) + '</li>';
                 }).join('');
-                hasMulti = true;
                 return '<div class="ml-case"><div class="ml-case-head">' + tag +
                     '<span class="ml-case-line">满足任一条件，共 ' + g.terms.length + ' 种：</span>' +
                     '</div><ul>' + lis + '</ul></div>';
@@ -2094,7 +2115,6 @@
         }
 
         var tail = '耗时 ' + ms + ' ms，枚举 ' + ans.games + ' 场关键对局';
-        if (hasMulti) { tail += '；同一段内多条条件满足任意一条即可'; }
 
         host.innerHTML = head + body + '<p class="ml-hint">' + tail + '。</p>';
     }
