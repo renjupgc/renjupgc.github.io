@@ -5,7 +5,7 @@
  * 横坐标 A-O（左到右），纵坐标 1-15（下到上）。
  * 棋子上的数字是该手序号，最后一手的序号标红；关掉「序号」时，
  * 最后一手改在棋子中心点一个红点。
- * 可落子的棋盘：点空点落子，点已有棋子跳回那一手，右键退掉一手。
+ * 可落子的棋盘：点空点落子，双击某一颗棋子回退到那一手，其后的手数作废。
  *
  * 用法一，声明式（页面里直接摆一个棋盘）：
  *   <div class="board" data-board
@@ -23,7 +23,7 @@
  *   var b = GomokuBoard.mount(el, {editable: true});
  *   b.place(7, 7);      // 落子（行列为 0 起的下标）
  *   b.next(); b.prev(); b.first(); b.last();
- *   b.undo(); b.clear(); b.setNumbers(false); b.setCoords(false);
+ *   b.undo(); b.truncate(3); b.clear(); b.setNumbers(false); b.setCoords(false);
  *   b.setColor('w');
  *   GomokuBoard.encode(b.getMoves());   // -> 'h8i9j10'
  *   GomokuBoard.decode('#h8i9j10');     // -> [{i,j,color}, ...]
@@ -286,17 +286,12 @@
         svg.appendChild(this.stoneLayer);
 
         svg.addEventListener('click', function (e) {
-            var p = self.hit(e);
-            if (!p) {
-                return;
-            }
-            var idx = self.indexOf(p.i, p.j);
-            if (self.editable && idx >= 0 && idx < self.cursor) {
-                self.setCursor(idx + 1);       /* 点到棋子：跳回那一手 */
-                return;
-            }
             if (!self.editable) {
                 return;
+            }
+            var p = self.hit(e);
+            if (!p || self.indexOf(p.i, p.j) >= 0) {
+                return;                        /* 点到已有的子：不动，交给双击 */
             }
             self.place(p.i, p.j, self.color || undefined);
         });
@@ -310,10 +305,20 @@
                 self.ghost.setAttribute('fill', 'none');
                 self.ghost.setAttribute('stroke', 'none');
             });
-            /* 右键退掉最后一手（移动端长按也会触发 contextmenu） */
-            svg.addEventListener('contextmenu', function (e) {
-                e.preventDefault();
-                self.undo();
+            /*
+             * 双击某一颗棋子：回退到这一手，其后的手数一并作废。
+             * 单击只落子，点到已有的子不响应。
+             */
+            svg.addEventListener('dblclick', function (e) {
+                var p = self.hit(e);
+                if (!p) {
+                    return;
+                }
+                var idx = self.indexOf(p.i, p.j);
+                if (idx < 0) {
+                    return;
+                }
+                self.truncate(idx + 1);
             });
         }
 
@@ -460,14 +465,16 @@
     };
 
     Board.prototype.undo = function () {
-        if (!this.moves.length) {
-            return;
+        this.truncate(Math.min(this.cursor, this.moves.length) - 1);
+    };
+
+    /* 局面截到第 n 手（含第 n 手），其后的手数作废 */
+    Board.prototype.truncate = function (n) {
+        n = Math.max(0, Math.min(this.moves.length, n));
+        if (n < this.moves.length) {
+            this.moves.length = n;
         }
-        if (this.cursor < this.moves.length) {
-            this.moves.length = this.cursor;
-        }
-        this.moves.pop();
-        this.cursor = this.moves.length;
+        this.cursor = n;
         this.render();
     };
 
