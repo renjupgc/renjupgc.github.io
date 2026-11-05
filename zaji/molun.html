@@ -1944,9 +1944,9 @@
         return nm(t.a) + ' 平 ' + nm(t.b);
     }
 
-    /* 一组条件统一写成：甲 胜 乙，丙 平 丁 */
-    function condSentence(parts) {
-        if (!parts || !parts.length) { return '不需要其他对局配合'; }
+    /* 一组条件统一写成：甲 胜 乙，丙 平 丁；无条件即稳进 */
+    function condSentence(parts, rank) {
+        if (!parts || !parts.length) { return '一定进前 ' + rank; }
         return parts.map(condText).join('，');
     }
 
@@ -1976,9 +1976,9 @@
         var head = '<div class="ml-banner' + (ans.always ? ' is-ok' : (ans.never ? ' is-no' : '')) + '">';
 
         if (ans.always) {
-            head += '<b>' + self + '</b> 无论末轮结果如何，都至少第 ' + rank + ' 名。';
+            head += '<b>' + self + '</b> 一定进前 ' + rank + '。';
         } else if (ans.never) {
-            head += '<b>' + self + '</b> 已经无法进第 ' + rank + ' 名。';
+            head += '<b>' + self + '</b> 不可能进前 ' + rank + '。';
         } else {
             head += '<b>' + self + '</b> 目前 ' + fmt(ans.target.pts) + ' 分、第 ' +
                 ans.target.rank + ' 名；末轮进第 ' + rank + ' 名，按 胜 · 平 · 负 三种情况。' +
@@ -1994,21 +1994,23 @@
 
         /* 三段恒定：胜 / 平 / 负，句式统一 */
         var body = '';
+        var hasMulti = false;
         if (!ans.always && !ans.never) {
             body = ['win', 'draw', 'loss'].map(function (k) {
                 var g = byOut[k];
                 var tag = '<span class="ml-badge ' + badge[k] + '">' + esc(label[k]) + '</span>';
                 if (!g || !g.terms.length) {
                     return '<div class="ml-case is-empty"><div class="ml-case-head">' + tag +
-                        '<span class="ml-case-line">末轮第 ' + rank + ' 名无望</span></div></div>';
+                        '<span class="ml-case-line">不可能进前 ' + rank + '</span></div></div>';
                 }
                 if (g.terms.length === 1) {
                     return '<div class="ml-case"><div class="ml-case-head">' + tag +
-                        '<span class="ml-case-line">' + condSentence(g.terms[0]) + '</span></div></div>';
+                        '<span class="ml-case-line">' + condSentence(g.terms[0], rank) + '</span></div></div>';
                 }
                 var lis = g.terms.map(function (p) {
-                    return '<li>' + condSentence(p) + '</li>';
+                    return '<li>' + condSentence(p, rank) + '</li>';
                 }).join('');
+                hasMulti = true;
                 return '<div class="ml-case"><div class="ml-case-head">' + tag +
                     '<span class="ml-case-line">满足任一条件，共 ' + g.terms.length + ' 种：</span>' +
                     '</div><ul>' + lis + '</ul></div>';
@@ -2016,7 +2018,7 @@
         }
 
         var tail = '耗时 ' + ms + ' ms，枚举 ' + ans.games + ' 场关键对局';
-        if (body) { tail += '；同一段内多条条件满足任意一条即可'; }
+        if (hasMulti) { tail += '；同一段内多条条件满足任意一条即可'; }
 
         host.innerHTML = head + body + '<p class="ml-hint">' + tail + '。</p>';
     }
