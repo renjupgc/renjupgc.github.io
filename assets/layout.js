@@ -460,6 +460,39 @@
 
     var busy = false;
 
+    /*
+     * 换页只换 <main>，目标页自己带的 <script>（比如打谱页的 board.js）
+     * 不会跟着执行，页面就用不了。这里把它们补跑一次：
+     * - src 按「目标页地址」解析成绝对地址，../assets/ 这类相对路径才对；
+     * - 同一个脚本只注入一次，来回翻页不会重复加载；
+     * - 内联脚本每次进入该页执行一次，与整页加载时一致。
+     */
+    var injected = {};
+
+    function runScripts(doc, pageUrl) {
+        Array.prototype.forEach.call(doc.querySelectorAll('script'), function (old) {
+            var src = old.getAttribute('src');
+            var el = document.createElement('script');
+            if (src) {
+                var abs = src;
+                try {
+                    abs = new URL(src, pageUrl).href;
+                } catch (err) { /* 老浏览器：原样用 */ }
+                if (injected[abs]) {
+                    return;
+                }
+                injected[abs] = 1;
+                el.src = abs;
+                el.async = false;
+            } else if (old.textContent && old.textContent.trim()) {
+                el.textContent = old.textContent;
+            } else {
+                return;
+            }
+            document.body.appendChild(el);
+        });
+    }
+
     function load(url, opts) {
         opts = opts || {};
         if (busy) {
@@ -494,6 +527,7 @@
                 if (window.ZBX && window.ZBX.renderHeader) {
                     window.ZBX.renderHeader();
                 }
+                runScripts(doc, url);
                 window.scrollTo(0, typeof opts.scrollY === 'number' ? opts.scrollY : 0);
                 busy = false;
             })
