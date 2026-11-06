@@ -1,9 +1,9 @@
 /*
  * VCF 做题 - 页面逻辑
  * ------------------------------------------------------------
- * 题目由 vcf-gen.mjs 现场生成（安静自对弈铺局面 → quintet 验杀 → 成对剪枝 → 终审）。
+ * 题目由 vcf-gen.mjs 现场生成（安静自对弈铺局面 → 满深度验杀 → 成对剪枝 → 终审）。
  * 解题时每手只判规则（成五 / 冲四 / 双杀 / 挡点禁手），不跑搜索；
- * 走完一对再让 quintet 确认「这里还有没有杀」，没有就退回重走。
+ * 走完一对再复算一次「这里还有没有杀」，没有就退回重走。
  */
 
 import { init, solveBoard, BLACK, WHITE, px, py, pname } from './quintet-core.mjs';
@@ -175,7 +175,10 @@ function turnLabel() {
     if (!el) { return; }
     const dot = el.querySelector('.vcf-dot');
     el.textContent = '';
-    if (dot) { el.appendChild(dot); }
+    if (dot) {
+        dot.classList.toggle('is-light', s.attacker !== BLACK);
+        el.appendChild(dot);
+    }
     el.appendChild(document.createTextNode(s.attacker === BLACK ? '黑先 · 你执黑' : '白先 · 你执白'));
 }
 

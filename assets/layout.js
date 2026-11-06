@@ -221,18 +221,30 @@
         return;
     }
 
-    var TRACK = {
-        src: 'assets/audio/qingbawo-zailushang-jiaoxing.mp3',
-        cover: 'assets/img/music-cover-born-in-hesitation.jpg',
-        title: '请把我在路上叫醒',
-        artist: '汪峰',
-        album: '生来彷徨',
-        volume: 0.5
-    };
+    /* 播放列表：按顺序放，最后一首播完回到第一首 */
+    var TRACKS = [
+        {
+            src: 'assets/audio/chengshi-zhiguang.mp3',
+            cover: 'assets/img/music-cover-born-in-hesitation.jpg',
+            title: '城市之光',
+            artist: '汪峰',
+            album: '生来彷徨',
+            volume: 0.5
+        },
+        {
+            src: 'assets/audio/qingbawo-zailushang-jiaoxing.mp3',
+            cover: 'assets/img/music-cover-born-in-hesitation.jpg',
+            title: '请把我在路上叫醒',
+            artist: '汪峰',
+            album: '生来彷徨',
+            volume: 0.5
+        }
+    ];
 
     var K_MUTED = 'zbx_music_muted';
     var K_OFF = 'zbx_music_off';
     var K_TIME = 'zbx_music_time';
+    var K_TRACK = 'zbx_music_track';
 
     var base = document.body.getAttribute('data-base') || '';
 
@@ -260,7 +272,7 @@
     /* 唱片用专辑封面：播放时缓缓转动，暂停时停在原角度 */
     var DISC = [
         '<span class="mb-rotor">',
-        '<img class="mb-cover" src="' + base + TRACK.cover + '" alt="" draggable="false">',
+        '<img class="mb-cover" alt="" draggable="false">',
         '</span>'
     ].join('');
 
@@ -271,8 +283,8 @@
     box.innerHTML =
         '<button class="mb-disc" type="button" aria-label="播放或暂停">' + DISC + '</button>' +
         '<span class="mb-meta">' +
-        '<span class="mb-title">' + TRACK.title + '</span>' +
-        '<span class="mb-sub">' + TRACK.artist + ' · 音乐盒</span>' +
+        '<span class="mb-title"></span>' +
+        '<span class="mb-sub"></span>' +
         '</span>' +
         '<span class="mb-actions">' +
         '<button class="mb-btn mb-play" type="button" aria-label="播放">' +
@@ -288,10 +300,7 @@
 
     var audio = document.createElement('audio');
     audio.className = 'mb-audio';
-    audio.src = base + TRACK.src;
-    audio.loop = true;
     audio.preload = 'auto';
-    audio.volume = TRACK.volume;
     audio.setAttribute('playsinline', '');
     audio.muted = read('localStorage', K_MUTED) === '1';
     document.body.appendChild(audio);
@@ -300,9 +309,70 @@
     var playBtn = box.querySelector('.mb-play');
     var muteBtn = box.querySelector('.mb-mute');
     var subEl = box.querySelector('.mb-sub');
-    var subText = subEl.textContent;
+    var titleEl = box.querySelector('.mb-title');
+    var coverEl = box.querySelector('.mb-cover');
+    var subText = '';
     var hinting = false;
     var armed = false;
+    var intent = false;      /* 是否本来就该播着 */
+    var dead = {};           /* 加载不出来的曲目 */
+
+    /* 当前曲目下标，翻页记住听到哪首 */
+    var savedIdx = parseInt(read('sessionStorage', K_TRACK) || '0', 10);
+    var idx = (savedIdx >= 0 && savedIdx < TRACKS.length) ? savedIdx : 0;
+
+    function timeKey() {
+        return K_TIME + '_' + idx;
+    }
+
+    function updateMeta(t) {
+        if (!('mediaSession' in navigator) || typeof window.MediaMetadata !== 'function') {
+            return;
+        }
+        try {
+            navigator.mediaSession.metadata = new window.MediaMetadata({
+                title: t.title,
+                artist: t.artist,
+                album: t.album,
+                artwork: [{ src: base + t.cover, sizes: '220x220', type: 'image/jpeg' }]
+            });
+        } catch (e) {
+            /* 忽略 */
+        }
+    }
+
+    function setTrack(i) {
+        idx = ((i % TRACKS.length) + TRACKS.length) % TRACKS.length;
+        var t = TRACKS[idx];
+        var next = base + t.src;
+        if (audio.getAttribute('src') !== next) {
+            audio.src = next;
+        }
+        audio.volume = t.volume;
+        coverEl.setAttribute('src', base + t.cover);
+        titleEl.textContent = t.title;
+        subText = t.artist + ' · 音乐盒';
+        write('sessionStorage', K_TRACK, String(idx));
+        updateMeta(t);
+        render();
+    }
+
+    function nextAlive(from) {
+        for (var i = 1; i <= TRACKS.length; i++) {
+            var c = (from + i) % TRACKS.length;
+            if (!dead[c]) { return c; }
+        }
+        return -1;
+    }
+
+    function switchTo(j) {
+        if (j < 0 || j === idx) { return; }
+        savedPos = 0;
+        seekTries = 0;
+        setTrack(j);
+        write('sessionStorage', timeKey(), '0');
+        if (intent) { play(); }
+    }
 
     /*
      * 只切 class 与 aria 属性，不动 innerHTML。
@@ -351,6 +421,7 @@
     }
 
     function play() {
+        intent = true;
         var promise;
         try {
             promise = audio.play();
@@ -371,6 +442,7 @@
     }
 
     function pause() {
+        intent = false;
         audio.pause();
         write('sessionStorage', K_OFF, '1');
         render();
@@ -439,6 +511,20 @@
     audio.addEventListener('pause', render);
     audio.addEventListener('volumechange', render);
 
+    /* 一首放完接下一首；某首加载不出来就跳过，不至于安静掉 */
+    audio.addEventListener('ended', function () {
+        var j = nextAlive(idx);
+        switchTo(j < 0 ? (idx + 1) % TRACKS.length : j);
+    });
+    audio.addEventListener('error', function () {
+        dead[idx] = 1;
+        var j = nextAlive(idx);
+        switchTo(j);
+        if (j < 0) {
+            subEl.textContent = '这首暂时放不出来';
+        }
+    });
+
     /*
      * 播放位置：边播边存，翻页接着放
      * ------------------------------------------------------------
@@ -447,7 +533,7 @@
      * 所以改为播放中即时记录，离开时只补最后一笔，并且拒绝用 0 覆盖进度。
      */
 
-    var savedPos = parseFloat(read('sessionStorage', K_TIME) || '0') || 0;
+    var savedPos = parseFloat(read('sessionStorage', timeKey()) || '0') || 0;
     var lastWrite = -1;
     var seekTries = 0;
 
@@ -482,7 +568,7 @@
             return;
         }
         lastWrite = t;
-        write('sessionStorage', K_TIME, String(Math.floor(t)));
+        write('sessionStorage', timeKey(), String(Math.floor(t)));
     }
 
     audio.addEventListener('loadedmetadata', applySeek);
@@ -504,14 +590,8 @@
         }
     });
 
-    if ('mediaSession' in navigator && typeof window.MediaMetadata === 'function') {
+    if ('mediaSession' in navigator) {
         try {
-            navigator.mediaSession.metadata = new window.MediaMetadata({
-                title: TRACK.title,
-                artist: TRACK.artist,
-                album: TRACK.album,
-                artwork: [{ src: base + TRACK.cover, sizes: '220x220', type: 'image/jpeg' }]
-            });
             navigator.mediaSession.setActionHandler('play', play);
             navigator.mediaSession.setActionHandler('pause', pause);
         } catch (e) {
@@ -522,7 +602,7 @@
     var muted = read('localStorage', K_MUTED) === '1';
     var stopped = read('sessionStorage', K_OFF) === '1';
 
-    render();
+    setTrack(idx);
     applySeek();
 
     if (!muted && !stopped) {
