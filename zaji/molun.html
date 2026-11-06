@@ -3050,13 +3050,15 @@
                         '<span class="ml-case-line">不可能进前 ' + rank + '</span></div></div>';
                 }
                 var inner = '', line = '';
-                if (g.tree.leaf) {
-                    /* 整段同一种结果：不用分类，直接一句结论 */
-                    line = leafLabel(g.tree, rank);
+                var tree = g.tree;
+                if (tree.leaf && !(tree.premise || []).length) {
+                    /* 剩下的对局怎么下都一样：只有一句结论，没有条件 */
+                    line = leafLabel(tree, rank);
                 } else {
-                    /* 稳进和加赛在同一棵树里一起分类，叶子才标是稳进还是要加赛。
-                     * 树按层套容器渲染，缩进和虚线由层级本身决定 */
-                    inner = treeHtml(g.tree, nm, rank);
+                    /* 树按层套容器渲染，缩进和虚线由层级本身决定。
+                     * 注意「整棵树就是一串前提 + 结论」时也是 leaf，
+                     * 这些前提必须照样写出来，不能只留一句「一定进前 N」 */
+                    inner = treeHtml(tree, nm, rank);
                     var n = (g.freeCount || 0) + (g.tieCount || 0);
                     if (n > 1) { line = '满足以下任一，共 ' + n + ' 种'; }
                 }
