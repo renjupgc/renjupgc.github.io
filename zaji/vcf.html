@@ -20,14 +20,14 @@
         <header class="page-head">
             <p class="eyebrow">杂技</p>
             <h1 class="page-title">VCF 做题</h1>
-            <p class="page-desc">题目现场生成，做不完的多。每一手都必须冲四，白方只有一个挡点，跟着挡下去直到成五。</p>
+            <p class="page-desc">题目现场生成，杀法由 quintet 求解器满深度算出。每一手都必须冲四，对方只有一个挡点，跟着挡下去直到成五。</p>
         </header>
 
         <section class="vcf">
             <div class="vcf-main">
                 <canvas id="vcf-board"></canvas>
                 <div class="vcf-bar">
-                    <span class="vcf-turn"><i class="vcf-dot"></i>黑先 · 你执黑</span>
+                    <span class="vcf-turn" id="vcf-turn"><i class="vcf-dot"></i>黑先 · 你执黑</span>
                     <span class="vcf-count" id="vcf-count"></span>
                 </div>
             </div>
@@ -36,11 +36,11 @@
                 <label class="vcf-diff">
                     <span>难度</span>
                     <select id="vcf-diff">
-                        <option value="0">入门 · 3 手胜</option>
-                        <option value="1" selected>基础 · 3 手胜 – 4 手胜</option>
-                        <option value="2">提高 · 4 手胜 – 5 手胜</option>
-                        <option value="3">进阶 · 5 手胜 – 6 手胜</option>
-                        <option value="4">挑战 · 6 手胜</option>
+                        <option value="0">入门（3–4 手胜）</option>
+                        <option value="1" selected>基础（5–6 手胜）</option>
+                        <option value="2">提高（7–8 手胜）</option>
+                        <option value="3">进阶（9–10 手胜）</option>
+                        <option value="4">挑战（11–13 手胜）</option>
                     </select>
                 </label>
 
@@ -60,12 +60,16 @@
                 </div>
 
                 <details class="vcf-help">
-                    <summary>题目从哪来</summary>
-                    <p>没有固定题库。点「下一题」时，程序让黑白双方先「安静」地自对弈铺出一盘真局面（谁都不主动冲四），再从这儿往回查：这里是不是藏着一条连续冲四的杀？藏得够深就成对删掉与解法无关的子，只留下题目需要的那点子，最后再复算一遍深度。所以题目是无限的，每次都不同。</p>
-                    <p>难度在侧栏的下拉里选，选项里标着这一档要几手取胜。换档位会立刻换一盘，不用等自己答对才解锁。</p>
-                    <p>轮到你执黑，每一手都要走出一个冲四（或直接成五）。白方只有唯一的挡点，会自动替你走掉；黑方走出的四若有两个补五点，白方堵不住，同样算赢。</p>
-                    <p>不是冲四、或者这一手之后白方守得住、后面接不上，都会退回来重走。点「提示」可以让程序算一手。</p>
-                    <p>判定按无禁手规则：黑棋不做三三、四四的禁手检查，专心练连续冲四的算路。</p>
+                    <summary>题目和答案是怎么来的</summary>
+                    <p>点「下一题」时，程序先让黑白双方「安静」地自对弈铺出一盘真局面——每一手都按线型打分，但自己造出四的着法会被重罚，所以双方都退一步铺二铺三，局面密集却没有现成的杀。从第 16 手起，每次轮到攻方，就用 quintet 满深度查一次这里藏不藏着 VCF，手数落在所选区间就当场截下。</p>
+                    <p>截下的局面还会成对删掉与解法无关的棋子（保持黑白交替），每删一对都复算一次深度，仍落在区间内才永久删除。最后过一遍终审：深度、子数、轮走方、棋谱合法性、开局四手的框，以及逐手重演——攻方每一手都必须是冲四，守方的挡点必须唯一。</p>
+                    <p>求解不设手数上限：先用 225 手（等价于无穷）满深度搜出一条杀法，得到深度 D 后再对 1..D 迭代加深，第一个有解的就是最短手数。所以「几手胜」是真最短，不是随便一条线。</p>
+                </details>
+                <details class="vcf-help">
+                    <summary>怎么算过关</summary>
+                    <p>轮到你走，每一手都要走出一个冲四（或直接成五）。对方只有唯一的挡点，会自动替你走掉；走出双四、活四这种两个补五是点，对方堵不住，同样算赢。</p>
+                    <p>不是冲四、或者这一手之后对方守得住、后面接不上，都会退回来重走。点「提示」可以让求解器算一手。</p>
+                    <p>规则按连珠：黑棋的三三、四四、长连禁手由 quintet 判定，算作禁着；如果对方（黑棋）唯一的挡点本身就是禁手，那你这一手就是强杀。</p>
                 </details>
             </aside>
         </section>
