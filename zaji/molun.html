@@ -925,6 +925,8 @@
  *     totalRounds: 7,
  *     players: [{ id, name, unit }],
  *     rounds: [{ r: 3, pre: {1: 2, 2: 1.5}, opps: {1: 2, 2: 1}, ff: [3] }],
+ *     // ff = 这一轮勾了「未弈」的编号；弃权还是对手弃权，看这一轮的得分：
+ *     //   得 0 记自己弃权，得 1 记对手弃权（白捡一胜），得 0.5 按和棋算
  *     withdrawn: { 33: 6 },          // 可选：编号 -> 从第几轮起退赛；不给就按对阵表自动识别
  *     tiebreaks: ['buch', 'med', 'wins']
  *   }
@@ -945,11 +947,13 @@
         byeAsWin: false,      // 轮空算不算胜局数
         ffWinAsWin: false,    // 对手弃权白捡的一胜算不算胜局数
         /* 虚拟积分（别人算对手分时，这个人算几分）：
-         *   积分 + 0.5×(弃权次数 + 退赛轮数 + 未弈轮数) − 0.5×(轮空次数 + 对手弃权次数)
+         *   积分 + 0.5×(弃权次数 + 退赛轮数) − 0.5×(轮空次数 + 对手弃权次数)
+         * 弃权与对手弃权都不再单独录，一律由「未弈」勾选 + 本轮得分判出来：
+         *   勾了未弈且得 0 → 弃权次数 +1；勾了未弈且得 1 → 对手弃权次数 +1。
          * 一句话：没下成的局一律按和棋 0.5 分算；轮空、对手弃权白捡的一分要减回去。
          * 每一局都占一个对手分槽位，不能丢：
          *   轮空那一槽 = 虚拟对手「总轮数×0.5」
-         *   未弈、退赛那一槽 = 虚拟对手 0
+         *   弃权、未弈、退赛那一槽 = 虚拟对手 0
          * 整场退赛的人，对别人一律按虚拟分 0 计（vsOf 里直接返回 0）。 */
         medianMode: 'both',   // both = 去头去尾，high = 只去最高
         byeBuch: 'half'       // 轮空在对手分里按 total×0.5 的虚拟对手
@@ -1109,12 +1113,30 @@
 
             function push(i2, s) { P[i2].slots.push(s); }
 
-            /* 弃权：只标本轮确实参赛的人，配对时据此只计积分不计胜局 */
+            /* 未弈：勾了这一轮没下，再按本轮得分（分差）判断是哪一种：
+             *   0  → 自己弃权（没到场，判负）
+             *   ½  → 双方都没下成，按和棋算（不额外调整）
+             *   1  → 对手弃权，白捡一胜
+             * 没有得分信息时按弃权算，与旧版一致。 */
             for (k = 0; k < n; k++) {
                 if (!ffSet[players[k].id]) { continue; }
                 if (!has[k] && op[k] == null) { continue; }
-                P[k].ff++;
-                P[k].losses++;
+                classifyNoPlay(k, has[k] ? delta[k] : 0, true);
+            }
+
+            /* 没下成的一局里，某一方记一次：0 判负、½ 和棋、1 白捡一胜 */
+            function classifyNoPlay(i2, dd, checked) {
+                if (dd === 0) {
+                    P[i2].ff++; P[i2].losses++;
+                } else if (dd === 0.5) {
+                    P[i2].draws++;
+                } else if (dd === 1) {
+                    P[i2].oppFF++;
+                } else if (checked) {
+                    P[i2].ff++; P[i2].losses++;
+                    warnings.push('第 ' + rd.r + ' 轮：' + players[i2].id +
+                        ' 标了未弈但得分是 ' + dd + '，按弃权处理');
+                }
             }
 
             for (k = 0; k < n; k++) {
@@ -1133,13 +1155,15 @@
                 }
 
                 if (oid == null) {
-                    /* 对手没录：说明这轮他不在对阵表上，算退赛轮数；分数照算，对手分槽位记 0 */
+                    /* 对手没录：说明这轮他不在对阵表上，算退赛轮数；分数照算，对手分槽位记 0。
+                     * 已经标过未弈的，上面已按分差记过一次，不再重复算退赛轮。 */
                     if (!has[k]) { continue; }
                     paired[k] = true; seen[k] = 1;
                     P[k].pts += delta[k];
-                    P[k].wd++;
-                    push(k, { t: 'wd', d: delta[k] });
-                    P[k].log.push({ r: rd.r, d: delta[k], t: 'wd' });
+                    var kMarked = !!ffSet[players[k].id];
+                    if (!kMarked) { P[k].wd++; }
+                    push(k, { t: kMarked ? 'none' : 'wd', d: delta[k] });
+                    P[k].log.push({ r: rd.r, d: delta[k], t: kMarked ? 'none' : 'wd' });
                     continue;
                 }
 
@@ -1176,15 +1200,16 @@
                         P[k].draws++; P[j].draws++;
                     } else if (da === 0 && db === 0) {
                         P[k].none++; P[j].none++;
-                        warnings.push('第 ' + rd.r + ' 轮：' + players[k].id + ' 对 ' + players[j].id + ' 双方都没得分，按未弈处理');
+                        warnings.push('第 ' + rd.r + ' 轮：' + players[k].id + ' 对 ' + players[j].id + ' 双方都没得分，按未弈处理（要算弃权请勾未弈）');
                     } else {
                         warnings.push('第 ' + rd.r + ' 轮：' + players[k].id + ' 对 ' + players[j].id +
                             ' 的分差是 ' + da + ' / ' + db + '，不像一局棋，请核对上轮积分');
                     }
-                } else if (ki && !ji) {
-                    P[j].oppFF++;
-                } else if (!ki && ji) {
-                    P[k].oppFF++;
+                } else {
+                    /* 这一局没下：勾了未弈的一方上面已按分差记过，
+                     * 没勾的一方也照分差补记，免得白捡的一胜按整分算进对手分 */
+                    if (!ki) { classifyNoPlay(k, da, false); }
+                    if (!ji) { classifyNoPlay(j, db, false); }
                 }
             }
 
@@ -1207,14 +1232,15 @@
     }
 
     /* 算别人对手分时，这个人算几分（FIDE 调整后的虚拟分）：
-     *   积分 + 0.5×(弃权次数 + 退赛轮数 + 未弈轮数) − 0.5×(轮空次数 + 对手弃权次数)
+     *   积分 + 0.5×(弃权次数 + 退赛轮数) − 0.5×(轮空次数 + 对手弃权次数)
+     * 弃权、对手弃权都由「未弈」勾选 + 本轮得分判出来：得 0 是自己弃权，得 1 是对手弃权。
      * 一句话：没下成的局一律按和棋 0.5 分算；轮空、对手弃权白捡的一分要减回去。
      * 整场退赛的人对别人一律按虚拟分 0 计（vsOf 里直接返回 0）。 */
     function vsOf(b, i) {
         var P = b.P[i], pid = b.players[i].id;
         var wd = (b.withdrawnOf ? b.withdrawnOf[pid] : null);
         if (wd != null && P.wd > 0) { return 0; }
-        return P.pts + 0.5 * (P.ff + P.wd + P.none) - 0.5 * (P.byes + P.oppFF);
+        return P.pts + 0.5 * (P.ff + P.wd) - 0.5 * (P.byes + P.oppFF);
     }
 
     function slotValueOf(b, s, vs) {
@@ -1373,6 +1399,9 @@
         /* 末轮已标未弈 / 已经退赛的人：这一局不会下，不进枚举 */
         var lastFF = {};
         (last.ff || []).forEach(function (id) { lastFF[id] = 1; });
+        if (lastFF[targetId]) {
+            return { error: '这个人在第 ' + total + ' 轮标了未弈，这一局不会下，没有可推算的结果' };
+        }
         function outOfLast(i2) {
             var pid = base.players[i2].id;
             if (lastFF[pid]) { return true; }
@@ -2246,7 +2275,7 @@
         return Math.round((b - a) * 2) / 2;
     }
 
-    /* 这一轮是否录过东西：上轮积分、对手、弃权任一有值就算录过 */
+    /* 这一轮是否录过东西：上轮积分、对手、未弈勾选任一有值就算录过 */
     function roundFilled(rd) {
         if (!rd) { return false; }
         return Object.keys(rd.pre || {}).length > 0 ||
@@ -2489,7 +2518,7 @@
             '<thead><tr>' +
             '<th>编号</th><th>姓名</th><th>单位</th>' +
             '<th class="c-score">上轮积分</th><th>对手编号</th><th class="c-score">得分</th>' +
-            '<th title="本轮没下（弃权 / 未到 / 对手退赛）：按未弈计，对手分按平局折算">未弈</th>' +
+            '<th title="本轮没下就勾上：得 0 记自己弃权，得 1 记对手弃权（白捡一胜），得 ½ 按和棋算">未弈</th>' +
             '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 
         updateEntryHint();
@@ -2574,6 +2603,21 @@
             var i = rd2.ff.indexOf(id);
             if (t.checked && i < 0) { rd2.ff.push(id); }
             if (!t.checked && i >= 0) { rd2.ff.splice(i, 1); }
+            /* 一局没下成，两边都没下：勾/取消一边，对面那行跟着一起变 */
+            var oRaw = rd2.opps[id];
+            var o = (oRaw == null || oRaw === 'bye') ? null : Number(oRaw);
+            if (o != null && isFinite(o) && o !== id &&
+                state.players.some(function (p) { return p.id === o; })) {
+                var oi = rd2.ff.indexOf(o);
+                var cb = entryHost.querySelector('[data-ff="' + o + '"]');
+                if (t.checked && oi < 0) {
+                    rd2.ff.push(o);
+                    if (cb) { cb.checked = true; }
+                } else if (!t.checked && oi >= 0) {
+                    rd2.ff.splice(oi, 1);
+                    if (cb) { cb.checked = false; }
+                }
+            }
             save();
             scheduleStand();
         }
