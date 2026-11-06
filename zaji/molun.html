@@ -472,6 +472,7 @@
         overflow: hidden;
     }
 
+    /* 卡片标题跟条件行同一套排版：同字号、同行高、左右同边距 */
     .ml-case > .ml-case-head {
         padding: 11px 14px;
         font-family: var(--sans);
@@ -489,6 +490,7 @@
     .ml-case .ml-case-head .ml-case-line { color: var(--ink-2); }
     .ml-case.is-empty .ml-case-head .ml-case-line { color: var(--muted); }
 
+    /* 分段标题「某某 胜 / 平 / 负」保留原来的胶囊样式：小字、细边、按结果分色 */
     .ml-case .ml-badge {
         font-size: 11px;
         font-family: var(--sans);
@@ -503,117 +505,46 @@
     .ml-case .ml-badge.is-draw { color: var(--draw); }
     .ml-case .ml-badge.is-loss { color: var(--loss); border-color: #c7d6c9; }
 
-    .ml-case ul {
+    /* ---------- 条件树：一套缩进、一套线 ----------
+     * 行文字只有一处缩进来源：base + 深度 × step，深度渲染时算好写在 --d 上。
+     * 竖线由每一行自己带：深度 d 的行画出它所有上层的那几条线，
+     * 行与行首尾相接，所以同一条线从第一个子行一直贯到最后一个，中间不断。 */
+    .ml-case { --ml-base: 14px; --ml-step: 20px; }
+
+    .ml-case .ml-tree-body { padding: 2px 0 12px; }
+
+    .ml-case .ml-row {
+        position: relative;
         margin: 0;
-        padding: 0 16px 12px 34px;
-        font-family: var(--sans);
-        font-size: 13px;
-        line-height: 2;
-        color: var(--ink-2);
-    }
-
-    .ml-case li::marker { color: var(--gold); }
-    .ml-case .ml-cond-none { color: var(--muted); list-style: none; margin-left: -16px; }
-    .ml-case .ml-cond-tag { color: var(--faint); font-size: 11.5px; margin-left: 6px; }
-
-    /* ---------- 可展开的条件 ---------- */
-    .ml-case ul.ml-terms {
-        list-style: none;
-        margin: 0;
-        padding: 0 10px 10px;
-        line-height: 1.9;
-    }
-
-    .ml-case li.ml-term { list-style: none; margin: 0; }
-
-    /* 前提：多条条件共有的那几场，单拎到最前面；下面的分支缩进列举
-     * 版式跟分支行一致（同字号、同色、同缩进），只是不带层级线、也不可点 */
-    .ml-case .ml-premise {
-        margin: 0;
-        padding: 0 0 0 16px;
+        padding: 0 14px 0 calc(var(--ml-base) + var(--d, 0) * var(--ml-step));
         font-family: var(--sans);
         font-size: 13px;
         line-height: 1.9;
         color: var(--ink-2);
     }
 
-    /* 嵌在某一分支下的前提，缩进跟同层的子分支对齐 */
-    .ml-case .ml-branch > .ml-premise { padding-left: 21px; }
-
-    /* 前提下面管着的分支：再往里缩一层，跟前提拉开一个台阶 */
-    .ml-case ul.ml-tree ul.ml-tree.is-sub { padding-left: 34px; }
-    .ml-case > ul.ml-tree.is-sub { padding-left: 38px; }
-
-    .ml-case .ml-case-sub {
-        padding: 6px 14px 0 30px;
-        font-family: var(--sans);
-        font-size: 12px;
-        color: var(--muted);
-    }
-
-    .ml-case ul.ml-terms.is-sub { padding-left: 26px; }
-
-    /* ---------- 条件树：分支里还能再套前提和分支 ---------- */
-    .ml-case ul.ml-tree {
-        list-style: none;
-        margin: 0;
-        padding: 2px 10px 10px 16px;
-        line-height: 1.9;
-    }
-
-    .ml-case ul.ml-tree ul.ml-tree {
-        padding: 0 0 2px 12px;
-        margin-left: 9px;
+    /* 一行为它上方的每一层画一条虚线，--g 是第几层 */
+    .ml-guide {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: calc(var(--ml-base) + (var(--g, 1) - 1) * var(--ml-step) + 8px);
         border-left: 1px dashed var(--line);
     }
 
-    .ml-case li.ml-branch { list-style: none; margin: 0; }
-
-    .ml-case .ml-branch-row {
-        display: flex;
-        align-items: baseline;
-        flex-wrap: wrap;
-        gap: 0 2px;
-    }
-
-    .ml-case .ml-branch-row .ml-term-q { width: auto; flex: 0 1 auto; }
-
-    /* 条件文字按正文排版：不加边框、底色和留白，只在悬停时给一点提示 */
-
-    /* 结论「→ 一定进前 N / → 需加赛」按纯文本排：跟条件文字同字号、同颜色，
-     * 不加标签样式，只保留一点间距和不断行 */
+    /* 结论「→ 一定进前 N / → 需加赛」用小一号的注脚字：稳进灰色，需加赛金色 */
     .ml-leaf-tag {
+        font-family: var(--sans);
+        font-size: 11.5px;
+        color: var(--muted);
         margin-left: 8px;
         white-space: nowrap;
     }
 
+    .ml-leaf-tag.is-tie { color: var(--gold-deep); }
+
     /* 结论跟前一个词黏在一起，不单独掉到下一行 */
     .ml-leaf-tag::before { content: "\2060"; }
-
-    .ml-term-q {
-        display: inline-flex;
-        align-items: baseline;
-        gap: 0;
-        width: auto;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: none;
-        font-family: var(--sans);
-        font-size: 13px;
-        line-height: 1.9;
-        color: var(--ink-2);
-        text-align: left;
-        cursor: pointer;
-        transition: color 0.14s ease;
-    }
-
-    .ml-term-q:hover { color: var(--ink); }
-    .ml-term-q:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 3px; }
-    .ml-term-q .ml-term-txt { flex: 0 0 auto; }
-
-    .ml-term-q.is-open { color: var(--gold-deep); }
 
     .ml-term-detail {
         margin: 4px 0 8px;
@@ -839,6 +770,8 @@
         table.ml-cmp { font-size: 11.5px; }
         table.ml-cmp th,
         table.ml-cmp td { padding: 4px 6px; }
+        /* 窄屏放不下大格子：缩进步长收紧 */
+        .ml-case { --ml-base: 10px; --ml-step: 14px; }
     }
 </style>
 </head>
@@ -2838,64 +2771,54 @@
         return nm(t.a) + ' ' + w + ' ' + nm(t.b);
     }
 
-    /* 前提：所有条件共有的那几场，单拎到最前面；每场单独一行，不用逗号并在一起。
-     * tail 用来把「→ 一定进前 N / 需加赛」挂在最后一场的末尾，不另起一行 */
-    function premiseText(premise, nm, tail) {
-        if (!premise || !premise.length) { return ''; }
-        return premise.map(function (x, i) {
-            var last = i === premise.length - 1;
-            return '<div class="ml-premise">' +
-                '<span class="ml-premise-txt">' + esc(condText(x, nm)) + '</span>' +
-                (last ? (tail || '') : '') + '</div>';
+    /* 一行条件文字。d 是这一行的深度：缩进只由它决定，
+     * 同时给它所在的每一层（含自己这层）各画一条虚线——
+     * 兄弟行也带着同一条线，线就从头到尾连着，不会在分支交界处断开 */
+    function rowHtml(text, d, tail) {
+        var guides = '';
+        for (var g = 1; g <= d; g++) {
+            guides += '<span class="ml-guide" style="--g:' + g + '"></span>';
+        }
+        return '<div class="ml-row" style="--d:' + d + '">' + guides +
+            '<span class="ml-term-txt">' + text + '</span>' + (tail || '') + '</div>';
+    }
+
+    /* 一个节点：先列本层前提（并列的第 2、3 条依次深一级），
+     * 再列「满足任一」的分支；分支本身也是行，所以竖线不会在分支之间断掉 */
+    function nodeHtml(node, d, nm, rank) {
+        var prem = node.premise || [];
+        var out = prem.map(function (x, i) {
+            var last = i === prem.length - 1;
+            return rowHtml(esc(condText(x, nm)), d + i,
+                (last && node.leaf) ? leafTag(node, rank) : '');
         }).join('');
+        if (node.leaf) { return out; }
+
+        /* 分支特别多时只列前 16 条，剩下的略过（列出来的都是能达成的） */
+        var CAP = 16, shown = node.items.slice(0, CAP);
+        var cd = d + prem.length;      /* 分支行接在本层前提的下面一档 */
+        out += shown.map(function (it) {
+            var nd = it.node;
+            var bare = nd && nd.leaf && !(nd.premise && nd.premise.length);
+            return rowHtml(esc(condText(it.part, nm)), cd, bare ? leafTag(nd, rank) : '') +
+                (nd && !bare ? nodeHtml(nd, cd + 1, nm, rank) : '');
+        }).join('');
+        var more = node.items.length - shown.length;
+        if (more > 0) {
+            out += rowHtml('<span class="ml-leaf-tag">……另有 ' + more + ' 种，略</span>', cd, '');
+        }
+        return out;
+    }
+
+    /* 整棵条件树：根层从第 1 档起（第 0 档留给卡片标题） */
+    function treeHtml(tree, nm, rank) {
+        return '<div class="ml-tree-body">' + nodeHtml(tree, 1, nm, rank) + '</div>';
     }
 
     /* 结论标签：稳进还是需加赛，始终跟在条件文字后面 */
     function leafTag(node, rank) {
         return '<span class="ml-leaf-tag' + (node.tie ? ' is-tie' : '') + '">→ ' +
             leafLabel(node, rank) + '</span>';
-    }
-
-    /* 条件树：一层一层摊开——本层前提，然后「满足任一」的分支，
-     * 分支下面还能再套前提和分支。稳进和加赛在同一棵树里一起分类，
-     * 分到最后那一行再标「一定进前 N」还是「需加赛」。 */
-    function branchLis(node, gi, nm, rank) {
-        if (!node || node.leaf) { return []; }
-        /* 分支特别多时只列前 16 条，剩下的略过（列出来的都是能达成的） */
-        var CAP = 16, shown = node.items.slice(0, CAP), more = node.items.length - shown.length;
-        var out = shown.map(function (it) {
-            var tag = '', sub = '';
-            if (it.node && it.node.leaf && !(it.node.premise && it.node.premise.length)) {
-                tag = leafTag(it.node, rank);
-            } else if (it.node) {
-                sub = subHtml(it.node, gi, nm, rank);
-            }
-            return '<li class="ml-branch">' +
-                '<div class="ml-branch-row">' +
-                '<button type="button" class="ml-term-q" data-g="' + gi + '" data-t="' + it.idx + '">' +
-                '<span class="ml-term-txt">' + esc(condText(it.part, nm)) + '</span></button>' +
-                tag + '</div>' +
-                sub + detailBox(gi, it.idx) + '</li>';
-        });
-        if (more > 0) {
-            out.push('<li class="ml-branch"><span class="ml-leaf-tag">……另有 ' + more + ' 种，略</span></li>');
-        }
-        return out;
-    }
-
-    /* 子树：本层前提 + 本层分支。有前提时分支整体再缩进一层，
-     * 这样「前提」和它管着的分支能看出上下级 */
-    function subHtml(node, gi, nm, rank) {
-        if (node.leaf) {
-            /* 结论直接接在前提那一行后面，不单独占一行 */
-            if (node.premise && node.premise.length) {
-                return premiseText(node.premise, nm, leafTag(node, rank));
-            }
-            return '<div class="ml-premise">' + leafTag(node, rank) + '</div>';
-        }
-        var head = premiseText(node.premise, nm);
-        return head + '<ul class="ml-tree' + (head ? ' is-sub' : '') + '">' +
-            branchLis(node, gi, nm, rank).join('') + '</ul>';
     }
 
     function leafLabel(node, rank) {
@@ -3131,11 +3054,9 @@
                     /* 整段同一种结果：不用分类，直接一句结论 */
                     line = leafLabel(g.tree, rank);
                 } else {
-                    /* 稳进和加赛在同一棵树里一起分类，叶子才标是稳进还是要加赛 */
-                    var pre = premiseText(g.tree.premise, nm);
-                    inner = pre +
-                        '<ul class="ml-tree' + (pre ? ' is-sub' : '') + '">' +
-                        branchLis(g.tree, gi, nm, rank).join('') + '</ul>';
+                    /* 稳进和加赛在同一棵树里一起分类，叶子才标是稳进还是要加赛。
+                     * 树按层套容器渲染，缩进和虚线由层级本身决定 */
+                    inner = treeHtml(g.tree, nm, rank);
                     var n = (g.freeCount || 0) + (g.tieCount || 0);
                     if (n > 1) { line = '满足以下任一，共 ' + n + ' 种'; }
                 }
