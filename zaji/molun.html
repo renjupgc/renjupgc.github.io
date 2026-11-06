@@ -526,6 +526,36 @@
 
     .ml-case li.ml-term { list-style: none; margin: 0; }
 
+    /* 前提：多条条件共有的那几场，单拎到最前面；下面的分支缩进列举 */
+    .ml-case .ml-premise {
+        margin: 0;
+        padding: 3px 14px 3px 26px;
+        font-family: var(--sans);
+        font-size: 12.5px;
+        line-height: 1.9;
+        color: var(--ink-2);
+        border-left: 2px solid var(--gold);
+        margin-left: 14px;
+        background: rgba(176, 141, 87, 0.05);
+        border-radius: 0 6px 6px 0;
+    }
+
+    .ml-case .ml-premise-k {
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        color: var(--gold-deep);
+        margin-right: 8px;
+    }
+
+    .ml-case .ml-case-sub {
+        padding: 6px 14px 0 30px;
+        font-family: var(--sans);
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .ml-case ul.ml-terms.is-sub { padding-left: 26px; }
+
     .ml-term-q {
         display: flex;
         align-items: baseline;
@@ -1292,6 +1322,12 @@
 
     var CODES = ['1-0', '1/2', '0-1'];
 
+    /* 条件里一场对局的结果，永远相对「台次里排前面的那个人」：
+     *   0 = 前者胜  1 = 平  2 = 前者负
+     * 两选一记成 3/4/5，分别是 不负 / 不平 / 不胜。 */
+    var MASK_SETS = { 3: [0, 1], 4: [0, 2], 5: [1, 2] };
+    var MASK_OF = { '0,1': 3, '0,2': 4, '1,2': 5 };
+
     function solve(state, targetId, targetRank, opt) {
         opt = opt || {};
         var MAXG = opt.maxGames || 10;
@@ -1373,14 +1409,33 @@
         }
         inPool[t] = 1;
 
+        /* ---------------- 台次顺序 ----------------
+         * 末轮的台次按「上轮积分」排：先比这一桌两人里积分高的那一分（高的在前），
+         * 一样再比低的那一分；两桌完全同分时比编号——积分高的那个人编号小者在前，
+         * 两人同分则编号小者在前（也就是每一桌里排在前面的那个人编号小者优先）。 */
+        function leadOf(i2, j2) {
+            if (bp[i2] !== bp[j2]) { return bp[i2] > bp[j2] ? i2 : j2; }
+            return base.players[i2].id <= base.players[j2].id ? i2 : j2;
+        }
+        function otherOf(i2, j2) { return leadOf(i2, j2) === i2 ? j2 : i2; }
+
+        /* 一桌对局的排法：高积分降序 → 低积分降序 → 领先者编号升序 → 另一人编号升序 */
+        function boardCmp(x, y) {
+            var lx = leadOf(x.a, x.b), ox = otherOf(x.a, x.b);
+            var ly = leadOf(y.a, y.b), oy = otherOf(y.a, y.b);
+            if (bp[lx] !== bp[ly]) { return bp[ly] - bp[lx]; }
+            if (bp[ox] !== bp[oy]) { return bp[oy] - bp[ox]; }
+            if (base.players[lx].id !== base.players[ly].id) {
+                return base.players[lx].id - base.players[ly].id;
+            }
+            return base.players[ox].id - base.players[oy].id;
+        }
+
         /* 只枚举「有关对局」（与 pool 相关、可能影响名次的对局）以控制规模；
-         * 无关对局不影响名次，不枚举、不补全计数。 */
+         * 无关对局不影响名次，不枚举、不补全计数。
+         * 枚举顺序就是台次顺序，后面所有「按台次排」都直接拿枚举下标当台次号用。 */
         var rel = games.filter(function (g) { return inPool[g.a] || inPool[g.b]; });
-        rel.sort(function (x, y) {
-            var mx = Math.max(bp[x.a], bp[x.b]), my = Math.max(bp[y.a], bp[y.b]);
-            if (my !== mx) { return my - mx; }
-            return Math.min(bp[x.a], bp[x.b]) - Math.min(bp[y.a], bp[y.b]);
-        });
+        rel.sort(boardCmp);
         var enumGames = rel.slice(0, MAXG);
         var m = enumGames.length;
 
@@ -1593,23 +1648,13 @@
             return out;
         }
 
-        /* 台次字典序：先按这一场两人的编号排（小的在前），再按结果（胜/平/负） */
-        function pairKey(idA, idB) {
-            var lo = Math.min(idA, idB), hi = Math.max(idA, idB);
-            return lo * 1000003 + hi;
-        }
-
-        /* 一条条件展开成字典序序列，用来给同一段里的条件排序 */
+        /* 一条条件的台次字典序：按台次（枚举下标就是台次号）排出锁定的那几场结果 */
         function termSeq(pat) {
             var arr = [];
             for (var q = 0; q < m; q++) {
                 if (pat[q] < 0 || q === gt) { continue; }
-                arr.push({
-                    k: pairKey(base.players[enumGames[q].a].id, base.players[enumGames[q].b].id),
-                    c: pat[q]
-                });
+                arr.push({ k: q, c: pat[q] });
             }
-            arr.sort(function (x, y) { return x.k - y.k; });
             return arr;
         }
 
@@ -1620,6 +1665,159 @@
                 if (A[z].c !== B[z].c) { return A[z].c - B[z].c; }
             }
             return A.length - B.length;
+        }
+
+        /* 一场对局写出来是「台次里排前面的人 结果 另一个人」：
+         * 双方积分不同时，积分高的排前面；双方同分时，编号小的排前面。 */
+        function partOf(q, allow) {
+            var g = enumGames[q];
+            var lead = leadOf(g.a, g.b);
+            var flip = lead !== g.a;
+            return {
+                gi: q,
+                a: base.players[lead].id,
+                b: base.players[flip ? g.a : g.b].id,
+                allow: allow.slice(),   /* 0 = 前者胜 1 = 平 2 = 前者负，两个就是不负/不平/不胜 */
+                flip: flip
+            };
+        }
+
+        /* ---------------- 条件压缩 ----------------
+         * 1) 同一段里只有一场结果不同的两条并成一条：胜+平＝不负，胜+负＝不平，平+负＝不胜；
+         * 2) 每条都锁了的同一场、结果集合也一样，就提出来当「前提」，剩下的缩进列举。 */
+        function allowOfV(v) {
+            if (v < 0) { return [0, 1, 2]; }
+            return MASK_SETS[v] || [v];
+        }
+
+        function compress(picks, selfV) {
+            var list = [];
+            picks.forEach(function (p) {
+                var set = {};
+                for (var q = 0; q < m; q++) {
+                    if (q === gt || p.pat[q] < 0) { continue; }
+                    set[q] = allowOfV(p.pat[q]);
+                }
+                list.push({ set: set, playoff: !!p.playoff });
+            });
+
+            /* 1) 两两合并：锁的对局一样、只有一场结果不同 */
+            function tryJoin(i2, j2) {
+                var A = list[i2], B = list[j2];
+                if (A.playoff !== B.playoff) { return false; }
+                var ka = Object.keys(A.set), kb = Object.keys(B.set);
+                if (ka.length !== kb.length) { return false; }
+                var diffQ = -1;
+                for (var y = 0; y < ka.length; y++) {
+                    var qq = ka[y];
+                    if (!B.set[qq]) { return false; }
+                    if (A.set[qq].join() !== B.set[qq].join()) {
+                        if (diffQ >= 0) { return false; }
+                        diffQ = Number(qq);
+                    }
+                }
+                if (diffQ < 0) { return false; }
+                var u = [];
+                A.set[diffQ].concat(B.set[diffQ]).forEach(function (v) {
+                    if (u.indexOf(v) < 0) { u.push(v); }
+                });
+                u.sort();
+                var ns = {};
+                for (var k2 in A.set) { ns[k2] = A.set[k2]; }
+                if (u.length >= 3) { delete ns[diffQ]; } else { ns[diffQ] = u; }
+                list[i2] = { set: ns, playoff: A.playoff };
+                return true;
+            }
+            var again = true;
+            while (again) {
+                again = false;
+                for (var i2 = 0; i2 < list.length; i2++) {
+                    for (var j2 = i2 + 1; j2 < list.length;) {
+                        if (tryJoin(i2, j2)) { list.splice(j2, 1); again = true; }
+                        else { j2++; }
+                    }
+                }
+            }
+
+            /* 2) 去掉重复的、以及被更宽的条件盖住的 */
+            function covers2(A, B) {
+                var ka = Object.keys(A.set);
+                for (var y = 0; y < ka.length; y++) {
+                    var sb = B.set[ka[y]];
+                    if (!sb) { return false; }
+                    for (var u = 0; u < sb.length; u++) {
+                        if (A.set[ka[y]].indexOf(sb[u]) < 0) { return false; }
+                    }
+                }
+                return true;
+            }
+            function sigOf(o) {
+                return Object.keys(o.set).sort(function (a, b) { return a - b; })
+                    .map(function (k3) { return k3 + ':' + o.set[k3].join(''); }).join('|');
+            }
+            var uniq = [], seenSig = {};
+            list.forEach(function (o) {
+                var s = sigOf(o);
+                if (seenSig[s]) { return; }
+                seenSig[s] = 1;
+                uniq.push(o);
+            });
+            list = uniq.filter(function (o) {
+                for (var y = 0; y < uniq.length; y++) {
+                    var other = uniq[y];
+                    if (other === o) { continue; }
+                    if (Object.keys(other.set).length > Object.keys(o.set).length) { continue; }
+                    if (covers2(other, o)) { return false; }
+                }
+                return true;
+            });
+
+            /* 3) 提前提：所有条件都锁了同一场、结果也一样 */
+            var premise = [], rest = list;
+            if (list.length > 1) {
+                var commonQ = Object.keys(list[0].set).filter(function (qq) {
+                    var s0 = list[0].set[qq].join();
+                    return list.every(function (o) {
+                        return o.set[qq] && o.set[qq].join() === s0;
+                    });
+                });
+                if (commonQ.length) {
+                    commonQ.sort(function (a, b) { return a - b; });
+                    var rs = list.map(function (o) {
+                        var ns = {};
+                        for (var k4 in o.set) {
+                            if (commonQ.indexOf(k4) < 0) { ns[k4] = o.set[k4]; }
+                        }
+                        /* full 留着：展开细分时前提那几场仍要锁死，只是不在条件文字里重复 */
+                        return { set: ns, full: o.set, playoff: o.playoff };
+                    });
+                    if (!rs.some(function (o) { return !Object.keys(o.set).length; })) {
+                        premise = commonQ.map(function (qq) {
+                            return partOf(Number(qq), list[0].set[qq]);
+                        });
+                        rest = rs;
+                    }
+                }
+            }
+
+            var terms = rest.map(function (o) {
+                var parts = [], pat = [], full = o.full || o.set;
+                for (var q2 = 0; q2 < m; q2++) { pat[q2] = -1; }
+                Object.keys(o.set).forEach(function (qq) {
+                    parts.push(partOf(Number(qq), o.set[qq]));
+                });
+                Object.keys(full).forEach(function (qq) {
+                    var s = full[qq];
+                    /* 两选一记成 3/4/5，展开细分时按这两选一继续枚举 */
+                    pat[Number(qq)] = s.length === 1 ? s[0] : MASK_OF[s.join(',')];
+                });
+                parts.sort(function (x, y) { return x.gi - y.gi; });
+                /* 自己那一场不在条件文字里出现，但展开细分时必须锁死 */
+                if (gt >= 0) { pat[gt] = selfV; }
+                return { parts: parts, playoff: o.playoff, pat: pat };
+            });
+
+            return { premise: premise, terms: terms };
         }
 
         var groups = [];
@@ -1639,13 +1837,17 @@
                     return { pat: p, playoff: true };
                 }));
                 /* 条件按台次字典序排：先比第一场（台次靠前的优先），一样再比第二场…… */
-                picks.forEach(function (x) { x.seq = termSeq(x.pat); });
-                picks.sort(function (x, y) {
-                    var c = cmpSeq(x.seq, y.seq);
+                function bySeq(x, y) {
+                    var c = cmpSeq(termSeq(x.pat), termSeq(y.pat));
                     if (c) { return c; }
                     if (x.playoff !== y.playoff) { return x.playoff ? 1 : -1; }
                     return 0;
-                });
+                }
+                picks.sort(bySeq);
+
+                /* 能并的并掉、能提前提的就提前提，压完再排一次 */
+                var cp = compress(picks, v);
+                cp.terms.sort(bySeq);
 
                 var code = gt >= 0 ? CODES[v] : null;
                 var tOutcome = gt >= 0
@@ -1657,23 +1859,12 @@
                 groups.push({
                     res: code,
                     tOutcome: tOutcome,
-                    terms: picks.slice(0, 12).map(function (pick) {
-                        var parts = [];
-                        for (var q = 0; q < m; q++) {
-                            if (pick.pat[q] < 0 || q === gt) { continue; }
-                            parts.push({
-                                gi: q,      /* 内部用：这一场在枚举里的序号，可用来固定结果 */
-                                a: base.players[enumGames[q].a].id,
-                                b: base.players[enumGames[q].b].id,
-                                code: CODES[pick.pat[q]]
-                            });
-                        }
-                        /* 一条条件里的对局也按台次排，跟列表顺序一致 */
-                        parts.sort(function (x, y) { return pairKey(x.a, x.b) - pairKey(y.a, y.b); });
+                    premise: cp.premise,
+                    terms: cp.terms.slice(0, 12).map(function (tm) {
                         return {
-                            parts: parts,
-                            playoff: pick.playoff ? base.players[t].id : 0,
-                            pat: pick.pat.slice()   /* 内部用：这一条锁定/未锁定的对局，供展开细分 */
+                            parts: tm.parts,
+                            playoff: tm.playoff ? base.players[t].id : 0,
+                            pat: tm.pat   /* 内部用：这一条锁定/未锁定的对局，供展开细分 */
                         };
                     })
                 });
@@ -1752,14 +1943,11 @@
             for (q = 0; q < m; q++) {
                 if (q === gt || p[q] < 0) { continue; }
                 if (holes && holes.indexOf(q) < 0) { continue; }
-                games.push({
-                    gi: q,
-                    a: base.players[enumGames[q].a].id,
-                    b: base.players[enumGames[q].b].id,
-                    code: CODES[p[q]]
-                });
+                var pv = partOf(q, [p[q]]);
+                games.push({ gi: q, a: pv.a, b: pv.b, allow: pv.allow });
             }
-            games.sort(function (x, y) { return pairKey(x.a, x.b) - pairKey(y.a, y.b); });
+            /* 台次顺序：枚举下标就是台次号，小的在前 */
+            games.sort(function (x, y) { return x.gi - y.gi; });
 
             for (q = 0; q < m; q++) { applyGame(enumGames[q], CODES[p[q]], -1); }
 
@@ -1770,25 +1958,23 @@
         }
 
         function explore(pattern) {
+            /* 没锁（-1）和「两选一」（3/4/5）的对局都要继续枚举 */
             var holes = [], q;
-            for (q = 0; q < m; q++) { if (pattern[q] < 0) { holes.push(q); } }
+            for (q = 0; q < m; q++) { if (pattern[q] < 0 || pattern[q] >= 3) { holes.push(q); } }
 
-            /* 未锁对局按台次排好，供「字典序」和顶部选择器共用 */
-            var holeOrder = holes.slice().sort(function (a, b) {
-                return pairKey(base.players[enumGames[a].a].id, base.players[enumGames[a].b].id) -
-                    pairKey(base.players[enumGames[b].a].id, base.players[enumGames[b].b].id);
-            });
+            /* 未锁对局按台次排好，供「字典序」和顶部选择器共用（枚举下标就是台次号） */
+            var holeOrder = holes.slice().sort(function (a, b) { return a - b; });
+
+            var totalCnt = 1;
+            holes.forEach(function (idx) { totalCnt *= allowOfV(pattern[idx]).length; });
 
             var st = {
                 pts: 0,
-                total: pow3[holes.length],
+                total: totalCnt,
                 keys: keys.slice(),
                 holes: holeOrder.map(function (idx) {
-                    return {
-                        gi: idx,
-                        a: base.players[enumGames[idx].a].id,
-                        b: base.players[enumGames[idx].b].id
-                    };
+                    var pv = partOf(idx, allowOfV(pattern[idx]));
+                    return { gi: idx, a: pv.a, b: pv.b, allow: pv.allow, flip: pv.flip };
                 }),
                 subs: [],
                 ranks: []
@@ -1796,7 +1982,9 @@
 
             var wp = pattern.slice();
             for (q = 0; q < m; q++) {
-                if (pattern[q] >= 0) { applyGame(enumGames[q], CODES[pattern[q]], 1); }
+                if (pattern[q] >= 0 && pattern[q] < 3) {
+                    applyGame(enumGames[q], CODES[pattern[q]], 1);
+                }
             }
 
             function tally() {
@@ -1813,7 +2001,9 @@
             function walk(h) {
                 if (h === holes.length) { tally(); return; }
                 var gi = enumGames[holes[h]];
-                for (var cc = 0; cc < 3; cc++) {
+                var opts = allowOfV(pattern[holes[h]]);
+                for (var z = 0; z < opts.length; z++) {
+                    var cc = opts[z];
                     applyGame(gi, CODES[cc], 1);
                     wp[holes[h]] = cc;
                     walk(h + 1);
@@ -1823,7 +2013,9 @@
             walk(0);
 
             for (q = 0; q < m; q++) {
-                if (pattern[q] >= 0) { applyGame(enumGames[q], CODES[pattern[q]], -1); }
+                if (pattern[q] >= 0 && pattern[q] < 3) {
+                    applyGame(enumGames[q], CODES[pattern[q]], -1);
+                }
             }
 
             /* 可达名次段（第 N 名 / 第 N-M 名，M>N 表示这一档要加赛），给上方的标签用 */
@@ -2635,11 +2827,14 @@
         syncSolveSelect();
     }
 
+    /* 一场对局的说法：0=前者胜 1=平 2=前者负；两选一就是 不负/不平/不胜 */
+    var RESULT_WORD = { '0': '胜', '1': '平', '2': '负', '0,1': '不负', '0,2': '不平', '1,2': '不胜' };
+
     function condText(t, nm) {
-        if (t.playoff) { return nm(t.playoff); }   /* 占位：实际不再用「加赛胜」表述 */
-        if (t.code === '1-0') { return nm(t.a) + ' 胜 ' + nm(t.b); }
-        if (t.code === '0-1') { return nm(t.a) + ' 负 ' + nm(t.b); }
-        return nm(t.a) + ' 平 ' + nm(t.b);
+        if (t.playoff && t.a == null) { return nm(t.playoff); }   /* 占位：实际不再用「加赛胜」表述 */
+        var allow = t.allow || [t.code === '1-0' ? 0 : (t.code === '0-1' ? 2 : 1)];
+        var w = RESULT_WORD[allow.join(',')] || '胜';
+        return nm(t.a) + ' ' + w + ' ' + nm(t.b);
     }
 
     /* 一条路：甲 胜 乙，丙 平 丁；完全并列（需加赛）的条目前面加 * 号单拎出来 */
@@ -2650,6 +2845,13 @@
         var text = list.map(function (x) { return condText(x, nm); }).join('，');
         if (term.playoff) { text = '*' + text; }   /* 完全并列需加赛：加 * 标注 */
         return text;
+    }
+
+    /* 前提行：所有条件共有的那几场，单拎到最前面 */
+    function premiseText(premise, nm) {
+        if (!premise || !premise.length) { return ''; }
+        return '<div class="ml-premise"><span class="ml-premise-k">前提</span>' +
+            esc(premise.map(function (x) { return condText(x, nm); }).join('，')) + '</div>';
     }
 
     /* ---------------- 推算结果的展开详情 ---------------- */
@@ -2772,7 +2974,10 @@
                     var curV = -1;
                     var pi = pinIndexOf(c, h.gi);
                     if (pi >= 0) { curV = c.pins[pi].v; }
-                    var opts = ['胜', '平', '负'].map(function (w, v) {
+                    /* 按钮上的 胜/平/负 永远相对台次里排前面的那个人；
+                     * h.flip 表示枚举方向跟台次方向相反，取值要倒过来。 */
+                    var opts = ['胜', '平', '负'].map(function (w, idx) {
+                        var v = h.flip ? 2 - idx : idx;
                         return '<button type="button" class="ml-pin-opt' + (curV === v ? ' is-on' : '') +
                             '" data-gi="' + h.gi + '" data-v="' + v + '" title="' + nm(h.a) + ' ' + w + ' ' + nm(h.b) + '">' +
                             w + '</button>';
@@ -2888,9 +3093,15 @@
                 var lis = g.terms.map(function (p, ti) {
                     return '<li class="ml-term">' + termBtn(gi, ti, p, rank, nm) + detailBox(gi, ti) + '</li>';
                 }).join('');
-                return '<div class="ml-case"><div class="ml-case-head">' + tag +
-                    '<span class="ml-case-line">满足任一条件，共 ' + g.terms.length + ' 种：</span>' +
-                    '</div><ul class="ml-terms">' + lis + '</ul></div>';
+                /* 多条条件共有的对局先提出来当「前提」，剩下的缩进列举 */
+                var pre = premiseText(g.premise, nm);
+                var cls = pre ? ' is-sub' : '';
+                return '<div class="ml-case' + (pre ? ' has-premise' : '') + '">' +
+                    '<div class="ml-case-head">' + tag +
+                    (pre ? '' : '<span class="ml-case-line">满足任一条件，共 ' + g.terms.length + ' 种：</span>') +
+                    '</div>' + pre +
+                    (pre ? '<div class="ml-case-sub">以下任一，共 ' + g.terms.length + ' 种：</div>' : '') +
+                    '<ul class="ml-terms' + cls + '">' + lis + '</ul></div>';
             }).join('');
         }
 
@@ -2908,9 +3119,8 @@
         return c ? { box: box, key: k, c: c } : null;
     }
 
-    function pairOrder(a, b) {
-        return Math.min(a, b) * 1000003 + Math.max(a, b);
-    }
+    /* 固定的对局按台次排：枚举下标就是台次号 */
+    function pairOrder(gi) { return gi; }
 
     /* 点一条条件 → 展开它下面的细分；点对局可固定结果，点名次标签 / 翻页换页 */
     $('#solve-host').addEventListener('click', function (e) {
@@ -2936,7 +3146,7 @@
                 if (pi >= 0) { oc.c.pins.splice(pi, 1); }
                 oc.c.pins.push({ gi: ogi, v: ov, a: h.a, b: h.b });
             }
-            oc.c.pins.sort(function (x, y) { return pairOrder(x.a, x.b) - pairOrder(y.a, y.b); });
+            oc.c.pins.sort(function (x, y) { return pairOrder(x.gi) - pairOrder(y.gi); });
             refreshDetail(oc.c);
             oc.box.innerHTML = detailHtml(oc.c, oc.key, lastNm);
             revealMe(oc.box);
