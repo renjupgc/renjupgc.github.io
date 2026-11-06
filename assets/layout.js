@@ -570,6 +570,23 @@
         }
     });
 
+    /* 无刷新换页时，把目标页 <head> 里的内联 <style> 也带过来。
+     * 全站只有少数页面（如末轮计算器）有页面专属样式；只换 <main> 会丢掉这些样式，
+     * 导致「第一次进入样式没加载」。切页时先清掉上一页注入的，再挂新页的。 */
+    function runStyles(doc) {
+        Array.prototype.forEach.call(document.querySelectorAll('style[data-zbx-page]'), function (s) {
+            if (s.parentNode) { s.parentNode.removeChild(s); }
+        });
+        var head = document.head || document.getElementsByTagName('head')[0];
+        Array.prototype.forEach.call(doc.querySelectorAll('head > style'), function (old) {
+            if (!old.textContent || !old.textContent.trim()) { return; }
+            var el = document.createElement('style');
+            el.setAttribute('data-zbx-page', '1');
+            el.textContent = old.textContent;
+            head.appendChild(el);
+        });
+    }
+
     function runScripts(doc, pageUrl) {
         Array.prototype.forEach.call(doc.querySelectorAll('script'), function (old) {
             var src = old.getAttribute('src');
@@ -622,6 +639,7 @@
                 }
 
                 current.innerHTML = incoming.innerHTML;
+                runStyles(doc);
                 document.title = doc.title;
                 document.body.setAttribute('data-nav', doc.body.getAttribute('data-nav') || '');
                 document.body.setAttribute('data-base', doc.body.getAttribute('data-base') || '');
