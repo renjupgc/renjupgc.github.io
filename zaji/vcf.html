@@ -20,7 +20,7 @@
         <header class="page-head">
             <p class="eyebrow">杂技</p>
             <h1 class="page-title">VCF 做题</h1>
-            <p class="page-desc">每一手都必须冲四，白方只有一个挡点，跟着挡下去直到成五。把连续冲四算清楚，实战里就多一条硬手段。</p>
+            <p class="page-desc">题目现场生成，做不完的多。每一手都必须冲四，白方只有一个挡点，跟着挡下去直到成五。</p>
         </header>
 
         <section class="vcf">
@@ -34,7 +34,7 @@
 
             <aside class="vcf-side">
                 <dl class="vcf-stats">
-                    <div><dt>已过关</dt><dd id="vcf-done">0 / 0</dd></div>
+                    <div><dt>已过关</dt><dd id="vcf-done">0</dd></div>
                     <div><dt>走错</dt><dd id="vcf-tries">0</dd></div>
                     <div><dt>难度</dt><dd id="vcf-level">—</dd></div>
                 </dl>
@@ -49,7 +49,8 @@
                 </div>
 
                 <details class="vcf-help">
-                    <summary>怎么算过关</summary>
+                    <summary>题目从哪来</summary>
+                    <p>没有固定题库。点「下一题」时，程序让黑白双方先「安静」地自对弈铺出一盘真局面（谁都不主动冲四），再从这儿往回查：这里是不是藏着一条连续冲四的杀？藏得够深就成对删掉与解法无关的子，只留下题目需要的那点子，最后再复算一遍深度。所以题目是无限的，每次都不同。</p>
                     <p>轮到你执黑，每一手都要走出一个冲四（或直接成五）。白方只有唯一的挡点，会自动替你走掉；黑方走出的四若有两个补五点，白方堵不住，同样算赢。</p>
                     <p>不是冲四、或者这一手之后白方守得住、后面接不上，都会退回来重走。点「提示」可以让程序算一手。</p>
                     <p>判定按无禁手规则：黑棋不做三三、四四的禁手检查，专心练连续冲四的算路。</p>
