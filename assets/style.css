@@ -2365,6 +2365,7 @@ table.ratings .r-name a:hover {
 }
 
 .wp-result {
+    margin: 0 0 22px;
     padding: 20px 20px 18px;
     background: var(--surface);
     border: 1px solid var(--line);

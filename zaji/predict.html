@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>胜率预测 - 连珠杂箱</title>
-<meta name="description" content="选两位棋手，按等级分、交手记录与各自战绩推算胜平负概率，并换算成公平赔率与可开赔率。">
+<meta name="description" content="选两位棋手，按等级分、交手记录与各自战绩推算胜平负概率与赔率。">
 <meta name="theme-color" content="#f6f2e9">
 <link rel="stylesheet" href="../assets/style.css">
 </head>
@@ -37,26 +37,14 @@
             </div>
             <datalist id="wp-names"></datalist>
 
+            <div class="wp-result" id="wp-result"></div>
+
             <div class="wp-cards">
                 <article class="wp-card" id="wp-card-a"></article>
                 <article class="wp-card" id="wp-card-b"></article>
             </div>
 
             <div class="wp-h2h" id="wp-h2h"></div>
-
-            <div class="wp-result" id="wp-result"></div>
-
-            <p class="wp-note">
-                期望得分按等级分差算：<b>1 / (1 + 10<sup>−Δ/400</sup>)</b>，Δ 为两人等级分之差，
-                尺度与本站算等级分时用的模型一致。和棋率随分差衰减：同分时约
-                <b id="wp-d0">19.5%</b>，差 300 分只剩 2% 上下，取自本站已收录对局的实测。
-                交手记录按 <b>等效 3 局</b> 的先验收缩后并入期望得分——只交过一次手的，改不动太多；
-                交手多、且一边倒的，才会把概率推离等级分的判断。和棋更看运气，修正和棋率时
-                先验放大到 <b>等效 10 局</b>，只在两人确实和过棋时才略微上调。
-                赔率为十进制的「一元赔多少」，公平赔率即 1/概率，可开赔率在此基础上抽 5% 的水。
-            </p>
-
-            <p class="wp-note" id="wp-data-line"></p>
         </section>
 
     </main>
