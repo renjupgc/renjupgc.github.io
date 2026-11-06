@@ -315,9 +315,14 @@
         return cur;
     }
 
-    function levelOf(bm) {
-        return bm <= 2 ? '入门' : bm === 3 ? '基础' : bm === 4 ? '提高' : '进阶';
-    }
+    /* 难度档位：min/max 是黑方手数（手胜），budget 是这一档愿意花的时间 */
+    var LEVELS = [
+        { name: '入门', min: 3, max: 3, budget: 900 },
+        { name: '基础', min: 3, max: 4, budget: 1300 },
+        { name: '提高', min: 4, max: 5, budget: 2200 },
+        { name: '进阶', min: 5, max: 6, budget: 3400 },
+        { name: '挑战', min: 6, max: 6, budget: 6000 }
+    ];
 
     /* 出一道题；cfg.budget 是总时间上限（毫秒），用完就返回 null 交给上层重试 */
     function makePuzzle(cfg) {
@@ -345,7 +350,6 @@
             return {
                 stones: stones,
                 moves: bm,
-                level: levelOf(bm),
                 line: line.map(function (q) {
                     return 'ABCDEFGHIJKLMNO'.charAt(q % N) + (N - ((q / N) | 0));
                 }).join(' '),
@@ -356,11 +360,7 @@
     }
 
     var GEN = {
-        budget: 1800,
-        ms: 450,
-        minMoves: 3,
-        maxMoves: 6,
-        seed: 0
+        ms: 500
     };
 
     /* ---------- 页面 ---------- */
@@ -404,6 +404,8 @@
         var elTries = doc.getElementById('vcf-tries');
         var elLevel = doc.getElementById('vcf-level');
         var btnNext = doc.getElementById('vcf-next');
+        var elDiff = doc.getElementById('vcf-diff');
+        var lvIdx = elDiff ? Math.min(LEVELS.length - 1, Math.max(0, parseInt(elDiff.value, 10) || 0)) : 1;
 
         function stone(x, y) {
             return board[y * N + x];
@@ -496,31 +498,33 @@
             elMsg.className = 'vcf-msg' + (tone ? ' is-' + tone : '');
         }
 
-        /* 出一道新题；预算内没出成就在下一帧再试，界面不会卡住 */
+        /* 出一道新题；按当前档位切时间片，时间片之间让出主线程，界面不会卡住 */
         function newPuzzle() {
             if (busy) { return; }
             busy = true;
             say('正在摆一盘有杀的局面…', 'wait');
             elLevel.textContent = '…';
 
-            var gen = {
-                budget: GEN.budget,
-                ms: GEN.ms,
-                minMoves: GEN.minMoves,
-                maxMoves: GEN.maxMoves,
-                seed: (Math.random() * 4294967296) >>> 0
-            };
+            var lv = LEVELS[lvIdx] || LEVELS[1];
+            var slice = lv.budget > 1200 ? 800 : lv.budget;
+            var left = Math.max(2, Math.ceil(lv.budget / slice));
 
-            var tryOnce = function (left) {
-                var p = makePuzzle(gen);
+            var step = function () {
+                var p = makePuzzle({
+                    budget: slice,
+                    ms: GEN.ms,
+                    minMoves: lv.min,
+                    maxMoves: lv.max,
+                    seed: (Math.random() * 4294967296) >>> 0
+                });
                 if (p) { no++; busy = false; load(p); return; }
-                if (left > 0) { win.setTimeout(function () { tryOnce(left - 1); }, 30); return; }
+                if (--left > 0) { win.setTimeout(step, 20); return; }
                 busy = false;
                 elLevel.textContent = '—';
-                say('这盘没摆出来，再点一次「下一题」。', 'bad');
+                say('这一档没摆出来，再点一次「下一题」。', 'bad');
             };
 
-            win.setTimeout(function () { tryOnce(2); }, 20);
+            win.setTimeout(step, 20);
         }
 
         function load(p) {
@@ -534,8 +538,8 @@
                 board[s[1] * N + s[0]] = s[2];
             });
 
-            elCount.textContent = '第 ' + no + ' 题 · ' + p.stones.length + ' 子';
-            elLevel.textContent = p.level;
+            elCount.textContent = '第 ' + no + ' 题 · ' + p.moves + ' 手胜';
+            elLevel.textContent = (LEVELS[lvIdx] || LEVELS[1]).name;
             say('轮到你走。每一手都要冲四，白方会跟着挡。', '');
             if (btnNext) { btnNext.classList.remove('is-hot'); }
             draw();
@@ -548,7 +552,8 @@
 
         /* 白方挡棋后，黑方是否还有 VCF；顺便把这一手算成「有解」还是「死路」 */
         function stillWinnable() {
-            return !!solve(board, BLACK, 9, 900);
+            var lv = LEVELS[lvIdx] || LEVELS[1];
+            return !!solve(board, BLACK, lv.max + 2, 900);
         }
 
         function play(k) {
@@ -581,7 +586,7 @@
             }
 
             if (comps.length > 1) {
-                finish(true, '双四，白方堵不住，赢了。');
+                finish(true, '活四，白方堵不住，赢了。');
                 busy = false;
                 return;
             }
@@ -653,7 +658,8 @@
 
         function showHint() {
             if (busy) { return; }
-            var line = solve(board, BLACK, 9, 1500);
+            var lv = LEVELS[lvIdx] || LEVELS[1];
+            var line = solve(board, BLACK, lv.max + 2, 1500);
             if (!line) {
                 say('这个局面算不出 VCF 了，试试「撤销」退回去。', 'bad');
                 return;
@@ -687,6 +693,15 @@
         doc.getElementById('vcf-reset').addEventListener('click', reset);
         if (btnNext) { btnNext.addEventListener('click', next); }
 
+        /* 换难度就换一盘：难度由用户选，不靠自己答对来爬 */
+        if (elDiff) {
+            elDiff.addEventListener('change', function () {
+                var v = parseInt(elDiff.value, 10);
+                lvIdx = Math.min(LEVELS.length - 1, Math.max(0, isNaN(v) ? 1 : v));
+                if (!busy) { newPuzzle(); }
+            });
+        }
+
         layout();
         win.addEventListener('resize', function () {
             layout();
@@ -702,6 +717,7 @@
         BLACK: BLACK,
         WHITE: WHITE,
         makePuzzle: makePuzzle,
+        LEVELS: LEVELS,
         GEN: GEN,
         solve: solve,
         isFive: isFive,

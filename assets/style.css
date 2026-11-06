@@ -668,6 +668,36 @@ li {
     padding: 16px 16px 18px;
 }
 
+.vcf-diff {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+}
+.vcf-diff span {
+    flex: none;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+}
+.vcf-diff select {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid var(--line-soft);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.72);
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+.vcf-diff select:focus {
+    outline: 2px solid var(--gold);
+    outline-offset: 1px;
+}
+
 .vcf-stats {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
