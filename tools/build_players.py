@@ -28,6 +28,7 @@ event_ranks 表里，凡是表里有的（赛事 id + 姓名）一律按报道�
 """
 
 import collections
+import json
 import os
 import re
 import sqlite3
@@ -36,10 +37,12 @@ from urllib.parse import quote
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_zayu as bz          # noqa: E402  复用 HEAD / esc / compute 等
+import renwu_data as rw          # noqa: E402  杂豫「山河四省连珠人物」的人物资料
 
 ROOT = bz.ROOT
 POSTS_DIR = os.path.join(ROOT, 'posts')
 PLAYER_DIR = os.path.join(bz.DETAIL_DIR, 'p')
+SEARCH_OUT = os.path.join(ROOT, 'assets', 'players.js')
 
 # 一篇文章属于杂史栏目，看它正文里的栏目链接
 ZASHI_MARK = '栏目：<a href="../zashi.html">'
@@ -295,8 +298,43 @@ def extra_row(x):
             % (bz.esc(x['date']), x['href'], bz.esc(x['name']), cell))
 
 
+RENWU_MAX_HONORS = 8
+
+
+def render_renwu(prof, limit=RENWU_MAX_HONORS):
+    """「人物」一节：段位、小传与战绩年表，取自杂豫的山河四省连珠人物。
+
+    个人主页要的是摘要，年表最多留 limit 条（新的在前），完整清单仍在杂豫那一页。
+    """
+    dan = prof.get('dan') or ''
+    cls = 'rh-dan' + (' is-none' if dan in ('段位未载', '') else '')
+    out = ['            <section class="p-renwu">',
+           '                <h2>人物</h2>',
+           '                <p class="pr-head"><span class="%s">%s</span>'
+           '<span class="rh-tag">%s</span></p>'
+           % (cls, bz.esc(dan or '段位未载'), bz.esc(prof.get('tag') or '')),
+           '                <p class="pr-bio">%s</p>' % prof.get('bio', '')]
+    honors = prof.get('honors') or []
+    if honors:
+        out.append('                <ul class="rh-honors">')
+        for year, txt in honors[:limit]:
+            out.append('                    <li><span class="rh-year">%s</span>'
+                       '<span class="rh-txt">%s</span></li>'
+                       % (bz.esc(year), txt))
+        out.append('                </ul>')
+        if len(honors) > limit:
+            out.append('                <p class="pr-more">另有 %d 条战绩，见'
+                       ' <a href="../renwu.html">山河四省连珠人物</a>。</p>'
+                       % (len(honors) - limit))
+    out += ['                <p class="pr-src">摘自杂豫 <a href="../renwu.html">'
+            '山河四省连珠人物</a>。</p>',
+            '            </section>',
+            '']
+    return out
+
+
 def page(name, rec, events, games, reports, index, total_players, arts,
-         extras=()):
+         extras=(), prof=None):
     rated = rec.get('rating') is not None
     region = (rec.get('region') or '').strip()
     uni = (rec.get('university') or '').strip()
@@ -304,9 +342,15 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     rank = rec.get('rank') or ''
     as_of = rec.get('as_of') or ''
 
+    # 只收在「山河四省连珠人物」里、既无等级分也无对局记录的人（教练、裁判、名宿），
+    # 统计条改登段位与地区，免得摆一排「—」「0 局」。
+    profile_only = bool(prof) and not rated and not events and not games
+    meta_third = prof['dan'] if profile_only else (uni or '—')
+    meta_second = prof['tag'] if profile_only else (region or '—')
+
     meta = ['                    <span>栏目：<a href="../../zayu.html">杂豫</a></span>',
-            '                    <span>%s</span>' % bz.esc(region or '—'),
-            '                    <span>%s</span>' % bz.esc(uni or '—')]
+            '                    <span>%s</span>' % bz.esc(meta_second),
+            '                    <span>%s</span>' % bz.esc(meta_third)]
 
     body = ['            <header class="article-header">',
             '                <h1 class="article-title">%s</h1>' % bz.esc(name),
@@ -315,8 +359,37 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     body += ['                </div>',
              '            </header>',
              '',
-             '            <div class="player-stats">',
-             '                <span class="ps"><span class="ps-k">等级分</span>'
+             '            <div class="player-stats">']
+    if profile_only:
+        body.pop()
+        body += ['            <div class="player-stats">',
+                 '                <span class="ps"><span class="ps-k">段位</span>'
+                 '<span class="ps-v">%s</span></span>' % bz.esc(prof['dan']),
+                 '                <span class="ps"><span class="ps-k">地区</span>'
+                 '<span class="ps-v">%s</span></span>'
+                 % bz.esc(prof['tag'].replace(' · ', ' ')),
+                 '                <span class="ps"><span class="ps-k">收录</span>'
+                 '<span class="ps-v">山河四省连珠人物</span></span>',
+                 '            </div>']
+        body += ['            <p class="player-note">TA 不在本站等级分榜的收录范围内，'
+                 '也没有收录到对局记录；本页依据杂豫 <a href="../renwu.html">'
+                 '「山河四省连珠人物」</a>及相关报道整理。',
+                 '            </p>',
+                 '']
+        body += render_renwu(prof)
+        body += ['            <p class="back-link">'
+                 '<a href="../renwu.html">← 山河四省连珠人物</a>'
+                 ' · <a href="../../zayu.html">杂豫</a>'
+                 ' · <a href="../../index.html">返回首页</a></p>']
+        return bz.HEAD.format(
+            title='%s - 杂豫 - 连珠杂箱' % bz.esc(name),
+            desc=bz.esc('%s（%s·%s）的个人主页：段位、小传与主要战绩。'
+                        % (name, prof['tag'].replace(' · ', ' '), prof['dan'])),
+            base='../../',
+            base_attr=' data-base="../../"',
+            body='\n'.join(body))
+
+    body += ['                <span class="ps"><span class="ps-k">等级分</span>'
              '<span class="ps-v">%s</span></span>' % pt,
              '                <span class="ps"><span class="ps-k">榜上名次</span>'
              '<span class="ps-v">%s</span></span>'
@@ -342,6 +415,9 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     body += ['            <p class="player-note">%s' % note,
              '            </p>',
              '']
+
+    if prof:
+        body += render_renwu(prof)
 
     if reports:
         body += ['            <section class="mention-card">',
@@ -466,22 +542,65 @@ def patch_rating(names):
     return hit
 
 
+def write_search_index(names, ratings, profiles):
+    """首页搜索框用的全站棋手索引：assets/players.js。
+
+    写成 JS 赋值而不是 JSON——本地直接打开 index.html 时 fetch 取不到文件，
+    用 <script> 载入才在 file:// 下也能搜。
+    """
+    rec = {r['name']: r for r in ratings}
+    rows = []
+    for name in names:
+        r = rec.get(name) or {}
+        p = profiles.get(name) or {}
+        bits = []
+        if r.get('region'):
+            bits.append(r['region'])
+        elif p.get('tag'):
+            bits.append(p['tag'].replace(' · ', ' '))
+        if p.get('dan'):
+            bits.append(p['dan'])
+        if r.get('rating') is not None:
+            bits.append('等级分第 %s 位' % r.get('rank'))
+        elif p:
+            bits.append('人物')
+        rows.append({'n': name,
+                     'p': 'zayu/p/%s.html' % quote(name),
+                     's': ' · '.join(bits),
+                     'k': r.get('rank') or 9999})
+    rows.sort(key=lambda x: (x['k'], x['n']))
+    body = ',\n'.join(json.dumps(x, ensure_ascii=False, separators=(',', ':'))
+                      for x in rows)
+    out = ('/* 由 tools/build_players.py 生成：全站棋手索引，供首页搜索框使用。 */\n'
+           'window.ZBX_PLAYERS=[\n' + body + '\n];\n'
+           'if(window.ZBX_PLAYERS_READY){window.ZBX_PLAYERS_READY();}\n')
+    with open(SEARCH_OUT, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(out)
+    return len(rows)
+
+
 def main():
     ratings, tournaments, matches = load_db()
     rated_names = [r['name'] for r in ratings]
     rated = set(rated_names)
+    profiles = rw.RENWU
 
-    zposts = zashi_posts(rated_names)
+    # 只在成绩表里出场过、还没入榜的棋手也各出一页：成绩表里的姓名要能点进来。
+    # 以「出场过」为准，而不是「有正式对局」——只下过弃权局的棋手同样在表里有名。
+    unrated = sorted(n for n in bz.all_players(matches) if n not in rated)
+
+    # 还有一类：杂豫「山河四省连珠人物」里写着，却既不进榜也不在成绩表里出场
+    # （教练、裁判、名宿）。那一栏的姓名同样要能点进来，所以也各建一页。
+    solo = sorted(n for n in profiles if n not in rated and n not in set(unrated))
+
+    zposts = zashi_posts(rated_names + unrated + solo)
     reports = person_reports(zposts)
     stats, games = collect(ratings, tournaments, matches)
     arts = load_event_ranks()
 
-    # 只在成绩表里出场过、还没入榜的棋手也各出一页：成绩表里的姓名要能点进来。
-    # 以「出场过」为准，而不是「有正式对局」——只下过弃权局的棋手同样在表里有名。
     tally_ = tally(matches)
     zero = {'games': 0, 'wins': 0, 'draws': 0, 'losses': 0}
     as_of = max((r['as_of'] or '' for r in ratings), default='')
-    unrated = sorted(n for n in bz.all_players(matches) if n not in rated)
     extra = []
     for name in unrated:
         d = tally_.get(name, zero)
@@ -489,8 +608,12 @@ def main():
                       'rating': None, 'games': d['games'], 'wins': d['wins'],
                       'draws': d['draws'], 'losses': d['losses'],
                       'rank': None, 'as_of': as_of})
+    for name in solo:
+        extra.append({'name': name, 'region': '', 'university': '',
+                      'rating': None, 'games': 0, 'wins': 0, 'draws': 0,
+                      'losses': 0, 'rank': None, 'as_of': as_of})
 
-    names = rated_names + unrated
+    names = rated_names + unrated + solo
     index = set(names)
 
     os.makedirs(PLAYER_DIR, exist_ok=True)
@@ -502,16 +625,19 @@ def main():
         name = rec['name']
         html = page(name, rec, stats.get(name, []), games.get(name, []),
                     reports.get(name, []), index, len(rated_names), arts,
-                    EXTRA_EVENTS.get(name, ()))
+                    EXTRA_EVENTS.get(name, ()), profiles.get(name))
         with open(os.path.join(PLAYER_DIR, '%s.html' % name), 'w',
                   encoding='utf-8', newline='') as f:
             f.write(html)
 
     linked = patch_rating(rated_names)
+    made = write_search_index(names, ratings, profiles)
 
     tops = sorted(reports.items(), key=lambda kv: (-len(kv[1]), kv[0]))
     print('主页   ->', PLAYER_DIR,
-          '(%d 页：入榜 %d，未入榜 %d)' % (len(names), len(rated_names), len(unrated)))
+          '(%d 页：入榜 %d，未入榜 %d，人物页 %d)'
+          % (len(names), len(rated_names), len(unrated), len(solo)))
+    print('索引   ->', SEARCH_OUT, '(%d 人)' % made)
     print('内链   ->', bz.RATING_OUT, '(%d 处)' % linked)
     print('杂史   ->', len(zposts), '篇')
     print('相关报道 ->', '，'.join('%s %d 篇' % (n, len(v)) for n, v in tops)

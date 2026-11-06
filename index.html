@@ -23,6 +23,25 @@
                 <h1 class="hero-title">连珠杂箱</h1>
                 <p class="hero-desc">连珠爱好者们的工具箱，收录相关文章与比赛记录。</p>
 
+                <!-- 棋手搜索：索引在 assets/players.js，脚本见本页末尾 -->
+                <div class="hero-search" id="player-search">
+                    <form class="hs-box" role="search" autocomplete="off">
+                        <span class="hs-icon" aria-hidden="true">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+                                <circle cx="11" cy="11" r="7"/>
+                                <path d="M16.2 16.2 21 21"/>
+                            </svg>
+                        </span>
+                        <input class="hs-input" type="search" inputmode="search"
+                               placeholder="搜索棋手，如：潘冠臣" aria-label="搜索棋手"
+                               aria-autocomplete="list" aria-controls="hs-panel">
+                        <button class="hs-btn" type="submit">搜索</button>
+                    </form>
+                    <div class="hs-panel" id="hs-panel" role="listbox" aria-label="搜索结果"></div>
+                    <p class="hs-tip">输入姓名或地名，回车直达个人主页。</p>
+                </div>
+
                 <div class="hero-links">
                     <a class="hero-link" href="zalun.html">
                         <b>杂论</b><span>赛后记与随笔</span>
@@ -116,6 +135,7 @@
 </div>
 
 <script src="assets/layout.js"></script>
+<script src="assets/players.js"></script>
 
 <!--
     滚动公告的接缝处理
@@ -164,6 +184,168 @@
     /* 匀速滚动：约 42px/秒，慢到能读完一行 */
     var distance = track.scrollWidth / 2;
     box.style.setProperty('--nt-dur', Math.max(12, distance / 42).toFixed(1) + 's');
+})();
+</script>
+
+<!--
+    棋手搜索
+    ------------------------------------------------------------
+    索引由 tools/build_players.py 生成到 assets/players.js，页面不再手写名单。
+    站内无刷新换页会把本段重跑一次，而外链脚本只注入一次，所以先看索引到没到；
+    没到就挂个回调，等 players.js 载入完再接手。
+-->
+<script>
+(function () {
+    'use strict';
+
+    function init() {
+        var box = document.getElementById('player-search');
+        if (!box || box.dataset.ready === '1') {
+            return;
+        }
+        var data = window.ZBX_PLAYERS || [];
+        if (!data.length) {
+            return;
+        }
+        box.dataset.ready = '1';
+
+        var form = box.querySelector('.hs-box');
+        var input = box.querySelector('.hs-input');
+        var panel = box.querySelector('.hs-panel');
+        var tip = box.querySelector('.hs-tip');
+        var items = [];
+        var active = -1;
+
+        if (tip) {
+            tip.textContent = '站内收录 ' + data.length + ' 位棋手，输入姓名或地名即可。';
+        }
+
+        /* 姓名全等排最前，其次以搜索词开头，再次是中间包含或地名命中 */
+        function find(q) {
+            var exact = [], start = [], rest = [];
+            for (var i = 0; i < data.length; i++) {
+                var p = data[i], n = p.n || '';
+                if (n === q) {
+                    exact.push(p);
+                } else if (n.indexOf(q) === 0) {
+                    start.push(p);
+                } else if (n.indexOf(q) > 0 || (p.s || '').indexOf(q) >= 0) {
+                    rest.push(p);
+                }
+            }
+            return exact.concat(start, rest).slice(0, 8);
+        }
+
+        function close() {
+            panel.classList.remove('is-open');
+            panel.innerHTML = '';
+            items = [];
+            active = -1;
+        }
+
+        function render(list) {
+            items = list;
+            active = -1;
+            if (!list.length) {
+                panel.innerHTML = '<p class="hs-empty">没有找到这位棋手</p>';
+                panel.classList.add('is-open');
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < list.length; i++) {
+                html += '<a class="hs-item" href="' + list[i].p + '">' +
+                    '<span class="hs-n">' + list[i].n + '</span>' +
+                    '<span class="hs-s">' + (list[i].s || '') + '</span></a>';
+            }
+            panel.innerHTML = html;
+            panel.classList.add('is-open');
+        }
+
+        function go(i) {
+            var kids = panel.querySelectorAll('.hs-item');
+            if (kids[i]) {
+                kids[i].click();
+            }
+        }
+
+        function move(step) {
+            var kids = panel.querySelectorAll('.hs-item');
+            if (!kids.length) {
+                return;
+            }
+            active = (active + step + kids.length) % kids.length;
+            for (var i = 0; i < kids.length; i++) {
+                kids[i].classList.toggle('is-active', i === active);
+            }
+            kids[active].scrollIntoView({ block: 'nearest' });
+        }
+
+        function submit() {
+            var q = input.value.trim();
+            if (!q) {
+                return;
+            }
+            if (!items.length) {
+                render(find(q));
+            }
+            go(active >= 0 ? active : 0);
+        }
+
+        input.addEventListener('input', function () {
+            var q = input.value.trim();
+            if (!q) {
+                close();
+                return;
+            }
+            render(find(q));
+        });
+
+        input.addEventListener('focus', function () {
+            if (input.value.trim()) {
+                render(find(input.value.trim()));
+            }
+        });
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                move(1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                move(-1);
+            } else if (e.key === 'Escape') {
+                close();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                submit();
+            }
+        });
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            submit();
+        });
+    }
+
+    /* 点空白处收起结果面板；整站只绑一次，换页不会越绑越多 */
+    if (!window.ZBX_SEARCH_DOC) {
+        window.ZBX_SEARCH_DOC = 1;
+        document.addEventListener('click', function (e) {
+            var box = document.getElementById('player-search');
+            if (box && !box.contains(e.target)) {
+                var panel = box.querySelector('.hs-panel');
+                if (panel) {
+                    panel.classList.remove('is-open');
+                }
+            }
+        });
+    }
+
+    if (window.ZBX_PLAYERS) {
+        init();
+    } else {
+        window.ZBX_PLAYERS_READY = init;
+    }
 })();
 </script>
 
