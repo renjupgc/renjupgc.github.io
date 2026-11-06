@@ -57,6 +57,16 @@
             </div>
         </section>
 
+        <!-- 滚动公告：新闻正文只写一遍，多出来的复本由页脚脚本按视口宽度补齐 -->
+        <section class="news-ticker" aria-label="赛事公告">
+            <span class="nt-label">公告</span>
+            <div class="nt-viewport">
+                <div class="nt-track">
+                    <span class="nt-item">河南省第十六届五子棋高校联赛五手两打组将于10月14日在迪空间举办。</span>
+                </div>
+            </div>
+        </section>
+
         <section>
             <h2>最近更新</h2>
             <ul class="post-list">
@@ -106,6 +116,56 @@
 </div>
 
 <script src="assets/layout.js"></script>
+
+<!--
+    滚动公告的接缝处理
+    ------------------------------------------------------------
+    位移走到 -50% 时，后半段正好落到第一份的位置，所以轨道至少要铺满两倍视口，
+    且份数为偶数，循环才看不出断点。复本按需克隆，正文在 HTML 里只写一遍。
+-->
+<script>
+(function () {
+    'use strict';
+
+    var box = document.querySelector('.news-ticker');
+    if (!box || box.dataset.ready === '1') {
+        return;
+    }
+    /* 站内无刷新换页会重新执行本段，标记挂在节点上，来回翻首页不会越铺越长 */
+    box.dataset.ready = '1';
+
+    var viewport = box.querySelector('.nt-viewport');
+    var track = box.querySelector('.nt-track');
+    var seed = track && track.children[0];
+    if (!viewport || !track || !seed) {
+        return;
+    }
+
+    /* 系统要求减少动态效果时不滚，也不铺复本，就留一行静态公告 */
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+    }
+
+    var guard = 0;
+    while (track.scrollWidth < viewport.clientWidth * 2 && guard++ < 20) {
+        track.appendChild(seed.cloneNode(true));
+    }
+    if (track.children.length % 2) {
+        track.appendChild(seed.cloneNode(true));
+    }
+
+    /* 复本是给眼睛看的，读屏只念第一条 */
+    Array.prototype.forEach.call(track.children, function (item, i) {
+        if (i > 0) {
+            item.setAttribute('aria-hidden', 'true');
+        }
+    });
+
+    /* 匀速滚动：约 42px/秒，慢到能读完一行 */
+    var distance = track.scrollWidth / 2;
+    box.style.setProperty('--nt-dur', Math.max(12, distance / 42).toFixed(1) + 's');
+})();
+</script>
 
 </body>
 </html>
