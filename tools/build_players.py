@@ -282,6 +282,62 @@ EXTRA_EVENTS = {
          'href': '../../posts/2026-luoyang-huifutang.html', 'rank': 1,
          'note': '公开组冠军，据杂史《五子闪耀庆新春 老少同枰贺佳节》'},
     ],
+    # 下面几位不在等级分榜、成绩表里也没有对局，参赛记录只能从杂史报道里摘。
+    # 月度棋王的报道未记具体日期，日期栏只记到月份。
+    '唐碧': [
+        {'date': '2026-08',
+         'name': '洛阳月度棋王海选赛（八月）',
+         'href': '../../posts/2026-luoyang-yuedu.html', 'rank': 1,
+         'note': '八月棋王，据杂史《月度手谈，棋王落定》所附全年月度棋王一览'},
+        {'date': '2026-05-23',
+         'name': '洛阳市“棋遇少年游”五子棋亲子联棋赛（双人联棋组）',
+         'href': '../../posts/2026-luoyang-liuyi.html', 'rank': 1,
+         'note': '与潘冠臣搭档“白羊双子星队”，全胜夺冠，据杂史《棋遇少年，亲子同局》'},
+        {'date': '2026-03-07',
+         'name': '洛阳天元站庆“三八”五子棋双人联棋赛',
+         'href': '../../posts/2026-luoyang-tianyuan.html', 'rank': 2,
+         'note': '与辛仲庙搭档“唐风新韵队”获亚军，据杂史《新春开枰，佳节联棋》'},
+    ],
+    '辛仲庙': [
+        {'date': '2026-09',
+         'name': '天元社区五子棋月度对弈赛',
+         'href': '../../posts/2026-luoyang-yuedu.html', 'rank': 1,
+         'note': '摘“九月棋王”，据杂史《月度手谈，棋王落定》'},
+        {'date': '2026-03-07',
+         'name': '洛阳五子棋棋王海选赛天元站（公开组）',
+         'href': '../../posts/2026-luoyang-tianyuan.html', 'rank': 2,
+         'note': '公开组亚军，据杂史《新春开枰，佳节联棋》'},
+        {'date': '2026-03-07',
+         'name': '洛阳天元站庆“三八”五子棋双人联棋赛',
+         'href': '../../posts/2026-luoyang-tianyuan.html', 'rank': 2,
+         'note': '与唐碧搭档“唐风新韵队”获亚军，据杂史《新春开枰，佳节联棋》'},
+    ],
+    '廖汉娇': [
+        {'date': '2026-07',
+         'name': '洛阳月度棋王交流赛（七月）',
+         'href': '../../posts/2026-luoyang-yuedu.html', 'rank': 1,
+         'note': '七月棋王，据杂史《月度手谈，棋王落定》所附全年月度棋王一览'},
+        {'date': '2026-03-07',
+         'name': '洛阳五子棋棋王海选赛天元站（公开组）',
+         'href': '../../posts/2026-luoyang-tianyuan.html', 'rank': 3,
+         'note': '公开组季军，据杂史《新春开枰，佳节联棋》'},
+    ],
+    '赵严': [
+        {'date': '2026-03-07',
+         'name': '洛阳五子棋棋王海选赛天元站（公开组）',
+         'href': '../../posts/2026-luoyang-tianyuan.html', 'rank': 1,
+         'note': '公开组冠军，赛间作大棋盘复盘与实战技法讲解，据杂史《新春开枰，佳节联棋》'},
+    ],
+    '申明增': [
+        {'date': '2026-10-31',
+         'name': '洛阳金秋五子棋棋王海选赛王府井站（公开组）',
+         'href': '../../posts/2026-luoyang-jinqiu.html', 'rank': 2,
+         'note': '公开组亚军，据杂史《金秋对弈，棋竞桂冠》'},
+        {'date': '2026-06',
+         'name': '洛阳月度棋王交流赛（六月）',
+         'href': '../../posts/2026-luoyang-yuedu.html', 'rank': 1,
+         'note': '六月棋王，据杂史《月度手谈，棋王落定》所附全年月度棋王一览'},
+    ],
 }
 
 
@@ -301,19 +357,22 @@ def extra_row(x):
 RENWU_MAX_HONORS = 8
 
 
-def render_renwu(prof, limit=RENWU_MAX_HONORS):
+def render_renwu(prof, limit=RENWU_MAX_HONORS, brief=False):
     """「人物」一节：段位、小传与战绩年表，取自杂豫的山河四省连珠人物。
 
     个人主页要的是摘要，年表最多留 limit 条（新的在前），完整清单仍在杂豫那一页。
+    已经入榜的棋手，本页还有统计、参赛与对局记录，小传只留 brief 那句百字以内的
+    关键信息，完整小传仍在杂豫那一页。
     """
     dan = prof.get('dan') or ''
     cls = 'rh-dan' + (' is-none' if dan in ('段位未载', '') else '')
+    bio = (prof.get('brief') if brief else '') or prof.get('bio') or ''
     out = ['            <section class="p-renwu">',
            '                <h2>人物</h2>',
            '                <p class="pr-head"><span class="%s">%s</span>'
            '<span class="rh-tag">%s</span></p>'
            % (cls, bz.esc(dan or '段位未载'), bz.esc(prof.get('tag') or '')),
-           '                <p class="pr-bio">%s</p>' % prof.get('bio', '')]
+           '                <p class="pr-bio">%s</p>' % bio]
     honors = prof.get('honors') or []
     if honors:
         out.append('                <ul class="rh-honors">')
@@ -345,79 +404,62 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     # 只收在「山河四省连珠人物」里、既无等级分也无对局记录的人（教练、裁判、名宿），
     # 统计条改登段位与地区，免得摆一排「—」「0 局」。
     profile_only = bool(prof) and not rated and not events and not games
-    meta_third = prof['dan'] if profile_only else (uni or '—')
-    meta_second = prof['tag'] if profile_only else (region or '—')
-
-    meta = ['                    <span>栏目：<a href="../../zayu.html">杂豫</a></span>',
-            '                    <span>%s</span>' % bz.esc(meta_second),
-            '                    <span>%s</span>' % bz.esc(meta_third)]
 
     body = ['            <header class="article-header">',
             '                <h1 class="article-title">%s</h1>' % bz.esc(name),
-            '                <div class="article-meta">']
-    body += meta
-    body += ['                </div>',
-             '            </header>',
-             '',
-             '            <div class="player-stats">']
+            '                <div class="article-meta">',
+            '                    <span>栏目：<a href="../../zayu.html">杂豫</a></span>',
+            '                    <span>%s</span>'
+            % bz.esc(prof['tag'] if profile_only else (region or '—')),
+            '                    <span>%s</span>'
+            % bz.esc(prof['dan'] if profile_only else (uni or '—')),
+            '                </div>',
+            '            </header>',
+            '',
+            '            <div class="player-stats">']
     if profile_only:
-        body.pop()
-        body += ['            <div class="player-stats">',
-                 '                <span class="ps"><span class="ps-k">段位</span>'
+        body += ['                <span class="ps"><span class="ps-k">段位</span>'
                  '<span class="ps-v">%s</span></span>' % bz.esc(prof['dan']),
                  '                <span class="ps"><span class="ps-k">地区</span>'
                  '<span class="ps-v">%s</span></span>'
                  % bz.esc(prof['tag'].replace(' · ', ' ')),
                  '                <span class="ps"><span class="ps-k">收录</span>'
                  '<span class="ps-v">山河四省连珠人物</span></span>',
+                 '            </div>',
+                 '            <p class="player-note">TA 不在本站等级分榜的收录范围内，'
+                 '本页依据杂豫 <a href="../renwu.html">「山河四省连珠人物」</a>、'
+                 '杂史的赛事报道与成绩表整理。</p>',
+                 '']
+    else:
+        body += ['                <span class="ps"><span class="ps-k">等级分</span>'
+                 '<span class="ps-v">%s</span></span>' % pt,
+                 '                <span class="ps"><span class="ps-k">榜上名次</span>'
+                 '<span class="ps-v">%s</span></span>'
+                 % ('第 %s 名' % rank if rank else '未入榜'),
+                 '                <span class="ps"><span class="ps-k">对局</span>'
+                 '<span class="ps-v">%d 局</span></span>' % (rec['games'] or 0),
+                 '                <span class="ps"><span class="ps-k">胜 / 和 / 负</span>'
+                 '<span class="ps-v">%d / %d / %d</span></span>'
+                 % (rec['wins'] or 0, rec['draws'] or 0, rec['losses'] or 0),
+                 '                <span class="ps"><span class="ps-k">参赛</span>'
+                 '<span class="ps-v">%d 场</span></span>'
+                 % (len(events) + len(extras)),
                  '            </div>']
-        body += ['            <p class="player-note">TA 不在本站等级分榜的收录范围内，'
-                 '也没有收录到对局记录；本页依据杂豫 <a href="../renwu.html">'
-                 '「山河四省连珠人物」</a>及相关报道整理。',
+        if rated:
+            note = ('等级分截至 %s，在 <a href="../rating.html">河南高校爱好者等级分</a>'
+                    '的 %d 人中列第 %s 位；上方对局数与胜负不含轮空、弃权，'
+                    '下方的对局记录则全部分局照录。'
+                    % (bz.esc(as_of), total_players, rank))
+        else:
+            note = ('等级分榜只收达到门槛的棋手（河南选手须下满 4 局，外省选手须至少'
+                    '参加 2 场比赛），TA 暂未入榜，故不列等级分与榜上名次；上方对局数'
+                    '与胜负不含轮空、弃权，下方的对局记录则全部分局照录。')
+        body += ['            <p class="player-note">%s' % note,
                  '            </p>',
                  '']
-        body += render_renwu(prof)
-        body += ['            <p class="back-link">'
-                 '<a href="../renwu.html">← 山河四省连珠人物</a>'
-                 ' · <a href="../../zayu.html">杂豫</a>'
-                 ' · <a href="../../index.html">返回首页</a></p>']
-        return bz.HEAD.format(
-            title='%s - 杂豫 - 连珠杂箱' % bz.esc(name),
-            desc=bz.esc('%s（%s·%s）的个人主页：段位、小传与主要战绩。'
-                        % (name, prof['tag'].replace(' · ', ' '), prof['dan'])),
-            base='../../',
-            base_attr=' data-base="../../"',
-            body='\n'.join(body))
-
-    body += ['                <span class="ps"><span class="ps-k">等级分</span>'
-             '<span class="ps-v">%s</span></span>' % pt,
-             '                <span class="ps"><span class="ps-k">榜上名次</span>'
-             '<span class="ps-v">%s</span></span>'
-             % ('第 %s 名' % rank if rank else '未入榜'),
-             '                <span class="ps"><span class="ps-k">对局</span>'
-             '<span class="ps-v">%d 局</span></span>' % (rec['games'] or 0),
-             '                <span class="ps"><span class="ps-k">胜 / 和 / 负</span>'
-             '<span class="ps-v">%d / %d / %d</span></span>'
-             % (rec['wins'] or 0, rec['draws'] or 0, rec['losses'] or 0),
-             '                <span class="ps"><span class="ps-k">参赛</span>'
-             '<span class="ps-v">%d 场</span></span>' % (len(events) + len(extras)),
-             '            </div>']
-
-    if rated:
-        note = ('等级分截至 %s，在 <a href="../rating.html">河南高校爱好者等级分</a>'
-                '的 %d 人中列第 %s 位；上方对局数与胜负不含轮空、弃权，'
-                '下方的对局记录则全部分局照录。'
-                % (bz.esc(as_of), total_players, rank))
-    else:
-        note = ('等级分榜只收达到门槛的棋手（河南选手须下满 4 局，外省选手须至少'
-                '参加 2 场比赛），TA 暂未入榜，故不列等级分与榜上名次；上方对局数'
-                '与胜负不含轮空、弃权，下方的对局记录则全部分局照录。')
-    body += ['            <p class="player-note">%s' % note,
-             '            </p>',
-             '']
 
     if prof:
-        body += render_renwu(prof)
+        body += render_renwu(prof, brief=rated)
 
     if reports:
         body += ['            <section class="mention-card">',
@@ -434,8 +476,6 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                  '            </section>',
                  '']
 
-    body += ['            <section>',
-             '                <h2>参赛记录</h2>']
     rows = []
     for e in events:
         t = e['t']
@@ -451,73 +491,92 @@ def page(name, rec, events, games, reports, index, total_players, arts,
         rows.append((x['date'], '                        <tr>%s</tr>'
                      % extra_row(x)))
     rows.sort(key=lambda r: r[0], reverse=True)
-    if rows:
-        body += ['                <div class="table-scroll">',
-                 '                <table class="crosstab p-games p-events">',
-                 '                    <thead><tr>',
-                 '                        <th>日期</th>',
-                 '                        <th class="c-name">赛事</th>',
-                 '                        <th class="c-rank">名次</th>',
-                 '                    </tr></thead>',
-                 '                    <tbody>']
-        body += [html for _d, html in rows]
-        body += ['                    </tbody>',
-                 '                </table>',
-                 '                </div>']
-    else:
-        body.append('                <p class="empty">该棋手暂无收录的参赛记录。</p>')
-    body.append('            </section>')
-    body.append('')
+    # 不在榜又没有成绩表赛事的人（教练、裁判、名宿），没有记录就不摆这一节；
+    # 杂史报道里点到的战绩（EXTRA_EVENTS）仍然照列。
+    if rows or not profile_only:
+        body += ['            <section>',
+                 '                <h2>参赛记录</h2>']
+        if rows:
+            body += ['                <div class="table-scroll">',
+                     '                <table class="crosstab p-games p-events">',
+                     '                    <thead><tr>',
+                     '                        <th>日期</th>',
+                     '                        <th class="c-name">赛事</th>',
+                     '                        <th class="c-rank">名次</th>',
+                     '                    </tr></thead>',
+                     '                    <tbody>']
+            body += [html for _d, html in rows]
+            body += ['                    </tbody>',
+                     '                </table>',
+                     '                </div>']
+        else:
+            body.append('                <p class="empty">该棋手暂无收录的参赛记录。</p>')
+        body.append('            </section>')
+        body.append('')
 
-    body += ['            <section>',
-             '                <h2>对局记录</h2>']
-    if games:
-        body += ['                <div class="table-scroll">',
-                 '                <table class="crosstab p-games">',
-                 '                    <thead><tr>',
-                 '                        <th>日期</th>',
-                 '                        <th class="c-name">赛事</th>',
-                 '                        <th class="c-tb">轮次</th>',
-                 '                        <th class="c-tb">执位</th>',
-                 '                        <th class="c-opp">对手</th>',
-                 '                        <th class="c-rank">结果</th>',
-                 '                    </tr></thead>',
-                 '                    <tbody>']
-        for g in games:
-            t = g['t']
-            opp = g['opp']
-            if opp in index:
-                opp_html = '<a href="%s.html">%s</a>' % (quote(opp), bz.esc(opp))
-            else:
-                opp_html = bz.esc(opp)
-            cls = 'res-%s' % g['cls'] if g['cls'] else ''
-            body.append('                        <tr>'
-                        '<td>%s</td>'
-                        '<td class="c-name"><a href="../../zayu/t%d.html">%s</a></td>'
-                        '<td class="c-tb">R%s</td>'
-                        '<td class="c-tb">%s</td>'
-                        '<td class="c-opp">%s</td>'
-                        '<td class="c-rank %s">%s</td></tr>'
-                        % (bz.esc(t.get('date') or ''),
-                           g['tid'], bz.esc(t.get('name') or ''),
-                           bz.esc(g['m']['round'] if g['m']['round'] is not None else '—'),
-                           '假先' if g['first'] else '假后',
-                           opp_html, cls, bz.esc(g['res'])))
-        body += ['                    </tbody>',
-                 '                </table>',
-                 '                </div>']
+    if not profile_only:
+        body += ['            <section>',
+                 '                <h2>对局记录</h2>']
+        if games:
+            body += ['                <div class="table-scroll">',
+                     '                <table class="crosstab p-games">',
+                     '                    <thead><tr>',
+                     '                        <th>日期</th>',
+                     '                        <th class="c-name">赛事</th>',
+                     '                        <th class="c-tb">轮次</th>',
+                     '                        <th class="c-tb">执位</th>',
+                     '                        <th class="c-opp">对手</th>',
+                     '                        <th class="c-rank">结果</th>',
+                     '                    </tr></thead>',
+                     '                    <tbody>']
+            for g in games:
+                t = g['t']
+                opp = g['opp']
+                if opp in index:
+                    opp_html = '<a href="%s.html">%s</a>' % (quote(opp), bz.esc(opp))
+                else:
+                    opp_html = bz.esc(opp)
+                cls = 'res-%s' % g['cls'] if g['cls'] else ''
+                body.append('                        <tr>'
+                            '<td>%s</td>'
+                            '<td class="c-name"><a href="../../zayu/t%d.html">%s</a></td>'
+                            '<td class="c-tb">R%s</td>'
+                            '<td class="c-tb">%s</td>'
+                            '<td class="c-opp">%s</td>'
+                            '<td class="c-rank %s">%s</td></tr>'
+                            % (bz.esc(t.get('date') or ''),
+                               g['tid'], bz.esc(t.get('name') or ''),
+                               bz.esc(g['m']['round']
+                                      if g['m']['round'] is not None else '—'),
+                               '假先' if g['first'] else '假后',
+                               opp_html, cls, bz.esc(g['res'])))
+            body += ['                    </tbody>',
+                     '                </table>',
+                     '                </div>']
+        else:
+            body.append('                <p class="empty">该棋手暂无收录的对局。</p>')
+        body.append('            </section>')
+        body.append('')
+
+    if profile_only:
+        body.append('            <p class="back-link">'
+                    '<a href="../renwu.html">← 山河四省连珠人物</a>'
+                    ' · <a href="../../zayu.html">杂豫</a>'
+                    ' · <a href="../../index.html">返回首页</a></p>')
     else:
-        body.append('                <p class="empty">该棋手暂无收录的对局。</p>')
-    body.append('            </section>')
-    body.append('')
-    body.append('            <p class="back-link"><a href="../../zayu.html">← 返回杂豫</a>'
-                ' · <a href="../rating.html">等级分榜</a>'
-                ' · <a href="../../index.html">返回首页</a></p>')
+        body.append('            <p class="back-link">'
+                    '<a href="../../zayu.html">← 返回杂豫</a>'
+                    ' · <a href="../rating.html">等级分榜</a>'
+                    ' · <a href="../../index.html">返回首页</a></p>')
 
     sub = '·'.join(x for x in (region, uni) if x)
-    desc = '%s%s的个人主页：等级分 %s，%s参赛 %d 场。' % (
-        name, '（%s）' % sub if sub else '', pt,
-        '第 %s 名，' % rank if rank else '未入榜，', len(events) + len(extras))
+    if profile_only:
+        desc = '%s（%s·%s）的个人主页：段位、小传与主要战绩。' % (
+            name, prof['tag'].replace(' · ', ' '), prof['dan'])
+    else:
+        desc = '%s%s的个人主页：等级分 %s，%s参赛 %d 场。' % (
+            name, '（%s）' % sub if sub else '', pt,
+            '第 %s 名，' % rank if rank else '未入榜，', len(events) + len(extras))
 
     return bz.HEAD.format(
         title='%s - 杂豫 - 连珠杂箱' % bz.esc(name),
