@@ -1316,6 +1316,15 @@ table.crosstab td.rt .res {
     font-weight: 500;
 }
 
+/* 名单还没定时的占位行 */
+table.crosstab td.c-none {
+    padding: 20px 8px;
+    text-align: center;
+    color: var(--faint);
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
+}
+
 table.crosstab td.rt.bye {
     font-size: 12px;
     color: var(--faint);
@@ -1764,6 +1773,24 @@ table.ratings .r-name a:hover {
     flex-direction: column;
     min-width: 0;
     max-width: 128px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mb-meta:hover .mb-title {
+    color: var(--gold-deep);
+}
+
+.mb-meta:focus-visible {
+    outline: 2px solid rgba(176, 141, 87, 0.65);
+    outline-offset: 3px;
+    border-radius: 6px;
 }
 
 .mb-title {
@@ -1782,6 +1809,103 @@ table.ratings .r-name a:hover {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* 曲目面板：从盒子顶部弹出的列表 */
+.mb-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    width: 226px;
+    max-width: calc(100vw - 44px);
+    padding: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 18px 34px -18px rgba(74, 56, 26, 0.5);
+    animation: mb-pop 0.15s ease-out both;
+}
+
+.mb-menu[hidden] {
+    display: none;
+}
+
+.mb-menu-head {
+    margin: 2px 8px 7px;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    color: var(--faint);
+}
+
+.mb-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 100%;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    font: inherit;
+    color: var(--ink-2);
+    text-align: left;
+    cursor: pointer;
+}
+
+.mb-item + .mb-item {
+    margin-top: 2px;
+}
+
+.mb-item:hover {
+    background: rgba(176, 141, 87, 0.11);
+}
+
+.mb-item:focus-visible {
+    outline: 2px solid rgba(176, 141, 87, 0.55);
+    outline-offset: -2px;
+}
+
+.mb-item.is-current {
+    background: var(--gold-tint);
+    color: var(--ink);
+}
+
+.mb-item-t {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mb-item.is-current .mb-item-t::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--gold);
+}
+
+.mb-item-s {
+    color: var(--faint);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes mb-pop {
+    from {
+        opacity: 0;
+        transform: translateY(4px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .mb-actions {

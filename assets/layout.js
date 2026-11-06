@@ -280,12 +280,22 @@
     box.className = 'music-box is-paused';
     box.setAttribute('role', 'group');
     box.setAttribute('aria-label', '背景音乐 · 音乐盒');
+    var MENU = '<div class="mb-menu" hidden aria-label="曲目列表">' +
+        '<p class="mb-menu-head">曲目</p>' +
+        TRACKS.map(function (t, i) {
+            return '<button class="mb-item" type="button" data-i="' + i + '">' +
+                '<span class="mb-item-t">' + t.title + '</span>' +
+                '<span class="mb-item-s">' + t.artist + ' · ' + t.album + '</span>' +
+                '</button>';
+        }).join('') +
+        '</div>';
+
     box.innerHTML =
         '<button class="mb-disc" type="button" aria-label="播放或暂停">' + DISC + '</button>' +
-        '<span class="mb-meta">' +
+        '<button class="mb-meta" type="button" aria-haspopup="true" aria-expanded="false" aria-label="选择曲目">' +
         '<span class="mb-title"></span>' +
         '<span class="mb-sub"></span>' +
-        '</span>' +
+        '</button>' +
         '<span class="mb-actions">' +
         '<button class="mb-btn mb-play" type="button" aria-label="播放">' +
         '<span class="ico ico-play">' + ICON_PLAY + '</span>' +
@@ -295,7 +305,8 @@
         '<span class="ico ico-sound">' + ICON_SOUND + '</span>' +
         '<span class="ico ico-mute">' + ICON_MUTE + '</span>' +
         '</button>' +
-        '</span>';
+        '</span>' +
+        MENU;
     document.body.appendChild(box);
 
     var audio = document.createElement('audio');
@@ -311,6 +322,9 @@
     var subEl = box.querySelector('.mb-sub');
     var titleEl = box.querySelector('.mb-title');
     var coverEl = box.querySelector('.mb-cover');
+    var metaBtn = box.querySelector('.mb-meta');
+    var menu = box.querySelector('.mb-menu');
+    var items = Array.prototype.slice.call(box.querySelectorAll('.mb-item'));
     var subText = '';
     var hinting = false;
     var armed = false;
@@ -354,8 +368,64 @@
         subText = t.artist + ' · 音乐盒';
         write('sessionStorage', K_TRACK, String(idx));
         updateMeta(t);
+        syncMenu();
         render();
     }
+
+    /* 曲目面板：点标题展开，选一首就切过去 */
+    function syncMenu() {
+        items.forEach(function (b, i) {
+            b.classList.toggle('is-current', i === idx);
+            b.setAttribute('aria-current', i === idx ? 'true' : 'false');
+        });
+    }
+
+    function menuOpen() {
+        return !menu.hasAttribute('hidden');
+    }
+
+    function toggleMenu(open) {
+        var want = typeof open === 'boolean' ? open : !menuOpen();
+        if (want === menuOpen()) { return; }
+        if (want) {
+            menu.removeAttribute('hidden');
+            syncMenu();
+        } else {
+            menu.setAttribute('hidden', '');
+        }
+        metaBtn.setAttribute('aria-expanded', want ? 'true' : 'false');
+    }
+
+    metaBtn.addEventListener('click', function () {
+        toggleMenu();
+    });
+
+    items.forEach(function (b) {
+        b.addEventListener('click', function () {
+            var i = parseInt(b.getAttribute('data-i'), 10);
+            toggleMenu(false);
+            if (i === idx) {
+                play();
+                return;
+            }
+            switchTo(i);
+            play();
+        });
+    });
+
+    document.addEventListener('pointerdown', function (e) {
+        if (!menuOpen()) { return; }
+        if (e.target && box.contains(e.target)) { return; }
+        toggleMenu(false);
+    }, true);
+
+    document.addEventListener('keydown', function (e) {
+        if (!menuOpen()) { return; }
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            toggleMenu(false);
+            metaBtn.focus();
+        }
+    });
 
     function nextAlive(from) {
         for (var i = 1; i <= TRACKS.length; i++) {
@@ -497,6 +567,9 @@
            e.target 有可能已脱离文档，closest 就不准了 */
         var path = e.composedPath ? e.composedPath() : [];
         for (var i = 0; i < path.length; i++) {
+            if (path[i] === menu) {
+                return;
+            }
             if (path[i] && path[i].nodeName === 'BUTTON') {
                 return;
             }
