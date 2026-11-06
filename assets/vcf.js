@@ -69,6 +69,22 @@
         return false;
     }
 
+    /* 只在这个方向上连成五个（冲四的补点必须与这一手同线） */
+    function lineFive(b, cx, cy, p, dx, dy) {
+        var n = 1, i, x, y;
+        for (i = 1; i <= 4; i++) {
+            x = cx + dx * i; y = cy + dy * i;
+            if (!inside(x, y) || b[y * N + x] !== p) { break; }
+            n++;
+        }
+        for (i = 1; i <= 4; i++) {
+            x = cx - dx * i; y = cy - dy * i;
+            if (!inside(x, y) || b[y * N + x] !== p) { break; }
+            n++;
+        }
+        return n >= 5;
+    }
+
     /*
      * 刚落下的这一手在四条线上各能补出哪些成五点。
      * 成五点必然落在以 (x,y) 为中心、半径 4 的十字上，扫一遍就够。
@@ -83,7 +99,7 @@
                 var k = cy * N + cx;
                 if (b[k] !== EMPTY || out.indexOf(k) >= 0) { continue; }
                 b[k] = p;
-                var five = isFive(b, cx, cy, p);
+                var five = lineFive(b, cx, cy, p, dx, dy);
                 b[k] = EMPTY;
                 if (five) { out.push(k); }
             }
@@ -118,6 +134,7 @@
 
         var def = atk === BLACK ? WHITE : BLACK;
         var cand = candidates(b);
+        var fallback = null;
 
         for (var i = 0; i < cand.length; i++) {
             var k = cand[i], x = k % N, y = (k / N) | 0;
@@ -133,9 +150,10 @@
                 b[k] = EMPTY;
                 continue;
             }
-            if (comps.length > 1) {        /* 活四或双四：白方一个挡点堵不住 */
+            if (comps.length > 1) {        /* 活四或双四：只有作为最后一手时才算数 */
                 b[k] = EMPTY;
-                return [k, comps[0]];
+                if (depth === 1 && !fallback) { fallback = [k, comps[0]]; }
+                continue;
             }
 
             var q = comps[0];
@@ -147,7 +165,7 @@
 
             if (rest) { return [k, q].concat(rest); }
         }
-        return null;
+        return fallback;
     }
 
     /* 逐层加深，拿到最短的一串；超时就当作没解 */
@@ -161,21 +179,189 @@
         return null;
     }
 
-    /* 题库：每题的 [x, y, 颜色]，坐标 0-14，黑 1 白 2 */
-    var PUZZLES = [
-        { level: '提高', stones: [[9,3,2],[10,3,2],[11,3,2],[9,4,1],[11,4,2],[8,5,1],[12,5,1],[8,6,1],[9,6,1],[11,6,2],[8,7,2],[9,7,1],[11,7,1]] },
-        { level: '基础', stones: [[5,9,1],[6,9,1],[5,10,1],[6,10,1],[8,10,1],[9,10,2],[5,11,2],[9,11,2],[6,12,2],[6,13,1],[7,13,1],[8,13,2],[9,13,1]] },
-        { level: '基础', stones: [[3,7,2],[5,7,2],[7,7,1],[3,8,1],[4,8,1],[7,8,1],[6,9,1],[7,9,2],[6,10,1],[7,10,2],[5,11,2],[6,11,2],[7,11,1]] },
-        { level: '基础', stones: [[5,2,1],[6,2,2],[4,3,2],[5,3,1],[7,3,1],[5,4,2],[6,4,1],[7,4,1],[8,4,1],[5,5,1],[7,5,2],[4,6,2],[6,6,1],[7,6,2],[8,6,1]] },
-        { level: '提高', stones: [[7,3,1],[8,3,1],[6,4,1],[8,4,2],[10,4,1],[6,5,2],[9,5,1],[7,6,1],[8,6,1],[6,7,2],[7,7,2],[9,7,2],[10,7,1]] },
-        { level: '进阶', stones: [[3,3,2],[5,3,1],[7,3,2],[3,4,1],[4,4,1],[6,4,2],[7,4,2],[4,5,2],[6,5,1],[7,5,2],[3,6,2],[6,6,1],[3,7,1],[6,7,1],[7,7,1]] },
-        { level: '基础', stones: [[6,8,1],[7,8,2],[10,8,2],[6,9,2],[7,9,1],[8,9,2],[10,9,2],[6,10,1],[8,10,2],[9,10,1],[10,10,1],[8,11,1],[9,11,1],[6,12,1],[7,12,1],[8,12,2]] },
-        { level: '基础', stones: [[4,7,2],[5,7,2],[6,7,1],[7,7,1],[8,7,2],[4,8,1],[5,8,2],[7,8,2],[8,9,1],[4,10,1],[5,10,1],[6,10,2],[8,10,1],[4,11,1],[5,11,1],[7,11,1],[8,11,2]] },
-        { level: '基础', stones: [[9,7,1],[10,7,2],[12,7,1],[9,8,2],[10,8,2],[13,8,2],[9,9,2],[10,9,1],[11,9,2],[12,9,1],[13,9,1],[11,10,1],[13,10,1],[10,11,1],[13,11,1]] },
-        { level: '基础', stones: [[4,6,2],[5,6,1],[6,6,1],[2,7,2],[3,7,1],[5,7,2],[3,8,1],[6,8,1],[4,9,1],[6,10,1]] },
-        { level: '基础', stones: [[5,9,2],[8,9,1],[9,9,1],[5,10,1],[6,10,2],[7,10,1],[5,11,1],[6,11,2],[7,11,1],[8,11,1],[9,11,1],[5,12,1],[7,12,2],[6,13,1]] },
-        { level: '基础', stones: [[7,6,1],[8,6,1],[4,7,1],[6,7,2],[8,7,1],[5,8,2],[6,8,2],[4,9,1],[5,9,2],[6,9,2],[7,9,1],[8,9,1],[5,10,1],[7,10,1],[8,10,2]] }
-    ];
+    /* ---------- 出题器 ----------
+     * 做法跟 renju4433 的生成器同路：先让双方「安静」自对弈铺局面
+     * （谁都不主动冲四），铺到黑方该走时回头查这里是不是藏着 VCF，
+     * 藏得够深就成对删掉与解法无关的子，最后再复算一遍深度。
+     */
+
+    function mulberry32(a) {
+        return function () {
+            a |= 0;
+            a = a + 1831565813 | 0;
+            var t = Math.imul(a ^ a >>> 15, 1 | a);
+            t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+    }
+
+    /* 假设在 (x,y) 落 p 子，某个方向上这一串值多少分 */
+    function runScore(b, x, y, p, dx, dy) {
+        var run = 1, open = 0, i, cx, cy, v;
+        for (i = 1; i <= 4; i++) {
+            cx = x + dx * i; cy = y + dy * i;
+            if (!inside(cx, cy)) { break; }
+            v = b[cy * N + cx];
+            if (v === p) { run++; }
+            else { if (v === EMPTY) { open++; } break; }
+        }
+        for (i = 1; i <= 4; i++) {
+            cx = x - dx * i; cy = y - dy * i;
+            if (!inside(cx, cy)) { break; }
+            v = b[cy * N + cx];
+            if (v === p) { run++; }
+            else { if (v === EMPTY) { open++; } break; }
+        }
+        if (run >= 5) { return 10000000; }
+        if (run === 4) { return open >= 2 ? 1000000 : (open === 1 ? 90000 : 0); }
+        if (run === 3) { return open >= 2 ? 14000 : (open === 1 ? 1600 : 0); }
+        if (run === 2) { return open >= 2 ? 420 : (open === 1 ? 80 : 0); }
+        return open >= 2 ? 22 : 8;
+    }
+
+    /* 这个点对 p 的价值；quiet 时把自己造出四的着法重罚，逼双方都安静 */
+    function threat(b, x, y, p, quiet) {
+        var s = 0, d, v;
+        for (d = 0; d < 4; d++) {
+            v = runScore(b, x, y, p, DIRS[d][0], DIRS[d][1]);
+            if (quiet && v >= 90000) { s -= 400000; }
+            else { s += v; }
+        }
+        return s;
+    }
+
+    function near(b, k, r) {
+        var x = k % N, y = (k / N) | 0, dx, dy, cx, cy;
+        for (dy = -r; dy <= r; dy++) {
+            for (dx = -r; dx <= r; dx++) {
+                cx = x + dx; cy = y + dy;
+                if (inside(cx, cy) && b[cy * N + cx]) { return true; }
+            }
+        }
+        return false;
+    }
+
+    /* 挑一手安静的棋：自己别冲四，同时看对方在这里的威胁值 */
+    function pickQuiet(b, me, rnd, boxR) {
+        var opp = me === BLACK ? WHITE : BLACK;
+        var list = [], c, x, y, s2;
+        for (c = 0; c < N * N; c++) {
+            if (b[c] || !near(b, c, 2)) { continue; }
+            x = c % N; y = (c / N) | 0;
+            if (boxR >= 0 && (Math.abs(x - 7) > boxR || Math.abs(y - 7) > boxR)) { continue; }
+            s2 = threat(b, x, y, opp, false);
+            list.push({
+                c: c,
+                s2: s2,
+                v: threat(b, x, y, me, true) + s2 * 0.92 + rnd() * 40
+            });
+        }
+        if (!list.length) { return -1; }
+        list.sort(function (a, b2) { return b2.v - a.v; });
+        var i, top = Math.min(list.length, 16);
+        for (i = 0; i < top; i++) {
+            if (list[i].s2 >= 1000000) { return list[i].c; }   /* 对方这里能成四，先堵 */
+        }
+        i = Math.min(list.length, 4);
+        return list[Math.floor(Math.pow(rnd(), 1.5) * i)].c;
+    }
+
+    /* 自对弈到黑方该走，顺手看看有没有 VCF */
+    function playQuiet(rnd, cfg) {
+        var bd = new Int8Array(N * N), order = [];
+        var turn = BLACK, nb = 0, nw = 0;
+        var maxMoves = 40 + Math.floor(rnd() * 14);
+        for (var mv = 0; mv < maxMoves; mv++) {
+            var c = mv === 0 ? 7 * N + 7 : pickQuiet(bd, turn, rnd, mv < 4 ? mv : -1);
+            if (c < 0 || bd[c]) { return null; }
+            bd[c] = turn;
+            order.push(c);
+            if (turn === BLACK) { nb++; } else { nw++; }
+            if (isFive(bd, c % N, (c / N) | 0, turn)) { return null; }
+            turn = turn === BLACK ? WHITE : BLACK;
+
+            if (turn !== BLACK || mv < 11 || nb !== nw) { continue; }
+            var line = solve(bd, BLACK, cfg.maxMoves, cfg.ms);
+            if (!line) { continue; }
+            var bm = (line.length + 1) >> 1;
+            if (bm >= cfg.minMoves && bm <= cfg.maxMoves) {
+                return { bd: bd, order: order, path: line, moves: bm };
+            }
+        }
+        return null;
+    }
+
+    /* 成对删掉无关的子：前 4 手与解法路径上的点得留着，每删一对都要复算 */
+    function trim(bd, order, path, cfg) {
+        var cur = Int8Array.from(bd), keep = {}, i, a, c1, c2, p1, p2, line, bm, ok;
+        for (i = 0; i < 4 && i < order.length; i++) { keep[order[i]] = 1; }
+        for (i = 0; i < path.length; i++) { keep[path[i]] = 1; }
+
+        var changed = true, round = 0;
+        while (changed && round++ < 2) {
+            changed = false;
+            for (a = 4; a + 1 < order.length; a++) {
+                c1 = order[a]; c2 = order[a + 1];
+                if (!cur[c1] || !cur[c2] || keep[c1] || keep[c2]) { continue; }
+                p1 = cur[c1]; p2 = cur[c2];
+                cur[c1] = EMPTY; cur[c2] = EMPTY;
+                line = solve(cur, BLACK, cfg.maxMoves, cfg.ms);
+                bm = line ? (line.length + 1) >> 1 : 0;
+                ok = bm >= cfg.minMoves && bm <= cfg.maxMoves;
+                if (ok) { changed = true; }
+                else { cur[c1] = p1; cur[c2] = p2; }
+            }
+        }
+        return cur;
+    }
+
+    function levelOf(bm) {
+        return bm <= 2 ? '入门' : bm === 3 ? '基础' : bm === 4 ? '提高' : '进阶';
+    }
+
+    /* 出一道题；cfg.budget 是总时间上限（毫秒），用完就返回 null 交给上层重试 */
+    function makePuzzle(cfg) {
+        var rnd = mulberry32((cfg.seed >>> 0) || (Date.now() ^ Math.floor(Math.random() * 1e9)));
+        var t0 = Date.now(), attempts = 0;
+        while (Date.now() - t0 < cfg.budget) {
+            attempts++;
+            var g = playQuiet(rnd, cfg);
+            if (!g) { continue; }
+            var bd = trim(g.bd, g.order, g.path, cfg);
+            var line = solve(bd, BLACK, cfg.maxMoves, cfg.ms);
+            if (!line) { continue; }
+            var bm = (line.length + 1) >> 1;
+            if (bm < cfg.minMoves || bm > cfg.maxMoves) { continue; }
+
+            var stones = [], nb = 0, nw = 0, k;
+            for (k = 0; k < N * N; k++) {
+                if (bd[k] !== EMPTY) {
+                    stones.push([k % N, (k / N) | 0, bd[k]]);
+                    if (bd[k] === BLACK) { nb++; } else { nw++; }
+                }
+            }
+            if (nb !== nw || nb < 5) { continue; }
+
+            return {
+                stones: stones,
+                moves: bm,
+                level: levelOf(bm),
+                line: line.map(function (q) {
+                    return 'ABCDEFGHIJKLMNO'.charAt(q % N) + (N - ((q / N) | 0));
+                }).join(' '),
+                attempts: attempts
+            };
+        }
+        return null;
+    }
+
+    var GEN = {
+        budget: 1800,
+        ms: 450,
+        minMoves: 3,
+        maxMoves: 6,
+        seed: 0
+    };
 
     /* ---------- 页面 ---------- */
 
@@ -205,10 +391,11 @@
         var board = new Int8Array(N * N);
         var history = [];        /* 本题走过的点，用于撤销 */
         var hint = -1;
-        var index = 0;
-        var done = 0;
+        var puzzle = null;
+        var no = 0;              /* 出到第几题 */
+        var done = 0;            /* 过关数 */
         var tries = 0;
-        var solved = {};
+        var cleared = false;     /* 本题是否已判过胜 */
         var busy = false;
 
         var elMsg = doc.getElementById('vcf-msg');
@@ -309,28 +496,53 @@
             elMsg.className = 'vcf-msg' + (tone ? ' is-' + tone : '');
         }
 
-        function load(i) {
-            index = ((i % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
+        /* 出一道新题；预算内没出成就在下一帧再试，界面不会卡住 */
+        function newPuzzle() {
+            if (busy) { return; }
+            busy = true;
+            say('正在摆一盘有杀的局面…', 'wait');
+            elLevel.textContent = '…';
+
+            var gen = {
+                budget: GEN.budget,
+                ms: GEN.ms,
+                minMoves: GEN.minMoves,
+                maxMoves: GEN.maxMoves,
+                seed: (Math.random() * 4294967296) >>> 0
+            };
+
+            var tryOnce = function (left) {
+                var p = makePuzzle(gen);
+                if (p) { no++; busy = false; load(p); return; }
+                if (left > 0) { win.setTimeout(function () { tryOnce(left - 1); }, 30); return; }
+                busy = false;
+                elLevel.textContent = '—';
+                say('这盘没摆出来，再点一次「下一题」。', 'bad');
+            };
+
+            win.setTimeout(function () { tryOnce(2); }, 20);
+        }
+
+        function load(p) {
+            puzzle = p;
+            cleared = false;
             board = new Int8Array(N * N);
             history = [];
             hint = -1;
 
-            PUZZLES[index].stones.forEach(function (s) {
+            p.stones.forEach(function (s) {
                 board[s[1] * N + s[0]] = s[2];
             });
 
-            elCount.textContent = '第 ' + (index + 1) + ' 题 / 共 ' + PUZZLES.length + ' 题';
-            elLevel.textContent = PUZZLES[index].level || '—';
-            if (!solved[index]) {
-                say('轮到你走。每一手都要冲四，白方会跟着挡。', '');
-            } else {
-                say('这题做过了，可以再走一遍，或者点「下一题」。', 'ok');
-            }
+            elCount.textContent = '第 ' + no + ' 题 · ' + p.stones.length + ' 子';
+            elLevel.textContent = p.level;
+            say('轮到你走。每一手都要冲四，白方会跟着挡。', '');
+            if (btnNext) { btnNext.classList.remove('is-hot'); }
             draw();
         }
 
         function stat() {
-            elDone.textContent = done + ' / ' + PUZZLES.length;
+            elDone.textContent = String(done);
             elTries.textContent = String(tries);
         }
 
@@ -403,12 +615,9 @@
             busy = false;
         }
 
-        function finish(win, text) {
-            if (win) {
-                if (!solved[index]) {
-                    solved[index] = 1;
-                    done++;
-                }
+        function finish(ok, text) {
+            if (ok) {
+                if (!cleared) { cleared = true; done++; }
                 stat();
                 say(text + ' 点「下一题」继续。', 'ok');
                 if (btnNext) { btnNext.classList.add('is-hot'); }
@@ -455,12 +664,11 @@
         }
 
         function reset() {
-            load(index);
+            if (puzzle) { load(puzzle); }
         }
 
         function next() {
-            load(index + 1);
-            if (btnNext) { btnNext.classList.remove('is-hot'); }
+            newPuzzle();
         }
 
         canvas.addEventListener('click', function (e) {
@@ -486,14 +694,15 @@
         });
 
         stat();
-        load(0);
+        newPuzzle();
     }
 
     return {
         N: N,
         BLACK: BLACK,
         WHITE: WHITE,
-        PUZZLES: PUZZLES,
+        makePuzzle: makePuzzle,
+        GEN: GEN,
         solve: solve,
         isFive: isFive,
         completions: completions,
