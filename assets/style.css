@@ -603,6 +603,185 @@ li {
     }
 }
 
+/* ---------- VCF 做题 ---------- */
+
+.vcf {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 18px;
+    align-items: start;
+    margin-bottom: 42px;
+}
+
+.vcf-main,
+.vcf-side {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(160deg, var(--surface), var(--surface-2));
+    box-shadow: var(--shadow-sm);
+}
+
+.vcf-main {
+    padding: 16px 16px 12px;
+}
+
+#vcf-board {
+    display: block;
+    margin: 0 auto;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.vcf-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--muted);
+}
+
+.vcf-turn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--ink-2);
+}
+
+.vcf-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4a453c, #16140f);
+}
+
+.vcf-count {
+    font-variant-numeric: tabular-nums;
+}
+
+.vcf-side {
+    padding: 16px 16px 18px;
+}
+
+.vcf-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0 0 14px;
+}
+
+.vcf-stats div {
+    padding: 9px 10px;
+    border: 1px solid var(--line-soft);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.62);
+}
+
+.vcf-stats dt {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+}
+
+.vcf-stats dd {
+    margin: 3px 0 0;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.vcf-msg {
+    margin: 0 0 14px;
+    min-height: 4em;
+    padding: 10px 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 9px;
+    background: var(--gold-tint);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--ink-3);
+}
+
+.vcf-msg.is-ok {
+    color: var(--loss);
+    background: #eef4ea;
+    border-color: #d9e4d1;
+}
+
+.vcf-msg.is-bad {
+    color: var(--win);
+    background: #fbeeea;
+    border-color: #efd8cf;
+}
+
+.vcf-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.vcf-btns button {
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.vcf-btns button:hover {
+    border-color: rgba(176, 141, 87, 0.6);
+    background: #fffdf7;
+    color: var(--gold-deep);
+}
+
+.vcf-btns button:active {
+    transform: translateY(1px);
+}
+
+.vcf-btns button.is-primary {
+    color: var(--gold-deep);
+    border-color: rgba(176, 141, 87, 0.5);
+    background: var(--gold-tint);
+}
+
+.vcf-btns button.is-hot {
+    box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.2);
+}
+
+.vcf-help {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+    font-size: 13.5px;
+    line-height: 1.85;
+    color: var(--muted);
+}
+
+.vcf-help summary {
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
+    color: var(--gold-deep);
+}
+
+.vcf-help p {
+    margin: 8px 0 0;
+}
+
 /* ---------- 列表 ---------- */
 
 .post-list,
@@ -1883,6 +2062,10 @@ table.ratings .r-name a:hover {
     .hero-links {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .vcf {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 @media (max-width: 700px) {
@@ -1969,6 +2152,18 @@ table.ratings .r-name a:hover {
 
     .hero-link {
         padding: 10px 12px;
+    }
+
+    .vcf-main {
+        padding: 12px 12px 10px;
+    }
+
+    .vcf-side {
+        padding: 14px 14px 16px;
+    }
+
+    .vcf-stats dd {
+        font-size: 14px;
     }
 
     .news-ticker {

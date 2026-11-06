@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VCF 做题 - 连珠杂箱</title>
+<meta name="description" content="连续冲四的做题练习：黑方每一步都要冲四，白方被迫跟随，把路线走到底。">
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+
+<body data-nav="杂技" data-base="../">
+
+<div class="container">
+
+    <div id="site-header"></div>
+
+    <main>
+
+        <header class="page-head">
+            <p class="eyebrow">杂技</p>
+            <h1 class="page-title">VCF 做题</h1>
+            <p class="page-desc">每一手都必须冲四，白方只有一个挡点，跟着挡下去直到成五。把连续冲四算清楚，实战里就多一条硬手段。</p>
+        </header>
+
+        <section class="vcf">
+            <div class="vcf-main">
+                <canvas id="vcf-board"></canvas>
+                <div class="vcf-bar">
+                    <span class="vcf-turn"><i class="vcf-dot"></i>黑先 · 你执黑</span>
+                    <span class="vcf-count" id="vcf-count"></span>
+                </div>
+            </div>
+
+            <aside class="vcf-side">
+                <dl class="vcf-stats">
+                    <div><dt>已过关</dt><dd id="vcf-done">0 / 0</dd></div>
+                    <div><dt>走错</dt><dd id="vcf-tries">0</dd></div>
+                    <div><dt>难度</dt><dd id="vcf-level">—</dd></div>
+                </dl>
+
+                <p class="vcf-msg" id="vcf-msg">轮到你走。</p>
+
+                <div class="vcf-btns">
+                    <button type="button" id="vcf-undo">撤销</button>
+                    <button type="button" id="vcf-hint">提示</button>
+                    <button type="button" id="vcf-reset">重来</button>
+                    <button type="button" id="vcf-next" class="is-primary">下一题</button>
+                </div>
+
+                <details class="vcf-help">
+                    <summary>怎么算过关</summary>
+                    <p>轮到你执黑，每一手都要走出一个冲四（或直接成五）。白方只有唯一的挡点，会自动替你走掉；黑方走出的四若有两个补五点，白方堵不住，同样算赢。</p>
+                    <p>不是冲四、或者这一手之后白方守得住、后面接不上，都会退回来重走。点「提示」可以让程序算一手。</p>
+                    <p>判定按无禁手规则：黑棋不做三三、四四的禁手检查，专心练连续冲四的算路。</p>
+                </details>
+            </aside>
+        </section>
+
+    </main>
+
+</div>
+
+<script src="../assets/layout.js"></script>
+<script src="../assets/vcf.js"></script>
+
+</body>
+</html>
