@@ -433,7 +433,7 @@ def compute(ms):
 
 # ---------------------------------------------------------------- 等级分
 
-def compute_ratings(ms, unis, regions):
+def compute_ratings(ms, unis, regions, apply_threshold=True):
     """用 WHR（Whole-History Rating）算法预先计算每位棋手的等级分。
 
     只统计真正下完的对局：轮空、弃权（f0 / 0f / ff）与无结果的对局都不计入，
@@ -521,8 +521,10 @@ def compute_ratings(ms, unis, regions):
     def is_henan(r):
         return '河南' in (r['region'] or '')
 
-    rows = [r for r in rows
-            if (r['games'] >= 4 if is_henan(r) else r['events'] >= 2)]
+    for r in rows:
+        r['listed'] = (r['games'] >= 4 if is_henan(r) else r['events'] >= 2)
+    if apply_threshold:
+        rows = [r for r in rows if r['listed']]
 
     for r in rows:
         r['pt'] = round(r['rating'], 2)       # 等级分保留两位小数

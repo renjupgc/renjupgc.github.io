@@ -2098,6 +2098,398 @@ table.ratings .r-name a:hover {
     color: var(--faint);
 }
 
+/* ---------- 胜率预测（杂技） ---------- */
+
+.wp-pick {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: end;
+    margin: 0 0 22px;
+}
+
+.wp-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+.wp-tag {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--gold-deep);
+}
+
+.wp-input {
+    width: 100%;
+    padding: 11px 14px;
+    font-family: var(--serif);
+    font-size: 17px;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.wp-input::placeholder {
+    color: var(--faint);
+}
+
+.wp-input:focus {
+    outline: none;
+    border-color: rgba(176, 141, 87, 0.62);
+    box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.12);
+}
+
+.wp-input.is-bad {
+    border-color: rgba(168, 69, 63, 0.5);
+}
+
+.wp-swap {
+    padding: 11px 13px;
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.2;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.wp-swap:hover {
+    color: var(--gold-deep);
+    border-color: rgba(176, 141, 87, 0.55);
+}
+
+.wp-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin: 0 0 22px;
+}
+
+.wp-card {
+    min-width: 0;
+    padding: 18px 20px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.wp-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.wp-name {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+}
+
+.wp-name:hover {
+    color: var(--gold-deep);
+    text-decoration: none;
+}
+
+.wp-flag {
+    flex: none;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--gold-tint);
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--gold-deep);
+    white-space: nowrap;
+}
+
+.wp-sub {
+    margin: 4px 0 14px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--muted);
+}
+
+.wp-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0 0 14px;
+}
+
+.wp-meta > div {
+    padding: 9px 11px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+}
+
+.wp-meta span {
+    display: block;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+}
+
+.wp-meta b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--ink);
+}
+
+.wp-ev h3 {
+    margin: 0 0 6px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+}
+
+.wp-ev ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.wp-ev li {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 5px 0;
+    border-top: 1px dashed var(--line-soft);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--ink-2);
+}
+
+.wp-ev li:first-child {
+    border-top: 0;
+}
+
+.wp-ev time {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+}
+
+.wp-ev-name {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.wp-rank {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--gold-deep);
+}
+
+.wp-h2h {
+    margin: 0 0 22px;
+    padding: 18px 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.wp-h2h h2,
+.wp-result h2 {
+    margin: 0 0 10px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+}
+
+.wp-h2h-sum {
+    margin: 0 0 12px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.wp-h2h table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--sans);
+    font-size: 13px;
+}
+
+.wp-h2h th {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-align: left;
+}
+
+.wp-h2h td {
+    padding: 6px 8px;
+    border-bottom: 1px dashed var(--line-soft);
+    color: var(--ink-2);
+}
+
+.wp-h2h tr:last-child td {
+    border-bottom: 0;
+}
+
+.wp-res-w {
+    color: var(--win);
+}
+
+.wp-res-d {
+    color: var(--draw);
+}
+
+.wp-res-l {
+    color: var(--loss);
+}
+
+.wp-result {
+    padding: 20px 20px 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.wp-bar {
+    display: flex;
+    height: 46px;
+    margin: 0 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.wp-bar i {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-style: normal;
+    color: #fffdf7;
+    transition: width 0.28s ease;
+}
+
+.wp-bar .s-w {
+    background: var(--win);
+}
+
+.wp-bar .s-d {
+    background: var(--draw);
+}
+
+.wp-bar .s-l {
+    background: var(--loss);
+}
+
+.wp-odds {
+    width: 100%;
+    margin: 6px 0 4px;
+    border-collapse: collapse;
+    font-family: var(--sans);
+    font-size: 13px;
+}
+
+.wp-odds th {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-align: right;
+}
+
+.wp-odds th:first-child {
+    text-align: left;
+}
+
+.wp-odds td {
+    padding: 7px 8px;
+    border-bottom: 1px dashed var(--line-soft);
+    font-family: var(--mono);
+    text-align: right;
+    color: var(--ink);
+}
+
+.wp-odds td:first-child {
+    font-family: var(--sans);
+    text-align: left;
+    color: var(--ink-2);
+}
+
+.wp-odds tr:last-child td {
+    border-bottom: 0;
+}
+
+.wp-delta {
+    margin: 0 0 14px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--muted);
+}
+
+.wp-note {
+    margin: 16px 0 0;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.85;
+    color: var(--muted);
+}
+
+.wp-warn {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--warn, #a8453f);
+}
+
+@media (max-width: 640px) {
+    .wp-pick {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "a swap" "b swap";
+    }
+
+    .wp-slot-a {
+        grid-area: a;
+    }
+
+    .wp-slot-b {
+        grid-area: b;
+    }
+
+    .wp-swap {
+        grid-area: swap;
+        height: 100%;
+    }
+
+    .wp-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 /* ---------- 音乐盒 ---------- */
 
 .music-box {
