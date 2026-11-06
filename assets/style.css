@@ -1953,6 +1953,151 @@ table.ratings .r-name a:hover {
     }
 }
 
+/* ---------- 棋手主页 · 人物简介 ---------- */
+.p-renwu {
+    margin: 24px 0 0;
+    padding: 20px 24px 18px;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+}
+.p-renwu h2 {
+    margin: 0 0 12px;
+    padding: 0;
+}
+.pr-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px;
+    margin: 0 0 12px;
+}
+.pr-bio {
+    margin: 0 0 12px;
+    font-size: 15px;
+    line-height: 2;
+    color: var(--ink-3);
+}
+.pr-more,
+.pr-src {
+    margin: 12px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+
+/* ---------- 首页 · 棋手搜索 ---------- */
+.hero-search {
+    position: relative;
+    margin-top: 24px;
+    max-width: 430px;
+}
+.hs-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 6px 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.hs-box:focus-within {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.12);
+}
+.hs-icon {
+    flex: none;
+    display: flex;
+    color: var(--faint);
+}
+.hs-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 11px 0;
+    border: 0;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 14.5px;
+    color: var(--ink);
+    outline: none;
+}
+.hs-input::placeholder {
+    color: var(--faint);
+}
+.hs-btn {
+    flex: none;
+    padding: 7px 12px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--gold-tint);
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--gold-deep);
+    cursor: pointer;
+    transition: background 0.18s ease;
+}
+.hs-btn:hover {
+    background: #efdfbe;
+}
+.hs-panel {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    display: none;
+    max-height: 330px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+}
+.hs-panel.is-open {
+    display: block;
+}
+.hs-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px 11px;
+    border-bottom: 1px solid var(--line-soft);
+    text-decoration: none;
+}
+.hs-item:last-child {
+    border-bottom: 0;
+}
+.hs-item:hover,
+.hs-item.is-active {
+    background: var(--gold-tint);
+}
+.hs-n {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+}
+.hs-s {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+}
+.hs-empty {
+    margin: 0;
+    padding: 12px 14px 13px;
+    font-size: 13px;
+    color: var(--muted);
+}
+.hs-tip {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--faint);
+}
+
 /* ---------- 音乐盒 ---------- */
 
 .music-box {
