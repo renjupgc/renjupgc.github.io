@@ -46,8 +46,11 @@
 
     function pct(x) { return (x * 100).toFixed(1) + '%'; }
     function odds(x) {
+        // 赔率下限 1.00（押一赔一），上限 10000，超出的一律写「＞10000」
         var v = 1 / (x * (1 + MARGIN));
-        return v >= 100 ? '99+' : v.toFixed(2);
+        if (v > 10000) { return '＞10000'; }
+        if (v < 1) { v = 1; }
+        return v.toFixed(2);
     }
 
     function evRows(ev) {
