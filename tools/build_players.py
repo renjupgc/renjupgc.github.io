@@ -357,16 +357,16 @@ def extra_row(x):
 RENWU_MAX_HONORS = 8
 
 
-def render_renwu(prof, limit=RENWU_MAX_HONORS, brief=False):
+def render_renwu(prof, limit=RENWU_MAX_HONORS):
     """「人物」一节：段位、小传与战绩年表，取自杂豫的山河四省连珠人物。
 
     个人主页要的是摘要，年表最多留 limit 条（新的在前），完整清单仍在杂豫那一页。
-    已经入榜的棋手，本页还有统计、参赛与对局记录，小传只留 brief 那句百字以内的
-    关键信息，完整小传仍在杂豫那一页。
+    小传只写身份、师承、棋风与执裁推广，不再逐条罗列年份与名次——那些在年表和
+    杂豫那一页里。
     """
     dan = prof.get('dan') or ''
     cls = 'rh-dan' + (' is-none' if dan in ('段位未载', '') else '')
-    bio = (prof.get('brief') if brief else '') or prof.get('bio') or ''
+    bio = prof.get('bio') or ''
     out = ['            <section class="p-renwu">',
            '                <h2>人物</h2>',
            '                <p class="pr-head"><span class="%s">%s</span>'
@@ -459,7 +459,7 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                  '']
 
     if prof:
-        body += render_renwu(prof, brief=rated)
+        body += render_renwu(prof)
 
     if reports:
         body += ['            <section class="mention-card">',
