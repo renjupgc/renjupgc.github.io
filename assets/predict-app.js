@@ -145,14 +145,8 @@
             boxRes.innerHTML = '<p class="wp-warn">左右是同一个人，换一位对手再看。</p>';
             return;
         }
-        var dTxt = (r.delta >= 0 ? '+' : '') + r.delta.toFixed(2);
-        var src = r.used
-            ? '按交手 ' + r.used + ' 局（等效 ' + PRIOR + ' 局先验）修正后'
-            : '两人无交手记录，未作修正';
         boxRes.innerHTML =
             '<h2>推测</h2>' +
-            '<p class="wp-delta">等级分差 ' + esc(a) + ' − ' + esc(b) + ' = <b>' + dTxt + '</b>；' +
-            '按等级分算基础期望 ' + pct(r.e0) + '、和棋率 ' + pct(r.d0) + '；' + src + '。</p>' +
             '<div class="wp-bar">' +
             '<i class="s-w" style="width:' + (r.pw * 100).toFixed(2) + '%">' +
             (r.pw > 0.12 ? esc(a) + '胜 ' + pct(r.pw) : '') + '</i>' +

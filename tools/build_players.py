@@ -50,6 +50,23 @@ ZASHI_MARK = '栏目：<a href="../zashi.html">'
 # 参赛记录里只有这几类赛事才按成绩表显示名次（赛事名称包含其中任一关键词）
 RANKED_KEYWORDS = ('高校', '大学生')
 
+# 未入榜者的籍贯与学校：ratings 只收进榜的人，这几个字段就得另记。
+# 键 = 姓名，(地区, 学校)。
+REGION_OVERRIDE = {
+    '药博凡': ('北京市', ''),
+    '刘郑贺': ('河北省 唐山市', ''),
+    '邱海妍': ('山东省 济南市', '山东大学'),
+    '唐楷': ('重庆市', ''),
+}
+
+# 同名不同人：站内按姓名做键，重名的人只能分开命名。
+# MENTION 给出该人在杂史正文里的写法（报道里不会带括注）；
+# REPORT_EXCLUDE 再把不属本人的那几篇剔掉，免得两位李丹的战绩串在一起。
+MENTION = {'李丹（洛阳）': '李丹'}
+REPORT_EXCLUDE = {
+    '李丹': ('2026-luoyang-huifutang.html', '2026-luoyang-yuedu.html'),
+}
+
 
 # ---------------------------------------------------------------- 数据
 
@@ -74,6 +91,7 @@ def post_text(path):
 
 def zashi_posts(names):
     """扫出杂史栏目的文章，返回 [(路径, 标题, 日期, {姓名: 提及次数})]。"""
+    needles = {n: MENTION.get(n, n) for n in names}
     out = []
     for fn in sorted(os.listdir(POSTS_DIR)):
         if not fn.endswith('.html'):
@@ -95,7 +113,7 @@ def zashi_posts(names):
         date = ('%s-%02d-%02d' % (dm.group(1), int(dm.group(2)), int(dm.group(3)))
                 if dm else '')
         text = post_text(path)
-        counts = {n: text.count(n) for n in names}
+        counts = {n: text.count(needles[n]) for n in names}
         out.append((fn, title, date, counts))
     out.sort(key=lambda x: (x[2], x[0]), reverse=True)
     return out
@@ -276,7 +294,7 @@ EXTRA_EVENTS = {
          'href': '../../posts/2026-luoyang-tianyuan.html', 'rank': 1,
          'note': '与潘冠臣搭档“潘乔联队”夺冠，据杂史《新春开枰，佳节联棋》'},
     ],
-    '李丹': [
+    '李丹（洛阳）': [
         {'date': '2026-02-22',
          'name': '丙午年首场五子棋月赛（晖福堂）公开组',
          'href': '../../posts/2026-luoyang-huifutang.html', 'rank': 1,
@@ -354,6 +372,11 @@ def extra_row(x):
             % (bz.esc(x['date']), x['href'], bz.esc(x['name']), cell))
 
 
+def in_renwu(prof):
+    """该人是否在「山河四省连珠人物」那一页上（EXTRA 里的人不在）。"""
+    return (prof.get('src') or 'renwu') == 'renwu'
+
+
 def render_renwu(prof):
     """「人物」一节：段位、地区与一句小传，取自杂豫的山河四省连珠人物。
 
@@ -363,15 +386,19 @@ def render_renwu(prof):
     """
     dan = prof.get('dan') or ''
     cls = 'rh-dan' + (' is-none' if dan in ('段位未载', '') else '')
+    if in_renwu(prof):
+        src = ('段位、籍贯与这段小传摘自杂豫'
+               ' <a href="../renwu.html">山河四省连珠人物</a>；完整小传与历年战绩也'
+               '在该页。')
+    else:
+        src = '段位、籍贯与这段小传据杂史的赛事报道整理。'
     return ['            <section class="p-renwu">',
             '                <h2>人物</h2>',
             '                <p class="pr-head"><span class="%s">%s</span>'
             '<span class="rh-tag">%s</span></p>'
             % (cls, bz.esc(dan or '段位未载'), bz.esc(prof.get('tag') or '')),
             '                <p class="pr-bio">%s</p>' % (prof.get('bio') or ''),
-            '                <p class="pr-src">段位、籍贯与这段小传摘自杂豫'
-            ' <a href="../renwu.html">山河四省连珠人物</a>；完整小传与历年战绩也'
-            '在该页。</p>',
+            '                <p class="pr-src">%s</p>' % src,
             '            </section>',
             '']
 
@@ -402,17 +429,20 @@ def page(name, rec, events, games, reports, index, total_players, arts,
             '',
             '            <div class="player-stats">']
     if profile_only:
+        tag_line = ('山河四省连珠人物' if in_renwu(prof) else '杂史赛事报道')
+        how = ('本页依据杂豫 <a href="../renwu.html">「山河四省连珠人物」</a>、'
+               '杂史的赛事报道与成绩表整理。' if in_renwu(prof)
+               else '本页依据杂史的赛事报道整理。')
         body += ['                <span class="ps"><span class="ps-k">段位</span>'
                  '<span class="ps-v">%s</span></span>' % bz.esc(prof['dan']),
                  '                <span class="ps"><span class="ps-k">地区</span>'
                  '<span class="ps-v">%s</span></span>'
                  % bz.esc(prof['tag'].replace(' · ', ' ')),
                  '                <span class="ps"><span class="ps-k">收录</span>'
-                 '<span class="ps-v">山河四省连珠人物</span></span>',
+                 '<span class="ps-v">%s</span></span>' % tag_line,
                  '            </div>',
                  '            <p class="player-note">TA 不在本站等级分榜的收录范围内，'
-                 '本页依据杂豫 <a href="../renwu.html">「山河四省连珠人物」</a>、'
-                 '杂史的赛事报道与成绩表整理。</p>',
+                 '%s</p>' % how,
                  '']
     else:
         body += ['                <span class="ps"><span class="ps-k">等级分</span>'
@@ -601,7 +631,7 @@ def write_search_index(names, ratings, profiles):
             bits.append(r['region'])
         elif p.get('tag'):
             bits.append(p['tag'].replace(' · ', ' '))
-        if p.get('dan'):
+        if p.get('dan') and p['dan'] != '段位未载':
             bits.append(p['dan'])
         if r.get('rating') is not None:
             bits.append('等级分第 %s 位' % r.get('rank'))
@@ -626,7 +656,8 @@ def main():
     ratings, tournaments, matches = load_db()
     rated_names = [r['name'] for r in ratings]
     rated = set(rated_names)
-    profiles = rw.RENWU
+    profiles = dict(rw.RENWU)
+    profiles.update(getattr(rw, 'EXTRA', {}))
 
     # 只在成绩表里出场过、还没入榜的棋手也各出一页：成绩表里的姓名要能点进来。
     # 以「出场过」为准，而不是「有正式对局」——只下过弃权局的棋手同样在表里有名。
@@ -638,6 +669,9 @@ def main():
 
     zposts = zashi_posts(rated_names + unrated + solo)
     reports = person_reports(zposts)
+    for who, fns in REPORT_EXCLUDE.items():      # 重名的，报道别串到别人名下
+        if who in reports:
+            reports[who] = [r for r in reports[who] if r['fn'] not in fns]
     stats, games = collect(ratings, tournaments, matches)
     arts = load_event_ranks()
 
@@ -647,7 +681,8 @@ def main():
     extra = []
     for name in unrated:
         d = tally_.get(name, zero)
-        extra.append({'name': name, 'region': '', 'university': '',
+        reg, uni = REGION_OVERRIDE.get(name, ('', ''))
+        extra.append({'name': name, 'region': reg, 'university': uni,
                       'rating': None, 'games': d['games'], 'wins': d['wins'],
                       'draws': d['draws'], 'losses': d['losses'],
                       'rank': None, 'as_of': as_of})
@@ -674,7 +709,8 @@ def main():
             f.write(html)
 
     linked = patch_rating(rated_names)
-    made = write_search_index(names, ratings, profiles)
+    # 未入榜者的地区/学校来自 REGION_OVERRIDE，一并交给索引，搜索结果里才不至于是空白
+    made = write_search_index(names, ratings + extra, profiles)
 
     tops = sorted(reports.items(), key=lambda kv: (-len(kv[1]), kv[0]))
     print('主页   ->', PLAYER_DIR,
