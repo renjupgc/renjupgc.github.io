@@ -354,42 +354,26 @@ def extra_row(x):
             % (bz.esc(x['date']), x['href'], bz.esc(x['name']), cell))
 
 
-RENWU_MAX_HONORS = 8
+def render_renwu(prof):
+    """「人物」一节：段位、地区与一句小传，取自杂豫的山河四省连珠人物。
 
-
-def render_renwu(prof, limit=RENWU_MAX_HONORS):
-    """「人物」一节：段位、小传与战绩年表，取自杂豫的山河四省连珠人物。
-
-    个人主页要的是摘要，年表最多留 limit 条（新的在前），完整清单仍在杂豫那一页。
-    小传只写身份、师承、棋风与执裁推广，不再逐条罗列年份与名次——那些在年表和
-    杂豫那一页里。
+    历年战绩不搬到个人主页——想看的人顺着这一节的链接去杂豫那一页。
+    小传只写身份、师承、棋风与执裁推广，同样不逐条罗列年份与名次。
+    参赛与对局记录另有专节，这里不重复。
     """
     dan = prof.get('dan') or ''
     cls = 'rh-dan' + (' is-none' if dan in ('段位未载', '') else '')
-    bio = prof.get('bio') or ''
-    out = ['            <section class="p-renwu">',
-           '                <h2>人物</h2>',
-           '                <p class="pr-head"><span class="%s">%s</span>'
-           '<span class="rh-tag">%s</span></p>'
-           % (cls, bz.esc(dan or '段位未载'), bz.esc(prof.get('tag') or '')),
-           '                <p class="pr-bio">%s</p>' % bio]
-    honors = prof.get('honors') or []
-    if honors:
-        out.append('                <ul class="rh-honors">')
-        for year, txt in honors[:limit]:
-            out.append('                    <li><span class="rh-year">%s</span>'
-                       '<span class="rh-txt">%s</span></li>'
-                       % (bz.esc(year), txt))
-        out.append('                </ul>')
-        if len(honors) > limit:
-            out.append('                <p class="pr-more">另有 %d 条战绩，见'
-                       ' <a href="../renwu.html">山河四省连珠人物</a>。</p>'
-                       % (len(honors) - limit))
-    out += ['                <p class="pr-src">摘自杂豫 <a href="../renwu.html">'
-            '山河四省连珠人物</a>。</p>',
+    return ['            <section class="p-renwu">',
+            '                <h2>人物</h2>',
+            '                <p class="pr-head"><span class="%s">%s</span>'
+            '<span class="rh-tag">%s</span></p>'
+            % (cls, bz.esc(dan or '段位未载'), bz.esc(prof.get('tag') or '')),
+            '                <p class="pr-bio">%s</p>' % (prof.get('bio') or ''),
+            '                <p class="pr-src">段位、籍贯与这段小传摘自杂豫'
+            ' <a href="../renwu.html">山河四省连珠人物</a>；完整小传与历年战绩也'
+            '在该页。</p>',
             '            </section>',
             '']
-    return out
 
 
 def page(name, rec, events, games, reports, index, total_players, arts,
