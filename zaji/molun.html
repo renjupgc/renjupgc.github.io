@@ -1922,7 +1922,7 @@
                 if (q === gt || p[q] < 0) { continue; }
                 if (holes && holes.indexOf(q) < 0) { continue; }
                 var pv = partOf(q, [p[q]]);
-                games.push({ gi: q, a: pv.a, b: pv.b, allow: pv.allow });
+                games.push({ gi: q, a: pv.a, b: pv.b, allow: pv.allow, flip: pv.flip });
             }
             /* 台次顺序：枚举下标就是台次号，小的在前 */
             games.sort(function (x, y) { return x.gi - y.gi; });
@@ -2825,9 +2825,15 @@
     /* 一场对局的说法：0=前者胜 1=平 2=前者负；两选一就是 不负/不平/不胜 */
     var RESULT_WORD = { '0': '胜', '1': '平', '2': '负', '0,1': '不负', '0,2': '不平', '1,2': '不胜' };
 
+    /* 枚举里的 0/1/2 是相对「录入时那对选手的第一个」而言的；
+     * 台次里排前面的那个人未必是他（flip），所以写出胜负前要按台次方向倒一次，
+     * 否则「胜」会写成「负」。 */
     function condText(t, nm) {
         if (t.playoff && t.a == null) { return nm(t.playoff); }   /* 占位：实际不再用「加赛胜」表述 */
         var allow = t.allow || [t.code === '1-0' ? 0 : (t.code === '0-1' ? 2 : 1)];
+        if (t.flip) {
+            allow = allow.map(function (v) { return 2 - v; }).sort(function (x, y) { return x - y; });
+        }
         var w = RESULT_WORD[allow.join(',')] || '胜';
         return nm(t.a) + ' ' + w + ' ' + nm(t.b);
     }
