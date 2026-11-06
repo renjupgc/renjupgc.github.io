@@ -1474,8 +1474,8 @@
         var pow3 = [1];
         for (i = 1; i <= m; i++) { pow3[i] = pow3[i - 1] * 3; }
 
-        /* freeSet：不加赛也稳进前 N；playSet：加赛赢下来才进 */
-        var freeSet = {}, playSet = {}, freeCount = 0, playCount = 0, totalCount = 0;
+        /* freeSet：不加赛也稳进前 N；playSet：加赛赢下来才进；tieSet：进前 N 但与他人完全并列需加赛 */
+        var freeSet = {}, playSet = {}, tieSet = {}, freeCount = 0, playCount = 0, totalCount = 0;
         var cur = new Array(m);
 
         function rec(k) {
@@ -1488,6 +1488,7 @@
                     playSet[key] = 1;
                     playCount++;
                     if (r.worst <= targetRank) { freeSet[key] = 1; freeCount++; }
+                    else { tieSet[key] = 1; }   /* 进前 N 但完全并列，得加赛 */
                 }
                 return;
             }
@@ -1550,6 +1551,7 @@
         /* 把 set 里同一种自身结果的关键对局压成最小的若干组条件 */
         function minimize(set, v) {
             var ks = Object.keys(set).filter(function (k) {
+                if (gt < 0) { return true; }   /* 轮空：没有自身结果，不做胜/平/负过滤 */
                 return Math.floor(Number(k) / pow3[gt]) % 3 === v;
             });
             if (!ks.length) { return []; }
@@ -1621,15 +1623,14 @@
         }
 
         var groups = [];
-        if (!always && playCount > 0 && gt >= 0) {
-            [0, 1, 2].forEach(function (v) {
+        /* 自身结果分支：普通选手末轮有胜/平/负三段；轮空选手（gt<0）没有自身结果，
+         * 只考虑其他对局，整体归为一段（tOutcome='bye'）。 */
+        var outcomeVs = gt >= 0 ? [0, 1, 2] : [null];
+        if (!always && playCount > 0) {
+            outcomeVs.forEach(function (v) {
                 var freePats = minimize(freeSet, v);
-                var playPats = minimize(playSet, v).filter(function (p) {
-                    for (var z = 0; z < freePats.length; z++) {
-                        if (covers(freePats[z], p)) { return false; }
-                    }
-                    return true;
-                });
+                /* 需加赛（完全并列）的条件，直接从 tieSet 里压最小条件，避免把「稳进」也算进来 */
+                var playPats = minimize(tieSet, v);
                 if (!freePats.length && !playPats.length) { return; }
 
                 var picks = freePats.map(function (p) {
@@ -1646,10 +1647,12 @@
                     return 0;
                 });
 
-                var code = CODES[v];
-                var tOutcome = code === '1/2' ? 'draw'
-                    : (code === '1-0' ? (enumGames[gt].a === t ? 'win' : 'loss')
-                        : (enumGames[gt].b === t ? 'win' : 'loss'));
+                var code = gt >= 0 ? CODES[v] : null;
+                var tOutcome = gt >= 0
+                    ? (code === '1/2' ? 'draw'
+                        : (code === '1-0' ? (enumGames[gt].a === t ? 'win' : 'loss')
+                            : (enumGames[gt].b === t ? 'win' : 'loss')))
+                    : 'bye';
 
                 groups.push({
                     res: code,
@@ -1676,7 +1679,7 @@
                 });
             });
 
-            var order = { win: 0, draw: 1, loss: 2 };
+            var order = { win: 0, draw: 1, loss: 2, bye: 3 };
             groups.sort(function (x, y) { return order[x.tOutcome] - order[y.tOutcome]; });
         }
 
@@ -2633,19 +2636,20 @@
     }
 
     function condText(t, nm) {
-        if (t.playoff) { return nm(t.playoff) + ' 加赛胜'; }
+        if (t.playoff) { return nm(t.playoff); }   /* 占位：实际不再用「加赛胜」表述 */
         if (t.code === '1-0') { return nm(t.a) + ' 胜 ' + nm(t.b); }
         if (t.code === '0-1') { return nm(t.a) + ' 负 ' + nm(t.b); }
         return nm(t.a) + ' 平 ' + nm(t.b);
     }
 
-    /* 一条路：甲 胜 乙，丙 平 丁；破了同分就再带一句 张三 加赛胜 */
+    /* 一条路：甲 胜 乙，丙 平 丁；完全并列（需加赛）的条目前面加 * 号单拎出来 */
     function condSentence(term, rank, nm) {
         if (!term) { return '一定进前 ' + rank; }
         var list = (term.parts || []).slice();
-        if (term.playoff) { list.push({ playoff: term.playoff }); }
         if (!list.length) { return '一定进前 ' + rank; }
-        return list.map(function (x) { return condText(x, nm); }).join('，');
+        var text = list.map(function (x) { return condText(x, nm); }).join('，');
+        if (term.playoff) { text = '*' + text; }   /* 完全并列需加赛：加 * 标注 */
+        return text;
     }
 
     /* ---------------- 推算结果的展开详情 ---------------- */
@@ -2849,26 +2853,26 @@
 
         var self = esc(ans.target.name || ('#' + ans.target.id));
 
-        /* 普通情况（有胜/平/负三种结果可看）不再显示横幅，避免空底色条；
-         * 只有「一定进前 / 不可能 / 只能加赛」这三种结论才显示带底色的横幅。 */
+        /* 只有「一定进前 / 不可能」两种结论才显示带底色的横幅；
+         * 其余情况（含轮空、需加赛）都走下面的条件列表，不再显示笼统横幅。 */
         var head = '';
         if (ans.always) {
             head = '<div class="ml-banner is-ok"><b>' + self + '</b> 一定进前 ' + rank + '。</div>';
         } else if (ans.never) {
             head = '<div class="ml-banner is-no"><b>' + self + '</b> 不可能进前 ' + rank + '。</div>';
-        } else if (ans.alwaysPlayoff) {
-            head = '<div class="ml-banner"><b>' + self + '</b> 每一种末轮结果都会与他人破同分全一样，只能靠加赛；加赛赢就进前 ' + rank + '。</div>';
         }
 
-        var label = { win: self + ' 胜', draw: self + ' 平', loss: self + ' 负' };
-        var badge = { win: 'is-win', draw: 'is-draw', loss: 'is-loss' };
+        var label = { win: self + ' 胜', draw: self + ' 平', loss: self + ' 负', bye: self + ' 轮空' };
+        var badge = { win: 'is-win', draw: 'is-draw', loss: 'is-loss', bye: 'is-draw' };
         var byOut = {};
         ans.groups.forEach(function (g) { byOut[g.tOutcome] = g; });
 
-        /* 三段恒定：胜 / 平 / 负，句式统一；每条条件都能点开看细分 */
+        /* 三段恒定：胜 / 平 / 负（轮空选手只有一段）；每条条件都能点开看细分 */
         var body = '';
         if (!ans.always && !ans.never) {
-            body = ['win', 'draw', 'loss'].map(function (k) {
+            /* 轮空选手没有自身胜/平/负，只列一段（byOut 里只有 bye）；普通选手列三段 */
+            var outcomeList = byOut.bye ? ['bye'] : ['win', 'draw', 'loss'];
+            body = outcomeList.map(function (k) {
                 var g = byOut[k];
                 var gi = g ? ans.groups.indexOf(g) : -1;
                 var tag = '<span class="ml-badge ' + badge[k] + '">' + esc(label[k]) + '</span>';
