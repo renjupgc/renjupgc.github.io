@@ -33,10 +33,21 @@
             </div>
 
             <aside class="vcf-side">
+                <label class="vcf-diff">
+                    <span>难度</span>
+                    <select id="vcf-diff">
+                        <option value="0">入门 · 3 手胜</option>
+                        <option value="1" selected>基础 · 3 手胜 – 4 手胜</option>
+                        <option value="2">提高 · 4 手胜 – 5 手胜</option>
+                        <option value="3">进阶 · 5 手胜 – 6 手胜</option>
+                        <option value="4">挑战 · 6 手胜</option>
+                    </select>
+                </label>
+
                 <dl class="vcf-stats">
                     <div><dt>已过关</dt><dd id="vcf-done">0</dd></div>
                     <div><dt>走错</dt><dd id="vcf-tries">0</dd></div>
-                    <div><dt>难度</dt><dd id="vcf-level">—</dd></div>
+                    <div><dt>本题</dt><dd id="vcf-level">—</dd></div>
                 </dl>
 
                 <p class="vcf-msg" id="vcf-msg">轮到你走。</p>
@@ -51,6 +62,7 @@
                 <details class="vcf-help">
                     <summary>题目从哪来</summary>
                     <p>没有固定题库。点「下一题」时，程序让黑白双方先「安静」地自对弈铺出一盘真局面（谁都不主动冲四），再从这儿往回查：这里是不是藏着一条连续冲四的杀？藏得够深就成对删掉与解法无关的子，只留下题目需要的那点子，最后再复算一遍深度。所以题目是无限的，每次都不同。</p>
+                    <p>难度在侧栏的下拉里选，选项里标着这一档要几手取胜。换档位会立刻换一盘，不用等自己答对才解锁。</p>
                     <p>轮到你执黑，每一手都要走出一个冲四（或直接成五）。白方只有唯一的挡点，会自动替你走掉；黑方走出的四若有两个补五点，白方堵不住，同样算赢。</p>
                     <p>不是冲四、或者这一手之后白方守得住、后面接不上，都会退回来重走。点「提示」可以让程序算一手。</p>
                     <p>判定按无禁手规则：黑棋不做三三、四四的禁手检查，专心练连续冲四的算路。</p>
