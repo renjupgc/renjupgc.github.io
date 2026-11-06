@@ -519,6 +519,90 @@ li {
     height: 100%;
 }
 
+/* ---------- 首页滚动公告 ---------- */
+
+.news-ticker {
+    display: flex;
+    align-items: stretch;
+    margin: 0 0 40px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+/* 左侧标签固定不动，只有文字在跑 */
+.nt-label {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 13px;
+    border-right: 1px solid var(--line);
+    background: linear-gradient(180deg, #fbf4e4, #f4ebd7);
+    font-family: var(--sans);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    line-height: 1;
+    color: var(--gold-deep);
+    white-space: nowrap;
+}
+
+.nt-label::before {
+    content: "";
+    flex: none;
+    width: 5px;
+    height: 5px;
+    background: var(--gold);
+    transform: rotate(45deg);
+}
+
+/* 两侧渐隐：左边留出一字的空白，起笔不在渐变里，读起来才不像是被切掉 */
+.nt-viewport {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding: 11px 0 12px 24px;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 34px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 34px), transparent 100%);
+}
+
+.nt-track {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    animation: nt-scroll var(--nt-dur, 24s) linear infinite;
+    will-change: transform;
+}
+
+.nt-item {
+    flex: none;
+    padding-right: 60px;
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+
+/* 指针停在公告上就停下来，方便读完 */
+.news-ticker:hover .nt-track,
+.news-ticker:focus-within .nt-track {
+    animation-play-state: paused;
+}
+
+@keyframes nt-scroll {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+
 /* ---------- 列表 ---------- */
 
 .post-list,
@@ -1887,6 +1971,25 @@ table.ratings .r-name a:hover {
         padding: 10px 12px;
     }
 
+    .news-ticker {
+        margin-bottom: 32px;
+    }
+
+    .nt-label {
+        padding: 0 10px;
+        font-size: 11px;
+        letter-spacing: 0.16em;
+    }
+
+    .nt-viewport {
+        padding: 9px 0 10px 24px;
+    }
+
+    .nt-item {
+        padding-right: 44px;
+        font-size: 14.5px;
+    }
+
     .page-title {
         font-size: 27px;
     }
@@ -1988,6 +2091,15 @@ table.ratings .r-name a:hover {
     .music-box.is-hint .mb-disc,
     main.is-entering > * {
         animation: none;
+    }
+
+    /* 不滚动就直接当一行静态公告读，长了可以手动横向拖 */
+    .nt-track {
+        animation: none;
+    }
+
+    .nt-viewport {
+        overflow-x: auto;
     }
 
     a,
