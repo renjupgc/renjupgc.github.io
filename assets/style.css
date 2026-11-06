@@ -1663,6 +1663,296 @@ table.ratings .r-name a:hover {
     margin: 3px 0;
 }
 
+/* ---------- 山河四省连珠人物 ---------- */
+
+.rh-lead {
+    margin: 0 0 22px;
+    font-size: 15px;
+    line-height: 2;
+    color: var(--ink-3);
+}
+
+.rh-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 26px;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
+
+.rh-counts span {
+    padding: 5px 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 999px;
+    background: rgba(255, 253, 247, 0.75);
+    color: var(--muted);
+}
+
+.rh-counts b {
+    font-weight: 600;
+    color: var(--gold-deep);
+    font-variant-numeric: tabular-nums;
+}
+
+.rh-jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 34px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    font-family: var(--sans);
+    font-size: 12.5px;
+}
+
+.rh-jump .rh-jump-k {
+    color: var(--faint);
+    letter-spacing: 0.1em;
+}
+
+.rh-jump a {
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(245, 236, 216, 0.9);
+    color: var(--gold-deep);
+}
+
+.rh-jump a:hover {
+    background: var(--gold-tint);
+    text-decoration: none;
+}
+
+.rh-card {
+    position: relative;
+    margin: 0 0 22px;
+    padding: 22px 24px 20px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.rh-card:hover {
+    border-color: rgba(176, 141, 87, 0.55);
+    border-left-color: var(--gold-deep);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.rh-card:target {
+    border-left-color: var(--win);
+    box-shadow: 0 0 0 2px rgba(168, 69, 63, 0.16);
+}
+
+.rh-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px 12px;
+    margin: 0 0 4px;
+}
+
+.rh-name {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+}
+
+.rh-dan {
+    flex: none;
+    padding: 2px 9px 3px;
+    border: 1px solid #e3d3ae;
+    border-radius: 4px;
+    background: var(--gold-tint);
+    font-family: var(--sans);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--gold-deep);
+    white-space: nowrap;
+}
+
+.rh-dan.is-none {
+    border-style: dashed;
+    border-color: var(--line);
+    background: var(--surface-2);
+    color: var(--faint);
+    font-weight: 400;
+}
+
+.rh-tag {
+    font-family: var(--sans);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+.rh-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    margin: 10px 0 14px;
+    padding: 12px 0 13px;
+    border-top: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
+    font-family: var(--sans);
+    font-size: 12.5px;
+}
+
+.rh-facts div {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+}
+
+.rh-facts dt {
+    color: var(--faint);
+    letter-spacing: 0.06em;
+}
+
+.rh-facts dd {
+    margin: 0;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.rh-bio {
+    margin: 0 0 12px;
+    font-size: 15px;
+    line-height: 2;
+    color: var(--ink-3);
+    text-align: justify;
+}
+
+.rh-honors {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 14px;
+    line-height: 1.9;
+}
+
+.rh-honors li {
+    display: flex;
+    gap: 12px;
+    margin: 0 0 4px;
+    padding: 0;
+}
+
+.rh-honors .rh-year {
+    flex: none;
+    width: 42px;
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.95;
+    color: var(--gold-deep);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.rh-honors .rh-year.is-none {
+    color: var(--faint);
+}
+
+.rh-honors .rh-txt {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--ink-2);
+}
+
+.rh-honors .rh-txt em {
+    font-style: normal;
+    color: var(--win);
+    font-weight: 600;
+}
+
+.rh-links {
+    margin: 14px 0 0;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--faint);
+}
+
+.rh-links a {
+    color: var(--gold-deep);
+}
+
+.rh-sec-note {
+    margin: -4px 0 18px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.9;
+    color: var(--faint);
+}
+
+.rh-empty {
+    margin: 0 0 26px;
+    padding: 18px 20px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    font-size: 14px;
+    line-height: 1.95;
+    color: var(--muted);
+}
+
+.rh-rules {
+    margin: 0 0 26px;
+    padding: 18px 20px 16px;
+    border: 1px solid #eadfc6;
+    border-left: 3px solid var(--gold);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: linear-gradient(180deg, #fdf8ec, #fbf4e4);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
+.rh-rules b {
+    color: var(--gold-deep);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+}
+
+.rh-rules ol {
+    margin: 6px 0 0;
+    padding-left: 20px;
+}
+
+.rh-rules li {
+    margin: 3px 0;
+}
+
+@media (max-width: 640px) {
+    .rh-card {
+        padding: 18px 16px 16px;
+    }
+
+    .rh-name {
+        font-size: 20px;
+    }
+
+    .rh-honors li {
+        gap: 9px;
+    }
+
+    .rh-honors .rh-year {
+        width: 36px;
+    }
+}
+
 /* ---------- 音乐盒 ---------- */
 
 .music-box {
