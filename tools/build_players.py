@@ -254,7 +254,49 @@ def rank_cell(t, row, name, arts):
     return bz.esc(rk)
 
 
-def page(name, rec, events, games, reports, index, total_players, arts):
+# 杂史报道里点到、成绩表却未收录的赛事（洛阳月赛、双人联棋一类），只登在
+# 相关棋手主页的参赛记录里，不另建赛事页。日期取报道所记比赛当日。
+EXTRA_EVENTS = {
+    '潘冠臣': [
+        {'date': '2026-05-23',
+         'name': '洛阳市“棋遇少年游”五子棋亲子联棋赛（双人联棋组）',
+         'href': '../../posts/2026-luoyang-liuyi.html', 'rank': 1,
+         'note': '与唐碧搭档“白羊双子星队”，全胜夺冠，据杂史《棋遇少年，亲子同局》'},
+        {'date': '2026-03-07',
+         'name': '洛阳天元站庆“三八”五子棋双人联棋赛',
+         'href': '../../posts/2026-luoyang-tianyuan.html', 'rank': 1,
+         'note': '与乔仕鑫搭档“潘乔联队”夺冠，据杂史《新春开枰，佳节联棋》'},
+    ],
+    '乔仕鑫': [
+        {'date': '2026-03-07',
+         'name': '洛阳天元站庆“三八”五子棋双人联棋赛',
+         'href': '../../posts/2026-luoyang-tianyuan.html', 'rank': 1,
+         'note': '与潘冠臣搭档“潘乔联队”夺冠，据杂史《新春开枰，佳节联棋》'},
+    ],
+    '李丹': [
+        {'date': '2026-02-22',
+         'name': '丙午年首场五子棋月赛（晖福堂）公开组',
+         'href': '../../posts/2026-luoyang-huifutang.html', 'rank': 1,
+         'note': '公开组冠军，据杂史《五子闪耀庆新春 老少同枰贺佳节》'},
+    ],
+}
+
+
+def extra_row(x):
+    """杂史赛事的一行：赛事名链到报道，名次照报道。"""
+    rk = x.get('rank')
+    attr = ' title="%s"' % bz.esc(x['note']) if x.get('note') else ''
+    if isinstance(rk, int) and 1 <= rk <= 3:
+        cell = '<span class="rank-badge r%d"%s>%d</span>' % (rk, attr, rk)
+    else:
+        cell = '<span%s>%s</span>' % (attr, bz.esc(rk or ''))
+    return ('<td>%s</td><td class="c-name"><a href="%s">%s</a></td>'
+            '<td class="c-rank">%s</td>'
+            % (bz.esc(x['date']), x['href'], bz.esc(x['name']), cell))
+
+
+def page(name, rec, events, games, reports, index, total_players, arts,
+         extras=()):
     rated = rec.get('rating') is not None
     region = (rec.get('region') or '').strip()
     uni = (rec.get('university') or '').strip()
@@ -285,7 +327,7 @@ def page(name, rec, events, games, reports, index, total_players, arts):
              '<span class="ps-v">%d / %d / %d</span></span>'
              % (rec['wins'] or 0, rec['draws'] or 0, rec['losses'] or 0),
              '                <span class="ps"><span class="ps-k">参赛</span>'
-             '<span class="ps-v">%d 场</span></span>' % len(events),
+             '<span class="ps-v">%d 场</span></span>' % (len(events) + len(extras)),
              '            </div>']
 
     if rated:
@@ -318,7 +360,22 @@ def page(name, rec, events, games, reports, index, total_players, arts):
 
     body += ['            <section>',
              '                <h2>参赛记录</h2>']
-    if events:
+    rows = []
+    for e in events:
+        t = e['t']
+        rows.append(((t.get('date') or ''),
+                     '                        <tr>'
+                     '<td>%s</td>'
+                     '<td class="c-name"><a href="../../zayu/t%d.html">%s</a></td>'
+                     '<td class="c-rank">%s</td></tr>'
+                     % (bz.esc(t.get('date') or ''), e['tid'],
+                        bz.esc(t.get('name') or ''),
+                        rank_cell(t, e['row'], name, arts))))
+    for x in extras:
+        rows.append((x['date'], '                        <tr>%s</tr>'
+                     % extra_row(x)))
+    rows.sort(key=lambda r: r[0], reverse=True)
+    if rows:
         body += ['                <div class="table-scroll">',
                  '                <table class="crosstab p-games p-events">',
                  '                    <thead><tr>',
@@ -327,15 +384,7 @@ def page(name, rec, events, games, reports, index, total_players, arts):
                  '                        <th class="c-rank">名次</th>',
                  '                    </tr></thead>',
                  '                    <tbody>']
-        for e in events:
-            t, row = e['t'], e['row']
-            body.append('                        <tr>'
-                        '<td>%s</td>'
-                        '<td class="c-name"><a href="../../zayu/t%d.html">%s</a></td>'
-                        '<td class="c-rank">%s</td></tr>'
-                        % (bz.esc(t.get('date') or ''), e['tid'],
-                           bz.esc(t.get('name') or ''),
-                           rank_cell(t, row, name, arts)))
+        body += [html for _d, html in rows]
         body += ['                    </tbody>',
                  '                </table>',
                  '                </div>']
@@ -392,7 +441,7 @@ def page(name, rec, events, games, reports, index, total_players, arts):
     sub = '·'.join(x for x in (region, uni) if x)
     desc = '%s%s的个人主页：等级分 %s，%s参赛 %d 场。' % (
         name, '（%s）' % sub if sub else '', pt,
-        '第 %s 名，' % rank if rank else '未入榜，', len(events))
+        '第 %s 名，' % rank if rank else '未入榜，', len(events) + len(extras))
 
     return bz.HEAD.format(
         title='%s - 杂豫 - 连珠杂箱' % bz.esc(name),
@@ -452,7 +501,8 @@ def main():
     for rec in ratings + extra:
         name = rec['name']
         html = page(name, rec, stats.get(name, []), games.get(name, []),
-                    reports.get(name, []), index, len(rated_names), arts)
+                    reports.get(name, []), index, len(rated_names), arts,
+                    EXTRA_EVENTS.get(name, ()))
         with open(os.path.join(PLAYER_DIR, '%s.html' % name), 'w',
                   encoding='utf-8', newline='') as f:
             f.write(html)
