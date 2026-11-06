@@ -653,9 +653,29 @@ def all_players(ms):
     return out
 
 
+def event_ranks_for(tid):
+    """某场赛事里人工/报道登记的名次：{姓名: 名次}。"""
+    if not os.path.exists(MANUAL_DB):
+        return {}
+    m = sqlite3.connect(MANUAL_DB)
+    try:
+        rows = m.execute('SELECT player, rank FROM event_ranks WHERE tournament_id=?',
+                         (tid,)).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    m.close()
+    return {p: r for p, r in rows}
+
+
 def detail_page(t, ms, players=()):
     rows, rounds = compute(ms)
     idmap = roster_ids(t, ms)
+    # 成绩表只收录了部分对局的赛事，算出来的名次不等于最终成绩；
+    # 登记过名次的（报道公布或棋友补录）以登记的为准。
+    fixed = event_ranks_for(t['id'])
+    for r in rows:
+        if r['name'] in fixed:
+            r['rank'] = fixed[r['name']]
 
     info = []
     if t['organizer']:
