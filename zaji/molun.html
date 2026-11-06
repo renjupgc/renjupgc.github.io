@@ -2838,14 +2838,16 @@
         return nm(t.a) + ' ' + w + ' ' + nm(t.b);
     }
 
-    /* 前提行：所有条件共有的那几场，单拎到最前面；只写对局本身，不加「前提」字样。
-     * tail 用来把「→ 一定进前 N / 需加赛」直接挂在同一行末尾，不另起一行 */
+    /* 前提：所有条件共有的那几场，单拎到最前面；每场单独一行，不用逗号并在一起。
+     * tail 用来把「→ 一定进前 N / 需加赛」挂在最后一场的末尾，不另起一行 */
     function premiseText(premise, nm, tail) {
         if (!premise || !premise.length) { return ''; }
-        return '<div class="ml-premise">' +
-            '<span class="ml-premise-txt">' +
-            esc(premise.map(function (x) { return condText(x, nm); }).join('，')) + '</span>' +
-            (tail || '') + '</div>';
+        return premise.map(function (x, i) {
+            var last = i === premise.length - 1;
+            return '<div class="ml-premise">' +
+                '<span class="ml-premise-txt">' + esc(condText(x, nm)) + '</span>' +
+                (last ? (tail || '') : '') + '</div>';
+        }).join('');
     }
 
     /* 结论标签：稳进还是需加赛，始终跟在条件文字后面 */
