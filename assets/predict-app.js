@@ -49,10 +49,6 @@
         var v = 1 / (x * (1 + MARGIN));
         return v >= 100 ? '99+' : v.toFixed(2);
     }
-    function fair(x) {
-        var v = 1 / x;
-        return v >= 100 ? '99+' : v.toFixed(2);
-    }
 
     function evRows(ev) {
         if (!ev || !ev.length) {
@@ -166,12 +162,12 @@
             (r.pl > 0.12 ? esc(b) + '胜 ' + pct(r.pl) : '') + '</i>' +
             '</div>' +
             '<table class="wp-odds"><thead><tr><th>结果</th><th>推测概率</th>' +
-            '<th>公平赔率</th><th>可开赔率（抽水 5%）</th></tr></thead><tbody>' +
-            '<tr><td>' + esc(a) + ' 胜</td><td>' + pct(r.pw) + '</td><td>' + fair(r.pw) + '</td>' +
+            '<th>赔率</th></tr></thead><tbody>' +
+            '<tr><td>' + esc(a) + ' 胜</td><td>' + pct(r.pw) + '</td>' +
             '<td>' + odds(r.pw) + '</td></tr>' +
-            '<tr><td>和棋</td><td>' + pct(r.pd) + '</td><td>' + fair(r.pd) + '</td>' +
+            '<tr><td>和棋</td><td>' + pct(r.pd) + '</td>' +
             '<td>' + odds(r.pd) + '</td></tr>' +
-            '<tr><td>' + esc(b) + ' 胜</td><td>' + pct(r.pl) + '</td><td>' + fair(r.pl) + '</td>' +
+            '<tr><td>' + esc(b) + ' 胜</td><td>' + pct(r.pl) + '</td>' +
             '<td>' + odds(r.pl) + '</td></tr>' +
             '</tbody></table>';
     }
@@ -203,17 +199,6 @@
             render();
         });
     });
-
-    var d0Line = $('wp-d0');
-    if (d0Line) { d0Line.textContent = (D.d0 * 100).toFixed(1) + '%'; }
-
-    var metaLine = $('wp-data-line');
-    if (metaLine) {
-        metaLine.textContent = '数据截至 ' + D.asOf + '：等级分榜 ' + names.length +
-            ' 人（其中入榜 ' + names.filter(function (n) { return D.players[n].listed; }).length +
-            ' 人），正式对局 ' + D.nGames + ' 局（和棋 ' + D.nDraws + ' 局），' +
-            '交手组合 ' + Object.keys(D.h2h).length + ' 组。';
-    }
 
     ia.value = names[0] || '';
     ib.value = names[1] || '';
