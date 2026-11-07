@@ -254,7 +254,7 @@ table.crosstab td.rt.unp {
                     'WHERE tournament_id = ? ORDER BY player_no', [t.id]),
                 matches: query(db,
                     'SELECT round, board_number, player1, player2, winner, result, date, ' +
-                    'swap_sequence, unplayed ' +
+                    'swap_sequence, unplayed, walkover ' +
                     'FROM matches WHERE tournament_id = ? ORDER BY round, board_number, id', [t.id]),
                 playoffs: po
             };
@@ -315,6 +315,13 @@ table.crosstab td.rt.unp {
             else if (w === 'ff') { k1 = 'double'; k2 = 'double'; }
             else { k1 = k2 = 'unknown'; }
 
+            // 成绩册标了「+ / −」的局：赢方记 fwin、输方记 floss，
+            // 相当于这盘按 0.5 分计入双方对手分，且赢方不计胜局
+            if (m.walkover) {
+                k1 = (k1 === 'win') ? 'fwin' : 'floss';
+                k2 = (k2 === 'win') ? 'fwin' : 'floss';
+            }
+
             apply(p1, k1);
             apply(p2, k2);
             get(p1).cells[r] = { opp: p2 };
@@ -352,8 +359,8 @@ table.crosstab td.rt.unp {
             var d = p[n], buch = 0, vals = [];
             for (var r = 1; r <= nround; r++) {
                 var c = d.cells[r];
-                var v = 0;
-                if (c) v = c.bye ? nround / 2 : (virtual[c.opp] || 0);
+                if (!c) continue;          // 这一轮没配对：不计入（否则会被当成最低分去掉）
+                var v = c.bye ? nround / 2 : (virtual[c.opp] || 0);
                 buch += v;
                 vals.push(v);
             }
