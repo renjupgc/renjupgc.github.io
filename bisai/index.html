@@ -232,6 +232,9 @@ table.crosstab td.rt.unp {
     }
 
     function loadGroups(db) {
+        // 老版本库里没有 walkover 列，读不到就按 0 处理，免得页面直接报错
+        var hasWalkover = query(db, 'PRAGMA table_info(matches)', [])
+            .some(function (r) { return r.name === 'walkover'; });
         var tours = query(db,
             'SELECT id, group_name, organizer, time_limit FROM tournaments ' +
             'WHERE name = ? ORDER BY id', [EVENT]);
@@ -254,7 +257,7 @@ table.crosstab td.rt.unp {
                     'WHERE tournament_id = ? ORDER BY player_no', [t.id]),
                 matches: query(db,
                     'SELECT round, board_number, player1, player2, winner, result, date, ' +
-                    'swap_sequence, unplayed, walkover ' +
+                    'swap_sequence, unplayed' + (hasWalkover ? ', walkover' : ', 0 AS walkover') + ' ' +
                     'FROM matches WHERE tournament_id = ? ORDER BY round, board_number, id', [t.id]),
                 playoffs: po
             };
