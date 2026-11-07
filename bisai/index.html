@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026年世界五子棋青少年锦标赛选拔赛 · 成绩表</title>
+<meta name="description" content="2026年世界五子棋青少年锦标赛选拔赛各组别成绩表：逐轮对手、胜负、积分与名次，数据实时取自站点数据库。">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+/* 成绩表页专用：容器放宽，其余沿用全站样式 */
+body { background: var(--paper); }
+.container.wide { max-width: 1180px; }
+.page-head { padding: 42px 0 0; }
+.page-head .eyebrow { margin: 0 0 14px; }
+.page-head h1 {
+    margin: 0 0 10px;
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1.45;
+    color: var(--ink);
+}
+.page-sub { margin: 0 0 24px; font-family: var(--sans); font-size: 13px; color: var(--muted); letter-spacing: 0.04em; }
+
+/* 组别切换 */
+.toolbar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    margin: 0 -28px 26px; padding: 12px 28px;
+    background: rgba(246, 242, 233, 0.94);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--line);
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
+
+/* 开关 */
+.switch {
+    display: inline-flex; align-items: center; gap: 8px; flex: none;
+    margin-left: auto; padding-left: 4px;
+    font-family: var(--sans); font-size: 12.5px; color: var(--ink-3);
+    cursor: pointer; user-select: none;
+}
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.switch .track {
+    position: relative; width: 34px; height: 20px; flex: none;
+    border-radius: 999px; background: #ded4c0;
+    transition: background .16s ease;
+}
+.switch .track::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 2px rgba(74, 56, 26, .28);
+    transition: transform .16s ease;
+}
+.switch input:checked + .track { background: var(--gold); }
+.switch input:checked + .track::after { transform: translateX(14px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+.switch input:checked ~ .switch-label { color: var(--gold-deep); }
+.tab {
+    display: inline-flex; align-items: baseline; gap: 5px;
+    padding: 7px 13px;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface);
+    font-family: var(--sans); font-size: 12.5px; color: var(--ink-2);
+    cursor: pointer; transition: all .16s ease;
+}
+.tab b { font-weight: 600; letter-spacing: 0.05em; }
+.tab span { color: var(--muted); font-size: 11.5px; }
+.tab:hover { border-color: var(--gold); color: var(--gold-deep); }
+.tab.is-on { background: var(--gold); border-color: var(--gold); color: #fff; }
+.tab.is-on span { color: rgba(255,255,255,.85); }
+
+.group-head { display: flex; align-items: baseline; gap: 12px; margin: 6px 0 2px; }
+.group-head h2 { margin: 0; font-size: 20px; }
+.group-head h2::before { display: none; }
+.group-meta { margin: 0; font-family: var(--sans); font-size: 12.5px; color: var(--muted); }
+.group[hidden] { display: none; }
+
+/* 成绩表补充列 */
+table.crosstab th.c-unit, table.crosstab td.c-unit {
+    min-width: 150px; max-width: 260px;
+    font-size: 12.5px; color: var(--muted);
+    white-space: normal; line-height: 1.45;
+}
+table.crosstab th.c-date { text-align: center; font-size: 11px; color: var(--faint); border-left: 1px solid var(--line-soft); }
+table.crosstab td.rt.none { color: var(--faint); }
+table.crosstab tr.cut td { border-bottom: 2px solid var(--gold); }
+table.crosstab td.rt { cursor: default; padding-top: 8px; padding-bottom: 8px; }
+table.crosstab td.rt .opp { margin-right: 6px; font-variant-numeric: tabular-nums; }
+table.crosstab td.rt .res { color: inherit; font-weight: 600; }
+/* 开关打开时，用「唯一的一个字」顶掉编号，位置不变；没有这个字就照样显示编号 */
+table.crosstab td.rt .ch { display: none; margin-right: 6px; font-size: 12px; color: var(--ink-3); }
+body.use-ch table.crosstab td.rt .opp { display: none; }
+body.use-ch table.crosstab td.rt .ch { display: inline; }
+body.use-ch table.crosstab td.rt.noch .opp { display: inline; }
+body.use-ch table.crosstab td.rt.noch .ch { display: none; }
+table.crosstab td.rt.res-draw .res { color: var(--draw); }
+table.crosstab td.rt.res-win .res { color: var(--win); }
+table.crosstab td.rt.res-loss .res { color: var(--loss); }
+table.crosstab td.rt.res-floss .res { color: var(--draw); }
+
+/* 加载 / 出错状态 */
+.state {
+    margin: 34px 0 60px; padding: 26px 18px;
+    border: 1px dashed var(--line); border-radius: var(--radius);
+    background: var(--surface);
+    font-family: var(--sans); font-size: 13px; line-height: 1.9;
+    color: var(--muted); text-align: center;
+}
+.state b { color: var(--ink-2); font-weight: 600; }
+.state.err { border-style: solid; border-color: #e3cfc6; color: var(--loss); }
+.state code { font-family: var(--mono); font-size: 12px; }
+
+@media (max-width: 720px) {
+    .page-head h1 { font-size: 23px; }
+    .toolbar { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
+}
+@media print {
+    .toolbar { display: none !important; }
+    .group[hidden] { display: block !important; page-break-before: always; }
+    .table-scroll { overflow: visible; border: none; }
+    table.crosstab { font-size: 10.5px; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container wide">
+
+<main>
+
+    <header class="page-head">
+        <p class="eyebrow">赛事成绩</p>
+        <h1>2026年世界五子棋青少年锦标赛选拔赛</h1>
+        <p class="page-sub">第 14 届世青赛选拔 · 浙江安吉 · 2026 年 5 月 29 日 — 6 月 1 日</p>
+    </header>
+
+    <div class="event-info" id="meta" hidden></div>
+
+    <div class="toolbar" id="bar" hidden>
+        <div class="tabs" role="tablist" id="tabs"></div>
+        <label class="switch">
+            <input type="checkbox" id="ch" checked>
+            <span class="track"></span>
+            <span class="switch-label">对手字</span>
+        </label>
+    </div>
+
+    <div id="app"></div>
+
+    <p class="state" id="state">正在从数据库读取成绩…</p>
+
+</main>
+
+</div>
+
+<script src="../assets/vendor/sqljs/sql-wasm.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    var EVENT = '2026世界五子棋青少年锦标赛选拔赛';
+    var DB_URL = 'bisai.db';
+    var SQLJS_BASE = '../assets/vendor/sqljs/';
+
+    var AGE_ORDER = ['U25', 'U20', 'U16', 'U12', 'U10'];
+    var SEX_ORDER = ['男子组', '女子组'];
+
+    // matches.result 是「player1-player2」的结果串
+    var SYM = {
+        '1-0': ['1', '0'], '0-1': ['0', '1'], '½-½': ['½', '½'],
+        '+-': ['+', '−'], '-+': ['−', '+'], '--': ['−', '−']
+    };
+    var RES_CLS = { '1': 'res-win', '0': 'res-loss', '½': 'res-draw', '+': 'res-win', '−': 'res-floss' };
+
+    var stateEl = document.getElementById('state');
+    var metaEl = document.getElementById('meta');
+    var barEl = document.getElementById('bar');
+    var tabsEl = document.getElementById('tabs');
+    var appEl = document.getElementById('app');
+    var chBox = document.getElementById('ch');
+
+    // 开关：格子里显示编号还是对手字（位置不变，互相顶替）；选择记在本机
+    var CH_KEY = 'bisai.use-ch';
+    function applyCh() {
+        document.body.classList.toggle('use-ch', chBox.checked);
+    }
+    try {
+        if (localStorage.getItem(CH_KEY) === '0') chBox.checked = false;
+    } catch (e) { /* 隐私模式 / file:// 下可能不可用，忽略 */ }
+    chBox.addEventListener('change', function () {
+        applyCh();
+        try { localStorage.setItem(CH_KEY, chBox.checked ? '1' : '0'); } catch (e) {}
+    });
+    applyCh();
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function days(iso) {
+        if (!iso) return '';
+        var p = String(iso).split('-');
+        if (p.length < 3) return iso;
+        return parseInt(p[1], 10) + '月' + parseInt(p[2], 10) + '日';
+    }
+
+    function num(v) {
+        if (v === null || v === undefined || v === '') return '—';
+        var n = Number(v);
+        if (!isFinite(n)) return String(v);
+        return String(parseFloat(n.toFixed(2)));
+    }
+
+    // ---- SQLite 查询 ----
+    function query(db, sql, params) {
+        var st = db.prepare(sql), rows = [];
+        if (params) st.bind(params);
+        while (st.step()) rows.push(st.getAsObject());
+        st.free();
+        return rows;
+    }
+
+    function loadGroups(db) {
+        var tours = query(db,
+            'SELECT id, group_name, organizer, time_limit FROM tournaments ' +
+            'WHERE name = ? ORDER BY id', [EVENT]);
+        var groups = tours.map(function (t) {
+            var gname = t.group_name || '';
+            var po = [];
+            try {
+                po = query(db,
+                    'SELECT seq, player1, player2, winner, result, date FROM playoffs ' +
+                    'WHERE tournament_id = ? ORDER BY seq, id', [t.id]);
+            } catch (e) { po = []; }   // 老库没有加赛表时忽略
+            return {
+                gname: gname,
+                age: gname.slice(0, 3),
+                sex: gname.slice(3),
+                organizer: t.organizer,
+                timeLimit: t.time_limit,
+                players: query(db,
+                    'SELECT player_no, name, unit FROM players ' +
+                    'WHERE tournament_id = ? ORDER BY player_no', [t.id]),
+                matches: query(db,
+                    'SELECT round, board_number, player1, player2, winner, result, date, swap_sequence ' +
+                    'FROM matches WHERE tournament_id = ? ORDER BY round, board_number, id', [t.id]),
+                playoffs: po
+            };
+        });
+        groups.sort(function (a, b) {
+            var ia = AGE_ORDER.indexOf(a.age), ib = AGE_ORDER.indexOf(b.age);
+            if (ia < 0) ia = 9;
+            if (ib < 0) ib = 9;
+            if (ia !== ib) return ia - ib;
+            var sa = SEX_ORDER.indexOf(a.sex), sb = SEX_ORDER.indexOf(b.sex);
+            if (sa < 0) sa = 9;
+            if (sb < 0) sb = 9;
+            return sa - sb;
+        });
+        return groups;
+    }
+
+    // ---- 积分与副分现场计算（与 tools/build_zayu.py 的 compute() 同一口径）----
+    // 瑞士制（对手分）：
+    //   对手分 = 所有对手的虚拟积分之和；轮空补「总轮数 / 2」的虚拟对手，没有对局的轮次记 0 分。
+    //   中间对手分 = 去掉最高、最低各一个后求和（虚拟对手同样参与）。
+    //   虚拟积分 = 积分 + (自己弃权 - 轮空 - 对手弃权) × 0.5，
+    //   退赛的人后面的轮次没有对局，同样算弃权，逐轮计进弃权次数。
+    // 循环赛（小分）：
+    //   小分 = 所胜对手的积分和 + 0.5 × 所平对手的积分和（对手弃权按胜计）。
+    function computeStats(matches, nround) {
+        var p = {};
+        function get(n) {
+            if (!p[n]) p[n] = { cells: {}, score: 0, wins: 0, floss: 0, bye: 0, fwin: 0 };
+            return p[n];
+        }
+        function apply(n, kind) {
+            var d = get(n);
+            if (kind === 'win') { d.score += 1; d.wins += 1; }
+            else if (kind === 'draw') { d.score += 0.5; }
+            else if (kind === 'fwin') { d.score += 1; d.fwin += 1; }
+            else if (kind === 'floss' || kind === 'double') { d.floss += 1; }
+        }
+
+        matches.forEach(function (m) {
+            var r = m.round, p1 = m.player1, p2 = m.player2, w = m.winner;
+
+            if (p1 === '轮空' || p2 === '轮空') {
+                var real = p1 === '轮空' ? p2 : p1;
+                var d = get(real);
+                d.score += 1;
+                d.bye += 1;
+                d.cells[r] = { bye: true };
+                return;
+            }
+
+            var k1, k2;
+            if (w === '1') { k1 = 'win'; k2 = 'loss'; }
+            else if (w === '0') { k1 = 'loss'; k2 = 'win'; }
+            else if (w === '0.5') { k1 = 'draw'; k2 = 'draw'; }
+            else if (w === '0f') { k1 = 'fwin'; k2 = 'floss'; }
+            else if (w === 'f0') { k1 = 'floss'; k2 = 'fwin'; }
+            else if (w === 'ff') { k1 = 'double'; k2 = 'double'; }
+            else { k1 = k2 = 'unknown'; }
+
+            apply(p1, k1);
+            apply(p2, k2);
+            get(p1).cells[r] = { opp: p2 };
+            get(p2).cells[r] = { opp: p1 };
+        });
+
+        // 退赛：某一轮没有他，就按一次弃权计
+        Object.keys(p).forEach(function (n) {
+            for (var r = 1; r <= nround; r++) {
+                if (!p[n].cells[r]) p[n].floss += 1;
+            }
+        });
+
+        var virtual = {};
+        Object.keys(p).forEach(function (n) {
+            var d = p[n];
+            virtual[n] = d.score + (d.floss - d.bye - d.fwin) * 0.5;
+        });
+
+        function pts(n) { return p[n] ? p[n].score : 0; }
+
+        // 循环赛小分
+        var small = {};
+        Object.keys(p).forEach(function (n) { small[n] = 0; });
+        matches.forEach(function (m) {
+            var p1 = m.player1, p2 = m.player2, w = m.winner;
+            if (p1 === '轮空' || p2 === '轮空') return;
+            if (w === '1' || w === '0f') small[p1] += pts(p2);
+            else if (w === '0' || w === 'f0') small[p2] += pts(p1);
+            else if (w === '0.5') { small[p1] += 0.5 * pts(p2); small[p2] += 0.5 * pts(p1); }
+        });
+
+        var out = {};
+        Object.keys(p).forEach(function (n) {
+            var d = p[n], buch = 0, vals = [];
+            for (var r = 1; r <= nround; r++) {
+                var c = d.cells[r];
+                var v = 0;
+                if (c) v = c.bye ? nround / 2 : (virtual[c.opp] || 0);
+                buch += v;
+                vals.push(v);
+            }
+            var med = 0;
+            if (vals.length >= 3) {
+                vals.sort(function (a, b) { return a - b; });
+                for (var i = 1; i < vals.length - 1; i++) med += vals[i];
+            }
+            out[n] = { buch: buch, med: med, small: small[n], wins: d.wins, score: d.score };
+        });
+        return out;
+    }
+
+    // ---- 单组表格 ----
+    function renderGroup(g, idx) {
+        var players = g.players, matches = g.matches, playoffs = g.playoffs || [];
+        var byname = {};
+        players.forEach(function (p) { byname[p.name] = p; });
+
+        // 每组内挑一个「只属于这个人」的字，用来在格子里指认对手
+        var freq = {}, tag = {};
+        players.forEach(function (p) {
+            var seen = {};
+            String(p.name).split('').forEach(function (ch) { seen[ch] = 1; });
+            Object.keys(seen).forEach(function (ch) { freq[ch] = (freq[ch] || 0) + 1; });
+        });
+        players.forEach(function (p) {
+            var chars = String(p.name).split('');
+            for (var i = 0; i < chars.length; i++) {
+                if (freq[chars[i]] === 1) { tag[p.name] = chars[i]; return; }
+            }
+            tag[p.name] = '';   // 每个字都和别人重复，就不显示
+        });
+
+        var nround = 0, rdate = {};
+        matches.forEach(function (m) {
+            if (m.round > nround) nround = m.round;
+            if (!rdate[m.round]) rdate[m.round] = m.date || '';
+        });
+
+        // 循环赛：轮数 = 人数 − 1，且两两都下过
+        var seenPair = {}, npair = 0;
+        matches.forEach(function (m) {
+            if (m.player1 === '轮空' || m.player2 === '轮空') return;
+            var k = [m.player1, m.player2].sort().join('\u0001');
+            if (!seenPair[k]) { seenPair[k] = 1; npair++; }
+        });
+        var rr = players.length >= 3 && nround === players.length - 1 &&
+            npair === players.length * (players.length - 1) / 2;
+
+        // 积分、副分、名次全部现场算
+        var st = computeStats(matches, nround);
+        function keys(p) {
+            var s = st[p.name] || { score: 0, buch: 0, med: 0, small: 0, wins: 0 };
+            return rr ? [s.score, s.small, s.wins] : [s.score, s.buch, s.med, s.wins];
+        }
+
+        // 加赛：只用来区分并列，不参与积分与副分
+        var poWin = {};
+        playoffs.forEach(function (x) {
+            if (x.winner === '1' && x.player1 && x.player2) poWin[x.player1 + '\u0001' + x.player2] = 1;
+            else if (x.winner === '0' && x.player1 && x.player2) poWin[x.player2 + '\u0001' + x.player1] = 1;
+        });
+        function beats(a, b) { return !!(a && b && poWin[a + '\u0001' + b]); }
+
+        var order = players.slice().sort(function (a, b) {
+            var A = keys(a), B = keys(b);
+            for (var i = 0; i < A.length; i++) if (B[i] !== A[i]) return B[i] - A[i];
+            if (beats(a.name, b.name)) return -1;      // 并列且加赛过：胜者在前
+            if (beats(b.name, a.name)) return 1;
+            return a.player_no - b.player_no;
+        });
+        var rank = {}, prevK = null, prevName = null, curR = 0;
+        order.forEach(function (p, i) {
+            var k = keys(p).join('|');
+            // 同分同副分才并列；两人之间打过加赛的要分出先后
+            var tie = k === prevK && !beats(prevName, p.name) && !beats(p.name, prevName);
+            if (!tie) curR = i + 1;
+            rank[p.name] = curR;
+            prevK = k;
+            prevName = p.name;
+        });
+        var cutName = null;
+        order.forEach(function (p) { if (rank[p.name] <= 10) cutName = p.name; });
+
+        // 同一天的连续轮次合并成一个表头
+        var spans = [];
+        for (var r = 1; r <= nround; r++) {
+            var d = rdate[r] || '';
+            if (spans.length && spans[spans.length - 1][0] === d) spans[spans.length - 1][1]++;
+            else spans.push([d, 1]);
+        }
+
+        // 对局索引：键为「姓名 + 轮次」
+        var cell = {};
+        matches.forEach(function (m) {
+            var p1 = m.player1, p2 = m.player2;
+            if (p2 === '轮空') { cell[p1 + '\u0001' + m.round] = { bye: true, m: m }; return; }
+            var s = SYM[m.result] || ['', ''];
+            cell[p1 + '\u0001' + m.round] = { bye: false, m: m, sym: s[0], opp: p2, black: true };
+            cell[p2 + '\u0001' + m.round] = { bye: false, m: m, sym: s[1], opp: p1, black: false };
+        });
+
+        var out = [];
+        out.push('<div class="group-head">');
+        out.push('  <h2>' + esc(g.age + ' ' + g.sex) + '</h2>');
+        out.push('  <p class="group-meta">' + players.length + ' 人 · ' + nround + ' 轮 · ' +
+            matches.length + ' 局 · ' + (rr ? '循环赛' : '瑞士制') + '</p>');
+        out.push('</div>');
+        out.push('<div class="table-scroll">');
+        out.push('  <table class="crosstab">');
+        out.push('    <thead>');
+        out.push('      <tr>');
+        out.push('        <th class="c-no" rowspan="2">编号</th>');
+        out.push('        <th class="c-name" rowspan="2">姓名</th>');
+        out.push('        <th class="c-unit" rowspan="2">单位</th>');
+        spans.forEach(function (sp) {
+            out.push('        <th class="c-date" colspan="' + sp[1] + '">' + esc(days(sp[0])) + '</th>');
+        });
+        out.push('        <th class="c-pt" rowspan="2">积分</th>');
+        if (rr) {
+            out.push('        <th class="c-tb" rowspan="2">小分</th>');
+        } else {
+            out.push('        <th class="c-tb" rowspan="2">对手分</th>');
+            out.push('        <th class="c-tb" rowspan="2">中间对手分</th>');
+        }
+        out.push('        <th class="c-tb" rowspan="2">胜局数</th>');
+        out.push('        <th class="c-rank" rowspan="2">名次</th>');
+        out.push('      </tr>');
+        out.push('      <tr>');
+        for (var i = 1; i <= nround; i++) out.push('        <th class="c-round">R' + i + '</th>');
+        out.push('      </tr>');
+        out.push('    </thead>');
+        out.push('    <tbody>');
+
+        order.forEach(function (p) {
+            var name = p.name;
+            var cls = '';
+            if (name === cutName) cls = ' class="top10 cut"';
+            else if (rank[name] <= 10) cls = ' class="top10"';
+            out.push('      <tr' + cls + '>');
+            out.push('        <td class="c-no">' + esc(p.player_no) + '</td>');
+            out.push('        <td class="c-name">' + esc(name) + '</td>');
+            out.push('        <td class="c-unit">' + esc(p.unit) + '</td>');
+
+            for (var k = 1; k <= nround; k++) {
+                var c = cell[name + '\u0001' + k];
+                if (!c) { out.push('        <td class="rt none"></td>'); continue; }
+                if (c.bye) {
+                    out.push('        <td class="rt bye">轮空</td>');
+                    continue;
+                }
+                var cs = ['rt'];
+                if (c.black) cs.push('first');
+                if (RES_CLS[c.sym]) cs.push(RES_CLS[c.sym]);
+                var opp = byname[c.opp];
+                var ch = tag[c.opp] || '';
+                if (!ch) cs.push('noch');       // 没有唯一的字，就继续显示编号
+                out.push('        <td class="' + cs.join(' ') + '">' +
+                    '<span class="opp">' + esc(opp ? opp.player_no : '') + '</span>' +
+                    '<span class="ch">' + esc(ch) + '</span>' +
+                    '<span class="res">' + esc(c.sym) + '</span></td>');
+            }
+
+            var s = st[name] || { score: 0, buch: 0, med: 0, small: 0, wins: 0 };
+            out.push('        <td class="c-pt">' + esc(num(s.score)) + '</td>');
+            if (rr) {
+                out.push('        <td class="c-tb">' + esc(num(s.small)) + '</td>');
+            } else {
+                out.push('        <td class="c-tb">' + esc(num(s.buch)) + '</td>');
+                out.push('        <td class="c-tb">' + esc(num(s.med)) + '</td>');
+            }
+            out.push('        <td class="c-tb">' + esc(s.wins) + '</td>');
+            var rk = String(rank[name]);
+            if (rk === '1' || rk === '2' || rk === '3') {
+                out.push('        <td class="c-rank"><span class="rank-badge r' + rk + '">' + esc(rk) + '</span></td>');
+            } else {
+                out.push('        <td class="c-rank">' + esc(rk) + '</td>');
+            }
+            out.push('      </tr>');
+        });
+
+        out.push('    </tbody>');
+        out.push('  </table>');
+        out.push('</div>');
+
+        return out.join('\n');
+    }
+
+    // ---- 组别切换 ----
+    var groups = [];
+    var sections = [];
+    var tabs = [];
+
+    function activate(id) {
+        sections.forEach(function (s) { s.hidden = s.id !== id; });
+        tabs.forEach(function (t) { t.classList.toggle('is-on', t.dataset.target === id); });
+
+        var cur = sections.filter(function (s) { return s.id === id; })[0];
+        if (cur && !cur.dataset.rendered) {
+            var idx = sections.indexOf(cur);
+            cur.innerHTML = renderGroup(groups[idx], idx);
+            cur.dataset.rendered = '1';
+        }
+        try {
+            if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+        } catch (e) { /* file:// 下可能被拒，忽略 */ }
+    }
+
+    function mount(data) {
+        groups = data;
+
+        var totalP = 0, totalM = 0;
+        groups.forEach(function (g) { totalP += g.players.length; totalM += g.matches.length; });
+
+        var t0 = groups[0] || {};
+        metaEl.innerHTML = [
+            t0.organizer ? '<span>主办：' + esc(t0.organizer) + '</span>' : '',
+            '<span>规则：塔拉山口-10 开局</span>',
+            t0.timeLimit ? '<span>用时：' + esc(t0.timeLimit) + '</span>' : '',
+            '<span>棋手：' + totalP + ' 人</span>',
+            '<span>对局：' + totalM + ' 局</span>',
+            '<span>组别：' + groups.length + ' 个</span>'
+        ].filter(Boolean).join('');
+        metaEl.hidden = false;
+
+        groups.forEach(function (g, i) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'tab';
+            btn.dataset.target = 'g' + i;
+            btn.innerHTML = '<b>' + esc(g.age) + '</b><span>' + esc(g.sex) + '</span>';
+            btn.addEventListener('click', function () { activate(btn.dataset.target); });
+            tabsEl.appendChild(btn);
+
+            // 先放空壳，切到哪组才渲染哪组
+            var sec = document.createElement('section');
+            sec.className = 'group';
+            sec.id = 'g' + i;
+            sec.hidden = true;
+            appEl.appendChild(sec);
+        });
+
+        tabs = Array.prototype.slice.call(tabsEl.children);
+        sections = Array.prototype.slice.call(appEl.children);
+
+        barEl.hidden = false;
+        stateEl.hidden = true;
+
+        var first = location.hash ? location.hash.slice(1) : '';
+        activate(document.getElementById(first) ? first : 'g0');
+    }
+
+    function fail(msg, detail) {
+        stateEl.className = 'state err';
+        stateEl.innerHTML = '<b>' + esc(msg) + '</b><br>' + (detail ? esc(detail) + '<br>' : '') +
+            '本页实时读取站点数据库 <code>bisai.db</code>，需通过 http(s) 访问；' +
+            '若直接用本地文件打开，浏览器会拦截数据库请求。';
+    }
+
+    // ---- 启动 ----
+    if (typeof initSqlJs !== 'function') {
+        fail('SQLite 引擎未加载', 'assets/vendor/sqljs/sql-wasm.js 未能载入。');
+        return;
+    }
+
+    fetch(DB_URL, { cache: 'no-cache' })
+        .then(function (res) {
+            if (!res.ok) throw new Error('数据库请求失败：HTTP ' + res.status);
+            return res.arrayBuffer();
+        })
+        .then(function (buf) {
+            return initSqlJs({ locateFile: function (f) { return SQLJS_BASE + f; } })
+                .then(function (SQL) {
+                    var db = new SQL.Database(new Uint8Array(buf));
+                    var data = loadGroups(db);
+                    db.close();
+                    return data;
+                });
+        })
+        .then(function (data) {
+            if (!data.length) { fail('数据库中没有找到该赛事', '赛事名：' + EVENT); return; }
+            mount(data);
+        })
+        .catch(function (err) {
+            fail('成绩数据读取失败', err && err.message ? err.message : String(err));
+        });
+})();
+</script>
+
+</body>
+</html>
