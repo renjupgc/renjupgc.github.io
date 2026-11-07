@@ -99,6 +99,12 @@ table.crosstab td.rt.res-draw .res { color: var(--draw); }
 table.crosstab td.rt.res-win .res { color: var(--win); }
 table.crosstab td.rt.res-loss .res { color: var(--loss); }
 table.crosstab td.rt.res-floss .res { color: var(--draw); }
+/* 未弈：棋盘上没下，只在成绩上判了胜负（斜纹底） */
+table.crosstab td.rt.unp {
+    background-image: repeating-linear-gradient(45deg,
+        rgba(120, 108, 84, .16) 0 1px, transparent 1px 6px);
+    background-clip: padding-box;
+}
 
 /* 加载 / 出错状态 */
 .state {
@@ -247,7 +253,8 @@ table.crosstab td.rt.res-floss .res { color: var(--draw); }
                     'SELECT player_no, name, unit FROM players ' +
                     'WHERE tournament_id = ? ORDER BY player_no', [t.id]),
                 matches: query(db,
-                    'SELECT round, board_number, player1, player2, winner, result, date, swap_sequence ' +
+                    'SELECT round, board_number, player1, player2, winner, result, date, ' +
+                    'swap_sequence, unplayed ' +
                     'FROM matches WHERE tournament_id = ? ORDER BY round, board_number, id', [t.id]),
                 playoffs: po
             };
@@ -494,13 +501,18 @@ table.crosstab td.rt.res-floss .res { color: var(--draw); }
 
             for (var k = 1; k <= nround; k++) {
                 var c = cell[name + '\u0001' + k];
-                if (!c) { out.push('        <td class="rt none"></td>'); continue; }
+                if (!c) {
+                    // 这一轮没有他：缺席／退赛，按弃权负显示（原表记作「-」）
+                    out.push('        <td class="rt none res-floss"><span class="res">−</span></td>');
+                    continue;
+                }
                 if (c.bye) {
                     out.push('        <td class="rt bye">轮空</td>');
                     continue;
                 }
                 var cs = ['rt'];
                 if (c.black) cs.push('first');
+                if (c.m.unplayed) cs.push('unp');   // 未弈：没在棋盘上下过
                 if (RES_CLS[c.sym]) cs.push(RES_CLS[c.sym]);
                 var opp = byname[c.opp];
                 var ch = tag[c.opp] || '';
