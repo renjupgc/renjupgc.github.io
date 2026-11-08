@@ -160,7 +160,11 @@
             }
             var color = null;
             var text = tok;
-            var m = /^([bwBW])[:：]?(.+)$/.exec(tok);
+            /*
+             * b:H8 这种前缀要先确认后面确实是一个坐标，否则 B 列的棋步
+             * （B8、b8）会被当成「黑棋」前缀，把整手吃掉。
+             */
+            var m = /^([bwBW])[:：]?([A-Oa-o]\d{1,2})$/.exec(tok);
             if (m) {
                 color = m[1].toLowerCase();
                 text = m[2];

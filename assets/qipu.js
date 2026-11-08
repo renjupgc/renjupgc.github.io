@@ -319,6 +319,9 @@
             var mv = moves[k - 1];
             var jd = judged[k];
             var who = (k % 2 === 1) ? '黑方' : '白方';
+            /* 最后一手没有「之后」的局面，判不了得失，但引擎当时想走哪里还有据可查 */
+            var best = (pos && pos[k - 1]) ? pos[k - 1].top : '';
+            var bestPt = best ? fromEngine(best) : null;
             var html = '<span class="qp-now-k">第 ' + k + ' 手</span>' +
                 '<span class="qp-now-mv">' + COL.charAt(mv.i) + (15 - mv.j) + ' · ' + who + '</span>';
 
@@ -327,22 +330,23 @@
                     jd.text + '</span>' +
                     '<span class="qp-now-t">' + who + '胜率 ' + pct(jd.before) +
                     ' → ' + pct(jd.after);
-                if (Math.abs(jd.drop) >= 0.005) {
+                if (Math.abs(jd.drop) >= 0.02) {
                     html += '（' + (jd.drop > 0 ? '掉 ' : '涨 ') +
                         Math.round(Math.abs(jd.drop) * 100) + '）';
                 }
                 html += '</span>';
                 if (jd.picked) {
                     html += '<span class="qp-now-t">与引擎首选一致</span>';
-                } else if (jd.best) {
-                    var bp = fromEngine(jd.best);
-                    if (bp) {
-                        html += '<span class="qp-now-t">引擎推荐 ' +
-                            COL.charAt(bp.i) + (15 - bp.j) + '</span>';
-                    }
+                } else if (bestPt) {
+                    html += '<span class="qp-now-t">引擎推荐 ' +
+                        COL.charAt(bestPt.i) + (15 - bestPt.j) + '</span>';
                 }
             } else if (k === n) {
                 html += '<span class="qp-now-t">终局，本手之后没再记录。</span>';
+                if (bestPt && !(bestPt.i === mv.i && bestPt.j === mv.j)) {
+                    html += '<span class="qp-now-t">当时引擎更想走 ' +
+                        COL.charAt(bestPt.i) + (15 - bestPt.j) + '</span>';
+                }
             }
             now.innerHTML = html;
 
@@ -351,11 +355,9 @@
             if (jd && jd.kind) {
                 marks.push({ i: mv.i, j: mv.j, kind: jd.kind });
             }
-            if (jd && jd.best && !jd.picked) {
-                var bp2 = fromEngine(jd.best);
-                if (bp2 && !(bp2.i === mv.i && bp2.j === mv.j)) {
-                    marks.push({ i: bp2.i, j: bp2.j, kind: 'idea' });
-                }
+            if (bestPt && !(bestPt.i === mv.i && bestPt.j === mv.j) &&
+                !(jd && jd.picked)) {
+                marks.push({ i: bestPt.i, j: bestPt.j, kind: 'idea' });
             }
             board.setMarks(marks);
         }
