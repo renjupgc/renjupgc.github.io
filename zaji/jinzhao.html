@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>禁手找茬 - 连珠杂箱</title>
+<meta name="description" content="连珠禁手小游戏：盘上恰好有一个点，黑棋落下去就违例，找出那处三三、四四或长连。">
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+
+<body data-nav="杂技" data-base="../">
+
+<div class="container">
+
+    <div id="site-header"></div>
+
+    <main>
+
+        <header class="page-head">
+            <p class="eyebrow">杂技</p>
+            <h1 class="page-title">禁手找茬</h1>
+            <p class="page-desc">每一盘都藏着一个点：黑棋落下去就是三三、四四或者长连。点出来就算过。</p>
+        </header>
+
+        <section class="jz">
+            <div class="jz-main">
+                <canvas id="jz-board"></canvas>
+                <div class="jz-bar">
+                    <span class="jz-turn"><i class="jz-dot"></i>黑先 · 找出禁手点</span>
+                    <span class="jz-count" id="jz-count"></span>
+                </div>
+            </div>
+
+            <aside class="jz-side">
+                <label class="jz-level">
+                    <span>局面</span>
+                    <select id="jz-level">
+                        <option value="0">入门（子少，一眼能看出来）</option>
+                        <option value="1" selected>常用（有白子干扰）</option>
+                        <option value="2">密集（干扰子多，最费眼）</option>
+                    </select>
+                </label>
+
+                <dl class="jz-stats">
+                    <div><dt>已找出</dt><dd id="jz-done">0</dd></div>
+                    <div><dt>点错</dt><dd id="jz-tries">0</dd></div>
+                    <div><dt>本题</dt><dd id="jz-kind">—</dd></div>
+                </dl>
+
+                <p class="jz-msg" id="jz-msg">黑棋该走。盘上只有一个点落下就违例，点它。</p>
+
+                <div class="jz-btns">
+                    <button type="button" id="jz-hint">提示</button>
+                    <button type="button" id="jz-reveal">看答案</button>
+                    <button type="button" id="jz-reset">重来</button>
+                    <button type="button" id="jz-next" class="is-primary">下一题</button>
+                </div>
+
+                <details class="jz-help">
+                    <summary>什么算禁手</summary>
+                    <p>连珠里黑棋有三条限制，白棋没有：</p>
+                    <p><b>三三</b>：落子之后同一点上出现两根活三，也就是两处「再补一子就成活四」的三。活三才算，被白子堵住一头的眠三不算。</p>
+                    <p><b>四四</b>：落子之后同时出现两个四（两根线都只差一子成五）。冲四加活三的「四三」是合法的，这正是最容易看错的地方。</p>
+                    <p><b>长连</b>：黑棋连成六子以上。注意连成五子黑棋就赢了，所以长连的题面都是两串分开的子，中间落下才连过头。</p>
+                    <p>另外，黑棋成五优先于禁手：落子直接成五的那一手，即使同时带出三三，也按赢算。</p>
+                </details>
+
+                <details class="jz-help">
+                    <summary>题目是怎么来的</summary>
+                    <p>先按类型搭骨架：两根线各摆两颗子，落下就成双活三；或者各摆三颗，落下成双四；长连则是两侧各一串，中间落下连成六。</p>
+                    <p>骨架摆好，全盘扫一遍禁手点，只有骨架那一个才算数。接着撒白子当干扰——白子会把活三压成眠三，也会把某一根线堵废，看着像禁手的位置就多起来了。最后撒黑子把局面填得像真对局，每撒一颗都复扫一次，一旦多出禁手点就撤回。</p>
+                    <p>判定用的是和 VCF 做题同一套代码：线型一律表述成「再填一子会变成什么」，活三 / 活四都是递归算出来的，没有手写的棋型表。</p>
+                </details>
+            </aside>
+        </section>
+
+    </main>
+
+</div>
+
+<script src="../assets/layout.js"></script>
+<script src="../assets/jinzhao.js"></script>
+
+</body>
+</html>

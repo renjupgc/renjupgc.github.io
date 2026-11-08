@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>打谱 - 连珠杂箱</title>
-<meta name="description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，只记棋不判胜负。">
+<meta name="description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，还能把棋盘图直接认成棋谱。只记棋不判胜负。">
 <meta name="theme-color" content="#f6f2e9">
 <link rel="stylesheet" href="../assets/style.css">
 </head>
@@ -20,7 +20,7 @@
         <header class="page-head">
             <p class="eyebrow">杂技</p>
             <h1 class="page-title">打谱</h1>
-            <p class="page-desc">点着摆棋、按手数翻看，只记棋不判胜负。</p>
+            <p class="page-desc">点着摆棋、按手数翻看；手上只有一张图的话，交给下面的识别。</p>
         </header>
 
         <section>
@@ -30,12 +30,41 @@
             <p class="qipu-tip">想摆现成的对局，去<a href="../zayu.html">杂豫</a>翻一场比赛，成绩表里有谱的格子点一下就能展开。</p>
         </section>
 
+        <section class="scan" id="scan">
+            <h2>图片转棋谱</h2>
+            <p class="scan-lead">手头只有一张图？选进来、拖进来或者直接粘贴，认出的黑白子会摆到上面的棋盘里。只认黑白，不认手数序号。</p>
+
+            <div class="scan-grid is-empty" id="scan-grid">
+                <div class="scan-drop" id="scan-drop">
+                    <label class="scan-pick">
+                        <input type="file" id="scan-file" accept="image/*">
+                        <span>选一张棋盘图</span>
+                    </label>
+                    <p class="scan-hint">也可以把图片拖到这块里，或者在这里按 Ctrl + V 粘贴。</p>
+                    <p class="scan-msg" id="scan-msg"></p>
+                </div>
+
+                <figure class="scan-shot" id="scan-shot" hidden>
+                    <canvas id="scan-canvas"></canvas>
+                    <figcaption>彩圈是认出来的子，红点是空点。对不上的地方以你的眼睛为准。</figcaption>
+                </figure>
+            </div>
+
+            <details class="scan-help">
+                <summary>识别是怎么做的</summary>
+                <p>先把图缩到 900 像素以内转灰度，沿行、列各算一条「细线」响应曲线（和上下差得越多的地方分越高，线比底色暗还是亮都算），再用梳状滤波套一组等距的 15 条线：线上的响应减去格心的响应，分最高的那一组就是棋盘格。格距先粗扫再细扫——差 0.2 像素，十四条线就漂出去三像素——最后每条线在半格内找峰、按响应强弱加权拟合一次，顺带吃掉一点缩放和裁切不齐。</p>
+                <p>判子只数颜色：每个交叉点取半径 0.36 格的小圆，数里面比「当地底色」暗一截、亮一截的像素各占几成，暗的过三成算黑子，亮的过三成算白子，剩下的算空点。当地底色是逐点量的：棋子只落在交叉点上，格心永远是空的，所以每个点的底色就用它周围四个格心的平均亮度——木纹的渐变、打光的不匀都不碍事。</p>
+                <p>它认不出手数顺序，也认不出棋谱里的 ABC 标记；正向的截图、扫描件最准，斜着拍的图容易找不准格子。白棋压在浅色盘上、两者几乎一样白的时候也会漏，认完对着原图核一眼。</p>
+            </details>
+        </section>
+
     </main>
 
 </div>
 
 <script src="../assets/layout.js"></script>
 <script src="../assets/board.js"></script>
+<script src="../assets/dapu.js"></script>
 
 </body>
 </html>
