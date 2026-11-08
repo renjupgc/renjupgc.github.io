@@ -36,6 +36,7 @@
  *   b.next(); b.prev(); b.first(); b.last();
  *   b.undo(); b.truncate(3); b.clear(); b.setNumbers(false); b.setCoords(false);
  *   b.setColor('w'); b.setPoints(9);
+ *   b.setMarks([{i:7, j:7, kind:'bad'}]);   // 复盘标注：bad/warn/good/idea
  *   GomokuBoard.encode(b.getMoves());   // -> 'h8i9j10'
  *   GomokuBoard.decode('#h8i9j10');     // -> [{i,j,color}, ...]
  *   b.onChange(function (s) { s.moves / s.cursor / s.numbers / s.coords / s.color });
@@ -290,6 +291,7 @@
         this.points = opts.points === undefined
             ? readNumPref('points', POINTS_DEF) : clampPoints(opts.points);
         this.pv = null;                       // 引擎给回来的候选点
+        this.marks = [];                      // 复盘标注（见 setMarks）
         this.depth = 0;                       // 算到第几层
         this.seq = 0;                         // 每次交给引擎一个新编号
         this.wantKey = '';                    // 当前想算的局面
@@ -397,6 +399,10 @@
 
         this.stoneLayer = svgEl('g', {});
         svg.appendChild(this.stoneLayer);
+
+        /* 复盘标注：败着红圈、疑问黄圈、正着绿圈、引擎首选金虚线，画在棋子之上 */
+        this.markLayer = svgEl('g', { 'pointer-events': 'none' });
+        svg.appendChild(this.markLayer);
 
         /* 引擎胜率标注：只画在空点上，不挡鼠标 */
         this.evalLayer = svgEl('g', { 'pointer-events': 'none' });
@@ -983,6 +989,50 @@
         }
     };
 
+    /*
+     * 复盘标注：给某一手加圈。
+     *   [{ i, j, kind }]，kind = 'bad'（败着）| 'warn'（疑问）|
+     *   'good'（正着）| 'idea'（引擎首选，通常落在空点上）
+     * 标注只影响画面，不参与落子判定；传空数组即清空。
+     */
+    Board.prototype.setMarks = function (list) {
+        this.marks = list || [];
+        this.renderMarks();
+    };
+
+    var MARKS = {
+        bad: { color: '#b0342c', dash: null, width: 1.8 },
+        warn: { color: '#c08a2a', dash: null, width: 1.6 },
+        good: { color: '#3f6b48', dash: null, width: 1.6 },
+        idea: { color: '#a8863f', dash: '3 2.4', width: 1.4 }
+    };
+
+    Board.prototype.renderMarks = function () {
+        var layer = this.markLayer;
+        if (!layer) {
+            return;
+        }
+        while (layer.firstChild) {
+            layer.removeChild(layer.firstChild);
+        }
+        for (var k = 0; k < this.marks.length; k++) {
+            var mk = this.marks[k];
+            var style = MARKS[mk.kind] || MARKS.idea;
+            var attrs = {
+                cx: px(mk.i), cy: py(mk.j),
+                r: mk.kind === 'idea' ? R * 0.62 : R + 2.6,
+                fill: 'none',
+                stroke: style.color,
+                'stroke-width': style.width,
+                'stroke-linecap': 'round'
+            };
+            if (style.dash) {
+                attrs['stroke-dasharray'] = style.dash;
+            }
+            layer.appendChild(svgEl('circle', attrs));
+        }
+    };
+
     Board.prototype.onChange = function (fn) {
         if (typeof fn === 'function') {
             this.listeners.push(fn);
@@ -1058,6 +1108,7 @@
             }
         }
 
+        this.renderMarks();                        /* 标注跟着局面重画 */
         this.updateButtons();
         if (this.checkbox && this.checkbox.checked !== this.numbers) {
             this.checkbox.checked = this.numbers;

@@ -3282,6 +3282,271 @@ table.ratings .r-name a:hover {
     }
 }
 
+/* ==========================================================================
+   杂谱：棋谱与逐手复盘
+   --------------------------------------------------------------------------
+   左边棋盘、右边复盘。曲线、手数与结论都用无衬线，跟正文的宋体分开，
+   免得一屏里三种字号打架。
+   ========================================================================== */
+
+.qipu-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+    gap: 30px;
+    align-items: start;
+    margin: 6px 0 26px;
+}
+
+.qipu-board .board {
+    margin: 0;
+}
+
+.qipu-tip,
+.qp-note {
+    margin: 10px 0 0;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: var(--faint);
+}
+
+.qp-note {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+}
+
+/* ---------- 摘要 ---------- */
+
+.qp-sum {
+    margin: 0 0 14px;
+    padding: 11px 14px;
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.85;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-left: 2px solid var(--gold);
+    border-radius: 4px 10px 10px 4px;
+}
+
+.qp-sum b {
+    color: var(--gold-deep);
+    font-weight: 600;
+}
+
+.qp-sum-flat {
+    color: var(--muted);
+    border-left-color: var(--line);
+}
+
+/* ---------- 曲线 ---------- */
+
+.qp-curve-box {
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    padding: 8px 6px 4px;
+}
+
+.qp-curve {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+/* ---------- 当前手 ---------- */
+
+.qp-now {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 9px;
+    margin: 12px 0 10px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink-3);
+}
+
+.qp-now-k {
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: 0.03em;
+}
+
+.qp-now-mv {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.qp-now-tag {
+    padding: 1px 8px;
+    font-size: 11.5px;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+}
+
+.qp-tag-bad {
+    color: #a0342c;
+    background: #fbeceb;
+}
+
+.qp-tag-warn {
+    color: #8a6a39;
+    background: #faf0da;
+}
+
+.qp-tag-good {
+    color: #3f6b48;
+    background: #eef3ee;
+}
+
+.qp-tag-flat {
+    color: var(--muted);
+    background: var(--surface-2);
+}
+
+/* ---------- 手数 ---------- */
+
+.qp-turns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.qp-mv {
+    min-width: 27px;
+    padding: 2px 4px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--ink-3);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.qp-mv:hover {
+    border-color: var(--gold);
+    color: var(--gold-deep);
+}
+
+.qp-mv-bad {
+    color: #a0342c;
+    background: #fdf1f0;
+    border-color: #e3b5b0;
+}
+
+.qp-mv-warn {
+    color: #8a6a39;
+    background: #fdf7e8;
+    border-color: #e2cd9e;
+}
+
+.qp-mv-good {
+    color: #3f6b48;
+    background: #f2f7f2;
+    border-color: #b8ccba;
+}
+
+.qp-mv.is-on {
+    color: var(--ink);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(176, 141, 87, 0.28);
+    font-weight: 600;
+}
+
+/* ---------- 图例与索引页 ---------- */
+
+.qp-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin: 14px 0 0;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+.qp-k {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 2px;
+    border: 1.5px solid var(--faint);
+    border-radius: 50%;
+}
+
+.qp-legend .qp-k:not(:first-child) {
+    margin-left: 10px;
+}
+
+.qp-k-bad {
+    border-color: #b0342c;
+}
+
+.qp-k-warn {
+    border-color: #c08a2a;
+}
+
+.qp-k-good {
+    border-color: #3f6b48;
+}
+
+.qp-k-idea {
+    border-color: #a8863f;
+    border-style: dashed;
+}
+
+.qp-sub {
+    margin-left: 10px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--faint);
+    letter-spacing: 0.02em;
+}
+
+.qp-lede {
+    margin: 0 0 26px;
+    font-size: 15px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
+.qipu-links li > a {
+    font-size: 15.5px;
+}
+
+.qp-vs {
+    margin: 0 0.45em;
+    font-family: var(--sans);
+    font-size: 0.62em;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: var(--faint);
+    vertical-align: 0.12em;
+}
+
+@media (max-width: 880px) {
+    .qipu-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 22px;
+    }
+
+    .qipu-board {
+        max-width: 520px;
+    }
+}
+
 @media print {
     body {
         background: #ffffff;
