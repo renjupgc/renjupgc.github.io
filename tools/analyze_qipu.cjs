@@ -1,8 +1,9 @@
 /*
  * 棋谱逐手复盘（离线，构建期跑一遍）
  * ------------------------------------------------------------
- * 读 qipu/_games.json，交给 Rapfi（连珠规则）把每一手之后的局面重算一遍，
- * 结果写到 qipu/eval/<id>.json，页面直接读，不必让访客在浏览器里等。
+ * 读 assets/qipu/_games.json，交给 Rapfi（连珠规则）把每一手之后的局面重算一遍，
+ * 结果写到 assets/qipu/eval/<id>.json，再由 build_qipu.py 并进单局数据，
+ * 访客点开时不用等引擎。
  *
  *   node tools/analyze_qipu.cjs            有缓存就跳过
  *   node tools/analyze_qipu.cjs --force    全部重算
@@ -17,8 +18,8 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const ENGINE = path.join(ROOT, 'assets', 'engine');
-const GAMES = path.join(ROOT, 'qipu', '_games.json');
-const EVAL_DIR = path.join(ROOT, 'qipu', 'eval');
+const GAMES = path.join(ROOT, 'assets', 'qipu', '_games.json');
+const EVAL_DIR = path.join(ROOT, 'assets', 'qipu', 'eval');
 
 const TURN_MS = 300;           // 每个局面的思考时间
 const MIN_MOVES = 4;           // 太短的记录（弃权、中止）不值得复盘
@@ -38,7 +39,7 @@ function hashMoves(moves) {
 
 (async () => {
     if (!fs.existsSync(GAMES)) {
-        console.log('！缺少 qipu/_games.json，先跑 python tools/build_qipu.py');
+        console.log('！缺少 assets/qipu/_games.json，先跑 python tools/build_qipu.py --no-eval');
         process.exit(1);
     }
     const games = JSON.parse(fs.readFileSync(GAMES, 'utf8'));

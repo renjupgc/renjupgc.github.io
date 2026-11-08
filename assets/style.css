@@ -3283,26 +3283,143 @@ table.ratings .r-name a:hover {
 }
 
 /* ==========================================================================
-   杂谱：棋谱与逐手复盘
+   棋谱：成绩表里就地展开
    --------------------------------------------------------------------------
-   左边棋盘、右边复盘。曲线、手数与结论都用无衬线，跟正文的宋体分开，
-   免得一屏里三种字号打架。
+   有谱的格子挂一个金色小点，点一下在表格下方展开：左棋盘、右复盘。
+   曲线、手数与结论都用无衬线，跟正文的宋体分开，免得一屏里三种字号打架。
    ========================================================================== */
 
-.qipu-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
-    gap: 30px;
-    align-items: start;
-    margin: 6px 0 26px;
+/* ---------- 成绩表上的入口 ---------- */
+
+.crosstab td.has-qipu {
+    cursor: pointer;
 }
 
-.qipu-board .board {
+/* 有谱的那一格，结果符号变成一枚金色小标，扫一眼就能认出来 */
+.crosstab td.has-qipu .res {
+    display: inline-block;
+    min-width: 16px;
+    padding: 0 3px;
+    margin-left: 1px;
+    color: var(--gold-deep);
+    background: rgba(176, 141, 87, 0.16);
+    border-radius: 4px;
+}
+
+.crosstab td.has-qipu:hover,
+.crosstab td.has-qipu[aria-expanded="true"] {
+    background: rgba(176, 141, 87, 0.12);
+}
+
+.crosstab td.has-qipu:hover .res,
+.crosstab td.has-qipu[aria-expanded="true"] .res {
+    background: rgba(176, 141, 87, 0.3);
+}
+
+.crosstab td.has-qipu:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: -2px;
+}
+
+/* ---------- 表格上方的说明 ---------- */
+
+.qp-hint {
+    margin: 0 0 10px;
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.75;
+    color: var(--muted);
+}
+
+/* ---------- 展开的面板 ---------- */
+
+.qp-panel {
+    margin: 18px 0 4px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.qp-panel[hidden] {
+    display: none;
+}
+
+.qp-panel .qp-pending {
+    margin: 0;
+    padding: 16px 18px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--muted);
+}
+
+.qp-inner {
+    padding: 16px 18px 20px;
+}
+
+.qp-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 11px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.qp-eyebrow {
+    margin: 0 0 5px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    color: var(--faint);
+}
+
+.qp-title {
+    margin: 0;
+    font-size: 18.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--ink);
+}
+
+.qp-meta {
+    margin: 5px 0 0;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--faint);
+}
+
+.qp-close {
+    flex: none;
+    padding: 4px 12px;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.14s ease, border-color 0.14s ease;
+}
+
+.qp-close:hover {
+    color: var(--gold-deep);
+    border-color: var(--gold);
+}
+
+.qp-body {
+    display: grid;
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+    gap: 26px;
+    align-items: start;
+}
+
+.qp-board-col .board {
     margin: 0;
 }
 
-.qipu-tip,
-.qp-note {
+.qp-tip,
+.qipu-tip {
     margin: 10px 0 0;
     font-family: var(--sans);
     font-size: 11.5px;
@@ -3311,8 +3428,12 @@ table.ratings .r-name a:hover {
 }
 
 .qp-note {
-    margin-top: 14px;
+    margin: 14px 0 0;
     padding-top: 10px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: var(--faint);
     border-top: 1px solid var(--line-soft);
 }
 
@@ -3325,7 +3446,7 @@ table.ratings .r-name a:hover {
     font-size: 13px;
     line-height: 1.85;
     color: var(--ink-2);
-    background: var(--surface);
+    background: var(--surface-2);
     border: 1px solid var(--line-soft);
     border-left: 2px solid var(--gold);
     border-radius: 4px 10px 10px 4px;
@@ -3463,7 +3584,7 @@ table.ratings .r-name a:hover {
     font-weight: 600;
 }
 
-/* ---------- 图例与索引页 ---------- */
+/* ---------- 图例 ---------- */
 
 .qp-legend {
     display: flex;
@@ -3506,44 +3627,18 @@ table.ratings .r-name a:hover {
     border-style: dashed;
 }
 
-.qp-sub {
-    margin-left: 10px;
-    font-family: var(--sans);
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--faint);
-    letter-spacing: 0.02em;
-}
-
-.qp-lede {
-    margin: 0 0 26px;
-    font-size: 15px;
-    line-height: 1.95;
-    color: var(--ink-3);
-}
-
-.qipu-links li > a {
-    font-size: 15.5px;
-}
-
-.qp-vs {
-    margin: 0 0.45em;
-    font-family: var(--sans);
-    font-size: 0.62em;
-    font-weight: 400;
-    letter-spacing: 0.12em;
-    color: var(--faint);
-    vertical-align: 0.12em;
-}
-
 @media (max-width: 880px) {
-    .qipu-layout {
+    .qp-body {
         grid-template-columns: minmax(0, 1fr);
-        gap: 22px;
+        gap: 18px;
     }
 
-    .qipu-board {
-        max-width: 520px;
+    .qp-inner {
+        padding: 14px 12px 16px;
+    }
+
+    .qp-board-col {
+        max-width: 460px;
     }
 }
 

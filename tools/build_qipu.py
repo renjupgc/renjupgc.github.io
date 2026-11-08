@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-从 data/renju.db 的 matches.board_record 恢复棋谱，生成「杂谱」栏目。
+从 data/renju.db 的 matches.board_record 恢复棋谱，供「杂豫」赛事页就地展开。
 
-    qipu/index.html     棋谱库：按赛事分组，列出所有有棋谱的对局
-    qipu/g<id>.html     单局页面：棋盘（board.js）+ 逐手复盘（先读 eval，再交给
-                        assets/qipu.js 渲染胜率曲线与手数表）
-    qipu/eval/<id>.json 引擎逐手复盘的产物，由 tools/analyze_qipu.cjs 生成
-    qipu/_games.json    给 node 复盘脚本的输入（引擎坐标，x 自左、y 自下）
+这里不再生成独立的棋谱页面。有棋谱的对局，成绩表里对应的格子会带
+data-qipu="<id>"（由 tools/build_zayu.py 打标），点一下就在表格下方展开
+棋盘与逐手复盘，由 assets/qipu.js 渲染。
 
-同时把入口接到站内已有的页面上（都带 <!-- qipu:begin --> 标记，重跑只换标记
-之间那段，不会越插越多）：
-    zayu/t*.html   赛事成绩页底部加「本站棋谱」
-    zayu/p/*.html  个人主页底部加「棋谱」
+产物：
+    assets/qipu/g<id>.json      单局数据：双方、轮次、结果、落点、引擎复盘
+    assets/qipu/_games.json     给 node 复盘脚本的输入（引擎坐标，x 自左、y 自下）
+    assets/qipu/eval/<id>.json  引擎复盘的中间产物（tools/analyze_qipu.cjs）
 
 数据上有两处要当心：
 1. board_record 有两种写法，`7,7;7,6` 与 `h8 i9`，都按「x 自左 0 起、y 自下
@@ -25,12 +23,13 @@
 
 用法：
     python tools/build_qipu.py            # 全流程（含调用 node 复盘）
-    python tools/build_qipu.py --no-eval  # 只出页面，不跑引擎
+    python tools/build_qipu.py --no-eval  # 只出数据，不跑引擎
 """
 
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -38,9 +37,10 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DB = os.path.join(ROOT, 'data', 'renju.db')
-OUT = os.path.join(ROOT, 'qipu')
+OUT = os.path.join(ROOT, 'assets', 'qipu')
 EVAL_DIR = os.path.join(OUT, 'eval')
 GAMES_JSON = os.path.join(OUT, '_games.json')
+LEGACY = os.path.join(ROOT, 'qipu')
 
 COLS = 'ABCDEFGHIJKLMNO'
 SIZE = 15
@@ -56,12 +56,12 @@ PINYIN = {
 }
 
 RESULT_TEXT = {
-    '1-0': ('先胜', 'win'),
-    '0-1': ('后胜', 'loss'),
-    '½-½': ('和棋', 'draw'),
-    '+-': ('先手弃权', 'void'),
-    '-+': ('后手弃权', 'void'),
-    '--': ('双方弃权', 'void'),
+    '1-0': '先胜',
+    '0-1': '后胜',
+    '½-½': '和棋',
+    '+-': '先手弃权',
+    '-+': '后手弃权',
+    '--': '双方弃权',
 }
 
 # 一个棋步的两种写法：7,7 与 h8。逗号属于坐标，分词时不能拆开
@@ -121,7 +121,13 @@ def pick_from_group(group):
     return None, len(group)
 
 
-def load_games():
+def load_games(quiet=False):
+    """返回入库的对局（已剔重）。build_zayu.py 也会调用它来给成绩表打标。"""
+    if not os.path.exists(DB):
+        if not quiet:
+            print('！找不到 %s' % DB)
+        return []
+
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     rows = [dict(r) for r in conn.execute(
@@ -137,16 +143,20 @@ def load_games():
         try:
             moves, note = parse_record(r['board_record'])
         except ValueError as e:
-            print('！跳过 match %s：%s' % (r['id'], e))
+            if not quiet:
+                print('！跳过 match %s：%s' % (r['id'], e))
             continue
         if len(moves) < 2:
-            print('！跳过 match %s：棋步不足两手' % (r['id']))
+            if not quiet:
+                print('！跳过 match %s：棋步不足两手' % r['id'])
             continue
         if len(set(moves)) != len(moves):
-            print('！跳过 match %s：同一交叉点出现两次' % (r['id']))
+            if not quiet:
+                print('！跳过 match %s：同一交叉点出现两次' % r['id'])
             continue
         if any(not (0 <= x < SIZE and 0 <= y < SIZE) for x, y in moves):
-            print('！跳过 match %s：坐标越界' % (r['id']))
+            if not quiet:
+                print('！跳过 match %s：坐标越界' % r['id'])
             continue
         r['moves'] = moves
         r['note'] = note
@@ -157,18 +167,21 @@ def load_games():
         keep, extra = pick_from_group(g)
         if keep is None:
             skipped += len(g)
-            print('！同一份棋谱挂在 %d 组对阵上且尾注对不上，整组不进库：%s'
-                  % (len(g), ' / '.join('%s-%s' % (x['player1'], x['player2']) for x in g)))
+            if not quiet:
+                print('！同一份棋谱挂在 %d 组对阵上且尾注对不上，整组不进库：%s'
+                      % (len(g), ' / '.join('%s-%s' % (x['player1'], x['player2']) for x in g)))
             continue
         if extra:
             skipped += extra
-            print('· 尾注核对：%s（match %s）为真身，同组另外 %d 条未收录'
-                  % ('%s vs %s' % (keep['player1'], keep['player2']), keep['id'], extra))
+            if not quiet:
+                print('· 尾注核对：%s（match %s）为真身，同组另外 %d 条未收录'
+                      % ('%s vs %s' % (keep['player1'], keep['player2']), keep['id'], extra))
         games.append(keep)
 
-    print('棋谱：入库 %d 局，剔除重复/存疑 %d 条' % (len(games), skipped))
+    if not quiet:
+        print('棋谱：入库 %d 局，剔除重复/存疑 %d 条' % (len(games), skipped))
 
-    # 同名同日的赛事（世青赛的 A、B 组）在库里是两行，标题上得分开
+    # 同名同日的赛事（世青赛的 A、B 组）在库里是两行，副标题上得分开
     by_name = {}
     for g in games:
         by_name.setdefault((g['tname'], g['tdate']), set()).add(g['tournament_id'])
@@ -184,309 +197,121 @@ def load_games():
 
 # --------------------------------------------------------------- 小工具
 
-def esc(s):
-    return (str(s or '').replace('&', '&amp;').replace('<', '&lt;')
-            .replace('>', '&gt;').replace('"', '&quot;'))
-
-
 def coord_name(x, y):
     """引擎坐标 -> 站点坐标（h8、i9 这种，y 自下 1 起）。"""
     return COLS[x] + str(y + 1)
-
-
-def move_tokens(moves):
-    """给 board.js 的 data-moves：一手一个坐标，颜色按先后自动轮换。"""
-    return ' '.join(coord_name(x, y) for x, y in moves)
 
 
 def round_label(r):
     return '第 %s 轮' % r['round'] if r['round'] else '附加赛'
 
 
-def result_of(r):
-    txt, cls = RESULT_TEXT.get(r['result'], (r['result'] or '—', 'void'))
-    return txt, cls
+def result_text(r):
+    return RESULT_TEXT.get(r['result'], r['result'] or '—')
 
 
-def headline(g):
-    """一句话说清这局：能定胜负就写「甲 胜 乙」，否则写「甲 对 乙（和棋）」。"""
+def winner_of(g):
     if g['result'] == '1-0':
-        return '%s 胜 %s' % (esc(g['player1']), esc(g['player2']))
+        return g['player1']
     if g['result'] == '0-1':
-        return '%s 胜 %s' % (esc(g['player2']), esc(g['player1']))
-    return '%s 对 %s（%s）' % (esc(g['player1']), esc(g['player2']), result_of(g)[0])
+        return g['player2']
+    return ''
 
 
-def event_href(tid):
-    """赛事在站内有没有成绩页（zayu/t<id>.html）。"""
-    p = os.path.join(ROOT, 'zayu', 't%s.html' % tid)
-    return 'zayu/t%s.html' % tid if os.path.exists(p) else ''
+# --------------------------------------------------------------- 产物
+
+def game_json(g):
+    """单局数据。moves 用站内坐标（h8），ev 原样带上引擎复盘。"""
+    ev = None
+    p = os.path.join(EVAL_DIR, '%s.json' % g['id'])
+    if os.path.exists(p):
+        try:
+            with open(p, encoding='utf-8') as f:
+                ev = json.load(f)
+        except (ValueError, OSError):
+            ev = None
+
+    data = {
+        'id': g['id'],
+        'tid': g['tournament_id'],
+        'event': g['tlabel'],
+        'date': g['tdate'] or '',
+        'round': g['round'],
+        'roundLabel': round_label(g),
+        'board': g['board_number'],
+        'p1': g['player1'],
+        'p2': g['player2'],
+        'result': g['result'],
+        'resultText': result_text(g),
+        'winner': winner_of(g),
+        'rules': g['trules'] or '',
+        'moves': [coord_name(x, y) for x, y in g['moves']],
+        'turns': len(g['moves']),
+    }
+    if ev:
+        data['eval'] = {
+            'engine': ev.get('engine') or 'Rapfi',
+            'depth': ev.get('depth') or 0,
+            'pos': ev.get('pos') or [],
+        }
+    return data
 
 
-# --------------------------------------------------------------- 页面骨架
-
-HEAD = '''<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{title}</title>
-<meta name="description" content="{desc}">
-<meta name="theme-color" content="#f6f2e9">
-<link rel="stylesheet" href="../assets/style.css">
-</head>
-
-<body data-nav="杂谱" data-base="../">
-
-<div class="container">
-
-    <div id="site-header"></div>
-
-    <main>
-'''
-
-FOOT = '''    </main>
-
-</div>
-
-<script src="../assets/layout.js"></script>
-<script src="../assets/board.js"></script>
-<script src="../assets/qipu.js"></script>
-
-</body>
-</html>
-'''
+def write_json(path, obj):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(obj, f, ensure_ascii=False, separators=(',', ':'))
 
 
-def build_index(games):
-    by_event = {}
+def build_data(games):
     for g in games:
-        by_event.setdefault((g['tournament_id'], g['tname'], g['tdate']), []).append(g)
-
-    events = sorted(by_event.items(), key=lambda kv: (kv[0][2] or '', kv[0][0]), reverse=True)
-    players = set()
-    for g in games:
-        players.update([g['player1'], g['player2']])
-
-    blocks = []
-    for (tid, tname, tdate), gs in events:
-        tlabel = gs[0]['tlabel']
-        gs.sort(key=lambda g: ((g['round'] or 0), (g['board_number'] or 0)))
-        items = []
-        for g in gs:
-            txt, cls = result_of(g)
-            items.append(
-                '                <li><a href="g%s.html">%s</a>'
-                '<span class="date">%s · %d 手</span></li>' % (
-                    g['id'], headline(g), round_label(g), len(g['moves'])))
-        head_link = esc(tlabel)
-        if os.path.exists(os.path.join(ROOT, 'zayu', 't%s.html' % tid)):
-            head_link = '<a href="../zayu/t%s.html">%s</a>' % (tid, esc(tlabel))
-        blocks.append(
-            '        <section>\n'
-            '            <h2>%s<span class="qp-sub">%s · %d 局</span></h2>\n'
-            '            <ul class="post-list">\n%s\n            </ul>\n'
-            '        </section>\n' % (head_link, tdate or '', len(gs), '\n'.join(items)))
-
-    body = '''        <header class="page-head">
-            <p class="eyebrow">栏目</p>
-            <h1 class="page-title">杂谱</h1>
-            <p class="page-desc">比赛对局的棋谱，逐手可查，也可交给引擎重算一遍。</p>
-        </header>
-
-        <div class="rh-counts">
-            <span>收录 <b>%d</b> 局</span>
-            <span>赛事 <b>%d</b> 站</span>
-            <span>棋手 <b>%d</b> 位</span>
-            <span>记录多长就照录多长，未作增删</span>
-        </div>
-
-        <p class="qp-lede">棋谱取自成绩表里逐局记录的落点，坐标已换算成盘上的 A—O、1—15。
-        点开一局，左边棋盘、右边复盘：引擎（Rapfi，连珠规则）会把每一手之后的胜率重算一遍，
-        标出与首选手出入最大的几处。记录手数不多，都是当时现场记下来的样子。</p>
-
-''' % (len(games), len(events), len(players))
-
-    html = HEAD.format(
-        title='杂谱 - 连珠杂箱',
-        desc='连珠（五子棋）比赛棋谱库：%d 局实战记录，逐手复盘与胜率曲线。' % len(games),
-    ) + body + '\n'.join(blocks) + '\n' + FOOT
-    write(os.path.join(OUT, 'index.html'), html)
+        write_json(os.path.join(OUT, 'g%s.json' % g['id']), game_json(g))
+    write_json(GAMES_JSON, [{'id': g['id'], 'moves': g['moves']} for g in games])
+    print('数据：%d 局写到 assets/qipu/' % len(games))
 
 
-def build_game(g, prev_g, next_g):
-    txt, cls = result_of(g)
-    n = len(g['moves'])
-    tid = g['tournament_id']
-    href = event_href(tid)
-
-    meta = ['栏目：<a href="../zayu.html">杂豫</a>',
-            '赛事：%s' % ('<a href="../zayu/t%s.html">%s</a>' % (tid, esc(g['tlabel']))
-                          if href else esc(g['tlabel'])),
-            esc(g['tdate'] or ''),
-            '%d 手' % n]
-    info = ['规则：%s' % (g['trules'] or '—'),
-            '轮次：%s' % (round_label(g)),
-            '台次：%s' % (g['board_number'] or '—'),
-            '结果：%s' % txt,
-            '黑方：%s' % esc(g['player1']),
-            '白方：%s' % esc(g['player2'])]
-
-    nav = []
-    if prev_g:
-        nav.append('<a href="g%s.html">← 上一局：%s 对 %s</a>' % (
-            prev_g['id'], esc(prev_g['player1']), esc(prev_g['player2'])))
-    if next_g:
-        nav.append('<a href="g%s.html">下一局：%s 对 %s →</a>' % (
-            next_g['id'], esc(next_g['player1']), esc(next_g['player2'])))
-
-    title = '%s 对 %s · %s' % (g['player1'], g['player2'], round_label(g))
-    body = '''        <article>
-
-            <header class="article-header">
-                <h1 class="article-title">%s<span class="qp-vs">对</span>%s</h1>
-                <div class="article-meta">
-                    %s
-                </div>
-            </header>
-
-            <div class="event-info">
-                %s
-            </div>
-
-            <div class="qipu-layout">
-                <div class="qipu-board">
-                    <div class="board" data-board data-hash
-                         data-numbers="1" data-moves="%s"></div>
-                    <p class="qipu-tip">用 &lt;&lt; 与 &gt;&gt; 翻手，或点右侧手数跳转；局面会写进地址栏，方便把某一手发出去。</p>
-                </div>
-
-                <div class="qipu-side" id="qipu" data-id="%s" data-turns="%d">
-                    <p class="qp-pending">正在取引擎复盘…</p>
-                </div>
-            </div>
-
-            <p class="back-link">
-                <a href="index.html">← 返回杂谱</a>
-                %s
-            </p>
-
-        </article>
-''' % (esc(g['player1']), esc(g['player2']),
-       '\n                    '.join('<span>%s</span>' % m for m in meta),
-       '\n                '.join('<span>%s</span>' % i for i in info),
-       move_tokens(g['moves']), g['id'], n,
-       ('· ' + ' · '.join(nav)) if nav else '')
-
-    html = HEAD.format(
-        title='%s - 杂谱 - 连珠杂箱' % title,
-        desc='%s 对 %s，%s，%s，共 %d 手。含棋盘与逐手胜率复盘。' % (
-            g['player1'], g['player2'], g['tlabel'], txt, n),
-    ) + body + FOOT
-    write(os.path.join(OUT, 'g%s.html' % g['id']), html)
-
-
-# --------------------------------------------------------------- 站内入口
+# --------------------------------------------------------------- 清理旧栏目
 
 BEGIN = '<!-- qipu:begin -->'
 END = '<!-- qipu:end -->'
+BANNER = '''        <a class="banner" href="qipu/index.html">
+            <span class="banner-text">杂谱：29 局比赛棋谱，可逐手复盘</span>
+            <span class="banner-more">打谱 →</span>
+        </a>
+'''
 
 
-def insert_block(path, block, anchor):
-    """把 block 放在 anchor 之前；已有标记则替换标记之间那段。"""
-    with open(path, encoding='utf-8') as f:
+def strip_file(path):
+    """去掉页面上残留的「杂谱」插入块（旧版生成器留下的）。换行原样保留。"""
+    with open(path, encoding='utf-8', newline='') as f:
         text = f.read()
-    if BEGIN in text and END in text:
-        pre = text.split(BEGIN)[0]
-        post = text.split(END, 1)[1]
-        new = pre + BEGIN + '\n' + block + END + post
-    else:
-        if anchor not in text:
-            return False
-        idx = text.rindex(anchor)
-        new = text[:idx] + BEGIN + '\n' + block + END + '\n' + text[idx:]
+    if BEGIN not in text:
+        return False
+    new = re.sub(re.escape(BEGIN) + r'.*?' + re.escape(END) + r'\r?\n?', '', text,
+                 flags=re.S)
     if new == text:
         return False
-    write(path, new)
+    with open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(new)
     return True
 
 
-def patch_events(games):
-    """赛事成绩页：列表里加「本站棋谱」。"""
-    todo = {}
-    for g in games:
-        todo.setdefault(g['tournament_id'], []).append(g)
-    changed = 0
-    for tid, gs in todo.items():
-        path = os.path.join(ROOT, 'zayu', 't%s.html' % tid)
-        if not os.path.exists(path):
+def cleanup():
+    """删掉旧的 qipu/ 栏目与页面上的插入块。重复跑没有副作用。"""
+    if os.path.isdir(LEGACY):
+        shutil.rmtree(LEGACY)
+        print('清理：删除 qipu/ 目录')
+
+    n = 0
+    for sub in ('zayu', os.path.join('zayu', 'p')):
+        d = os.path.join(ROOT, sub)
+        if not os.path.isdir(d):
             continue
-        gs.sort(key=lambda g: ((g['round'] or 0), (g['board_number'] or 0)))
-        items = []
-        for g in gs:
-            txt, cls = result_of(g)
-            items.append('            <li><a href="../qipu/g%s.html">%s</a>'
-                         '<span class="date">%s · %d 手</span></li>' % (
-                             g['id'], headline(g), round_label(g), len(g['moves'])))
-        block = ('        <section>\n'
-                 '            <h2>本站棋谱</h2>\n'
-                 '            <ul class="post-list qipu-links">\n%s\n'
-                 '            </ul>\n'
-                 '            <p class="qp-note">点开可看棋盘与引擎复盘；棋谱来自本页成绩表的逐局记录。</p>\n'
-                 '        </section>\n' % ('\n'.join(items)))
-        anchor = '<p class="back-link">' if '<p class="back-link">' in open(
-            path, encoding='utf-8').read() else '</main>'
-        if insert_block(path, block, anchor):
-            changed += 1
-    print('赛事页：%d 个页码已接上棋谱入口' % changed)
-
-
-def patch_players(games):
-    """个人主页：加「棋谱」，只列这个人下过的。"""
-    by_player = {}
-    for g in games:
-        for name in (g['player1'], g['player2']):
-            by_player.setdefault(name, []).append(g)
-
-    changed = 0
-    for name, gs in by_player.items():
-        path = os.path.join(ROOT, 'zayu', 'p', '%s.html' % name)
-        if not os.path.exists(path):
-            continue
-        gs.sort(key=lambda g: (g['tdate'] or '', g['id']), reverse=True)
-        items = []
-        for g in gs:
-            txt, cls = result_of(g)
-            mine = g['player1'] if name == g['player1'] else g['player2']
-            opp = g['player2'] if name == g['player1'] else g['player1']
-            if g['result'] in ('1-0', '0-1'):
-                res = '胜' if ((g['result'] == '1-0') == (mine == g['player1'])) else '负'
-            else:
-                res = txt
-            rcls = ('res-win' if res == '胜' else 'res-loss' if res == '负'
-                    else 'res-draw')
-            items.append('                <tr><td>%s</td>'
-                         '<td class="c-name"><a href="../../qipu/g%s.html">%s</a></td>'
-                         '<td class="c-tb">%s</td>'
-                         '<td class="c-opp">%s</td>'
-                         '<td class="c-rank %s">%s</td></tr>' % (
-                             g['tdate'] or '', g['id'], esc(g['tlabel']),
-                             esc(round_label(g)), esc(opp), rcls, res))
-        block = ('            <section>\n'
-                 '                <h2>棋谱</h2>\n'
-                 '                <div class="table-scroll">\n'
-                 '                <table class="crosstab p-games">\n'
-                 '                    <thead><tr><th>日期</th><th class="c-name">赛事 / 棋谱</th>'
-                 '<th class="c-tb">轮次</th><th class="c-opp">对手</th>'
-                 '<th class="c-rank">结果</th></tr></thead>\n'
-                 '                    <tbody>\n%s\n'
-                 '                    </tbody>\n'
-                 '                </table>\n'
-                 '                </div>\n'
-                 '            </section>\n' % ('\n'.join(items)))
-        if insert_block(path, block, '<p class="back-link">'):
-            changed += 1
-    print('个人主页：%d 页已接上棋谱' % changed)
+        for name in os.listdir(d):
+            if name.endswith('.html') and strip_file(os.path.join(d, name)):
+                n += 1
+    if n:
+        print('清理：%d 个页面上的旧棋谱块已移除' % n)
 
 
 # --------------------------------------------------------------- 复盘
@@ -502,40 +327,22 @@ def run_eval():
         print('！引擎复盘未完成（%s），页面先只放棋盘' % e)
 
 
-def write(path, text):
-    """写文件。HTML 一律 CRLF —— 仓库里现有的页面都是 CRLF，
-    用 LF 重写会让「只加了一段」变成整页 diff。"""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    data = text.replace('\n', '\r\n') if path.lower().endswith('.html') else text
-    with open(path, 'w', encoding='utf-8', newline='') as f:
-        f.write(data)
-
-
 def main():
     no_eval = '--no-eval' in sys.argv
-    os.makedirs(EVAL_DIR, exist_ok=True)
     games = load_games()
     if not games:
         print('没有可用的棋谱')
         return 1
 
-    write(GAMES_JSON, json.dumps(
-        [{'id': g['id'], 'moves': g['moves']} for g in games],
-        ensure_ascii=False, separators=(',', ':')))
+    cleanup()
+    os.makedirs(EVAL_DIR, exist_ok=True)
+    build_data(games)
 
     if not no_eval:
         run_eval()
+        build_data(games)          # 复盘算完，再把 eval 并进单局数据
 
-    ordered = sorted(games, key=lambda g: (g['tdate'] or '', g['id']), reverse=True)
-    for i, g in enumerate(ordered):
-        build_game(g,
-                   ordered[i + 1] if i + 1 < len(ordered) else None,
-                   ordered[i - 1] if i > 0 else None)
-    build_index(ordered)
-
-    patch_events(ordered)
-    patch_players(ordered)
-    print('完成：%d 局，页面在 qipu/' % len(ordered))
+    print('完成：%d 局可展开查看' % len(games))
     return 0
 
 

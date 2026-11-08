@@ -25,9 +25,16 @@
 import datetime
 import html
 import os
+import re
 import sqlite3
 import sys
 from urllib.parse import quote
+
+# 棋谱：哪些对局有谱、谱在第几手，都由 tools/build_qipu.py 从 board_record 里核出来
+try:
+    from build_qipu import load_games as _load_qipu
+except Exception:                       # 单独拷走本脚本时当作没有棋谱
+    _load_qipu = None
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -585,8 +592,12 @@ def rating_page(rows, as_of, n_tournaments, n_games):
 
 # ---------------------------------------------------------------- 页面
 
-def crosstab(rows, rounds, idmap, players=()):
-    """成绩表。姓名链到个人主页（p/<姓名>.html），并列名次按赛事编号从小到大排。"""
+def crosstab(rows, rounds, idmap, players=(), qmap=None, tid=None):
+    """成绩表。姓名链到个人主页（p/<姓名>.html），并列名次按赛事编号从小到大排。
+
+    qmap 是本场赛事的棋谱索引 {(轮次, frozenset(双方)): match_id}：命中的格子会
+    带上 data-qipu，点一下由 assets/qipu.js 在表格下方就地展开棋盘与复盘。
+    """
     rows = sorted(rows, key=lambda r: (r['rank'], idmap.get(r['name'], 0)))
     out = ['            <div class="table-scroll">',
            '            <table class="crosstab">',
@@ -614,9 +625,19 @@ def crosstab(rows, rounds, idmap, players=()):
                 no = idmap.get(c[1], '')
                 # 假先的格子用阴影底，假后留白
                 cls = 'rt first' if len(c) > 3 and c[3] == 'first' else 'rt'
-                cells.append('<td class="%s"><span class="opp">%s</span>'
-                             '<span class="res">%s</span></td>'
-                             % (cls, esc(no), SYM.get(c[2], '')))
+                gid = (qmap or {}).get((r, frozenset((row['name'], c[1]))))
+                if gid:
+                    cells.append('<td class="%s has-qipu" data-qipu="%s" tabindex="0"'
+                                 ' role="button" aria-expanded="false"'
+                                 ' title="第 %s 轮：%s 对 %s，点开看棋谱与复盘">'
+                                 '<span class="opp">%s</span>'
+                                 '<span class="res">%s</span></td>'
+                                 % (cls, gid, r, esc(row['name']), esc(c[1]),
+                                    esc(no), SYM.get(c[2], '')))
+                else:
+                    cells.append('<td class="%s"><span class="opp">%s</span>'
+                                 '<span class="res">%s</span></td>'
+                                 % (cls, esc(no), SYM.get(c[2], '')))
 
         out.append('                    <tr>'
                    '<td class="c-no">%s</td><td class="c-name">%s</td>%s'
@@ -669,7 +690,27 @@ def event_ranks_for(tid):
     return {p: r for p, r in rows}
 
 
-def detail_page(t, ms, players=()):
+def qipu_index():
+    """{赛事 id: {(轮次, frozenset(双方姓名)): match_id}}，没有棋谱时返回空。"""
+    if _load_qipu is None:
+        return {}
+    try:
+        games = _load_qipu(quiet=True)
+    except Exception as e:
+        print('！棋谱索引不可用：%s' % e)
+        return {}
+
+    out = {}
+    for g in games:
+        out.setdefault(g['tournament_id'], {})[
+            (g['round'], frozenset((g['player1'], g['player2'])))] = g['id']
+    if out:
+        print('棋谱：%d 局可在成绩表里展开' % sum(len(v) for v in out.values()))
+    return out
+
+
+def detail_page(t, ms, players=(), qmap=None):
+    qmap = qmap or {}
     rows, rounds = compute(ms)
     idmap = roster_ids(t, ms)
     # 成绩表只收录了部分对局的赛事，算出来的名次不等于最终成绩；
@@ -713,7 +754,14 @@ def detail_page(t, ms, players=()):
         body.append('')
 
     if rows:
-        body += crosstab(rows, rounds, idmap, players)
+        if qmap:
+            body.append('            <p class="qp-hint">成绩表里结果带金色小标的格子，'
+                        '是当时记下了棋谱的对局——点一下就在下方展开棋盘与逐手复盘。</p>')
+        body += crosstab(rows, rounds, idmap, players, qmap, t['id'])
+        if qmap:
+            body.append('')
+            body.append('            <div class="qp-panel" data-qp-panel hidden></div>')
+            body.append('            <script src="../assets/qipu.js" defer></script>')
     else:
         body.append('            <p class="empty">该赛事暂无对局记录。</p>')
 
@@ -730,7 +778,35 @@ def detail_page(t, ms, players=()):
         f.write(page)
 
 
+BANNER_RE = re.compile(r'(河南高校爱好者等级分（)[^）]*( 更新）)')
+
+
+def public_tids():
+    """杂豫列表里公开的赛事 id。这一页的名单是手工维护的（哪几场公开、先后、
+    未开赛预告），生成器不去猜；读不到就返回 None，表示不做限制。"""
+    if not os.path.exists(LIST_OUT):
+        return None
+    with open(LIST_OUT, encoding='utf-8') as f:
+        text = f.read()
+    ids = {int(x) for x in re.findall(r'href="zayu/t(\d+)\.html"', text)}
+    return ids or None
+
+
 def list_page(ts, by_tid, as_of=None):
+    """zayu.html 的赛事名单是手工挑的：只在文件还不存在时给出初版，
+    已有就保留原样，只把等级分横幅上的日期刷新一下。"""
+    if os.path.exists(LIST_OUT):
+        if as_of:
+            with open(LIST_OUT, encoding='utf-8', newline='') as f:
+                text = f.read()
+            new = BANNER_RE.sub(lambda m: m.group(1) + as_of + m.group(2), text, count=1)
+            if new != text:
+                with open(LIST_OUT, 'w', encoding='utf-8', newline='') as f:
+                    f.write(new)
+                print('列表 -> 横幅日期更新为 %s' % as_of)
+        print('列表 -> 沿用现有 zayu.html（手工维护，未覆盖）')
+        return
+
     body = []
     if as_of:
         body += ['        <a class="banner" href="zayu/rating.html">',
@@ -809,14 +885,21 @@ def rebuild_pages():
         if old.startswith('t') and old.endswith('.html'):
             os.remove(os.path.join(DETAIL_DIR, old))
     players = all_players(ms)
+    qipu = qipu_index()
+    public = public_tids()
+    n_pages = 0
     for t in ts:
-        detail_page(t, by_tid.get(t['id'], []), players)
+        if public is not None and t['id'] not in public:
+            continue                    # 没列进杂豫的赛事不出页面，也不出棋谱入口
+        detail_page(t, by_tid.get(t['id'], []), players,
+                    qipu.get(t['id']) if (public is None or t['id'] in public) else None)
+        n_pages += 1
     list_page(ts, by_tid, as_of)
 
     print('赛事 %d 场 / 对局 %d 局' % (len(ts), len(ms)))
     print('覆盖 -> 赛事改名 %d 处，对局改写 %d 处' % (n_t, n_m))
     print('list   ->', LIST_OUT)
-    print('detail ->', DETAIL_DIR, '(%d 页)' % len(ts))
+    print('detail ->', DETAIL_DIR, '(%d 页，另有 %d 场未列入杂豫)' % (n_pages, len(ts) - n_pages))
     print('rating -> 沿用库内快照（截至 %s），未重算' % as_of)
 
 
@@ -834,8 +917,15 @@ def main(src):
     ratings, as_of = compute_ratings(ms, unis, regions)
     write_db(ts, ms, ratings)
     players = all_players(ms)
+    qipu = qipu_index()
+    public = public_tids()
+    n_pages = 0
     for t in ts:
-        detail_page(t, by_tid.get(t['id'], []), players)
+        if public is not None and t['id'] not in public:
+            continue                    # 没列进杂豫的赛事不出页面，也不出棋谱入口
+        detail_page(t, by_tid.get(t['id'], []), players,
+                    qipu.get(t['id']) if (public is None or t['id'] in public) else None)
+        n_pages += 1
     list_page(ts, by_tid, as_of)
     if ratings:
         rating_page(ratings, as_of, len(ts),
@@ -844,7 +934,7 @@ def main(src):
     print('赛事 %d 场 / 对局 %d 局' % (len(ts), len(ms)))
     print('db     ->', DB_OUT)
     print('list   ->', LIST_OUT)
-    print('detail ->', DETAIL_DIR, '(%d 页)' % len(ts))
+    print('detail ->', DETAIL_DIR, '(%d 页，另有 %d 场未列入杂豫)' % (n_pages, len(ts) - n_pages))
     if ratings:
         print('rating ->', RATING_OUT,
               '(%d 人，截至 %s)' % (len(ratings), as_of))
