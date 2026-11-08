@@ -126,7 +126,7 @@ def load_games():
     conn.row_factory = sqlite3.Row
     rows = [dict(r) for r in conn.execute(
         'SELECT m.*, t.name AS tname, t.date AS tdate, t.rules AS trules, '
-        '       t.organizer AS torganizer '
+        '       t.organizer AS torganizer, t.participants AS tplayers '
         'FROM matches m JOIN tournaments t ON t.id = m.tournament_id '
         "WHERE trim(coalesce(m.board_record, '')) <> '' "
         'ORDER BY t.date DESC, m.tournament_id, m.round, m.board_number')]
@@ -167,6 +167,18 @@ def load_games():
         games.append(keep)
 
     print('棋谱：入库 %d 局，剔除重复/存疑 %d 条' % (len(games), skipped))
+
+    # 同名同日的赛事（世青赛的 A、B 组）在库里是两行，标题上得分开
+    by_name = {}
+    for g in games:
+        by_name.setdefault((g['tname'], g['tdate']), set()).add(g['tournament_id'])
+    for g in games:
+        label = g['tname']
+        if len(by_name[(g['tname'], g['tdate'])]) > 1:
+            names = [n.strip() for n in (g['tplayers'] or '').split(',') if n.strip()]
+            label += ('（%s 等）' % '、'.join(names[:2])) if names else '（第 %d 组）' % g['tournament_id']
+        g['tlabel'] = label
+
     return games
 
 
@@ -258,6 +270,7 @@ def build_index(games):
 
     blocks = []
     for (tid, tname, tdate), gs in events:
+        tlabel = gs[0]['tlabel']
         gs.sort(key=lambda g: ((g['round'] or 0), (g['board_number'] or 0)))
         items = []
         for g in gs:
@@ -266,9 +279,9 @@ def build_index(games):
                 '                <li><a href="g%s.html">%s</a>'
                 '<span class="date">%s · %d 手</span></li>' % (
                     g['id'], headline(g), round_label(g), len(g['moves'])))
-        head_link = esc(tname)
+        head_link = esc(tlabel)
         if os.path.exists(os.path.join(ROOT, 'zayu', 't%s.html' % tid)):
-            head_link = '<a href="../zayu/t%s.html">%s</a>' % (tid, esc(tname))
+            head_link = '<a href="../zayu/t%s.html">%s</a>' % (tid, esc(tlabel))
         blocks.append(
             '        <section>\n'
             '            <h2>%s<span class="qp-sub">%s · %d 局</span></h2>\n'
@@ -285,7 +298,7 @@ def build_index(games):
             <span>收录 <b>%d</b> 局</span>
             <span>赛事 <b>%d</b> 站</span>
             <span>棋手 <b>%d</b> 位</span>
-            <span>均为实战记录，未作增删</span>
+            <span>记录多长就照录多长，未作增删</span>
         </div>
 
         <p class="qp-lede">棋谱取自成绩表里逐局记录的落点，坐标已换算成盘上的 A—O、1—15。
@@ -308,7 +321,8 @@ def build_game(g, prev_g, next_g):
     href = event_href(tid)
 
     meta = ['栏目：<a href="../zayu.html">杂豫</a>',
-            '赛事：%s' % ('<a href="../zayu/t%s.html">%s</a>' % (tid, esc(g['tname'])) if href else esc(g['tname'])),
+            '赛事：%s' % ('<a href="../zayu/t%s.html">%s</a>' % (tid, esc(g['tlabel']))
+                          if href else esc(g['tlabel'])),
             esc(g['tdate'] or ''),
             '%d 手' % n]
     info = ['规则：%s' % (g['trules'] or '—'),
@@ -367,7 +381,7 @@ def build_game(g, prev_g, next_g):
     html = HEAD.format(
         title='%s - 杂谱 - 连珠杂箱' % title,
         desc='%s 对 %s，%s，%s，共 %d 手。含棋盘与逐手胜率复盘。' % (
-            g['player1'], g['player2'], g['tname'], txt, n),
+            g['player1'], g['player2'], g['tlabel'], txt, n),
     ) + body + FOOT
     write(os.path.join(OUT, 'g%s.html' % g['id']), html)
 
@@ -456,7 +470,7 @@ def patch_players(games):
                          '<td class="c-tb">%s</td>'
                          '<td class="c-opp">%s</td>'
                          '<td class="c-rank %s">%s</td></tr>' % (
-                             g['tdate'] or '', g['id'], esc(g['tname']),
+                             g['tdate'] or '', g['id'], esc(g['tlabel']),
                              esc(round_label(g)), esc(opp), rcls, res))
         block = ('            <section>\n'
                  '                <h2>棋谱</h2>\n'
