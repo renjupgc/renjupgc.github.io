@@ -99,8 +99,10 @@ table.crosstab td.rt.res-draw .res { color: var(--draw); }
 table.crosstab td.rt.res-win .res { color: var(--win); }
 table.crosstab td.rt.res-loss .res { color: var(--loss); }
 table.crosstab td.rt.res-floss .res { color: var(--draw); }
-/* 未弈：棋盘上没下，只在成绩上判了胜负（斜纹底） */
-table.crosstab td.rt.unp {
+/* 未弈 / 轮空 / 缺席：棋盘上没真正下过的格子，统一斜纹底 */
+table.crosstab td.rt.unp,
+table.crosstab td.rt.bye,
+table.crosstab td.rt.none {
     background-image: repeating-linear-gradient(45deg,
         rgba(120, 108, 84, .16) 0 1px, transparent 1px 6px);
     background-clip: padding-box;
