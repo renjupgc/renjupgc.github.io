@@ -588,6 +588,15 @@ li {
     white-space: nowrap;
 }
 
+/* 公告本身就是链接：默认跟着正文色，指上去才显出可点 */
+a.nt-item:hover,
+a.nt-item:focus-visible {
+    color: var(--gold-deep);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-decoration-color: rgba(138, 106, 57, 0.45);
+}
+
 /* 指针停在公告上就停下来，方便读完 */
 .news-ticker:hover .nt-track,
 .news-ticker:focus-within .nt-track {

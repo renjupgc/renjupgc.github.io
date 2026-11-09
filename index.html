@@ -81,7 +81,7 @@
             <span class="nt-label">公告</span>
             <div class="nt-viewport">
                 <div class="nt-track">
-                    <span class="nt-item">河南省第十六届五子棋高校联赛五手两打组将于11月14日在迪空间举办。</span>
+                    <a class="nt-item" href="zayu/t103.html">河南省第十六届五子棋高校联赛五手两打组将于11月14日在迪空间举办。</a>
                 </div>
             </div>
         </section>
@@ -174,10 +174,11 @@
         track.appendChild(seed.cloneNode(true));
     }
 
-    /* 复本是给眼睛看的，读屏只念第一条 */
+    /* 复本是给眼睛看的，读屏只念第一条；公告是链接，复本也不再进 Tab 序 */
     Array.prototype.forEach.call(track.children, function (item, i) {
         if (i > 0) {
             item.setAttribute('aria-hidden', 'true');
+            item.setAttribute('tabindex', '-1');
         }
     });
 

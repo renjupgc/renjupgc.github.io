@@ -111,15 +111,14 @@ export function solve_vct_dfpn(blacks, whites, black, limit) {
     }
     return v3;
 }
-export function __wbindgen_init_externref_table() {
-    const table = wasm.__wbindgen_externrefs;
-    const offset = table.grow(4);
-    table.set(0, undefined);
-    table.set(offset + 0, undefined);
-    table.set(offset + 1, null);
-    table.set(offset + 2, true);
-    table.set(offset + 3, false);
-}
+/*
+ * 原版这里是给 wasm 的 externref 表预热 undefined / null / true / false。
+ * 那种写法要求模块声明两张表（funcref + externref），而部分设备的引擎
+ * 只允许一张表，会直接报 “table count of 2 exceeds internal limit of 1”。
+ * quintet 的导出全是数字与 TypedArray，没有一处用到 externref，
+ * 所以模块里的 externref 表已经摘掉，这里保持空实现即可。
+ */
+export function __wbindgen_init_externref_table() {}
 function getArrayU8FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
