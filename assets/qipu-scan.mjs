@@ -1,10 +1,10 @@
 /*
  * 棋盘图 → 棋谱
  * ------------------------------------------------------------
- * 只做一件事：给一张棋盘图，认出十五路上哪一格有黑子、哪一格有白子。
- * 不认手数序号（图上的数字一律忽略），也不判断胜负。
+ * 给一张棋盘图，认出十五路上哪一格有黑子、哪一格有白子；
+ * 子上印了手数序号的，顺手把序号也读出来。不判断胜负。
  *
- * 两步走：
+ * 三步走：
  *   1. 找格子
  *      · 缩到 900px 以内转灰度，沿行、列各算一条「细线」响应曲线：
  *        二阶差分取绝对值——线比底色暗还是亮都算，深色木盘也吃得住；
@@ -21,11 +21,20 @@
  *        格心），每个交叉点的底色就取周围四个格心的平均亮度，木纹渐变、
  *        打光不匀就不碍事；
  *      · 明暗两个阈值分开：黑子比底色暗一大截，白子只亮一点点。
+ *   3. 读序号
+ *      · 只在棋子内圈的椭圆里找墨（黑子取亮的一类，白子取暗的一类），
+ *        按列的空白把一串数字切成单字，逐个和模板比；
+ *      · 光靠字形不够稳，再拿「手数是 1..N 各一次」去卡：认错的字会被顶到
+ *        真正空着的手数上，没读出字的子也能补上；卡不上就整盘不要序号。
  */
+
+import { extractGlyphs, digitScores } from './qipu-digits.mjs';
 
 export const N = 15;
 
 const MAX_SIDE = 900;
+/* 序号单独再读一遍时允许的边长：三位数挤在半个格子里，多几百万像素就多几分把握 */
+const MAX_DIGIT_SIDE = 1800;
 
 function toGray(img, maxSide) {
     const w0 = img.width || img.naturalWidth;
@@ -267,6 +276,216 @@ function disk(gray, w, h, cx, cy, r, bg, thrDark, thrLight) {
     return { dark: dark / n, light: light / n };
 }
 
+/*
+ * 读手数序号
+ * ------------------------------------------------------------
+ * 图上的数字就是手数，1..N 各出现一次。这条「不重不漏」比字形本身管用得多：
+ *   · 两颗子都读成 47，分高的那颗留 47，另一颗被顶到真正空着的手数上去；
+ *   · 某颗子的字没读出来（比如正好被最后一步的红点盖了），也能补上空位。
+ * 另外还有一条软约束：黑先走，黑子的手数该是奇数。字号小的图上 3/8、5/6、
+ * 6/9 最容易串，奇偶正好能把它们分开，所以只在判得出来的时候当减分项用。
+ *
+ * 卡不上 1..N 就整盘不要序号——宁可没有，也不能给一串错的手数。
+ */
+function readNumbers(stones, xs, ys, gray, w, h, cell, span) {
+    const M = stones.length;
+    if (!M) { return null; }
+
+    const ds = [];
+    let read = 0;
+    for (const s of stones) {
+        const first = extractGlyphs(gray, w, h, xs[s.i], ys[s.j], cell, s.color, span);
+        let list = first.glyphs || [];
+        /*
+         * 两种情况下重取一次：一个字都没读到（字太小、笔画太细），
+         * 或者墨顶到了取样框（三位数常把椭圆撑满，边上那位被切掉一角）。
+         */
+        if (!list.length || first.clipped) {
+            const again = extractGlyphs(gray, w, h, xs[s.i], ys[s.j], cell, s.color, span, 1.25);
+            if (again.glyphs && again.glyphs.length >= list.length) { list = again.glyphs; }
+        }
+        if (!list.length) { ds.push(null); continue; }
+        read++;
+        ds.push(list.map(digitScores));
+    }
+    /* 一半以上的子都读不出字，这图大概压根没印序号 */
+    if (read < M * 0.6) { return { ok: false, read: read, M: M }; }
+
+    const valueScore = function (k, v) {
+        const d = ds[k];
+        if (!d) { return -1; }
+        const str = String(v);
+        if (str.length !== d.length) { return -1; }
+        let sum = 0;
+        for (let q = 0; q < d.length; q++) { sum += d[q][str.charCodeAt(q) - 48]; }
+        return sum / d.length;
+    };
+    /* 最优的手数，顺手带出第二名：差得越少，这颗子读得越含糊 */
+    const bestOf = function (k) {
+        let bv = 0, bs = -1, b2 = -1;
+        for (let v = 1; v <= M; v++) {
+            const s = valueScore(k, v);
+            if (s > bs) { b2 = bs; bs = s; bv = v; }
+            else if (s > b2) { b2 = s; }
+        }
+        return bv ? { v: bv, s: bs, gap: bs - b2 } : null;
+    };
+
+    /* 先看黑子是奇是偶，判不出来就不管奇偶 */
+    let bOdd = 0, bEven = 0, wOdd = 0, wEven = 0;
+    for (let k = 0; k < M; k++) {
+        const b = bestOf(k);
+        if (!b || b.s < 0.70) { continue; }
+        const odd = b.v % 2 === 1;
+        if (stones[k].color === 'b') { odd ? bOdd++ : bEven++; }
+        else { odd ? wOdd++ : wEven++; }
+    }
+    let want = null;
+    if (bOdd + bEven >= 6 && bOdd >= (bOdd + bEven) * 0.8) { want = { b: 1, w: 0 }; }
+    else if (wOdd + wEven >= 6 && wOdd >= (wOdd + wEven) * 0.8) { want = { b: 0, w: 1 }; }
+
+    const scoreOf = function (k, v) {
+        const base = valueScore(k, v);
+        if (base < 0 || !want) { return base; }
+        return base - ((v % 2) === want[stones[k].color] ? 0 : 0.08);
+    };
+
+    const chosen = new Array(M).fill(0);
+    for (let k = 0; k < M; k++) {
+        let bv = 0, bs = -1;
+        for (let v = 1; v <= M; v++) {
+            const s = scoreOf(k, v);
+            if (s > bs) { bs = s; bv = v; }
+        }
+        chosen[k] = bv;
+    }
+
+    /* 抢同一个手数的先让给分高的，空出来的子去认剩下空着的手数 */
+    for (let round = 0; round < 3; round++) {
+        const cnt = new Map();
+        for (const v of chosen) { if (v) { cnt.set(v, (cnt.get(v) || 0) + 1); } }
+        let freed = false;
+        for (const pair of cnt) {
+            if (pair[1] < 2) { continue; }
+            const group = [];
+            for (let k = 0; k < M; k++) { if (chosen[k] === pair[0]) { group.push(k); } }
+            group.sort(function (a, c) { return scoreOf(c, pair[0]) - scoreOf(a, pair[0]); });
+            for (let q = 1; q < group.length; q++) { chosen[group[q]] = 0; freed = true; }
+        }
+
+        const used = new Set(chosen.filter(function (v) { return v > 0; }));
+        const miss = [];
+        for (let v = 1; v <= M; v++) { if (!used.has(v)) { miss.push(v); } }
+        if (!miss.length) { break; }
+
+        const free = [];
+        for (let k = 0; k < M; k++) { if (!chosen[k]) { free.push(k); } }
+        if (!free.length) { break; }
+
+        const pairs = [];
+        for (const k of free) {
+            for (const v of miss) {
+                const s = scoreOf(k, v);
+                if (s >= 0) { pairs.push({ k: k, v: v, s: s }); }
+            }
+        }
+        if (!pairs.length) { break; }
+        pairs.sort(function (a, c) { return c.s - a.s; });
+        const tookK = new Set(), tookV = new Set();
+        for (const p of pairs) {
+            if (tookK.has(p.k) || tookV.has(p.v)) { continue; }
+            tookK.add(p.k); tookV.add(p.v);
+            chosen[p.k] = p.v;
+        }
+        if (!freed) { break; }
+    }
+
+    /*
+     * 还剩一类：读岔了位数（「15」只读出一个「6」），这位子按位数根本配不上
+     * 任何空着的手数。这时候就看谁剩下了——剩的子和剩的手数按分最高的配，
+     * 位数对不上也认，反正它是唯一说得通的去处。
+     */
+    const restK = [], restV = [];
+    const taken = new Set(chosen.filter(function (v) { return v > 0; }));
+    for (let k = 0; k < M; k++) { if (!chosen[k]) { restK.push(k); } }
+    for (let v = 1; v <= M; v++) { if (!taken.has(v)) { restV.push(v); } }
+    let forced = 0;
+    while (restK.length && restV.length) {
+        let pick = null;
+        for (const k of restK) {
+            for (const v of restV) {
+                const sc = scoreOf(k, v);
+                if (!pick || sc > pick.s) { pick = { k: k, v: v, s: sc }; }
+            }
+        }
+        chosen[pick.k] = pick.v;
+        if (pick.s < 0) { forced++; }
+        restK.splice(restK.indexOf(pick.k), 1);
+        restV.splice(restV.indexOf(pick.v), 1);
+    }
+
+    /*
+     * 还剩一类错：两颗子把彼此的手数接了过去（4 认成 9、9 认成 4 之类）。
+     * 重不漏已经满足了，约束管不着，只能看谁换回来更像——两两试换，
+     * 换完总分涨了就换，几轮就收敛。
+     */
+    for (let pass = 0; pass < 4; pass++) {
+        let moved = false;
+        for (let a = 0; a < M; a++) {
+            if (!chosen[a]) { continue; }
+            for (let c = a + 1; c < M; c++) {
+                if (!chosen[c] || chosen[a] === chosen[c]) { continue; }
+                const now = scoreOf(a, chosen[a]) + scoreOf(c, chosen[c]);
+                const alt = scoreOf(a, chosen[c]) + scoreOf(c, chosen[a]);
+                if (alt > now + 0.02) {
+                    const t = chosen[a];
+                    chosen[a] = chosen[c];
+                    chosen[c] = t;
+                    moved = true;
+                }
+            }
+        }
+        if (!moved) { break; }
+    }
+
+    let sum = 0, reps = 0, blank = 0, seen = 0, scored = 0, vague = 0;
+    for (let k = 0; k < M; k++) {
+        const b = ds[k] ? bestOf(k) : null;
+        if (!b) { blank++; }
+        else {
+            if (b.v !== chosen[k]) { reps++; }
+            if (b.gap < 0.005) { vague++; }    /* 头两名咬死分不开 */
+        }
+        if (!chosen[k]) { continue; }
+        seen++;
+        const sc = scoreOf(k, chosen[k]);
+        if (sc >= 0) { sum += sc; scored++; }
+    }
+    const mean = scored ? sum / scored : 0;
+    const complete = seen === M && new Set(chosen).size === M;
+    /*
+     * 宁可没有序号，也不给一串看着挺顺、其实是错的数字：
+     * 平均分要够高、改动的处数要少、硬凑的位子要几乎没有。三条都过了才认。
+     */
+    const ok = complete && mean >= 0.86
+        && forced <= Math.max(2, Math.round(M * 0.05))
+        && vague <= Math.max(3, Math.round(M * 0.15))
+        && reps <= Math.max(4, Math.round(M * 0.1));
+    if (ok) {
+        for (let k = 0; k < M; k++) { stones[k].num = chosen[k]; }
+    }
+
+    return {
+        ok: ok,
+        M: M, read: read, blank: blank,
+        mean: Math.round(mean * 1000) / 1000,
+        fixed: reps,
+        forced: forced,
+        vague: vague,
+        map: chosen.slice()
+    };
+}
+
 export function recognize(img) {
     const g = toGray(img, MAX_SIDE);
     const gray = g.gray, w = g.w, h = g.h;
@@ -335,6 +554,34 @@ export function recognize(img) {
         }
     }
 
+    let nums = null;
+    try {
+        nums = readNumbers(stones, cols.xs, rows.xs, gray, w, h, cell, span);
+    } catch (err) {
+        nums = null;                 /* 读序号是加分项，出错就当没有 */
+    }
+
+    /*
+     * 序号没读利索，而原图比 900 像素还大：拿原分辨率再读一遍序号。
+     * 格线在 900 像素上找已经够了，但三位数挤在半个格子里，缩一次就糊成一片——
+     * 大图上多花几十毫秒只读小窗，往往就认出来了。
+     */
+    if (!nums || !nums.ok) {
+        const w0 = img.width || img.naturalWidth || 0;
+        if (w0 > w * 1.25) {
+            try {
+                const hi = toGray(img, MAX_DIGIT_SIDE);
+                const k = hi.w / w;
+                const hx = cols.xs.map(function (v) { return v * k; });
+                const hy = rows.xs.map(function (v) { return v * k; });
+                const again = readNumbers(stones, hx, hy, hi.gray, hi.w, hi.h, cell * k, span);
+                if (again && again.ok) { nums = again; }
+            } catch (err) {
+                /* 读不出来就维持原判 */
+            }
+        }
+    }
+
     return {
         ok: true,
         w: w, h: h,
@@ -346,7 +593,9 @@ export function recognize(img) {
         strong: Math.min(rows.strong, cols.strong),
         stones: stones,
         black: b,
-        white: ws
+        white: ws,
+        nums: nums,
+        numbered: !!(nums && nums.ok)
     };
 }
 
@@ -396,5 +645,24 @@ export function paintOverlay(canvas, res) {
             ctx.arc(res.xs[i], res.ys[j], Math.max(1, res.cell * 0.07), 0, Math.PI * 2);
             ctx.fill();
         }
+    }
+
+    /* 读出手数的，在旁边标一下，方便对着原图核 */
+    if (res.numbered) {
+        const size = Math.max(9, Math.round(res.cell * 0.34));
+        ctx.font = '600 ' + size + 'px Arial, Helvetica, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = Math.max(2, size * 0.45);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+        ctx.fillStyle = 'rgba(200, 60, 40, 0.95)';
+        res.stones.forEach(function (s) {
+            if (!s.num) { return; }
+            const x = res.xs[s.i] + res.cell * 0.36;
+            const y = res.ys[s.j] - res.cell * 0.36;
+            const t = String(s.num);
+            ctx.strokeText(t, x, y);
+            ctx.fillText(t, x, y);
+        });
     }
 }

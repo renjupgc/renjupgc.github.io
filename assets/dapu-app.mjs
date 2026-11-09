@@ -4,9 +4,9 @@
  * 只负责把图弄进来（选文件 / 拖进来 / 粘贴）、跑识别、把结果摆到上面的棋盘上，
  * 识别本身全在 qipu-scan.mjs 里。
  *
- * 识别出来的子按从上到下、从左到右的顺序摆上去，颜色各归各的，
- * 但手数顺序认不出来，所以摆完顺手把「序号」关掉——省得数字看不懂。
- * 认错的地方：少子就在空点点一下补，多子就双击那颗棋回退，再补。
+ * 子上印了手数序号的，就按序号摆、顺手把「序号」打开；没有序号就按从上到下、
+ * 从左到右摆，并把序号关掉。认错的地方：少子就在空点点一下补，多子就双击那
+ * 颗棋回退，再补。
  */
 
 import { recognize, paintOverlay } from './qipu-scan.mjs';
@@ -49,13 +49,17 @@ async function decode(file) {
 function applyStones(res) {
     const b = board();
     if (!b) { return 0; }
-    const list = res.stones.slice().sort(function (a, c) {
-        return a.j - c.j || a.i - c.i;
-    });
+    const list = res.stones.slice();
+    if (res.numbered) {
+        /* 子上印了手数，就按手数排，序号也打开 */
+        list.sort(function (a, c) { return a.num - c.num; });
+    } else {
+        list.sort(function (a, c) { return a.j - c.j || a.i - c.i; });
+    }
     b.setMoves(list.map(function (s) {
         return { i: s.i, j: s.j, color: s.color };
     }));
-    b.setNumbers(false);          /* 手数顺序认不出来，数字留着只会误导 */
+    b.setNumbers(!!res.numbered);
     return list.length;
 }
 
@@ -107,8 +111,23 @@ async function handle(file) {
     }
 
     const weak = res.strong < 10;
-    say('识别到 ' + n + ' 子（黑 ' + res.black + ' / 白 ' + res.white + '），已经在上面摆好了。' +
-        (weak ? '这张图的格线不太清楚，认得未必准，对着原图核一遍。' : '认错的地方，少子就在空点点一下补，多子就双击那颗棋回退。'),
+    const head = '识别到 ' + n + ' 子（黑 ' + res.black + ' / 白 ' + res.white + '），已经在上面摆好了。';
+    let tail;
+    if (res.numbered) {
+        const nm = res.nums;
+        tail = '子上的序号也读出来了，手数已经按它排好' +
+            (nm.fixed ? '（其中 ' + nm.fixed + ' 处按「1〜' + nm.M + ' 不重不漏」校正过，值得对一眼）' : '') +
+            '。认错的地方，少子就在空点点一下补，多子就双击那颗棋回退。';
+    } else {
+        const nm = res.nums;
+        if (nm && nm.read) {
+            tail = '子上的数字没读准（' + nm.read + '/' + nm.M + ' 颗有字），序号没有填，' +
+                '按位置摆的。要序号的话可以自己按手数点一遍。';
+        } else {
+            tail = '图上没有序号，按位置摆的。认错的地方，少子就在空点点一下补，多子就双击那颗棋回退。';
+        }
+    }
+    say(head + (weak ? '这张图的格线不太清楚，认得未必准，对着原图核一遍。' : tail),
         weak ? '' : 'ok');
 }
 
