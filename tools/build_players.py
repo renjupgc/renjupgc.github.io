@@ -586,8 +586,10 @@ def page(name, rec, events, games, reports, index, total_players, arts,
         body.append('')
 
     if profile_only:
-        body.append('            <p class="back-link">'
-                    '<a href="../renwu.html">← 山河四省连珠人物</a>'
+        # 人物页上的，就回人物页；只有杂史可查的，指回杂史，别把人往人物页上带
+        back = ('<a href="../renwu.html">← 山河四省连珠人物</a>' if in_renwu(prof)
+                else '<a href="../../zashi.html">← 杂史</a>')
+        body.append('            <p class="back-link">' + back +
                     ' · <a href="../../zayu.html">杂豫</a>'
                     ' · <a href="../../index.html">返回首页</a></p>')
     else:
