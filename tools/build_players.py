@@ -356,6 +356,19 @@ EXTRA_EVENTS = {
          'href': '../../posts/2026-luoyang-yuedu.html', 'rank': 1,
          'note': '六月棋王，据杂史《月度手谈，棋王落定》所附全年月度棋王一览'},
     ],
+    '张夏玲': [
+        {'date': '2025-01-19',
+         'name': '洛阳市全民健身大拜年五子棋推广普及系列活动·双元站（棋王争夺）',
+         'href': '../../posts/2025-shuangyuan.html', 'rank': 1,
+         'note': '执白取胜，成为洛阳市首位五子棋棋王，据杂史《双元站赛事鸣金收枰》'},
+    ],
+    '王宗良': [
+        {'date': '2025-05-11',
+         'name': '2025年洛阳市全民健身活动月五子棋比赛（公开组）',
+         'href': '../../posts/2025-jianshen-yue.html', 'rank': 1,
+         'note': '公开组四轮积分编排，以绝对优势一骑绝尘斩获第一名（冠军），'
+                 '据杂史《2025年洛阳市全民健身活动月 —— 五子棋比赛盛大落幕》'},
+    ],
 }
 
 
@@ -433,14 +446,14 @@ def page(name, rec, events, games, reports, index, total_players, arts,
         how = ('本页依据杂豫 <a href="../renwu.html">「山河四省连珠人物」</a>、'
                '杂史的赛事报道与成绩表整理。' if in_renwu(prof)
                else '本页依据杂史的赛事报道整理。')
-        body += ['                <span class="ps"><span class="ps-k">段位</span>'
-                 '<span class="ps-v">%s</span></span>' % bz.esc(prof['dan']),
-                 '                <span class="ps"><span class="ps-k">地区</span>'
-                 '<span class="ps-v">%s</span></span>'
-                 % bz.esc(prof['tag'].replace(' · ', ' ')),
-                 '                <span class="ps"><span class="ps-k">收录</span>'
-                 '<span class="ps-v">%s</span></span>' % tag_line,
-                 '            </div>',
+        # 默认登段位、地区、收录；人物资料里写了 stats 的，按它自己的口径登
+        stats = prof.get('stats') or [('段位', prof['dan']),
+                                      ('地区', prof['tag'].replace(' · ', ' ')),
+                                      ('收录', tag_line)]
+        body += ['                <span class="ps"><span class="ps-k">%s</span>'
+                 '<span class="ps-v">%s</span></span>' % (bz.esc(k), bz.esc(v))
+                 for k, v in stats]
+        body += ['            </div>',
                  '            <p class="player-note">TA 不在本站等级分榜的收录范围内，'
                  '%s</p>' % how,
                  '']
