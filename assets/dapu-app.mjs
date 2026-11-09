@@ -115,9 +115,15 @@ async function handle(file) {
     let tail;
     if (res.numbered) {
         const nm = res.nums;
-        tail = '子上的序号也读出来了，手数已经按它排好' +
-            (nm.fixed ? '（其中 ' + nm.fixed + ' 处按「1〜' + nm.M + ' 不重不漏」校正过，值得对一眼）' : '') +
-            '。认错的地方，少子就在空点点一下补，多子就双击那颗棋回退。';
+        if (nm && nm.soft) {
+            tail = '子上的序号读出来了，手数按图上的号排好；有几处读得含糊' +
+                (nm.fixed ? '（' + nm.fixed + ' 处按「1〜' + nm.M + ' 不重不漏」校正过）' : '') +
+                '，值得对着原图核一眼。';
+        } else {
+            tail = '子上的序号也读出来了，手数已经按它排好' +
+                (nm.fixed ? '（其中 ' + nm.fixed + ' 处按「1〜' + nm.M + ' 不重不漏」校正过，值得对一眼）' : '') +
+                '。认错的地方，少子就在空点点一下补，多子就双击那颗棋回退。';
+        }
     } else {
         const nm = res.nums;
         if (nm && nm.read) {

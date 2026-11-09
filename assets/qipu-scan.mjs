@@ -464,19 +464,23 @@ function readNumbers(stones, xs, ys, gray, w, h, cell, span) {
     const mean = scored ? sum / scored : 0;
     const complete = seen === M && new Set(chosen).size === M;
     /*
-     * 宁可没有序号，也不给一串看着挺顺、其实是错的数字：
-     * 平均分要够高、改动的处数要少、硬凑的位子要几乎没有。三条都过了才认。
+     * 读出来的号只要拼成 1〜M 不重不漏，就按图上的号走——
+     * 打谱要的是「这张图上第几手落在哪」，不是按位置重排出来的另一套序号。
+     * 分低、改过、硬凑过的，只降级成「读得含糊」，让人对着原图核一眼，
+     * 不再整盘丢掉；真正读不齐（凑不满 1〜M）才退回按位置摆。
      */
-    const ok = complete && mean >= 0.86
+    const sure = complete && mean >= 0.86
         && forced <= Math.max(2, Math.round(M * 0.05))
         && vague <= Math.max(3, Math.round(M * 0.15))
         && reps <= Math.max(4, Math.round(M * 0.1));
+    const ok = complete;
     if (ok) {
         for (let k = 0; k < M; k++) { stones[k].num = chosen[k]; }
     }
 
     return {
         ok: ok,
+        soft: ok && !sure,
         M: M, read: read, blank: blank,
         mean: Math.round(mean * 1000) / 1000,
         fixed: reps,
