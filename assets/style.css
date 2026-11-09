@@ -1186,6 +1186,11 @@ article {
     font-size: 17px;
 }
 
+main > article {
+    max-width: 42em;
+    margin: 0 auto;
+}
+
 .article-header {
     margin: 6px 0 30px;
     padding-bottom: 22px;
@@ -1249,9 +1254,66 @@ article {
     border-bottom-color: var(--gold-deep);
 }
 
+/* 对局信息 / 参数卡 */
+
+.game-info {
+    margin: 30px 0;
+    padding: 16px 20px;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, rgba(255, 253, 247, 0.94), rgba(250, 246, 236, 0.72));
+    font-family: var(--sans);
+    font-size: 14.5px;
+    line-height: 1.95;
+    letter-spacing: 0.02em;
+    color: var(--ink-3);
+}
+
+.game-info p {
+    margin: 0;
+    font-size: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    text-align: left;
+}
+
+.game-info .gi-title {
+    margin-bottom: 4px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+}
+
+.game-info a {
+    color: var(--gold-deep);
+}
+
+/* 文章内表格：允许换行，避免窄屏横向溢出 */
+
+main > article .table-scroll table.crosstab th,
+main > article .table-scroll table.crosstab td {
+    white-space: normal;
+}
+
+/* 分隔线 */
+
+main > article hr {
+    height: 1px;
+    margin: 38px auto;
+    border: 0;
+    max-width: 58%;
+    background: linear-gradient(90deg, rgba(176, 141, 87, 0), rgba(176, 141, 87, 0.55) 18%, rgba(176, 141, 87, 0.55) 82%, rgba(176, 141, 87, 0));
+}
+
 article p {
     margin: 0 0 20px;
     color: var(--ink-2);
+}
+
+main > article p {
+    text-align: justify;
+    text-justify: inter-ideograph;
 }
 
 figure {
@@ -1302,13 +1364,20 @@ h3.subhead {
 
 .rank-list li {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     margin: 0;
     padding: 11px 18px;
     border-bottom: 1px solid var(--line-soft);
     font-size: 15.5px;
+    line-height: 1.7;
     color: var(--ink-2);
+}
+
+.rank-list .rk-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: break-word;
 }
 
 .rank-list li:last-child {
@@ -1320,6 +1389,7 @@ h3.subhead {
 }
 
 .rank-list .medal {
+    margin-top: 2px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
