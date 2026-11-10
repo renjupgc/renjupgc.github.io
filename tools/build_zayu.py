@@ -676,6 +676,38 @@ def all_players(ms):
     return out
 
 
+def roster_rows(tid):
+    """报名名单：players 表里登记的「编号 / 姓名 / 单位」，按报名表顺序。"""
+    if not os.path.exists(DB_OUT):
+        return []
+    d = sqlite3.connect(DB_OUT)
+    try:
+        return d.execute('SELECT player_no, name, unit FROM players '
+                         'WHERE tournament_id=? ORDER BY player_no', (tid,)).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        d.close()
+
+
+def roster_table(rows, players=()):
+    """未开赛赛事的名单表：编号、姓名、单位。"""
+    out = ['            <div class="table-scroll">',
+           '            <table class="crosstab p-roster">',
+           '                <thead><tr>'
+           '<th class="c-no">编号</th><th class="c-name">姓名</th><th>单位</th>'
+           '</tr></thead>',
+           '                <tbody>']
+    for no, name, unit in rows:
+        out.append('                    <tr><td class="c-no">%s</td>'
+                   '<td class="c-name">%s</td><td>%s</td></tr>'
+                   % (esc(no), name_cell(name, players), esc(unit or '')))
+    out.append('                </tbody>')
+    out.append('            </table>')
+    out.append('            </div>')
+    return out
+
+
 def event_ranks_for(tid):
     """某场赛事里人工/报道登记的名次：{姓名: 名次}。"""
     if not os.path.exists(MANUAL_DB):
@@ -713,6 +745,7 @@ def detail_page(t, ms, players=(), qmap=None):
     qmap = qmap or {}
     rows, rounds = compute(ms)
     idmap = roster_ids(t, ms)
+    roster = roster_rows(t['id']) if not rows else []
     # 成绩表只收录了部分对局的赛事，算出来的名次不等于最终成绩；
     # 登记过名次的（报道公布或棋友补录）以登记的为准。
     fixed = event_ranks_for(t['id'])
@@ -734,6 +767,9 @@ def detail_page(t, ms, players=(), qmap=None):
         info.append('轮次：%d 轮' % max(rounds))
         info.append('对局：%d 局' % sum(
             1 for m in ms if m['player1'] != BYE and m['player2'] != BYE))
+    elif roster:
+        info.append('棋手：%d 人' % len(roster))
+        info.append('状态：未开赛')
 
     body = ['            <header class="article-header">',
             '                <h1 class="article-title">%s</h1>' % esc(t['name']),
@@ -763,7 +799,12 @@ def detail_page(t, ms, players=(), qmap=None):
             body.append('            <div class="qp-panel" data-qp-panel hidden></div>')
             body.append('            <script src="../assets/qipu.js" defer></script>')
     else:
-        body.append('            <p class="empty">该赛事暂无对局记录。</p>')
+        if roster:
+            body.append('            <p class="qp-hint">名单据报名表录入，'
+                        '编号即报名顺序；抽签与成绩待开赛后补录。</p>')
+            body += roster_table(roster, players)
+        else:
+            body.append('            <p class="empty">该赛事暂无对局记录。</p>')
 
     body.append('')
     body.append(FOOT.format(back='../zayu.html', home='../index.html'))
