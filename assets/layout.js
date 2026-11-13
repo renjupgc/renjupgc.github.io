@@ -311,7 +311,9 @@
 
     var audio = document.createElement('audio');
     audio.className = 'mb-audio';
-    audio.preload = 'auto';
+    /* 只预取元数据：带声音的自动播放大多会被拦下，preload="auto" 却照样
+       把整首歌拉完（单曲近 10MB），白费流量。真播起来时浏览器自会缓冲。 */
+    audio.preload = 'metadata';
     audio.setAttribute('playsinline', '');
     audio.muted = read('localStorage', K_MUTED) === '1';
     document.body.appendChild(audio);
