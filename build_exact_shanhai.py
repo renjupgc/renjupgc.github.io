@@ -254,7 +254,7 @@ for r in range(1, 8):
         )
         rows.append(row_html)
         
-    for prefix in ["2026-shiqing-b", "2026-wyc-b"]:
+    for prefix in ["2026-shiqing-b"]:
         nav_tabs = []
         for nav_r in range(1, 8):
             active_cls = " active" if nav_r == r else ""
