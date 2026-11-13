@@ -639,6 +639,145 @@ def rating_page(rows, as_of, n_tournaments, n_games):
         f.write(page)
 
 
+# ---------------------------------------------------------------- 分档统计
+
+# 需要出等级分分档的赛事：名称里带「高校」或「大学生」的场次
+SCHOOL_EVENT_RE = re.compile('高校|大学生')
+
+# 每 25 分一档，1800 起算，到 2100 交棒给 SS；1800 以下单列 D-
+BAND_NAMES = ['D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-', 'A', 'A+', 'S']
+BAND_ORDER = ['SSS', 'SS'] + BAND_NAMES[::-1] + ['D-']
+
+FORFEIT = {'f0', '0f', 'ff'}
+
+
+def grade_of(score):
+    """等级分 -> 档位：<1800 D-；1800–2100 每 25 分一档；2100–2200 SS；2200 以上 SSS。"""
+    if score is None:
+        return ''
+    if score >= 2200:
+        return 'SSS'
+    if score >= 2100:
+        return 'SS'
+    if score < 1800:
+        return 'D-'
+    i = min(int((score - 1800) // 25), len(BAND_NAMES) - 1)
+    return BAND_NAMES[i]
+
+
+def band_range(label):
+    """档位对应的分数区间（左闭右开，除两端的开口档）。"""
+    if label == 'D-':
+        return '1800 以下'
+    if label == 'SSS':
+        return '2200 以上'
+    if label == 'SS':
+        return '2100–2200'
+    lo = 1800 + 25 * BAND_NAMES.index(label)
+    return '%d–%d' % (lo, lo + 25)
+
+
+_RATINGS = {}
+
+
+def rating_map():
+    """公示等级分 {姓名: 分}。页面在 write_db 之后生成，直接读库里的快照。"""
+    if _RATINGS:
+        return _RATINGS
+    if not os.path.exists(DB_OUT):
+        return _RATINGS
+    d = sqlite3.connect(DB_OUT)
+    try:
+        for name, pt in d.execute('SELECT name, rating FROM ratings'):
+            if pt is not None:
+                _RATINGS[name] = pt
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        d.close()
+    return _RATINGS
+
+
+def event_bands(ms, ratings):
+    """本场「完赛且弃权少于 3 次」的棋手，按等级分每 25 分一档。
+
+    完赛：本场至少有一局（轮空、空行不算）。弃权：判本人负的 f0 / 0f，
+    双弃 ff 双方各记一次；本场弃权累计 3 次及以上的不列入。
+    没有公示等级分的（对局数不够入榜）无从分档，也不进平均。
+    """
+    forfeits = {}
+    for m in ms:
+        p1, p2, w = m['player1'], m['player2'], m['winner']
+        if p1 in (None, '') or p2 in (None, '') or BYE in (p1, p2):
+            continue
+        forfeits.setdefault(p1, 0)
+        forfeits.setdefault(p2, 0)
+        if w == 'ff':
+            forfeits[p1] += 1
+            forfeits[p2] += 1
+        elif w == 'f0':
+            forfeits[p1] += 1
+        elif w == '0f':
+            forfeits[p2] += 1
+
+    kept = [p for p, n in forfeits.items() if n < 3 and p in ratings]
+    if not kept:
+        return None
+
+    counts = {}
+    for p in kept:
+        counts[grade_of(ratings[p])] = counts.get(grade_of(ratings[p]), 0) + 1
+    avg = sum(ratings[p] for p in kept) / len(kept)
+    return {
+        'n': len(kept),
+        'played': len(forfeits),
+        'avg': avg,
+        'grade': grade_of(avg),
+        'counts': counts,
+    }
+
+
+def band_block(st, as_of):
+    """赛事页底部的分档表：先一行汇总，再逐档列人数与占比。"""
+    out = ['            <section class="band-stat">',
+           '                <h2>等级分分档</h2>',
+           '                <p class="band-note">'
+           '口径：只统计名称含「高校」或「大学生」的赛事；「完赛」指本场至少下过一局'
+           '（轮空、空行不算），且本场弃权少于 3 次（f0 假先弃权、0f 假后弃权各记本人一次，'
+           'ff 双弃双方各记一次）；等级分取公示表截至 ' + esc(as_of) + ' 的分数，'
+           '对局数不够入榜的人没有公示分，不进人数与平均。分档 1800 起每 25 分一档：'
+           'D、D+、C-、C、C+、B-、B、B+、A-、A、A+、S（至 2100），'
+           '1800 以下为 D-，2100–2200 为 SS，2200 以上为 SSS。'
+           '</p>',
+           '                <p class="band-sum">本场完赛 %d 人，其中 <b>%d</b> 人符合条件'
+           '（弃权 &lt; 3 次且有公示分），平均等级分 <b>%.2f</b>，档位 <b>%s</b>（%s）。</p>'
+           % (st['played'], st['n'], st['avg'], st['grade'], band_range(st['grade'])),
+           '                <div class="table-scroll">',
+           '                <table class="crosstab band-table">',
+           '                    <thead><tr>'
+           '<th class="c-name">档位</th><th class="c-band">区间</th>'
+           '<th class="c-pt">人数</th><th class="c-rank">占比</th></tr></thead>',
+           '                    <tbody>']
+
+    for label in BAND_ORDER:
+        n = st['counts'].get(label, 0)
+        if not n:
+            continue
+        out.append('                        <tr><td class="c-name">%s</td>'
+                   '<td class="c-band">%s</td><td class="c-pt">%d</td>'
+                   '<td class="c-rank">%.1f%%</td></tr>'
+                   % (esc(label), band_range(label), n, 100.0 * n / st['n']))
+
+    out.append('                        <tr class="band-total">'
+               '<td class="c-name">合计</td><td class="c-band">—</td>'
+               '<td class="c-pt">%d</td><td class="c-rank">100%%</td></tr>' % st['n'])
+    out += ['                    </tbody>',
+            '                </table>',
+            '                </div>',
+            '            </section>']
+    return out
+
+
 # ---------------------------------------------------------------- 页面
 
 def crosstab(rows, rounds, idmap, players=(), qmap=None, tid=None):
@@ -809,7 +948,7 @@ def qipu_index():
     return out
 
 
-def detail_page(t, ms, players=(), qmap=None):
+def detail_page(t, ms, players=(), qmap=None, as_of=''):
     qmap = qmap or {}
     rows, rounds = compute(ms)
     idmap = roster_ids(t, ms)
@@ -866,6 +1005,11 @@ def detail_page(t, ms, players=(), qmap=None):
             body.append('')
             body.append('            <div class="qp-panel" data-qp-panel hidden></div>')
             body.append('            <script src="../assets/qipu.js" defer></script>')
+        if SCHOOL_EVENT_RE.search(t['name'] or ''):
+            st = event_bands(ms, rating_map())
+            if st:
+                body.append('')
+                body += band_block(st, as_of)
     else:
         if roster:
             body.append('            <p class="qp-hint">名单据报名表录入，'
@@ -1001,7 +1145,8 @@ def rebuild_pages():
         if public is not None and t['id'] not in public:
             continue                    # 没列进杂豫的赛事不出页面，也不出棋谱入口
         detail_page(t, by_tid.get(t['id'], []), players,
-                    qipu.get(t['id']) if (public is None or t['id'] in public) else None)
+                    qipu.get(t['id']) if (public is None or t['id'] in public) else None,
+                    as_of)
         n_pages += 1
     list_page(ts, by_tid, as_of)
 
@@ -1034,7 +1179,8 @@ def main(src):
         if public is not None and t['id'] not in public:
             continue                    # 没列进杂豫的赛事不出页面，也不出棋谱入口
         detail_page(t, by_tid.get(t['id'], []), players,
-                    qipu.get(t['id']) if (public is None or t['id'] in public) else None)
+                    qipu.get(t['id']) if (public is None or t['id'] in public) else None,
+                    as_of)
         n_pages += 1
     list_page(ts, by_tid, as_of)
     if ratings:
