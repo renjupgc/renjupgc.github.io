@@ -165,7 +165,8 @@ opp_indices = {pid: [pid_to_idx[o] for o in all_opponents[pid]] for pid in PLAYE
 
 # 6561 scenarios computation
 num_scenarios = 3**8
-analytical_rank_probs = np.zeros((16, 16), dtype=np.float64)
+scen_ranks = np.zeros((num_scenarios, 16), dtype=np.int32)
+scen_probs = np.zeros(num_scenarios, dtype=np.float64)
 
 for s_idx in range(num_scenarios):
     tmp = s_idx
@@ -176,6 +177,7 @@ for s_idx in range(num_scenarios):
         tmp //= 3
         outcomes.append(res_code)
         p_scen *= r7_boards[g_idx]["probs"][res_code]
+    scen_probs[s_idx] = p_scen
     if p_scen == 0:
         continue
 
@@ -214,6 +216,7 @@ for s_idx in range(num_scenarios):
         mbh = sum(opp_s[1:-1])
         keys.append((scen_scores[i], bh, bhc1, bhc2, mbh, scen_wins[i], i))
 
+    # Sort descending by 积分, 对手分, BhC1, BhC2, MBh, 胜局数
     sorted_items = sorted(keys, key=lambda x: (x[0], x[1], x[2], x[3], x[4], x[5]), reverse=True)
 
     i = 0
@@ -223,21 +226,21 @@ for s_idx in range(num_scenarios):
             j += 1
         group = [sorted_items[k][6] for k in range(i, j)]
         if len(group) == 1:
-            analytical_rank_probs[group[0], i] += p_scen
+            scen_ranks[s_idx, group[0]] = i
         elif len(group) == 2:
             p1_pid = player_pids[group[0]]
             p2_pid = player_pids[group[1]]
             h_score = scen_h2h.get((p1_pid, p2_pid))
             if h_score == 1.0:
-                analytical_rank_probs[group[0], i] += p_scen
-                analytical_rank_probs[group[1], i + 1] += p_scen
+                scen_ranks[s_idx, group[0]] = i
+                scen_ranks[s_idx, group[1]] = i + 1
             elif h_score == 0.0:
-                analytical_rank_probs[group[1], i] += p_scen
-                analytical_rank_probs[group[0], i + 1] += p_scen
+                scen_ranks[s_idx, group[1]] = i
+                scen_ranks[s_idx, group[0]] = i + 1
             else:
+                # 并列不平分，就按照最高的算 (两者均赋予最高名次 i)
                 for p_idx in group:
-                    for rk in range(i, j):
-                        analytical_rank_probs[p_idx, rk] += p_scen / len(group)
+                    scen_ranks[s_idx, p_idx] = i
         else:
             sub_h2h = {}
             complete = True
@@ -252,15 +255,30 @@ for s_idx in range(num_scenarios):
             if complete and len(set(sub_h2h.values())) == len(group):
                 sub_sorted = sorted(group, key=lambda a: sub_h2h[a], reverse=True)
                 for rk_offset, p_idx in enumerate(sub_sorted):
-                    analytical_rank_probs[p_idx, i + rk_offset] += p_scen
+                    scen_ranks[s_idx, p_idx] = i + rk_offset
             else:
+                # 并列不平分，就按照最高的算
                 for p_idx in group:
-                    for rk in range(i, j):
-                        analytical_rank_probs[p_idx, rk] += p_scen / len(group)
+                    scen_ranks[s_idx, p_idx] = i
         i = j
 
-# Rank metrics
-exp_ranks = [sum((rk + 1) * analytical_rank_probs[i, rk] for rk in range(16)) for i in range(16)]
+# Simulate 10,000,000 times
+N_SIM = 10_000_000
+np.random.seed(20261114)
+sim_counts = np.random.multinomial(N_SIM, scen_probs)
+
+rank_counts = np.zeros((16, 16), dtype=np.int64)
+for s_idx in range(num_scenarios):
+    c = sim_counts[s_idx]
+    if c > 0:
+        for p_idx in range(16):
+            rk = scen_ranks[s_idx, p_idx]
+            rank_counts[p_idx, rk] += c
+
+sim_probs = rank_counts / float(N_SIM)
+
+# Expected ranks
+exp_ranks = [sum((rk + 1) * sim_probs[i, rk] for rk in range(16)) for i in range(16)]
 sorted_player_indices = np.argsort(exp_ranks)
 
 # Build HTML rows for Matches (View 1)
@@ -306,48 +324,113 @@ for table_idx, bd in enumerate(r7_boards, 1):
 
 matches_tbody = "\n".join(match_rows)
 
+def format_pct_str(pct):
+    if pct <= 0:
+        return "0.0%"
+    if pct < 0.005:
+        return "<0.01%"
+    if pct < 0.1 or (pct > 99.9 and pct < 100.0):
+        return f"{pct:.2f}%"
+    return f"{pct:.1f}%"
+
+def get_heat_level(pct):
+    if pct <= 0:
+        return 0
+    elif pct < 1.0:
+        return 1
+    elif pct < 5.0:
+        return 2
+    elif pct < 15.0:
+        return 3
+    elif pct < 35.0:
+        return 4
+    elif pct < 65.0:
+        return 5
+    else:
+        return 6
+
 # Build HTML rows for Standings (View 2)
+# Columns: 棋手 | 夺冠率 | 前三率 | 前八率 | 期望名次 | 详细分布
 standings_rows = []
-for rank_disp, p_idx in enumerate(sorted_player_indices, 1):
+for p_rank_order, p_idx in enumerate(sorted_player_indices):
     pid = player_pids[p_idx]
     p_info = PLAYERS[pid]
     no = p_info["no"]
     name = p_info["name"]
-    s_r6 = f"{scores_r6[pid]:g}分"
     
-    p_top1 = analytical_rank_probs[p_idx, 0] * 100
-    p_top3 = sum(analytical_rank_probs[p_idx, :3]) * 100
-    p_top8 = sum(analytical_rank_probs[p_idx, :8]) * 100
+    p_top1 = sim_probs[p_idx, 0] * 100
+    p_top3 = sum(sim_probs[p_idx, :3]) * 100
+    p_top8 = sum(sim_probs[p_idx, :8]) * 100
     exp_r = exp_ranks[p_idx]
+    
+    str_top1 = format_pct_str(p_top1)
+    str_top3 = format_pct_str(p_top3)
+    str_top8 = format_pct_str(p_top8)
     
     cls_top1 = " top pos" if p_top1 >= 50.0 else (" bold" if p_top1 > 0 else "")
     cls_top3 = " top pos" if p_top3 >= 50.0 else (" bold" if p_top3 > 0 else "")
-    
-    # Non-zero rank badges
-    rank_pills = []
+    cls_top8 = " top pos" if p_top8 >= 50.0 else (" bold" if p_top8 > 0 else "")
+
+    # Build 16 connected heatmap cells
+    hm_cells = []
+    mini_segs = []
     for rk in range(16):
-        pct = analytical_rank_probs[p_idx, rk] * 100
-        if pct >= 0.05:
-            pill_cls = "rk-hi" if pct >= 40.0 else ("rk-mid" if pct >= 15.0 else "rk-lo")
-            rank_pills.append(f'<span class="rk-pill {pill_cls}"><span class="rk-idx">第{rk+1}名</span><span class="rk-val">{pct:.1f}%</span></span>')
-    rank_pills_html = "".join(rank_pills)
-    
-    row_html = (
-        f'      <tr>\n'
-        f'        <td class="c-no">{rank_disp}</td>\n'
+        cnt = rank_counts[p_idx, rk]
+        pct = cnt / float(N_SIM) * 100
+        lvl = get_heat_level(pct)
+        if cnt == 0:
+            val_html = '<span class="hm-val hm-zero">-</span>'
+        else:
+            val_text = format_pct_str(pct)
+            val_html = f'<span class="hm-val">{val_text}</span>'
+            
+        hm_cell = (
+            f'<div class="hm-cell hm-lvl-{lvl}" title="第 {rk+1} 名: {pct:.4f}% ({cnt:,}次)">'
+            f'<span class="hm-rk">{rk+1}</span>'
+            f'{val_html}'
+            f'</div>'
+        )
+        hm_cells.append(hm_cell)
+        mini_segs.append(f'<i class="m-seg hm-lvl-{lvl}" title="第 {rk+1} 名: {pct:.2f}%"></i>')
+
+    hm_grid_html = "".join(hm_cells)
+    mini_bar_html = "".join(mini_segs)
+
+    # Main player row
+    p_row = (
+        f'      <tr class="player-row" id="prow-{p_idx}" onclick="toggleRow({p_idx})">\n'
         f'        <td class="c-pn-std"><span class="pid">{no}</span><span class="pn" title="{name}">{name}</span></td>\n'
-        f'        <td class="c-score-std"><span class="pscore">{s_r6}</span></td>\n'
-        f'        <td class="c-pct-std"><span class="v{cls_top1}">{p_top1:.1f}%</span></td>\n'
-        f'        <td class="c-pct-std"><span class="v{cls_top3}">{p_top3:.1f}%</span></td>\n'
+        f'        <td class="c-pct-std"><span class="v{cls_top1}">{str_top1}</span></td>\n'
+        f'        <td class="c-pct-std"><span class="v{cls_top3}">{str_top3}</span></td>\n'
+        f'        <td class="c-pct-std"><span class="v{cls_top8}">{str_top8}</span></td>\n'
         f'        <td class="c-exp-std"><span class="exp-badge">{exp_r:.2f}</span></td>\n'
-        f'        <td class="c-dist-std"><div class="dist-wrap">{rank_pills_html}</div></td>\n'
+        f'        <td class="c-dist-std">\n'
+        f'          <div class="dist-preview-wrap">\n'
+        f'            <span class="mini-hm-bar" title="1~16名热力图概览">{mini_bar_html}</span>\n'
+        f'            <button class="btn-expand" id="btn-exp-{p_idx}" type="button" onclick="event.stopPropagation(); toggleRow({p_idx})"><span>展开</span><i class="arr">▾</i></button>\n'
+        f'          </div>\n'
+        f'        </td>\n'
+        f'      </tr>\n'
+        f'      <tr class="detail-row" id="detail-{p_idx}" style="display:none">\n'
+        f'        <td colspan="6" class="detail-cell">\n'
+        f'          <div class="detail-wrap">\n'
+        f'            <div class="hm-header">\n'
+        f'              <span class="hm-title">第 1 ~ 16 名分布热力图</span>\n'
+        f'            </div>\n'
+        f'            <div class="hm-scroll">\n'
+        f'              <div class="hm-grid">\n'
+        f'                {hm_grid_html}\n'
+        f'              </div>\n'
+        f'            </div>\n'
+        f'          </div>\n'
+        f'        </td>\n'
         f'      </tr>'
     )
-    standings_rows.append(row_html)
+    standings_rows.append(p_row)
 
 standings_tbody = "\n".join(standings_rows)
 
-# Full CSS incorporating view-switcher, standings table, and responsive rules
+# Full CSS incorporating view-switcher, standings table with connected heatmap grid and collapsible rows
 full_page_html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -465,8 +548,6 @@ table.table-matches th.t-wn{{width:calc((100% - 312px) / 2);text-align:right;pad
 .ph-nums i:nth-child(3){{text-align:right}}
 
 tbody tr{{border-bottom:1px solid var(--line2);transition:background .15s}}
-tbody tr:nth-child(even){{background:#fafdfb}}
-tbody tr:hover{{background:var(--mint2)}}
 tbody tr:last-child{{border-bottom:0}}
 td{{padding:10px;vertical-align:middle}}
 
@@ -476,7 +557,7 @@ td.c-wn{{text-align:right;padding-right:16px;white-space:nowrap;overflow:hidden}
 
 .pn{{
   font:400 16px/1.25 var(--dis);letter-spacing:.01em;color:var(--ink);
-  display:inline-block;vertical-align:middle;max-width:calc(100% - 75px);
+  display:inline-block;vertical-align:middle;max-width:calc(100% - 45px);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }}
 .pid{{
@@ -516,7 +597,7 @@ td.c-prob{{width:260px;padding:11px 16px}}
 
 .v{{
   display:inline-block;text-align:center;white-space:nowrap;
-  font:400 17px/1 var(--num);letter-spacing:.01em;
+  font:400 16px/1 var(--num);letter-spacing:.01em;
   color:var(--ink3);padding:6px 7px 5px;border-radius:8px;
   transition:background .15s;
 }}
@@ -525,44 +606,84 @@ td.c-prob{{width:260px;padding:11px 16px}}
 .v.bold{{font-weight:600;color:var(--ink)}}
 
 /* 名次预测表格样式 */
+.table-scroll{{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}}
 table.table-standings{{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}}
 table.table-standings thead th{{
   background:var(--mint);font:400 13px/1 var(--dis);letter-spacing:.05em;color:#2c5b49;
-  padding:12px 10px;border-bottom:1px solid #d3e5db;
+  padding:12px 10px;border-bottom:1px solid #d3e5db;white-space:nowrap;
 }}
-.c-pn-std{{text-align:left;white-space:nowrap;padding-left:12px}}
-.c-score-std{{text-align:center;white-space:nowrap}}
+.c-pn-std{{text-align:left;white-space:nowrap;padding-left:18px}}
+.c-pn-std .pid{{margin-left:0;margin-right:8px}}
 .c-pct-std{{text-align:center;white-space:nowrap}}
 .c-exp-std{{text-align:center;white-space:nowrap}}
 .exp-badge{{
   display:inline-block;font:600 13px/1 var(--num);padding:3px 8px;border-radius:6px;
   background:#f1f0e8;color:var(--ink);
 }}
-.c-dist-std{{text-align:left;padding-left:16px;padding-right:16px}}
-.dist-wrap{{display:flex;gap:5px;align-items:center;flex-wrap:wrap}}
-.rk-pill{{
-  display:inline-flex;align-items:baseline;gap:3px;padding:2px 7px;border-radius:6px;
-  font-size:12px;font-family:var(--num);white-space:nowrap;
-}}
-.rk-pill.rk-hi{{background:var(--pos-bg);color:var(--green);font-weight:700}}
-.rk-pill.rk-mid{{background:#eef4f0;color:#1e4f3c;font-weight:500}}
-.rk-pill.rk-lo{{background:var(--line2);color:var(--ink3)}}
-.rk-idx{{opacity:.85;font-size:11px}}
-.rk-val{{font-size:12.5px}}
+.c-dist-std{{text-align:right;padding-right:18px}}
 
-/* 说明卡片 */
-.ft-rules{{
-  margin:16px 20px 20px;padding:14px 18px;border-radius:10px;
-  background:#f8f6ee;border:1px solid var(--line);font-size:13px;color:var(--ink3);line-height:1.6;
+/* 主行点击交互 */
+tr.player-row{{cursor:pointer;transition:background .15s ease}}
+tr.player-row:hover{{background:var(--mint2)}}
+tr.player-row.is-open{{background:var(--mint2);border-bottom-color:transparent}}
+
+.dist-preview-wrap{{display:inline-flex;align-items:center;gap:10px;justify-content:flex-end}}
+.mini-hm-bar{{
+  display:inline-flex;height:10px;width:120px;border-radius:3px;overflow:hidden;
+  border:1px solid var(--line);flex-shrink:0;vertical-align:middle;
 }}
-.ft-rules-title{{
-  font:600 13.5px/1 var(--dis);color:var(--green);margin-bottom:6px;display:flex;align-items:center;gap:6px;
+.m-seg{{flex:1;height:100%}}
+
+.btn-expand{{
+  border:1px solid var(--line);background:var(--card);color:var(--ink3);
+  font:500 12px/1 var(--dis);padding:4px 9px 4px;border-radius:6px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:3px;transition:all .15s ease;
 }}
-.ft-rules-list{{
-  margin:0;padding-left:18px;color:#556259;
+.btn-expand:hover{{border-color:var(--green);color:var(--green);background:var(--mint)}}
+.btn-expand .arr{{font-style:normal;font-size:11px}}
+
+.btn-all-exp{{
+  border:none;background:rgba(13,71,54,.08);color:var(--green);
+  font:500 12px/1 var(--dis);padding:4px 8px 3px;border-radius:5px;cursor:pointer;
+  transition:all .15s ease;
 }}
-.ft-rules-list li{{margin-bottom:3px}}
-.ft-rules-note{{margin-top:8px;font-size:12px;color:#7c877f;border-top:1px dashed var(--line);padding-top:6px}}
+.btn-all-exp:hover{{background:rgba(13,71,54,.15)}}
+
+/* 展开详情行 */
+tr.detail-row{{background:#faf8f2;border-bottom:1px solid var(--line2)}}
+td.detail-cell{{padding:10px 18px 16px}}
+.detail-wrap{{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px 14px;box-shadow:0 3px 10px rgba(0,0,0,.03)}}
+.hm-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}}
+.hm-title{{font:600 13px/1 var(--dis);color:var(--green);display:flex;align-items:center;gap:5px}}
+.hm-title::before{{content:"◆";font-size:10px;color:var(--green)}}
+
+/* 连贯热力图格子（格子连着） */
+.hm-scroll{{overflow-x:auto;-webkit-overflow-scrolling:touch}}
+.hm-grid{{
+  display:grid;grid-template-columns:repeat(16,minmax(48px,1fr));
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  background:var(--card);width:100%;
+}}
+.hm-cell{{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:7px 2px 6px;border-right:1px solid var(--line);
+  box-sizing:border-box;text-align:center;min-width:0;
+  transition:all .12s ease;
+}}
+.hm-cell:last-child{{border-right:none}}
+.hm-cell:hover{{filter:brightness(0.96)}}
+.hm-rk{{font-size:11px;line-height:1;font-family:var(--dis);opacity:.8;margin-bottom:4px}}
+.hm-val{{font-size:12px;line-height:1.15;font-family:var(--num);white-space:nowrap}}
+.hm-val.hm-zero{{opacity:.3;font-weight:400}}
+
+/* 热力梯度色彩 */
+.hm-lvl-0{{background:#fbfaf6;color:#a9b3ab}}
+.hm-lvl-1{{background:#eef6f2;color:#1e4f3c;font-weight:500}}
+.hm-lvl-2{{background:#ddefe5;color:#0d4736;font-weight:600}}
+.hm-lvl-3{{background:#b8e2cd;color:#0a3a2c;font-weight:600}}
+.hm-lvl-4{{background:#68bc96;color:#ffffff;font-weight:700}}
+.hm-lvl-5{{background:#23835f;color:#ffffff;font-weight:700}}
+.hm-lvl-6{{background:#0d4736;color:#ffffff;font-weight:700}}
 
 /* 窄屏响应式 */
 @media (max-width:820px){{
@@ -589,9 +710,8 @@ table.table-standings thead th{{
   table.table-matches td.c-prob{{grid-area:pb;padding:0!important;width:auto!important}}
   table.table-matches td.c-bn .pn, table.table-matches td.c-wn .pn{{max-width:calc(100% - 65px);font-size:14.5px}}
   
-  /* 名次表窄屏自适应 */
-  .c-dist-std{{padding-left:10px;padding-right:10px}}
-  table.table-standings{{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}}
+  table.table-standings{{min-width:680px}}
+  .mini-hm-bar{{width:80px}}
 }}
 
 @media (max-width:520px){{
@@ -618,18 +738,31 @@ table.table-standings thead th{{
   tbody tr{{border-color:#232d28}}
   tbody tr:nth-child(even){{background:#1a201c}}
   tbody tr:hover{{background:#1f2a24}}
+  tr.player-row:hover{{background:#1f2a24}}
+  tr.player-row.is-open{{background:#1e2822}}
+  tr.detail-row{{background:#151b18;border-color:#232d28}}
+  .detail-wrap{{background:#181d1a;border-color:#26332c}}
+  .hm-title{{color:#93d3b6}}
+  .hm-title::before{{color:#93d3b6}}
   .pn{{color:#e9efe9}}
   .pid{{background:#232d28;color:#85928a}}
   td.c-no{{color:#7f8d85}}
   .pscore{{background:#232d28;color:#85928a}}
   .exp-badge{{background:#232d28;color:#d0ded5}}
-  .rk-pill.rk-hi{{background:#1b3a2e;color:#93d3b6}}
-  .rk-pill.rk-mid{{background:#1d2922;color:#a4c9b8}}
-  .rk-pill.rk-lo{{background:#232d28;color:#7c877f}}
-  .ft-rules{{background:#18201b;border-color:#26332c;color:#85928a}}
-  .ft-rules-title{{color:#93d3b6}}
-  .ft-rules-list{{color:#a8b5ac}}
-  .ft-rules-note{{border-color:#26332c;color:#6b7870}}
+  .mini-hm-bar{{border-color:#2b3a32}}
+  .btn-expand{{background:#232d28;border-color:#2b3a32;color:#9ec2b0}}
+  .btn-expand:hover{{background:#1e2a24;border-color:#385b49;color:#fff}}
+  .btn-all-exp{{background:rgba(143,199,174,.12);color:#93d3b6}}
+  .btn-all-exp:hover{{background:rgba(143,199,174,.22)}}
+  .hm-grid{{border-color:#2b3a32;background:#181d1a}}
+  .hm-cell{{border-right-color:#2b3a32}}
+  .hm-lvl-0{{background:#1a201c;color:#5a665e}}
+  .hm-lvl-1{{background:#172920;color:#8fc7ae}}
+  .hm-lvl-2{{background:#1a382b;color:#a4e1c4}}
+  .hm-lvl-3{{background:#1d4d39;color:#c0f2db}}
+  .hm-lvl-4{{background:#256b4f;color:#ffffff}}
+  .hm-lvl-5{{background:#1e875e;color:#ffffff}}
+  .hm-lvl-6{{background:#146e4b;color:#ffffff}}
 }}
 </style>
 <script>
@@ -652,6 +785,45 @@ function setView(view) {{
     if (history.replaceState) history.replaceState(null, null, '#matches');
   }}
 }}
+
+function toggleRow(idx) {{
+  var dRow = document.getElementById('detail-' + idx);
+  var pRow = document.getElementById('prow-' + idx);
+  var btn = document.getElementById('btn-exp-' + idx);
+  if (!dRow) return;
+  if (dRow.style.display === 'none' || dRow.style.display === '') {{
+    dRow.style.display = 'table-row';
+    if (pRow) pRow.classList.add('is-open');
+    if (btn) btn.innerHTML = '<span>收起</span><i class="arr">▴</i>';
+  }} else {{
+    dRow.style.display = 'none';
+    if (pRow) pRow.classList.remove('is-open');
+    if (btn) btn.innerHTML = '<span>展开</span><i class="arr">▾</i>';
+  }}
+}}
+
+var allExpanded = false;
+function toggleAllRows() {{
+  allExpanded = !allExpanded;
+  var btnAll = document.getElementById('btn-all-exp');
+  var rows = document.querySelectorAll('.detail-row');
+  var pRows = document.querySelectorAll('.player-row');
+  var btns = document.querySelectorAll('.btn-expand');
+  for (var i = 0; i < rows.length; i++) {{
+    rows[i].style.display = allExpanded ? 'table-row' : 'none';
+  }}
+  for (var j = 0; j < pRows.length; j++) {{
+    if (allExpanded) pRows[j].classList.add('is-open');
+    else pRows[j].classList.remove('is-open');
+  }}
+  for (var k = 0; k < btns.length; k++) {{
+    btns[k].innerHTML = allExpanded ? '<span>收起</span><i class="arr">▴</i>' : '<span>展开</span><i class="arr">▾</i>';
+  }}
+  if (btnAll) {{
+    btnAll.textContent = allExpanded ? '全部收起 ▴' : '全部展开 ▾';
+  }}
+}}
+
 window.addEventListener('DOMContentLoaded', function() {{
   if (window.location.hash === '#standings') {{
     setView('stand');
@@ -703,42 +875,26 @@ window.addEventListener('DOMContentLoaded', function() {{
       </table>
     </div>
 
-    <!-- 视图 2：模拟 2,000,000 次名次概率分布表 -->
+    <!-- 视图 2：模拟 10,000,000 次名次概率分布表（热力图连格 + 展开查看） -->
     <div id="view-standings" style="display:none">
-      <table class="table-standings">
-        <thead>
-          <tr>
-            <th style="width:48px;text-align:center">名次</th>
-            <th style="width:180px;text-align:left;padding-left:12px">棋手</th>
-            <th style="width:72px;text-align:center">上轮积分</th>
-            <th style="width:72px;text-align:center">夺冠率</th>
-            <th style="width:72px;text-align:center">前三率</th>
-            <th style="width:75px;text-align:center">期望名次</th>
-            <th style="text-align:left;padding-left:16px">名次概率分布 (1 ~ 16名)</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div class="table-scroll">
+        <table class="table-standings">
+          <thead>
+            <tr>
+              <th style="width:220px;text-align:left;padding-left:18px">棋手</th>
+              <th style="width:95px;text-align:center">夺冠率</th>
+              <th style="width:95px;text-align:center">前三率</th>
+              <th style="width:95px;text-align:center">前八率</th>
+              <th style="width:95px;text-align:center">期望名次</th>
+              <th style="text-align:right;padding-right:18px">
+                <button class="btn-all-exp" id="btn-all-exp" type="button" onclick="toggleAllRows()">全部展开 ▾</button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
 {standings_tbody}
-        </tbody>
-      </table>
-
-      <div class="ft-rules">
-        <div class="ft-rules-title">
-          <span>◆</span> 破同分排序依据（严格遵循世青赛 RIF 瑞士积分制规程）：
-        </div>
-        <ol class="ft-rules-list">
-          <li><strong>最终总积分</strong>：高者列前。</li>
-          <li><strong>对手分 (Buchholz)</strong>：所有对手积分之和，高者列前。</li>
-          <li><strong>对手分去最低 1 (BhC1)</strong>：扣除一个最低对手积分后之和。</li>
-          <li><strong>对手分去最低 2 (BhC2)</strong>：扣除两个最低对手积分后之和。</li>
-          <li><strong>中间对手分 (MBh)</strong>：扣除一个最高和一个最低对手积分后之和。</li>
-          <li><strong>胜局数 (Wins)</strong>：总胜局数高者列前。</li>
-          <li><strong>直胜关系</strong>：同分棋手间直接对局结果（若相互全部交手）。</li>
-          <li><strong>并列平分</strong>：若上述指标依然完全相同，则判定并列，平分对应名次概率。</li>
-        </ol>
-        <div class="ft-rules-note">
-          ※ 演算基准：基于 2026-07-04 截止历史数据专属无泄漏模型，执行 2,000,000 次蒙特卡洛模拟抽样演算。
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -756,11 +912,10 @@ with open(r7_path, "w", encoding="utf-8") as f:
 # Also write to standalone standings page 2026-shiqing-b-standings.html
 standings_path = os.path.join(REPO_DIR, "posts", "2026-shiqing-b-standings.html")
 with open(standings_path, "w", encoding="utf-8") as f:
-    # Set default view to 'stand' for the standalone page
     stand_html = full_page_html.replace('id="view-matches"', 'id="view-matches" style="display:none"')
     stand_html = stand_html.replace('id="view-standings" style="display:none"', 'id="view-standings"')
     stand_html = stand_html.replace('id="btn-match" class="v-btn active"', 'id="btn-match" class="v-btn"')
     stand_html = stand_html.replace('id="btn-stand" class="v-btn"', 'id="btn-stand" class="v-btn active"')
     f.write(stand_html)
 
-print("Generated 2026-shiqing-b-r7.html and 2026-shiqing-b-standings.html with dual-view switcher!")
+print("Successfully generated 2026-shiqing-b-r7.html and 2026-shiqing-b-standings.html!")

@@ -115,8 +115,6 @@ table.table-matches th.t-wn{width:calc((100% - 312px) / 2);text-align:right;padd
 .ph-nums i:nth-child(3){text-align:right}
 
 tbody tr{border-bottom:1px solid var(--line2);transition:background .15s}
-tbody tr:nth-child(even){background:#fafdfb}
-tbody tr:hover{background:var(--mint2)}
 tbody tr:last-child{border-bottom:0}
 td{padding:10px;vertical-align:middle}
 
@@ -126,7 +124,7 @@ td.c-wn{text-align:right;padding-right:16px;white-space:nowrap;overflow:hidden}
 
 .pn{
   font:400 16px/1.25 var(--dis);letter-spacing:.01em;color:var(--ink);
-  display:inline-block;vertical-align:middle;max-width:calc(100% - 75px);
+  display:inline-block;vertical-align:middle;max-width:calc(100% - 45px);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .pid{
@@ -166,7 +164,7 @@ td.c-prob{width:260px;padding:11px 16px}
 
 .v{
   display:inline-block;text-align:center;white-space:nowrap;
-  font:400 17px/1 var(--num);letter-spacing:.01em;
+  font:400 16px/1 var(--num);letter-spacing:.01em;
   color:var(--ink3);padding:6px 7px 5px;border-radius:8px;
   transition:background .15s;
 }
@@ -175,44 +173,84 @@ td.c-prob{width:260px;padding:11px 16px}
 .v.bold{font-weight:600;color:var(--ink)}
 
 /* 名次预测表格样式 */
+.table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.table-standings{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.table-standings thead th{
   background:var(--mint);font:400 13px/1 var(--dis);letter-spacing:.05em;color:#2c5b49;
-  padding:12px 10px;border-bottom:1px solid #d3e5db;
+  padding:12px 10px;border-bottom:1px solid #d3e5db;white-space:nowrap;
 }
-.c-pn-std{text-align:left;white-space:nowrap;padding-left:12px}
-.c-score-std{text-align:center;white-space:nowrap}
+.c-pn-std{text-align:left;white-space:nowrap;padding-left:18px}
+.c-pn-std .pid{margin-left:0;margin-right:8px}
 .c-pct-std{text-align:center;white-space:nowrap}
 .c-exp-std{text-align:center;white-space:nowrap}
 .exp-badge{
   display:inline-block;font:600 13px/1 var(--num);padding:3px 8px;border-radius:6px;
   background:#f1f0e8;color:var(--ink);
 }
-.c-dist-std{text-align:left;padding-left:16px;padding-right:16px}
-.dist-wrap{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
-.rk-pill{
-  display:inline-flex;align-items:baseline;gap:3px;padding:2px 7px;border-radius:6px;
-  font-size:12px;font-family:var(--num);white-space:nowrap;
-}
-.rk-pill.rk-hi{background:var(--pos-bg);color:var(--green);font-weight:700}
-.rk-pill.rk-mid{background:#eef4f0;color:#1e4f3c;font-weight:500}
-.rk-pill.rk-lo{background:var(--line2);color:var(--ink3)}
-.rk-idx{opacity:.85;font-size:11px}
-.rk-val{font-size:12.5px}
+.c-dist-std{text-align:right;padding-right:18px}
 
-/* 说明卡片 */
-.ft-rules{
-  margin:16px 20px 20px;padding:14px 18px;border-radius:10px;
-  background:#f8f6ee;border:1px solid var(--line);font-size:13px;color:var(--ink3);line-height:1.6;
+/* 主行点击交互 */
+tr.player-row{cursor:pointer;transition:background .15s ease}
+tr.player-row:hover{background:var(--mint2)}
+tr.player-row.is-open{background:var(--mint2);border-bottom-color:transparent}
+
+.dist-preview-wrap{display:inline-flex;align-items:center;gap:10px;justify-content:flex-end}
+.mini-hm-bar{
+  display:inline-flex;height:10px;width:120px;border-radius:3px;overflow:hidden;
+  border:1px solid var(--line);flex-shrink:0;vertical-align:middle;
 }
-.ft-rules-title{
-  font:600 13.5px/1 var(--dis);color:var(--green);margin-bottom:6px;display:flex;align-items:center;gap:6px;
+.m-seg{flex:1;height:100%}
+
+.btn-expand{
+  border:1px solid var(--line);background:var(--card);color:var(--ink3);
+  font:500 12px/1 var(--dis);padding:4px 9px 4px;border-radius:6px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:3px;transition:all .15s ease;
 }
-.ft-rules-list{
-  margin:0;padding-left:18px;color:#556259;
+.btn-expand:hover{border-color:var(--green);color:var(--green);background:var(--mint)}
+.btn-expand .arr{font-style:normal;font-size:11px}
+
+.btn-all-exp{
+  border:none;background:rgba(13,71,54,.08);color:var(--green);
+  font:500 12px/1 var(--dis);padding:4px 8px 3px;border-radius:5px;cursor:pointer;
+  transition:all .15s ease;
 }
-.ft-rules-list li{margin-bottom:3px}
-.ft-rules-note{margin-top:8px;font-size:12px;color:#7c877f;border-top:1px dashed var(--line);padding-top:6px}
+.btn-all-exp:hover{background:rgba(13,71,54,.15)}
+
+/* 展开详情行 */
+tr.detail-row{background:#faf8f2;border-bottom:1px solid var(--line2)}
+td.detail-cell{padding:10px 18px 16px}
+.detail-wrap{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px 14px;box-shadow:0 3px 10px rgba(0,0,0,.03)}
+.hm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.hm-title{font:600 13px/1 var(--dis);color:var(--green);display:flex;align-items:center;gap:5px}
+.hm-title::before{content:"◆";font-size:10px;color:var(--green)}
+
+/* 连贯热力图格子（格子连着） */
+.hm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.hm-grid{
+  display:grid;grid-template-columns:repeat(16,minmax(48px,1fr));
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  background:var(--card);width:100%;
+}
+.hm-cell{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:7px 2px 6px;border-right:1px solid var(--line);
+  box-sizing:border-box;text-align:center;min-width:0;
+  transition:all .12s ease;
+}
+.hm-cell:last-child{border-right:none}
+.hm-cell:hover{filter:brightness(0.96)}
+.hm-rk{font-size:11px;line-height:1;font-family:var(--dis);opacity:.8;margin-bottom:4px}
+.hm-val{font-size:12px;line-height:1.15;font-family:var(--num);white-space:nowrap}
+.hm-val.hm-zero{opacity:.3;font-weight:400}
+
+/* 热力梯度色彩 */
+.hm-lvl-0{background:#fbfaf6;color:#a9b3ab}
+.hm-lvl-1{background:#eef6f2;color:#1e4f3c;font-weight:500}
+.hm-lvl-2{background:#ddefe5;color:#0d4736;font-weight:600}
+.hm-lvl-3{background:#b8e2cd;color:#0a3a2c;font-weight:600}
+.hm-lvl-4{background:#68bc96;color:#ffffff;font-weight:700}
+.hm-lvl-5{background:#23835f;color:#ffffff;font-weight:700}
+.hm-lvl-6{background:#0d4736;color:#ffffff;font-weight:700}
 
 /* 窄屏响应式 */
 @media (max-width:820px){
@@ -239,9 +277,8 @@ table.table-standings thead th{
   table.table-matches td.c-prob{grid-area:pb;padding:0!important;width:auto!important}
   table.table-matches td.c-bn .pn, table.table-matches td.c-wn .pn{max-width:calc(100% - 65px);font-size:14.5px}
   
-  /* 名次表窄屏自适应 */
-  .c-dist-std{padding-left:10px;padding-right:10px}
-  table.table-standings{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.table-standings{min-width:680px}
+  .mini-hm-bar{width:80px}
 }
 
 @media (max-width:520px){
@@ -268,18 +305,31 @@ table.table-standings thead th{
   tbody tr{border-color:#232d28}
   tbody tr:nth-child(even){background:#1a201c}
   tbody tr:hover{background:#1f2a24}
+  tr.player-row:hover{background:#1f2a24}
+  tr.player-row.is-open{background:#1e2822}
+  tr.detail-row{background:#151b18;border-color:#232d28}
+  .detail-wrap{background:#181d1a;border-color:#26332c}
+  .hm-title{color:#93d3b6}
+  .hm-title::before{color:#93d3b6}
   .pn{color:#e9efe9}
   .pid{background:#232d28;color:#85928a}
   td.c-no{color:#7f8d85}
   .pscore{background:#232d28;color:#85928a}
   .exp-badge{background:#232d28;color:#d0ded5}
-  .rk-pill.rk-hi{background:#1b3a2e;color:#93d3b6}
-  .rk-pill.rk-mid{background:#1d2922;color:#a4c9b8}
-  .rk-pill.rk-lo{background:#232d28;color:#7c877f}
-  .ft-rules{background:#18201b;border-color:#26332c;color:#85928a}
-  .ft-rules-title{color:#93d3b6}
-  .ft-rules-list{color:#a8b5ac}
-  .ft-rules-note{border-color:#26332c;color:#6b7870}
+  .mini-hm-bar{border-color:#2b3a32}
+  .btn-expand{background:#232d28;border-color:#2b3a32;color:#9ec2b0}
+  .btn-expand:hover{background:#1e2a24;border-color:#385b49;color:#fff}
+  .btn-all-exp{background:rgba(143,199,174,.12);color:#93d3b6}
+  .btn-all-exp:hover{background:rgba(143,199,174,.22)}
+  .hm-grid{border-color:#2b3a32;background:#181d1a}
+  .hm-cell{border-right-color:#2b3a32}
+  .hm-lvl-0{background:#1a201c;color:#5a665e}
+  .hm-lvl-1{background:#172920;color:#8fc7ae}
+  .hm-lvl-2{background:#1a382b;color:#a4e1c4}
+  .hm-lvl-3{background:#1d4d39;color:#c0f2db}
+  .hm-lvl-4{background:#256b4f;color:#ffffff}
+  .hm-lvl-5{background:#1e875e;color:#ffffff}
+  .hm-lvl-6{background:#146e4b;color:#ffffff}
 }
 </style>
 <script>
@@ -302,6 +352,45 @@ function setView(view) {
     if (history.replaceState) history.replaceState(null, null, '#matches');
   }
 }
+
+function toggleRow(idx) {
+  var dRow = document.getElementById('detail-' + idx);
+  var pRow = document.getElementById('prow-' + idx);
+  var btn = document.getElementById('btn-exp-' + idx);
+  if (!dRow) return;
+  if (dRow.style.display === 'none' || dRow.style.display === '') {
+    dRow.style.display = 'table-row';
+    if (pRow) pRow.classList.add('is-open');
+    if (btn) btn.innerHTML = '<span>收起</span><i class="arr">▴</i>';
+  } else {
+    dRow.style.display = 'none';
+    if (pRow) pRow.classList.remove('is-open');
+    if (btn) btn.innerHTML = '<span>展开</span><i class="arr">▾</i>';
+  }
+}
+
+var allExpanded = false;
+function toggleAllRows() {
+  allExpanded = !allExpanded;
+  var btnAll = document.getElementById('btn-all-exp');
+  var rows = document.querySelectorAll('.detail-row');
+  var pRows = document.querySelectorAll('.player-row');
+  var btns = document.querySelectorAll('.btn-expand');
+  for (var i = 0; i < rows.length; i++) {
+    rows[i].style.display = allExpanded ? 'table-row' : 'none';
+  }
+  for (var j = 0; j < pRows.length; j++) {
+    if (allExpanded) pRows[j].classList.add('is-open');
+    else pRows[j].classList.remove('is-open');
+  }
+  for (var k = 0; k < btns.length; k++) {
+    btns[k].innerHTML = allExpanded ? '<span>收起</span><i class="arr">▴</i>' : '<span>展开</span><i class="arr">▾</i>';
+  }
+  if (btnAll) {
+    btnAll.textContent = allExpanded ? '全部收起 ▴' : '全部展开 ▾';
+  }
+}
+
 window.addEventListener('DOMContentLoaded', function() {
   if (window.location.hash === '#standings') {
     setView('stand');
@@ -432,185 +521,457 @@ window.addEventListener('DOMContentLoaded', function() {
       </table>
     </div>
 
-    <!-- 视图 2：模拟 2,000,000 次名次概率分布表 -->
+    <!-- 视图 2：模拟 10,000,000 次名次概率分布表（热力图连格 + 展开查看） -->
     <div id="view-standings" style="display:none">
-      <table class="table-standings">
-        <thead>
-          <tr>
-            <th style="width:48px;text-align:center">名次</th>
-            <th style="width:180px;text-align:left;padding-left:12px">棋手</th>
-            <th style="width:72px;text-align:center">上轮积分</th>
-            <th style="width:72px;text-align:center">夺冠率</th>
-            <th style="width:72px;text-align:center">前三率</th>
-            <th style="width:75px;text-align:center">期望名次</th>
-            <th style="text-align:left;padding-left:16px">名次概率分布 (1 ~ 16名)</th>
-          </tr>
-        </thead>
-        <tbody>
-      <tr>
-        <td class="c-no">1</td>
+      <div class="table-scroll">
+        <table class="table-standings">
+          <thead>
+            <tr>
+              <th style="width:220px;text-align:left;padding-left:18px">棋手</th>
+              <th style="width:95px;text-align:center">夺冠率</th>
+              <th style="width:95px;text-align:center">前三率</th>
+              <th style="width:95px;text-align:center">前八率</th>
+              <th style="width:95px;text-align:center">期望名次</th>
+              <th style="text-align:right;padding-right:18px">
+                <button class="btn-all-exp" id="btn-all-exp" type="button" onclick="toggleAllRows()">全部展开 ▾</button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+      <tr class="player-row" id="prow-3" onclick="toggleRow(3)">
         <td class="c-pn-std"><span class="pid">4</span><span class="pn" title="钟煜阳">钟煜阳</span></td>
-        <td class="c-score-std"><span class="pscore">6分</span></td>
+        <td class="c-pct-std"><span class="v top pos">99.99%</span></td>
         <td class="c-pct-std"><span class="v top pos">100.0%</span></td>
         <td class="c-pct-std"><span class="v top pos">100.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">1.00</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-hi"><span class="rk-idx">第1名</span><span class="rk-val">100.0%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-6" title="第 1 名: 99.99%"></i><i class="m-seg hm-lvl-1" title="第 2 名: 0.01%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-3" type="button" onclick="event.stopPropagation(); toggleRow(3)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">2</td>
+      <tr class="detail-row" id="detail-3" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-6" title="第 1 名: 99.9941% (9,999,410次)"><span class="hm-rk">1</span><span class="hm-val">99.99%</span></div><div class="hm-cell hm-lvl-1" title="第 2 名: 0.0059% (590次)"><span class="hm-rk">2</span><span class="hm-val">0.01%</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 8 名: 0.0000% (0次)"><span class="hm-rk">8</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 10 名: 0.0000% (0次)"><span class="hm-rk">10</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 11 名: 0.0000% (0次)"><span class="hm-rk">11</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 12 名: 0.0000% (0次)"><span class="hm-rk">12</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-11" onclick="toggleRow(11)">
         <td class="c-pn-std"><span class="pid">12</span><span class="pn" title="陈浩源">陈浩源</span></td>
-        <td class="c-score-std"><span class="pscore">5分</span></td>
-        <td class="c-pct-std"><span class="v bold">0.0%</span></td>
+        <td class="c-pct-std"><span class="v bold">0.01%</span></td>
+        <td class="c-pct-std"><span class="v top pos">100.0%</span></td>
         <td class="c-pct-std"><span class="v top pos">100.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">2.17</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-hi"><span class="rk-idx">第2名</span><span class="rk-val">83.3%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第3名</span><span class="rk-val">16.7%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-1" title="第 1 名: 0.01%"></i><i class="m-seg hm-lvl-6" title="第 2 名: 83.31%"></i><i class="m-seg hm-lvl-4" title="第 3 名: 16.68%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-11" type="button" onclick="event.stopPropagation(); toggleRow(11)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">3</td>
+      <tr class="detail-row" id="detail-11" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-1" title="第 1 名: 0.0059% (590次)"><span class="hm-rk">1</span><span class="hm-val">0.01%</span></div><div class="hm-cell hm-lvl-6" title="第 2 名: 83.3101% (8,331,013次)"><span class="hm-rk">2</span><span class="hm-val">83.3%</span></div><div class="hm-cell hm-lvl-4" title="第 3 名: 16.6840% (1,668,397次)"><span class="hm-rk">3</span><span class="hm-val">16.7%</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 8 名: 0.0000% (0次)"><span class="hm-rk">8</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 10 名: 0.0000% (0次)"><span class="hm-rk">10</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 11 名: 0.0000% (0次)"><span class="hm-rk">11</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 12 名: 0.0000% (0次)"><span class="hm-rk">12</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-7" onclick="toggleRow(7)">
         <td class="c-pn-std"><span class="pid">8</span><span class="pn" title="康庭瑞">康庭瑞</span></td>
-        <td class="c-score-std"><span class="pscore">4.5分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v top pos">87.9%</span></td>
+        <td class="c-pct-std"><span class="v top pos">100.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">2.95</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-mid"><span class="rk-idx">第2名</span><span class="rk-val">16.7%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第3名</span><span class="rk-val">71.2%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第4名</span><span class="rk-val">12.1%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-4" title="第 2 名: 16.68%"></i><i class="m-seg hm-lvl-6" title="第 3 名: 71.23%"></i><i class="m-seg hm-lvl-3" title="第 4 名: 12.08%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-7" type="button" onclick="event.stopPropagation(); toggleRow(7)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">4</td>
+      <tr class="detail-row" id="detail-7" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-4" title="第 2 名: 16.6840% (1,668,397次)"><span class="hm-rk">2</span><span class="hm-val">16.7%</span></div><div class="hm-cell hm-lvl-6" title="第 3 名: 71.2322% (7,123,217次)"><span class="hm-rk">3</span><span class="hm-val">71.2%</span></div><div class="hm-cell hm-lvl-3" title="第 4 名: 12.0839% (1,208,386次)"><span class="hm-rk">4</span><span class="hm-val">12.1%</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 8 名: 0.0000% (0次)"><span class="hm-rk">8</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 10 名: 0.0000% (0次)"><span class="hm-rk">10</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 11 名: 0.0000% (0次)"><span class="hm-rk">11</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 12 名: 0.0000% (0次)"><span class="hm-rk">12</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-10" onclick="toggleRow(10)">
         <td class="c-pn-std"><span class="pid">11</span><span class="pn" title="丁泽宇">丁泽宇</span></td>
-        <td class="c-score-std"><span class="pscore">3.5分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
+        <td class="c-pct-std"><span class="v top pos">100.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">4.54</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-hi"><span class="rk-idx">第4名</span><span class="rk-val">75.0%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第5名</span><span class="rk-val">14.8%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第7名</span><span class="rk-val">1.2%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第8名</span><span class="rk-val">9.0%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-6" title="第 4 名: 74.96%"></i><i class="m-seg hm-lvl-3" title="第 5 名: 14.82%"></i><i class="m-seg hm-lvl-1" title="第 6 名: 0.04%"></i><i class="m-seg hm-lvl-2" title="第 7 名: 1.18%"></i><i class="m-seg hm-lvl-3" title="第 8 名: 9.01%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-10" type="button" onclick="event.stopPropagation(); toggleRow(10)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">5</td>
+      <tr class="detail-row" id="detail-10" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-6" title="第 4 名: 74.9588% (7,495,876次)"><span class="hm-rk">4</span><span class="hm-val">75.0%</span></div><div class="hm-cell hm-lvl-3" title="第 5 名: 14.8202% (1,482,021次)"><span class="hm-rk">5</span><span class="hm-val">14.8%</span></div><div class="hm-cell hm-lvl-1" title="第 6 名: 0.0379% (3,787次)"><span class="hm-rk">6</span><span class="hm-val">0.04%</span></div><div class="hm-cell hm-lvl-2" title="第 7 名: 1.1753% (117,526次)"><span class="hm-rk">7</span><span class="hm-val">1.2%</span></div><div class="hm-cell hm-lvl-3" title="第 8 名: 9.0079% (900,790次)"><span class="hm-rk">8</span><span class="hm-val">9.0%</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 10 名: 0.0000% (0次)"><span class="hm-rk">10</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 11 名: 0.0000% (0次)"><span class="hm-rk">11</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 12 名: 0.0000% (0次)"><span class="hm-rk">12</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-15" onclick="toggleRow(15)">
         <td class="c-pn-std"><span class="pid">16</span><span class="pn" title="李嘉骏">李嘉骏</span></td>
-        <td class="c-score-std"><span class="pscore">4分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v bold">12.1%</span></td>
+        <td class="c-pct-std"><span class="v top pos">100.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">5.24</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第3名</span><span class="rk-val">12.1%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第4名</span><span class="rk-val">6.7%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第5名</span><span class="rk-val">26.0%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第6名</span><span class="rk-val">55.3%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-3" title="第 3 名: 12.08%"></i><i class="m-seg hm-lvl-3" title="第 4 名: 6.68%"></i><i class="m-seg hm-lvl-4" title="第 5 名: 26.02%"></i><i class="m-seg hm-lvl-5" title="第 6 名: 55.22%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-15" type="button" onclick="event.stopPropagation(); toggleRow(15)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">6</td>
+      <tr class="detail-row" id="detail-15" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-3" title="第 3 名: 12.0839% (1,208,386次)"><span class="hm-rk">3</span><span class="hm-val">12.1%</span></div><div class="hm-cell hm-lvl-3" title="第 4 名: 6.6789% (667,891次)"><span class="hm-rk">4</span><span class="hm-val">6.7%</span></div><div class="hm-cell hm-lvl-4" title="第 5 名: 26.0207% (2,602,073次)"><span class="hm-rk">5</span><span class="hm-val">26.0%</span></div><div class="hm-cell hm-lvl-5" title="第 6 名: 55.2165% (5,521,650次)"><span class="hm-rk">6</span><span class="hm-val">55.2%</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 8 名: 0.0000% (0次)"><span class="hm-rk">8</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 10 名: 0.0000% (0次)"><span class="hm-rk">10</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 11 名: 0.0000% (0次)"><span class="hm-rk">11</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 12 名: 0.0000% (0次)"><span class="hm-rk">12</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-4" onclick="toggleRow(4)">
         <td class="c-pn-std"><span class="pid">5</span><span class="pn" title="Startsev Maksim">Startsev Maksim</span></td>
-        <td class="c-score-std"><span class="pscore">3分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
+        <td class="c-pct-std"><span class="v top pos">96.4%</span></td>
         <td class="c-exp-std"><span class="exp-badge">5.58</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第4名</span><span class="rk-val">6.0%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第5名</span><span class="rk-val">55.2%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第6名</span><span class="rk-val">23.7%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第7名</span><span class="rk-val">11.2%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第8名</span><span class="rk-val">0.3%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第9名</span><span class="rk-val">0.9%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第10名</span><span class="rk-val">2.1%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第11名</span><span class="rk-val">0.5%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-3" title="第 4 名: 5.98%"></i><i class="m-seg hm-lvl-5" title="第 5 名: 55.26%"></i><i class="m-seg hm-lvl-4" title="第 6 名: 23.73%"></i><i class="m-seg hm-lvl-3" title="第 7 名: 11.16%"></i><i class="m-seg hm-lvl-1" title="第 8 名: 0.29%"></i><i class="m-seg hm-lvl-1" title="第 9 名: 0.95%"></i><i class="m-seg hm-lvl-2" title="第 10 名: 2.06%"></i><i class="m-seg hm-lvl-1" title="第 11 名: 0.53%"></i><i class="m-seg hm-lvl-1" title="第 12 名: 0.04%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-4" type="button" onclick="event.stopPropagation(); toggleRow(4)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">7</td>
+      <tr class="detail-row" id="detail-4" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-3" title="第 4 名: 5.9831% (598,308次)"><span class="hm-rk">4</span><span class="hm-val">6.0%</span></div><div class="hm-cell hm-lvl-5" title="第 5 名: 55.2631% (5,526,309次)"><span class="hm-rk">5</span><span class="hm-val">55.3%</span></div><div class="hm-cell hm-lvl-4" title="第 6 名: 23.7336% (2,373,364次)"><span class="hm-rk">6</span><span class="hm-val">23.7%</span></div><div class="hm-cell hm-lvl-3" title="第 7 名: 11.1583% (1,115,830次)"><span class="hm-rk">7</span><span class="hm-val">11.2%</span></div><div class="hm-cell hm-lvl-1" title="第 8 名: 0.2911% (29,108次)"><span class="hm-rk">8</span><span class="hm-val">0.3%</span></div><div class="hm-cell hm-lvl-1" title="第 9 名: 0.9483% (94,829次)"><span class="hm-rk">9</span><span class="hm-val">0.9%</span></div><div class="hm-cell hm-lvl-2" title="第 10 名: 2.0582% (205,819次)"><span class="hm-rk">10</span><span class="hm-val">2.1%</span></div><div class="hm-cell hm-lvl-1" title="第 11 名: 0.5284% (52,845次)"><span class="hm-rk">11</span><span class="hm-val">0.5%</span></div><div class="hm-cell hm-lvl-1" title="第 12 名: 0.0359% (3,588次)"><span class="hm-rk">12</span><span class="hm-val">0.04%</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-13" onclick="toggleRow(13)">
         <td class="c-pn-std"><span class="pid">14</span><span class="pn" title="Sidorov Mikhail">Sidorov Mikhail</span></td>
-        <td class="c-score-std"><span class="pscore">3分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
+        <td class="c-pct-std"><span class="v top pos">81.6%</span></td>
         <td class="c-exp-std"><span class="exp-badge">7.29</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第4名</span><span class="rk-val">0.3%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第5名</span><span class="rk-val">3.8%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第6名</span><span class="rk-val">16.3%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第7名</span><span class="rk-val">59.4%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第8名</span><span class="rk-val">1.8%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第9名</span><span class="rk-val">5.5%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第10名</span><span class="rk-val">10.7%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第11名</span><span class="rk-val">2.1%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第12名</span><span class="rk-val">0.1%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 4 名: 0.31%"></i><i class="m-seg hm-lvl-2" title="第 5 名: 3.84%"></i><i class="m-seg hm-lvl-4" title="第 6 名: 16.24%"></i><i class="m-seg hm-lvl-5" title="第 7 名: 59.44%"></i><i class="m-seg hm-lvl-2" title="第 8 名: 1.77%"></i><i class="m-seg hm-lvl-3" title="第 9 名: 5.54%"></i><i class="m-seg hm-lvl-3" title="第 10 名: 10.67%"></i><i class="m-seg hm-lvl-2" title="第 11 名: 2.10%"></i><i class="m-seg hm-lvl-1" title="第 12 名: 0.08%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-13" type="button" onclick="event.stopPropagation(); toggleRow(13)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">8</td>
+      <tr class="detail-row" id="detail-13" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-1" title="第 4 名: 0.3088% (30,883次)"><span class="hm-rk">4</span><span class="hm-val">0.3%</span></div><div class="hm-cell hm-lvl-2" title="第 5 名: 3.8387% (383,866次)"><span class="hm-rk">5</span><span class="hm-val">3.8%</span></div><div class="hm-cell hm-lvl-4" title="第 6 名: 16.2442% (1,624,419次)"><span class="hm-rk">6</span><span class="hm-val">16.2%</span></div><div class="hm-cell hm-lvl-5" title="第 7 名: 59.4445% (5,944,454次)"><span class="hm-rk">7</span><span class="hm-val">59.4%</span></div><div class="hm-cell hm-lvl-2" title="第 8 名: 1.7728% (177,275次)"><span class="hm-rk">8</span><span class="hm-val">1.8%</span></div><div class="hm-cell hm-lvl-3" title="第 9 名: 5.5440% (554,399次)"><span class="hm-rk">9</span><span class="hm-val">5.5%</span></div><div class="hm-cell hm-lvl-3" title="第 10 名: 10.6661% (1,066,608次)"><span class="hm-rk">10</span><span class="hm-val">10.7%</span></div><div class="hm-cell hm-lvl-2" title="第 11 名: 2.0972% (209,724次)"><span class="hm-rk">11</span><span class="hm-val">2.1%</span></div><div class="hm-cell hm-lvl-1" title="第 12 名: 0.0837% (8,372次)"><span class="hm-rk">12</span><span class="hm-val">0.08%</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-14" onclick="toggleRow(14)">
         <td class="c-pn-std"><span class="pid">15</span><span class="pn" title="Kazantsev Konstantin">Kazantsev Konstantin</span></td>
-        <td class="c-score-std"><span class="pscore">3分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
+        <td class="c-pct-std"><span class="v bold">30.9%</span></td>
         <td class="c-exp-std"><span class="exp-badge">9.03</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第5名</span><span class="rk-val">0.1%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第6名</span><span class="rk-val">2.8%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第7名</span><span class="rk-val">16.2%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第8名</span><span class="rk-val">11.8%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第9名</span><span class="rk-val">21.3%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第10名</span><span class="rk-val">39.6%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第11名</span><span class="rk-val">7.8%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第12名</span><span class="rk-val">0.4%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 5 名: 0.11%"></i><i class="m-seg hm-lvl-2" title="第 6 名: 2.79%"></i><i class="m-seg hm-lvl-4" title="第 7 名: 16.24%"></i><i class="m-seg hm-lvl-3" title="第 8 名: 11.78%"></i><i class="m-seg hm-lvl-4" title="第 9 名: 21.32%"></i><i class="m-seg hm-lvl-5" title="第 10 名: 39.55%"></i><i class="m-seg hm-lvl-3" title="第 11 名: 7.82%"></i><i class="m-seg hm-lvl-1" title="第 12 名: 0.40%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-14" type="button" onclick="event.stopPropagation(); toggleRow(14)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">9</td>
+      <tr class="detail-row" id="detail-14" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-1" title="第 5 名: 0.1065% (10,649次)"><span class="hm-rk">5</span><span class="hm-val">0.1%</span></div><div class="hm-cell hm-lvl-2" title="第 6 名: 2.7852% (278,523次)"><span class="hm-rk">6</span><span class="hm-val">2.8%</span></div><div class="hm-cell hm-lvl-4" title="第 7 名: 16.2392% (1,623,920次)"><span class="hm-rk">7</span><span class="hm-val">16.2%</span></div><div class="hm-cell hm-lvl-3" title="第 8 名: 11.7796% (1,177,964次)"><span class="hm-rk">8</span><span class="hm-val">11.8%</span></div><div class="hm-cell hm-lvl-4" title="第 9 名: 21.3160% (2,131,600次)"><span class="hm-rk">9</span><span class="hm-val">21.3%</span></div><div class="hm-cell hm-lvl-5" title="第 10 名: 39.5546% (3,955,464次)"><span class="hm-rk">10</span><span class="hm-val">39.6%</span></div><div class="hm-cell hm-lvl-3" title="第 11 名: 7.8238% (782,376次)"><span class="hm-rk">11</span><span class="hm-val">7.8%</span></div><div class="hm-cell hm-lvl-1" title="第 12 名: 0.3950% (39,504次)"><span class="hm-rk">12</span><span class="hm-val">0.4%</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-9" onclick="toggleRow(9)">
         <td class="c-pn-std"><span class="pid">10</span><span class="pn" title="潘冠臣">潘冠臣</span></td>
-        <td class="c-score-std"><span class="pscore">2.5分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
+        <td class="c-pct-std"><span class="v top pos">65.8%</span></td>
         <td class="c-exp-std"><span class="exp-badge">9.05</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-hi"><span class="rk-idx">第8名</span><span class="rk-val">65.8%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第9名</span><span class="rk-val">15.9%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第10名</span><span class="rk-val">3.8%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第11名</span><span class="rk-val">0.6%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第12名</span><span class="rk-val">0.4%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第13名</span><span class="rk-val">3.7%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第14名</span><span class="rk-val">9.9%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-6" title="第 8 名: 65.79%"></i><i class="m-seg hm-lvl-4" title="第 9 名: 15.86%"></i><i class="m-seg hm-lvl-2" title="第 10 名: 3.79%"></i><i class="m-seg hm-lvl-1" title="第 11 名: 0.60%"></i><i class="m-seg hm-lvl-1" title="第 12 名: 0.40%"></i><i class="m-seg hm-lvl-2" title="第 13 名: 3.66%"></i><i class="m-seg hm-lvl-3" title="第 14 名: 9.90%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-9" type="button" onclick="event.stopPropagation(); toggleRow(9)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">10</td>
+      <tr class="detail-row" id="detail-9" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-6" title="第 8 名: 65.7945% (6,579,446次)"><span class="hm-rk">8</span><span class="hm-val">65.8%</span></div><div class="hm-cell hm-lvl-4" title="第 9 名: 15.8614% (1,586,143次)"><span class="hm-rk">9</span><span class="hm-val">15.9%</span></div><div class="hm-cell hm-lvl-2" title="第 10 名: 3.7870% (378,697次)"><span class="hm-rk">10</span><span class="hm-val">3.8%</span></div><div class="hm-cell hm-lvl-1" title="第 11 名: 0.6029% (60,286次)"><span class="hm-rk">11</span><span class="hm-val">0.6%</span></div><div class="hm-cell hm-lvl-1" title="第 12 名: 0.4001% (40,008次)"><span class="hm-rk">12</span><span class="hm-val">0.4%</span></div><div class="hm-cell hm-lvl-2" title="第 13 名: 3.6560% (365,604次)"><span class="hm-rk">13</span><span class="hm-val">3.7%</span></div><div class="hm-cell hm-lvl-3" title="第 14 名: 9.8982% (989,816次)"><span class="hm-rk">14</span><span class="hm-val">9.9%</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-8" onclick="toggleRow(8)">
         <td class="c-pn-std"><span class="pid">9</span><span class="pn" title="Vershinin Ivan">Vershinin Ivan</span></td>
-        <td class="c-score-std"><span class="pscore">2.5分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
+        <td class="c-pct-std"><span class="v bold">10.9%</span></td>
         <td class="c-exp-std"><span class="exp-badge">9.87</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第8名</span><span class="rk-val">10.9%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第9名</span><span class="rk-val">51.1%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第10名</span><span class="rk-val">12.8%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第11名</span><span class="rk-val">6.0%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第12名</span><span class="rk-val">4.7%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第13名</span><span class="rk-val">12.4%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第14名</span><span class="rk-val">1.9%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-3" title="第 8 名: 10.93%"></i><i class="m-seg hm-lvl-5" title="第 9 名: 51.15%"></i><i class="m-seg hm-lvl-3" title="第 10 名: 12.84%"></i><i class="m-seg hm-lvl-3" title="第 11 名: 6.04%"></i><i class="m-seg hm-lvl-2" title="第 12 名: 4.70%"></i><i class="m-seg hm-lvl-3" title="第 13 名: 12.39%"></i><i class="m-seg hm-lvl-2" title="第 14 名: 1.94%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-8" type="button" onclick="event.stopPropagation(); toggleRow(8)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">11</td>
+      <tr class="detail-row" id="detail-8" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-3" title="第 8 名: 10.9304% (1,093,039次)"><span class="hm-rk">8</span><span class="hm-val">10.9%</span></div><div class="hm-cell hm-lvl-5" title="第 9 名: 51.1525% (5,115,254次)"><span class="hm-rk">9</span><span class="hm-val">51.2%</span></div><div class="hm-cell hm-lvl-3" title="第 10 名: 12.8403% (1,284,030次)"><span class="hm-rk">10</span><span class="hm-val">12.8%</span></div><div class="hm-cell hm-lvl-3" title="第 11 名: 6.0397% (603,967次)"><span class="hm-rk">11</span><span class="hm-val">6.0%</span></div><div class="hm-cell hm-lvl-2" title="第 12 名: 4.6992% (469,919次)"><span class="hm-rk">12</span><span class="hm-val">4.7%</span></div><div class="hm-cell hm-lvl-3" title="第 13 名: 12.3942% (1,239,423次)"><span class="hm-rk">13</span><span class="hm-val">12.4%</span></div><div class="hm-cell hm-lvl-2" title="第 14 名: 1.9437% (194,368次)"><span class="hm-rk">14</span><span class="hm-val">1.9%</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-6" onclick="toggleRow(6)">
         <td class="c-pn-std"><span class="pid">7</span><span class="pn" title="周士杰">周士杰</span></td>
-        <td class="c-score-std"><span class="pscore">3分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
+        <td class="c-pct-std"><span class="v bold">4.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">10.57</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第6名</span><span class="rk-val">0.7%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第7名</span><span class="rk-val">3.0%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第8名</span><span class="rk-val">0.3%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第9名</span><span class="rk-val">4.1%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第10名</span><span class="rk-val">26.8%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第11名</span><span class="rk-val">56.8%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第12名</span><span class="rk-val">8.3%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 5 名: 0.04%"></i><i class="m-seg hm-lvl-1" title="第 6 名: 0.68%"></i><i class="m-seg hm-lvl-2" title="第 7 名: 2.99%"></i><i class="m-seg hm-lvl-1" title="第 8 名: 0.28%"></i><i class="m-seg hm-lvl-2" title="第 9 名: 4.07%"></i><i class="m-seg hm-lvl-4" title="第 10 名: 26.78%"></i><i class="m-seg hm-lvl-5" title="第 11 名: 56.85%"></i><i class="m-seg hm-lvl-3" title="第 12 名: 8.32%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-6" type="button" onclick="event.stopPropagation(); toggleRow(6)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">12</td>
+      <tr class="detail-row" id="detail-6" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-1" title="第 5 名: 0.0392% (3,923次)"><span class="hm-rk">5</span><span class="hm-val">0.04%</span></div><div class="hm-cell hm-lvl-1" title="第 6 名: 0.6764% (67,640次)"><span class="hm-rk">6</span><span class="hm-val">0.7%</span></div><div class="hm-cell hm-lvl-2" title="第 7 名: 2.9866% (298,658次)"><span class="hm-rk">7</span><span class="hm-val">3.0%</span></div><div class="hm-cell hm-lvl-1" title="第 8 名: 0.2762% (27,624次)"><span class="hm-rk">8</span><span class="hm-val">0.3%</span></div><div class="hm-cell hm-lvl-2" title="第 9 名: 4.0696% (406,959次)"><span class="hm-rk">9</span><span class="hm-val">4.1%</span></div><div class="hm-cell hm-lvl-4" title="第 10 名: 26.7823% (2,678,230次)"><span class="hm-rk">10</span><span class="hm-val">26.8%</span></div><div class="hm-cell hm-lvl-5" title="第 11 名: 56.8501% (5,685,007次)"><span class="hm-rk">11</span><span class="hm-val">56.9%</span></div><div class="hm-cell hm-lvl-3" title="第 12 名: 8.3196% (831,959次)"><span class="hm-rk">12</span><span class="hm-val">8.3%</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-12" onclick="toggleRow(12)">
         <td class="c-pn-std"><span class="pid">13</span><span class="pn" title="Noskov Pavel">Noskov Pavel</span></td>
-        <td class="c-score-std"><span class="pscore">3分</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
+        <td class="c-pct-std"><span class="v bold">10.3%</span></td>
         <td class="c-exp-std"><span class="exp-badge">11.74</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第6名</span><span class="rk-val">1.2%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第7名</span><span class="rk-val">9.0%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第8名</span><span class="rk-val">0.1%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第9名</span><span class="rk-val">1.1%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第10名</span><span class="rk-val">3.5%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第11名</span><span class="rk-val">13.2%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第12名</span><span class="rk-val">21.3%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第13名</span><span class="rk-val">50.6%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 5 名: 0.02%"></i><i class="m-seg hm-lvl-2" title="第 6 名: 1.19%"></i><i class="m-seg hm-lvl-3" title="第 7 名: 9.00%"></i><i class="m-seg hm-lvl-1" title="第 8 名: 0.15%"></i><i class="m-seg hm-lvl-2" title="第 9 名: 1.11%"></i><i class="m-seg hm-lvl-2" title="第 10 名: 3.54%"></i><i class="m-seg hm-lvl-3" title="第 11 名: 13.25%"></i><i class="m-seg hm-lvl-4" title="第 12 名: 21.48%"></i><i class="m-seg hm-lvl-5" title="第 13 名: 50.27%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-12" type="button" onclick="event.stopPropagation(); toggleRow(12)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">13</td>
+      <tr class="detail-row" id="detail-12" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-1" title="第 5 名: 0.0187% (1,875次)"><span class="hm-rk">5</span><span class="hm-val">0.02%</span></div><div class="hm-cell hm-lvl-2" title="第 6 名: 1.1856% (118,557次)"><span class="hm-rk">6</span><span class="hm-val">1.2%</span></div><div class="hm-cell hm-lvl-3" title="第 7 名: 8.9961% (899,612次)"><span class="hm-rk">7</span><span class="hm-val">9.0%</span></div><div class="hm-cell hm-lvl-1" title="第 8 名: 0.1475% (14,754次)"><span class="hm-rk">8</span><span class="hm-val">0.1%</span></div><div class="hm-cell hm-lvl-2" title="第 9 名: 1.1082% (110,816次)"><span class="hm-rk">9</span><span class="hm-val">1.1%</span></div><div class="hm-cell hm-lvl-2" title="第 10 名: 3.5363% (353,626次)"><span class="hm-rk">10</span><span class="hm-val">3.5%</span></div><div class="hm-cell hm-lvl-3" title="第 11 名: 13.2532% (1,325,316次)"><span class="hm-rk">11</span><span class="hm-val">13.3%</span></div><div class="hm-cell hm-lvl-4" title="第 12 名: 21.4801% (2,148,013次)"><span class="hm-rk">12</span><span class="hm-val">21.5%</span></div><div class="hm-cell hm-lvl-5" title="第 13 名: 50.2743% (5,027,431次)"><span class="hm-rk">13</span><span class="hm-val">50.3%</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 15 名: 0.0000% (0次)"><span class="hm-rk">15</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-0" onclick="toggleRow(0)">
         <td class="c-pn-std"><span class="pid">1</span><span class="pn" title="王鑫宇">王鑫宇</span></td>
-        <td class="c-score-std"><span class="pscore">2分</span></td>
+        <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">12.21</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第10名</span><span class="rk-val">0.4%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第11名</span><span class="rk-val">10.3%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第12名</span><span class="rk-val">62.0%</span></span><span class="rk-pill rk-mid"><span class="rk-idx">第13名</span><span class="rk-val">22.8%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第14名</span><span class="rk-val">4.0%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第15名</span><span class="rk-val">0.5%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 10 名: 0.44%"></i><i class="m-seg hm-lvl-3" title="第 11 名: 10.27%"></i><i class="m-seg hm-lvl-5" title="第 12 名: 62.01%"></i><i class="m-seg hm-lvl-4" title="第 13 名: 22.75%"></i><i class="m-seg hm-lvl-2" title="第 14 名: 4.02%"></i><i class="m-seg hm-lvl-1" title="第 15 名: 0.50%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-0" type="button" onclick="event.stopPropagation(); toggleRow(0)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">14</td>
+      <tr class="detail-row" id="detail-0" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 8 名: 0.0000% (0次)"><span class="hm-rk">8</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-1" title="第 10 名: 0.4365% (43,648次)"><span class="hm-rk">10</span><span class="hm-val">0.4%</span></div><div class="hm-cell hm-lvl-3" title="第 11 名: 10.2721% (1,027,213次)"><span class="hm-rk">11</span><span class="hm-val">10.3%</span></div><div class="hm-cell hm-lvl-5" title="第 12 名: 62.0136% (6,201,356次)"><span class="hm-rk">12</span><span class="hm-val">62.0%</span></div><div class="hm-cell hm-lvl-4" title="第 13 名: 22.7500% (2,275,004次)"><span class="hm-rk">13</span><span class="hm-val">22.8%</span></div><div class="hm-cell hm-lvl-2" title="第 14 名: 4.0238% (402,377次)"><span class="hm-rk">14</span><span class="hm-val">4.0%</span></div><div class="hm-cell hm-lvl-1" title="第 15 名: 0.5040% (50,402次)"><span class="hm-rk">15</span><span class="hm-val">0.5%</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-2" onclick="toggleRow(2)">
         <td class="c-pn-std"><span class="pid">3</span><span class="pn" title="药博凡">药博凡</span></td>
-        <td class="c-score-std"><span class="pscore">2分</span></td>
+        <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">13.85</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第10名</span><span class="rk-val">0.4%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第11名</span><span class="rk-val">2.6%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第12名</span><span class="rk-val">2.8%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第13名</span><span class="rk-val">9.4%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第14名</span><span class="rk-val">75.3%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第15名</span><span class="rk-val">9.5%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 10 名: 0.48%"></i><i class="m-seg hm-lvl-2" title="第 11 名: 2.58%"></i><i class="m-seg hm-lvl-2" title="第 12 名: 3.01%"></i><i class="m-seg hm-lvl-3" title="第 13 名: 9.05%"></i><i class="m-seg hm-lvl-6" title="第 14 名: 75.35%"></i><i class="m-seg hm-lvl-3" title="第 15 名: 9.53%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
+            <button class="btn-expand" id="btn-exp-2" type="button" onclick="event.stopPropagation(); toggleRow(2)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">15</td>
+      <tr class="detail-row" id="detail-2" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 8 名: 0.0000% (0次)"><span class="hm-rk">8</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-1" title="第 10 名: 0.4758% (47,582次)"><span class="hm-rk">10</span><span class="hm-val">0.5%</span></div><div class="hm-cell hm-lvl-2" title="第 11 名: 2.5810% (258,095次)"><span class="hm-rk">11</span><span class="hm-val">2.6%</span></div><div class="hm-cell hm-lvl-2" title="第 12 名: 3.0129% (301,287次)"><span class="hm-rk">12</span><span class="hm-val">3.0%</span></div><div class="hm-cell hm-lvl-3" title="第 13 名: 9.0547% (905,466次)"><span class="hm-rk">13</span><span class="hm-val">9.1%</span></div><div class="hm-cell hm-lvl-6" title="第 14 名: 75.3496% (7,534,957次)"><span class="hm-rk">14</span><span class="hm-val">75.3%</span></div><div class="hm-cell hm-lvl-3" title="第 15 名: 9.5261% (952,613次)"><span class="hm-rk">15</span><span class="hm-val">9.5%</span></div><div class="hm-cell hm-lvl-0" title="第 16 名: 0.0000% (0次)"><span class="hm-rk">16</span><span class="hm-val hm-zero">-</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-1" onclick="toggleRow(1)">
         <td class="c-pn-std"><span class="pid">2</span><span class="pn" title="Barinov Random">Barinov Random</span></td>
-        <td class="c-score-std"><span class="pscore">1分</span></td>
+        <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">14.89</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-lo"><span class="rk-idx">第13名</span><span class="rk-val">1.2%</span></span><span class="rk-pill rk-lo"><span class="rk-idx">第14名</span><span class="rk-val">8.8%</span></span><span class="rk-pill rk-hi"><span class="rk-idx">第15名</span><span class="rk-val">89.9%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-2" title="第 13 名: 1.25%"></i><i class="m-seg hm-lvl-3" title="第 14 名: 8.78%"></i><i class="m-seg hm-lvl-6" title="第 15 名: 89.94%"></i><i class="m-seg hm-lvl-1" title="第 16 名: 0.03%"></i></span>
+            <button class="btn-expand" id="btn-exp-1" type="button" onclick="event.stopPropagation(); toggleRow(1)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-      <tr>
-        <td class="c-no">16</td>
+      <tr class="detail-row" id="detail-1" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 8 名: 0.0000% (0次)"><span class="hm-rk">8</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 10 名: 0.0000% (0次)"><span class="hm-rk">10</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 11 名: 0.0000% (0次)"><span class="hm-rk">11</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 12 名: 0.0000% (0次)"><span class="hm-rk">12</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-2" title="第 13 名: 1.2453% (124,533次)"><span class="hm-rk">13</span><span class="hm-val">1.2%</span></div><div class="hm-cell hm-lvl-3" title="第 14 名: 8.7848% (878,482次)"><span class="hm-rk">14</span><span class="hm-val">8.8%</span></div><div class="hm-cell hm-lvl-6" title="第 15 名: 89.9432% (8,994,319次)"><span class="hm-rk">15</span><span class="hm-val">89.9%</span></div><div class="hm-cell hm-lvl-1" title="第 16 名: 0.0267% (2,666次)"><span class="hm-rk">16</span><span class="hm-val">0.03%</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr class="player-row" id="prow-5" onclick="toggleRow(5)">
         <td class="c-pn-std"><span class="pid">6</span><span class="pn" title="蔡嘉睦">蔡嘉睦</span></td>
-        <td class="c-score-std"><span class="pscore">0分</span></td>
+        <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-pct-std"><span class="v">0.0%</span></td>
         <td class="c-exp-std"><span class="exp-badge">16.00</span></td>
-        <td class="c-dist-std"><div class="dist-wrap"><span class="rk-pill rk-hi"><span class="rk-idx">第16名</span><span class="rk-val">100.0%</span></span></div></td>
+        <td class="c-dist-std">
+          <div class="dist-preview-wrap">
+            <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 15 名: 0.03%"></i><i class="m-seg hm-lvl-6" title="第 16 名: 99.97%"></i></span>
+            <button class="btn-expand" id="btn-exp-5" type="button" onclick="event.stopPropagation(); toggleRow(5)"><span>展开</span><i class="arr">▾</i></button>
+          </div>
+        </td>
       </tr>
-        </tbody>
-      </table>
-
-      <div class="ft-rules">
-        <div class="ft-rules-title">
-          <span>◆</span> 破同分排序依据（严格遵循世青赛 RIF 瑞士积分制规程）：
-        </div>
-        <ol class="ft-rules-list">
-          <li><strong>最终总积分</strong>：高者列前。</li>
-          <li><strong>对手分 (Buchholz)</strong>：所有对手积分之和，高者列前。</li>
-          <li><strong>对手分去最低 1 (BhC1)</strong>：扣除一个最低对手积分后之和。</li>
-          <li><strong>对手分去最低 2 (BhC2)</strong>：扣除两个最低对手积分后之和。</li>
-          <li><strong>中间对手分 (MBh)</strong>：扣除一个最高和一个最低对手积分后之和。</li>
-          <li><strong>胜局数 (Wins)</strong>：总胜局数高者列前。</li>
-          <li><strong>直胜关系</strong>：同分棋手间直接对局结果（若相互全部交手）。</li>
-          <li><strong>并列平分</strong>：若上述指标依然完全相同，则判定并列，平分对应名次概率。</li>
-        </ol>
-        <div class="ft-rules-note">
-          ※ 演算基准：基于 2026-07-04 截止历史数据专属无泄漏模型，执行 2,000,000 次蒙特卡洛模拟抽样演算。
-        </div>
+      <tr class="detail-row" id="detail-5" style="display:none">
+        <td colspan="6" class="detail-cell">
+          <div class="detail-wrap">
+            <div class="hm-header">
+              <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+            </div>
+            <div class="hm-scroll">
+              <div class="hm-grid">
+                <div class="hm-cell hm-lvl-0" title="第 1 名: 0.0000% (0次)"><span class="hm-rk">1</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 2 名: 0.0000% (0次)"><span class="hm-rk">2</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 3 名: 0.0000% (0次)"><span class="hm-rk">3</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 4 名: 0.0000% (0次)"><span class="hm-rk">4</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 5 名: 0.0000% (0次)"><span class="hm-rk">5</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 6 名: 0.0000% (0次)"><span class="hm-rk">6</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 7 名: 0.0000% (0次)"><span class="hm-rk">7</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 8 名: 0.0000% (0次)"><span class="hm-rk">8</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 9 名: 0.0000% (0次)"><span class="hm-rk">9</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 10 名: 0.0000% (0次)"><span class="hm-rk">10</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 11 名: 0.0000% (0次)"><span class="hm-rk">11</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 12 名: 0.0000% (0次)"><span class="hm-rk">12</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 13 名: 0.0000% (0次)"><span class="hm-rk">13</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-0" title="第 14 名: 0.0000% (0次)"><span class="hm-rk">14</span><span class="hm-val hm-zero">-</span></div><div class="hm-cell hm-lvl-1" title="第 15 名: 0.0267% (2,666次)"><span class="hm-rk">15</span><span class="hm-val">0.03%</span></div><div class="hm-cell hm-lvl-6" title="第 16 名: 99.9733% (9,997,334次)"><span class="hm-rk">16</span><span class="hm-val">99.97%</span></div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
