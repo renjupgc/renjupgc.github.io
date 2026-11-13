@@ -16,9 +16,11 @@ zalun.html  zashi.html  zayu.html  zaji.html     四个栏目页
 posts/                文章页（24 篇），自成一体，只有正文在 HTML 里
 zayu/                 杂豫：赛事、成绩与棋手
   t{id}.html          每场赛事一页：赛事信息 + 成绩表
-  p/{姓名}.html       每位棋手一页：等级分走势、参赛记录、逐局战绩、成绩卡（614 页）
-  rating.html         等级分总表
-  shiguang.html       等级分时光机：拖时间轴看每个比赛日的榜单
+  p/{姓名}.html       每位棋手一页：等级分走势、参赛记录、逐局战绩、成绩卡
+                      （只给 data/public_players.txt 名单里的人出页，现 354 页）
+  rating.html         等级分总表（页角挂时光机入口）
+  shiguang.html       等级分时光机：拖时间轴看每个比赛日的先验榜单
+                      不单独列出，也不进 sitemap：只从 rating.html 的页角进
   renwu.html          人物小传
 zaji/                 杂技：工具页
   dapu.html           打谱（含开局命名、同型局、图片认谱）
@@ -47,6 +49,7 @@ assets/
 data/
   renju.db            赛事主库：tournaments / matches / ratings / players
   manual.db           手工补丁：改名、弃权、隐藏赛事、名次修正
+  public_players.txt  可公开的棋手名单：名册之外不出页、不进搜索、不挂内链
 
 tools/                构建脚本（见下）
 docs/ROADMAP.md       改进建议与创意清单
@@ -67,7 +70,7 @@ python -m http.server 8000
 
 ```bash
 python tools/build_zayu.py            # 赛事页 + 等级分表 + zayu.html
-python tools/build_rating_history.py  # 重放全部对局，导出等级分时序 JSON
+python tools/build_rating_history.py  # 按比赛日先验重放，导出等级分时序 JSON
 python tools/build_players.py         # 棋手主页（含走势图），并给等级分表里的姓名补内链
 python tools/build_qipu.py            # 从 matches.board_record 导出棋谱 JSON
 python tools/build_openings.py        # 导出有手顺的对局语料（开局命名 / 同型检索）
@@ -77,6 +80,10 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 ```
 
 后两个是「全站扫一遍」的脚本，可反复执行（幂等）：手写页面加了新文章、换了配图之后单独跑它们就行。
+
+`data/public_players.txt` 是可公开的棋手名单：`zayu/p/` 只给名单里的人出页，站内搜索与等级分表的
+内链也只认这份名单。名单之外的人照旧出现在成绩表里（那是赛事记录），但不单独出页、不进搜索。
+补人时确认后往名单里加一行，重跑 `build_players.py`。
 
 依赖只有 Python 3 标准库，没有第三方包。
 

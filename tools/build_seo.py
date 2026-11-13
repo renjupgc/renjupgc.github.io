@@ -42,8 +42,9 @@ RE_DATE = re.compile(
 )
 RE_LASTMOD = re.compile(r'<span class="date">(\d{4}-\d{2}-\d{2})</span>')
 
-# 不参与 sitemap 的页面
-SKIP_SITEMAP = {'404.html'}
+# 不参与 sitemap 的页面。时光机只在等级分表的角落里挂一个入口，不单独列出，
+# 也不进搜索（页头另有 noindex）。
+SKIP_SITEMAP = {'404.html', 'zayu/shiguang.html'}
 
 
 def html_files():

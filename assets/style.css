@@ -1869,17 +1869,41 @@ table.ratings .r-name a:hover {
 
 /* ---------- 等级分表页的入口提示 ---------- */
 
-.rating-hint {
-    margin: 14px 0 20px;
-    font-family: var(--sans);
-    font-size: 12.5px;
-    line-height: 1.85;
-    color: var(--ink-3);
+/* 等级分页角落的时光机入口：不占版面，只做个能点的小标 */
+.article-header.has-tm {
+    position: relative;
 }
 
-.rating-hint a {
+.tm-corner {
+    position: absolute;
+    right: 0;
+    top: -2px;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--faint);
+    text-decoration: none;
+    padding: 3px 8px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.tm-corner:hover {
     color: var(--gold-deep);
-    border-bottom: 1px solid rgba(176, 141, 87, 0.35);
+    border-color: rgba(176, 141, 87, 0.45);
+    background: var(--gold-tint);
+    text-decoration: none;
+}
+
+@media (max-width: 640px) {
+    .article-header.has-tm .tm-corner {
+        position: static;
+        display: inline-block;
+        margin: 0 0 6px;
+        padding-left: 0;
+        border: none;
+    }
 }
 
 .banner-text {

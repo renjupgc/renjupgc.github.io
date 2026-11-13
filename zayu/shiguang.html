@@ -4,21 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>等级分时光机 - 连珠杂箱</title>
-<meta name="description" content="拖动滑块回看每场赛事结束时的等级分榜单，点开棋手看他的分数曲线：等级分不再只是一张当前快照。">
+<meta name="description" content="每个比赛日单算一次榜单：只用当天及之前下完的局，点开棋手看他的分数曲线。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/zayu/shiguang.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
 <meta property="og:title" content="等级分时光机">
-<meta property="og:description" content="拖动滑块回看每场赛事结束时的等级分榜单，点开棋手看他的分数曲线：等级分不再只是一张当前快照。">
+<meta property="og:description" content="每个比赛日单算一次榜单：只用当天及之前下完的局，点开棋手看他的分数曲线。">
 <meta property="og:url" content="https://renjupgc.github.io/zayu/shiguang.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="等级分时光机">
-<meta name="twitter:description" content="拖动滑块回看每场赛事结束时的等级分榜单，点开棋手看他的分数曲线：等级分不再只是一张当前快照。">
+<meta name="twitter:description" content="每个比赛日单算一次榜单：只用当天及之前下完的局，点开棋手看他的分数曲线。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
+<meta name="robots" content="noindex">
 <link rel="stylesheet" href="../assets/style.css">
 <style>
 /* 时光机页专用。全站样式不动，这里只管本页的滑块与曲线。 */
@@ -195,7 +196,7 @@
 
 .tm-row {
     display: grid;
-    grid-template-columns: 42px minmax(0, 1fr) auto auto;
+    grid-template-columns: 42px minmax(0, 1fr) auto auto auto;
     align-items: baseline;
     gap: 10px;
     padding: 7px 8px;
@@ -239,6 +240,15 @@
 .tm-d.up { color: var(--win); }
 .tm-d.down { color: var(--loss); }
 
+/* 当时已下过的局数：早期的分数就靠这一列说明可比性 */
+.tm-g {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    text-align: right;
+    min-width: 34px;
+}
+
 .tm-p {
     font-family: var(--mono);
     font-size: 13px;
@@ -247,6 +257,8 @@
     text-align: right;
     min-width: 62px;
 }
+
+.tm-more[hidden] { display: none; }
 
 .tm-more {
     display: block;
@@ -308,7 +320,7 @@
 .tm-chart .dot { fill: var(--gold-deep); }
 .tm-chart .now { fill: var(--ink); }
 .tm-chart .now-ring { fill: none; stroke: var(--gold); stroke-width: 1.2; }
-.tm-chart .axis { fill: var(--faint); font-family: var(--mono); font-size: 9px; }
+.tm-chart .axis { fill: var(--faint); font-family: var(--mono); font-size: 10px; }
 
 .tm-foot {
     margin-top: 8px;
@@ -336,7 +348,7 @@
         <header class="page-head">
             <p class="eyebrow">杂豫 · 等级分</p>
             <h1 class="page-title">等级分时光机</h1>
-            <p class="page-desc">把全部对局按日期重放一遍，就有每个赛事结束时的榜单。拖动滑块往回看，点名字看这位棋手一路的起伏。</p>
+            <p class="page-desc">每个比赛日单独算一次：只用那天及之前下完的局，把当天的胜负并进去，得出那一刻的榜单。拖动滑块往回看，点名字看这位棋手一路的起伏。</p>
         </header>
 
         <section class="tm-console" aria-label="时点选择">

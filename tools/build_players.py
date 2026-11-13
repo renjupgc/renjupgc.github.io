@@ -54,6 +54,18 @@ ROOT = bz.ROOT
 POSTS_DIR = os.path.join(ROOT, 'posts')
 PLAYER_DIR = os.path.join(bz.DETAIL_DIR, 'p')
 SEARCH_OUT = os.path.join(ROOT, 'assets', 'players.js')
+PUBLIC_FILE = os.path.join(ROOT, 'data', 'public_players.txt')
+
+
+def public_players():
+    """可以公开的棋手名单。名单之外的人不出页面、不进搜索、不挂内链。
+
+    没有这份名单就当作不能公开——宁可少生成，也不要顺手把没确认的人推上台面。
+    """
+    if not os.path.exists(PUBLIC_FILE):
+        sys.exit('！ 缺 %s：它决定谁能公开，缺了就不生成任何个人主页。' % PUBLIC_FILE)
+    with open(PUBLIC_FILE, encoding='utf-8') as f:
+        return {ln.strip() for ln in f if ln.strip() and not ln.startswith('#')}
 
 # 一篇文章属于杂史栏目，看它正文里的栏目链接
 ZASHI_MARK = '栏目：<a href="../zashi.html">'
@@ -498,8 +510,8 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                  '            <p class="pcard-row">',
                  '                <button class="pcard-btn" type="button" data-card>'
                  '存为成绩卡</button>',
-                 '                <span class="pcard-hint">把等级分、胜负与二维码画成一张图，'
-                 '发群里比截图清楚。</span>',
+                 '                <span class="pcard-hint">把等级分、段位、胜负与二维码'
+                 '画成一张图，发群里比截图清楚。</span>',
                  '            </p>',
                  '']
         body += curve_svg(name)
@@ -695,8 +707,9 @@ def curve_svg(name):
         % (W - padR, H - 6, bz.esc(DATES[last_i][:7])),
         '                </svg>',
         '                <p class="pcurve-note">每个折点是一场比赛日，平段就是那段时间没参赛。'
-        '截至 %s 为 %.2f 分；想看当时的全站排名，去'
-        '<a href="../shiguang.html">等级分时光机</a>。</p>'
+        '折点都是「当时分」：只用截至当天的对局重算，不掺后来的胜负，'
+        '最后一点（%s）为 %.2f 分。它与上方公示表的绝对值口径不同，'
+        '看涨落与位置即可。</p>'
         % (bz.esc(DATES[last_i]), last_v),
         '            </section>',
         '',
@@ -756,6 +769,7 @@ def write_search_index(names, ratings, profiles):
 
 def main():
     ratings, tournaments, matches = load_db()
+    public = public_players()
     rated_names = [r['name'] for r in ratings]
     rated = set(rated_names)
     profiles = dict(rw.RENWU)
@@ -763,11 +777,18 @@ def main():
 
     # 只在成绩表里出场过、还没入榜的棋手也各出一页：成绩表里的姓名要能点进来。
     # 以「出场过」为准，而不是「有正式对局」——只下过弃权局的棋手同样在表里有名。
-    unrated = sorted(n for n in bz.all_players(matches) if n not in rated)
+    # 但只有名单里的人才出页：名单之外的照旧留在成绩表里（那是赛事记录），
+    # 不单独出页、不进搜索，也不给内链。
+    unrated = sorted(n for n in bz.all_players(matches)
+                     if n not in rated and n in public)
 
     # 还有一类：杂豫「山河四省连珠人物」里写着，却既不进榜也不在成绩表里出场
     # （教练、裁判、名宿）。那一栏的姓名同样要能点进来，所以也各建一页。
-    solo = sorted(n for n in profiles if n not in rated and n not in set(unrated))
+    solo = sorted(n for n in profiles
+                  if n not in rated and n not in set(unrated) and n in public)
+
+    # 入榜者的个人主页同样受名单约束：榜上有名不等于可以单独出页。
+    rated_names = [n for n in rated_names if n in public]
 
     zposts = zashi_posts(rated_names + unrated + solo)
     reports = person_reports(zposts)
@@ -797,12 +818,15 @@ def main():
     index = set(names)
 
     os.makedirs(PLAYER_DIR, exist_ok=True)
+    # 名单内的人重写覆盖；名单外的（含此前生成、如今撤下的）一并删掉
     for old in os.listdir(PLAYER_DIR):
-        if old.endswith('.html'):
+        if old.endswith('.html') and old[:-5] not in index:
             os.remove(os.path.join(PLAYER_DIR, old))
 
     for rec in ratings + extra:
         name = rec['name']
+        if name not in index:            # 榜上有名但不在公开名单里，不出页
+            continue
         html = page(name, rec, stats.get(name, []), games.get(name, []),
                     reports.get(name, []), index, len(rated_names), arts,
                     EXTRA_EVENTS.get(name, ()), profiles.get(name))
@@ -818,6 +842,8 @@ def main():
     print('主页   ->', PLAYER_DIR,
           '(%d 页：入榜 %d，未入榜 %d，人物页 %d)'
           % (len(names), len(rated_names), len(unrated), len(solo)))
+    band = sorted(n for n in bz.all_players(matches) if n not in public)
+    print('名单外 ->', '%d 人不出页、不进搜索（成绩表里仍是纯文本）' % len(band))
     print('索引   ->', SEARCH_OUT, '(%d 人)' % made)
     print('内链   ->', bz.RATING_OUT, '(%d 处)' % linked)
     print('杂史   ->', len(zposts), '篇')

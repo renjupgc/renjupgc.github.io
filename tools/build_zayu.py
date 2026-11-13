@@ -44,6 +44,8 @@ MANUAL_DB = os.path.join(ROOT, 'data', 'manual.db')
 LIST_OUT = os.path.join(ROOT, 'zayu.html')
 DETAIL_DIR = os.path.join(ROOT, 'zayu')
 RATING_OUT = os.path.join(DETAIL_DIR, 'rating.html')
+# 可公开的棋手名单：名册外的人不出个人主页，姓名也就不做内链
+PUBLIC_FILE = os.path.join(ROOT, 'data', 'public_players.txt')
 
 # 等级分参数：沿用 WHR 公开实现（renjurating）的取值
 RATING_W2 = 19.3          # 等级分随时间的波动幅度
@@ -94,6 +96,19 @@ def esc(s):
 def player_href(name):
     """棋手个人主页的内链（页面由 tools/build_players.py 生成）。"""
     return 'p/%s.html' % quote(name)
+
+
+def public_names():
+    """可公开的棋手名单（data/public_players.txt），由 build_players 出页时遵循。
+
+    名单之外的棋手仍然出现在成绩表里——那是赛事记录——但不单独立页，
+    姓名也就不该是链接，免得点出一个不存在的地址。
+    """
+    try:
+        with open(PUBLIC_FILE, encoding='utf-8') as f:
+            return {ln.strip() for ln in f if ln.strip() and not ln.startswith('#')}
+    except FileNotFoundError:
+        return set()
 
 
 def name_cell(name, players):
@@ -547,17 +562,16 @@ def compute_ratings(ms, unis, regions, apply_threshold=True):
 
 
 def rating_page(rows, as_of, n_tournaments, n_games):
-    body = ['        <header class="article-header">',
+    body = ['        <header class="article-header has-tm">',
+            # 时光机不单独列出，只在页角留一个入口
+            '            <a class="tm-corner" href="shiguang.html"'
+            ' title="每个比赛日单算一次，回看当时的榜单">等级分时光机 ›</a>',
             '            <h1 class="article-title">河南高校爱好者等级分</h1>',
             '            <div class="article-meta">',
             '                <span>栏目：<a href="../zayu.html">杂豫</a></span>',
             '                <span>%s 更新</span>' % esc(as_of),
             '            </div>',
             '        </header>',
-            '',
-            '        <p class="rating-hint">这张表只有最后时点。想看每个人一路怎么走上来，'
-            '去<a href="shiguang.html">等级分时光机</a>拖时间轴：任一时刻的榜单、'
-            '在位次上上下下的箭头、个人的等级分曲线都在那儿。</p>',
             '',
             '        <div class="table-scroll">',
             '        <table class="ratings">',
@@ -570,12 +584,13 @@ def rating_page(rows, as_of, n_tournaments, n_games):
             '            </tr></thead>',
             '            <tbody>']
 
+    public = public_names()
     for r in rows:
         body.append('                <tr><td class="r-rank">%d</td>'
-                    '<td class="r-name"><a href="%s">%s</a></td>'
+                    '<td class="r-name">%s</td>'
                     '<td class="r-region">%s</td><td class="r-uni">%s</td>'
                     '<td class="r-pt">%.2f</td></tr>'
-                    % (r['rank'], player_href(r['name']), esc(r['name']),
+                    % (r['rank'], name_cell(r['name'], public),
                        esc(r['region'] or '—'), esc(r['uni'] or '—'), r['pt']))
 
     body += ['            </tbody>',

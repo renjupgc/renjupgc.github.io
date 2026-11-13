@@ -1,7 +1,7 @@
 /*
  * 棋手成绩卡
  * ------------------------------------------------------------
- * 把棋手页上的几个数字画成一张图：等级分、名次、胜负环、二维码。
+ * 把棋手页上的几个数字画成一张图：等级分、段位、名次、胜负环、二维码。
  * 群里发战绩，截图往往糊，还带着别人的头像；这张图是干净的。
  *
  * - 数据全部从当前页面读，不额外请求接口；
@@ -63,8 +63,16 @@
         });
 
         var wdl = (stats['胜 / 和 / 负'] || '').split('/').map(function (x) { return num(x); });
+
+        /* 段位写在「人物」一节的开头。那一栏偶尔放的是职务或名次（「协会执行会长」
+           「公开组冠军」），只有真像段位／棋士等级的才往卡片上放。 */
+        var danEl = main.querySelector('.p-renwu .rh-dan');
+        var dan = danEl ? danEl.textContent.trim() : '';
+        if (!/段|棋士/.test(dan) || dan.indexOf('未载') >= 0) { dan = ''; }
+
         return {
             name: name,
+            dan: dan,
             region: meta[1] && meta[1] !== '—' ? meta[1] : '',
             uni: meta[2] && meta[2] !== '—' ? meta[2] : '',
             rating: stats['等级分'] || '',
@@ -176,9 +184,38 @@
         ctx.font = '600 66px ' + SERIF;
         ctx.fillText(p.name, L, 236);
 
+        /* 段位：有段位就在名字右边挂一枚小印；名字太长放不下时并入下一行 */
+        var nameW = ctx.measureText(p.name).width;
+        var danInline = false;
+        if (p.dan) {
+            ctx.save();
+            ctx.font = '500 22px ' + SANS;
+            var dw = ctx.measureText(p.dan).width;
+            ctx.restore();
+
+            var bx = L + nameW + 26;
+            var bw = dw + 38;
+            if (bx + bw <= W - L - 170) {          /* 右边留出给名次的位置 */
+                danInline = true;
+                ctx.fillStyle = C.goldTint;
+                roundRect(ctx, bx, 184, bw, 46, 10);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(176,141,87,0.55)';
+                ctx.lineWidth = 1.4;
+                roundRect(ctx, bx + 0.5, 184.5, bw - 1, 45, 10);
+                ctx.stroke();
+
+                ctx.fillStyle = C.goldDeep;
+                ctx.font = '500 22px ' + SANS;
+                ctx.textAlign = 'center';
+                ctx.fillText(p.dan, bx + bw / 2, 215);
+                ctx.textAlign = 'left';
+            }
+        }
+
         /* 地区、学校 */
-        var sub = [p.region, p.uni].filter(Boolean).join('　·　');
-        ctx.fillStyle = C.muted;
+        var sub = [danInline ? '' : p.dan, p.region, p.uni].filter(Boolean).join('　·　');
+        ctx.fillStyle = danInline ? C.muted : C.ink2;
         ctx.font = '20px ' + SANS;
         ctx.fillText(sub || '—', L, 288);
 

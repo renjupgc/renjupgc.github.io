@@ -2,9 +2,10 @@
  * 等级分时光机
  * ------------------------------------------------------------
  * 数据来自 assets/rating-history.js（由 tools/build_rating_history.py 生成）：
- * 每个时点一行分数，时点取「每场赛事结束那天」。
+ * 每个时点一行先验分，时点取「某个比赛日全部对局结束后」。某一时点只用该日
+ * 及之前的对局重算，不含后来的胜负——所以不是把最终分数倒推回去。
  *
- * 页面上的排名不预先算好，都在这里现排——252 人、几十个时点，排起来是瞬时的，
+ * 页面上的排名不预先算好，都在这里现排——252 人、十几个时点，排起来是瞬时的，
  * 数据文件也能小一半。
  *
  * 站内是无刷新跳转，换页时本文件不会重跑，所以逻辑挂在 boot() 上，
@@ -35,7 +36,8 @@
             if (v === null || v === undefined) {
                 continue;
             }
-            rows.push({ n: PLAYERS[k][0], v: v, rank: 0 });
+            var gs = (PLAYERS[k][2] || [])[i];
+            rows.push({ n: PLAYERS[k][0], v: v, g: gs || 0, rank: 0 });
         }
         rows.sort(function (a, b) {
             if (b.v !== a.v) { return b.v - a.v; }
@@ -112,8 +114,11 @@
         slider.max = String(N - 1);
 
         var hash = readHash();
+        /* 注意 #s=0 是合法值，不能用 `|| ` 兜底，否则第一帧会被当成没写 */
+        var want = parseInt(hash.s, 10);
+        if (isNaN(want)) { want = N - 1; }
         var state = {
-            idx: Math.max(0, Math.min(N - 1, parseInt(hash.s, 10) || (N - 1))),
+            idx: Math.max(0, Math.min(N - 1, want)),
             sel: hash.p && playerIndex(hash.p) >= 0 ? hash.p : '',
             limit: 20
         };
@@ -157,6 +162,7 @@
                     '<span class="tm-r">' + r.rank + '</span>' +
                     '<span class="tm-n">' + esc(r.n) + '</span>' +
                     d +
+                    '<span class="tm-g">' + (r.g ? r.g + ' 局' : '') + '</span>' +
                     '<span class="tm-p">' + r.v.toFixed(1) + '</span>' +
                     '</li>';
             }
@@ -265,7 +271,7 @@
 
         function renderSide() {
             if (!state.sel) {
-                side.innerHTML = '<p class="tm-side-empty">在左边点一位棋手，这里会画出他从首次出场到现在的等级分曲线。</p>';
+                side.innerHTML = '<p class="tm-side-empty">在左边点一位棋手，这里会画出他从首次出场到现在的先验等级分曲线。</p>';
                 return;
             }
             var pi = playerIndex(state.sel);
@@ -275,6 +281,7 @@
                 return;
             }
             var now = s.v[state.idx];
+            var nowG = (PLAYERS[pi][2] || [])[state.idx] || 0;
             var rank = 0;
             if (now !== null) {
                 var rows = rowsAt(state.idx);
@@ -292,12 +299,13 @@
                 '<p class="tm-side-meta">' +
                 (now === null
                     ? '此时尚未出场'
-                    : '此时第 <b>' + rank + '</b> 名 · <b>' + now.toFixed(1) + '</b> 分') +
+                    : '此时第 <b>' + rank + '</b> 名 · <b>' + now.toFixed(1) + '</b> 分'
+                      + (nowG ? '（' + nowG + ' 局）' : '')) +
                 '　｜　最高 <b>' + peak.toFixed(1) + '</b>' +
                 '</p>' +
                 chartSVG(s, state.idx) +
-                '<p class="tm-foot">横轴自 ' + SNAPS[s.first].d + ' 起，每个点是一场赛事。' +
-                '空档表示那段时间没参赛。</p>';
+                '<p class="tm-foot">横轴自 ' + SNAPS[s.first].d + ' 起，每个点是一个比赛日，'
+                + '取值只用该日及之前的对局。空档表示那段时间没参赛。</p>';
         }
 
         /* ---------- 整体刷新 ---------- */
@@ -340,8 +348,9 @@
         SNAPS.forEach(function (x) { games += x.g || 0; });
         if (foot) {
             foot.textContent = '共 ' + N + ' 个时点、' + games + ' 局对局、' + PLAYERS.length +
-                ' 位入榜棋手。曲线按当时的对局重放，末端数值与等级分表一致；' +
-                '久未参赛者不另作衰减，所以平段＝那段时间没下棋。';
+                ' 位入册棋手。每个时点都单独重算：只喂该日及之前的对局，后来的胜负不进账，' +
+                '所以这里的分数与等级分表的公示值口径不同（表是拿全量数据另算的），' +
+                '位置与涨落可比，绝对值差几十到一百多都属正常。';
         }
 
         render();
