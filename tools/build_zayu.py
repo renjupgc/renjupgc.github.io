@@ -720,20 +720,19 @@ def event_bands(ms, ratings):
     }
 
 
-def band_hero(st, as_of):
+def band_hero(st):
     """赛事页顶部的平均等级分：只留平均分与它对应的等级，不列个人档位。"""
     return ['            <div class="band-hero">',
-            '                <span class="band-hero-item">'
-            '<span class="k">选手平均等级分：</span><b>%.2f</b></span>' % st['avg'],
-            '                <span class="band-hero-item is-grade">'
-            '<span class="k">等级</span><b>%s</b></span>' % esc(st['grade']),
-            '            </div>',
-            '            <p class="band-note">'
-            '口径：名称含「高校」或「大学生」的赛事，本场完赛 %d 人，其中 %d 人符合条件'
-            '（本场弃权少于 3 次、且有公示等级分，分数取公示表截至 %s 的值），'
-            '只取这些人的平均分与对应等级，不列个人档位。档位 1800 起每 25 分一档：'
-            'D…S（1800–2100）共 12 档，1800 以下 D-，2100–2200 SS，2200 以上 SSS。'
-            '</p>' % (st['played'], st['n'], esc(as_of))]
+            '                <span class="band-figure">',
+            '                    <span class="band-k">选手平均等级分</span>',
+            '                    <span class="band-v">%.2f</span>' % st['avg'],
+            '                </span>',
+            '                <span class="band-div"></span>',
+            '                <span class="band-figure">',
+            '                    <span class="band-k">等级</span>',
+            '                    <span class="band-g">%s</span>' % esc(st['grade']),
+            '                </span>',
+            '            </div>']
 
 
 # ---------------------------------------------------------------- 页面
@@ -948,7 +947,7 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
     if SCHOOL_EVENT_RE.search(t['name'] or '') and ms:
         st = event_bands(ms, rating_map())
         if st:
-            body += band_hero(st, as_of)
+            body += band_hero(st)
             body.append('')
 
     if info:
