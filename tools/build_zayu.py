@@ -646,7 +646,6 @@ SCHOOL_EVENT_RE = re.compile('高校|大学生')
 
 # 每 25 分一档，1800 起算，到 2100 交棒给 SS；1800 以下单列 D-
 BAND_NAMES = ['D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-', 'A', 'A+', 'S']
-BAND_ORDER = ['SSS', 'SS'] + BAND_NAMES[::-1] + ['D-']
 
 FORFEIT = {'f0', '0f', 'ff'}
 
@@ -663,18 +662,6 @@ def grade_of(score):
         return 'D-'
     i = min(int((score - 1800) // 25), len(BAND_NAMES) - 1)
     return BAND_NAMES[i]
-
-
-def band_range(label):
-    """档位对应的分数区间（左闭右开，除两端的开口档）。"""
-    if label == 'D-':
-        return '1800 以下'
-    if label == 'SSS':
-        return '2200 以上'
-    if label == 'SS':
-        return '2100–2200'
-    lo = 1800 + 25 * BAND_NAMES.index(label)
-    return '%d–%d' % (lo, lo + 25)
 
 
 _RATINGS = {}
@@ -724,58 +711,29 @@ def event_bands(ms, ratings):
     if not kept:
         return None
 
-    counts = {}
-    for p in kept:
-        counts[grade_of(ratings[p])] = counts.get(grade_of(ratings[p]), 0) + 1
     avg = sum(ratings[p] for p in kept) / len(kept)
     return {
         'n': len(kept),
         'played': len(forfeits),
         'avg': avg,
         'grade': grade_of(avg),
-        'counts': counts,
     }
 
 
-def band_block(st, as_of):
-    """赛事页底部的分档表：先一行汇总，再逐档列人数与占比。"""
-    out = ['            <section class="band-stat">',
-           '                <h2>等级分分档</h2>',
-           '                <p class="band-note">'
-           '口径：只统计名称含「高校」或「大学生」的赛事；「完赛」指本场至少下过一局'
-           '（轮空、空行不算），且本场弃权少于 3 次（f0 假先弃权、0f 假后弃权各记本人一次，'
-           'ff 双弃双方各记一次）；等级分取公示表截至 ' + esc(as_of) + ' 的分数，'
-           '对局数不够入榜的人没有公示分，不进人数与平均。分档 1800 起每 25 分一档：'
-           'D、D+、C-、C、C+、B-、B、B+、A-、A、A+、S（至 2100），'
-           '1800 以下为 D-，2100–2200 为 SS，2200 以上为 SSS。'
-           '</p>',
-           '                <p class="band-sum">本场完赛 %d 人，其中 <b>%d</b> 人符合条件'
-           '（弃权 &lt; 3 次且有公示分），平均等级分 <b>%.2f</b>，档位 <b>%s</b>（%s）。</p>'
-           % (st['played'], st['n'], st['avg'], st['grade'], band_range(st['grade'])),
-           '                <div class="table-scroll">',
-           '                <table class="crosstab band-table">',
-           '                    <thead><tr>'
-           '<th class="c-name">档位</th><th class="c-band">区间</th>'
-           '<th class="c-pt">人数</th><th class="c-rank">占比</th></tr></thead>',
-           '                    <tbody>']
-
-    for label in BAND_ORDER:
-        n = st['counts'].get(label, 0)
-        if not n:
-            continue
-        out.append('                        <tr><td class="c-name">%s</td>'
-                   '<td class="c-band">%s</td><td class="c-pt">%d</td>'
-                   '<td class="c-rank">%.1f%%</td></tr>'
-                   % (esc(label), band_range(label), n, 100.0 * n / st['n']))
-
-    out.append('                        <tr class="band-total">'
-               '<td class="c-name">合计</td><td class="c-band">—</td>'
-               '<td class="c-pt">%d</td><td class="c-rank">100%%</td></tr>' % st['n'])
-    out += ['                    </tbody>',
-            '                </table>',
-            '                </div>',
-            '            </section>']
-    return out
+def band_hero(st, as_of):
+    """赛事页顶部的平均等级分：只留平均分与它对应的等级，不列个人档位。"""
+    return ['            <div class="band-hero">',
+            '                <span class="band-hero-item">'
+            '<span class="k">选手平均等级分：</span><b>%.2f</b></span>' % st['avg'],
+            '                <span class="band-hero-item is-grade">'
+            '<span class="k">等级</span><b>%s</b></span>' % esc(st['grade']),
+            '            </div>',
+            '            <p class="band-note">'
+            '口径：名称含「高校」或「大学生」的赛事，本场完赛 %d 人，其中 %d 人符合条件'
+            '（本场弃权少于 3 次、且有公示等级分，分数取公示表截至 %s 的值），'
+            '只取这些人的平均分与对应等级，不列个人档位。档位 1800 起每 25 分一档：'
+            'D…S（1800–2100）共 12 档，1800 以下 D-，2100–2200 SS，2200 以上 SSS。'
+            '</p>' % (st['played'], st['n'], esc(as_of))]
 
 
 # ---------------------------------------------------------------- 页面
@@ -987,6 +945,12 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
             '            </header>',
             '']
 
+    if SCHOOL_EVENT_RE.search(t['name'] or '') and ms:
+        st = event_bands(ms, rating_map())
+        if st:
+            body += band_hero(st, as_of)
+            body.append('')
+
     if info:
         body.append('            <div class="event-info">%s</div>' %
                     ''.join('<span>%s</span>' % i for i in info))
@@ -1005,11 +969,6 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
             body.append('')
             body.append('            <div class="qp-panel" data-qp-panel hidden></div>')
             body.append('            <script src="../assets/qipu.js" defer></script>')
-        if SCHOOL_EVENT_RE.search(t['name'] or ''):
-            st = event_bands(ms, rating_map())
-            if st:
-                body.append('')
-                body += band_block(st, as_of)
     else:
         if roster:
             body.append('            <p class="qp-hint">名单据报名表录入，'
