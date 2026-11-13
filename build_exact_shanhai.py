@@ -41,37 +41,42 @@ if ".rd-nav" not in shanhai_html:
     shanhai_html = shanhai_html.replace("</style>", extra_css + "</style>")
 
 # Official player numbering (https://www.ljrenju.com/news/rif2026/ywc14.htm)
+# Foreign players keep original Latin names (DO NOT translate)
 PLAYERS = {
-    "102574": {"no": 1, "name": "王鑫宇", "unit": "中国", "country_id": 1},
-    "021042": {"no": 2, "name": "巴里诺夫", "unit": "俄罗斯", "country_id": 2},
-    "102459": {"no": 3, "name": "药博凡", "unit": "中国", "country_id": 1},
-    "100963": {"no": 4, "name": "钟煜阳", "unit": "中国", "country_id": 1},
-    "020975": {"no": 5, "name": "斯塔尔采夫", "unit": "俄罗斯", "country_id": 2},
-    "102695": {"no": 6, "name": "蔡嘉睦", "unit": "中国", "country_id": 1},
-    "102702": {"no": 7, "name": "周士杰", "unit": "中国", "country_id": 1},
-    "100732": {"no": 8, "name": "康庭瑞", "unit": "中国", "country_id": 1},
-    "021171": {"no": 9, "name": "韦尔希宁", "unit": "俄罗斯", "country_id": 2},
-    "102247": {"no": 10, "name": "潘冠臣", "unit": "中国", "country_id": 1},
-    "101314": {"no": 11, "name": "丁泽宇", "unit": "中国", "country_id": 1},
-    "101769": {"no": 12, "name": "陈浩源", "unit": "中国", "country_id": 1},
-    "020961": {"no": 13, "name": "诺斯科夫", "unit": "俄罗斯", "country_id": 2},
-    "020959": {"no": 14, "name": "西多罗夫", "unit": "俄罗斯", "country_id": 2},
-    "020978": {"no": 15, "name": "卡赞采夫", "unit": "俄罗斯", "country_id": 2},
-    "100889": {"no": 16, "name": "李嘉骏", "unit": "中国", "country_id": 1}
+    "102574": {"no": 1, "name": "王鑫宇", "unit": "中国", "country_id": 5, "dr": 0.0132},
+    "021042": {"no": 2, "name": "Barinov Random", "unit": "俄罗斯", "country_id": 2, "dr": 0.0333},
+    "102459": {"no": 3, "name": "药博凡", "unit": "中国", "country_id": 5, "dr": 0.0847},
+    "100963": {"no": 4, "name": "钟煜阳", "unit": "中国", "country_id": 5, "dr": 0.0951},
+    "020975": {"no": 5, "name": "Startsev Maksim", "unit": "俄罗斯", "country_id": 2, "dr": 0.0748},
+    "102695": {"no": 6, "name": "蔡嘉睦", "unit": "中国", "country_id": 5, "dr": 0.0597},
+    "102702": {"no": 7, "name": "周士杰", "unit": "中国", "country_id": 5, "dr": 0.0530},
+    "100732": {"no": 8, "name": "康庭瑞", "unit": "中国", "country_id": 5, "dr": 0.1614},
+    "021171": {"no": 9, "name": "Vershinin Ivan", "unit": "俄罗斯", "country_id": 2, "dr": 0.1325},
+    "102247": {"no": 10, "name": "潘冠臣", "unit": "中国", "country_id": 5, "dr": 0.0447},
+    "101314": {"no": 11, "name": "丁泽宇", "unit": "中国", "country_id": 5, "dr": 0.0717},
+    "101769": {"no": 12, "name": "陈浩源", "unit": "中国", "country_id": 5, "dr": 0.0528},
+    "020961": {"no": 13, "name": "Noskov Pavel", "unit": "俄罗斯", "country_id": 2, "dr": 0.0356},
+    "020959": {"no": 14, "name": "Sidorov Mikhail", "unit": "俄罗斯", "country_id": 2, "dr": 0.0999},
+    "020978": {"no": 15, "name": "Kazantsev Konstantin", "unit": "俄罗斯", "country_id": 2, "dr": 0.0567},
+    "100889": {"no": 16, "name": "李嘉骏", "unit": "中国", "country_id": 5, "dr": 0.0968}
 }
 
 with open(PIT_GB_PATH, "r", encoding="utf-8") as f:
     gb_pit = json.load(f)
 pit_ratings = gb_pit.get("ratings", {})
 
+# Load Point-in-Time ratings with 1900.0 offset matching the training scale
 player_pit = {}
 for pid, info in PLAYERS.items():
     r_list = pit_ratings.get(pid, [])
     if r_list:
         latest = r_list[-1]
-        player_pit[pid] = {"r": latest[1], "rd": latest[2]}
+        player_pit[pid] = {
+            "r": latest[1] + 1900.0,
+            "rd": latest[2]
+        }
     else:
-        player_pit[pid] = {"r": 100.0, "rd": 150.0}
+        player_pit[pid] = {"r": 2000.0, "rd": 150.0}
 
 with open(MODEL_PATH, "r", encoding="utf-8") as f:
     model_data = json.load(f)
@@ -108,10 +113,10 @@ def predict_gbdt(sample):
     exp_s = [math.exp(s - max_s) for s in scores]
     sum_e = sum(exp_s)
     probs = [e / sum_e for e in exp_s]
-    # In LightGBM model:
-    # class 0: white (假后方) 胜率
-    # class 1: draw (和棋) 率
-    # class 2: black (假先方) 胜率
+    # In LightGBM multi-class model:
+    # class 0: white (假后) win
+    # class 1: draw (和棋)
+    # class 2: black (假先) win
     pw = round(probs[0] * 100, 1)
     pd = round(probs[1] * 100, 1)
     pb = round(100.0 - pw - pd, 1)
@@ -125,10 +130,10 @@ def get_feat(b_id, w_id):
     diff = rb - rw
     mean_r = (rb + rw) / 2.0
     j_std = math.sqrt(stdb**2 + stdw**2)
-    dr_b = 0.035
-    dr_w = 0.035
-    comb_dr = 0.035
-    h2h = 0.0
+    dr_b = PLAYERS[b_id]["dr"]
+    dr_w = PLAYERS[w_id]["dr"]
+    comb_dr = (dr_b + dr_w) / 2.0
+    h2h = 0.5 # Neutral prior for no historical matchups
     c_b_id = PLAYERS[b_id]["country_id"]
     c_w_id = PLAYERS[w_id]["country_id"]
     return [22, rb, rw, diff, mean_r, stdb, stdw, j_std, dr_b, dr_w, comb_dr, h2h, c_b_id, c_w_id]
@@ -260,4 +265,4 @@ for r in range(1, 8):
             scores[b] += 0.5
             scores[w] += 0.5
 
-print("All 7 rounds regenerated with accurate probabilities!")
+print("Regenerated all 7 rounds with corrected names and calibrated draw rates!")
