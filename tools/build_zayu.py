@@ -100,23 +100,30 @@ def player_href(name):
     return 'p/%s.html' % quote(name)
 
 
+_PUBLIC_NAMES = None
+
+
 def public_names():
     """可公开的棋手名单（data/public_players.txt），由 build_players 出页时遵循。
 
     名单之外的棋手仍然出现在成绩表里——那是赛事记录——但不单独立页，
     姓名也就不该是链接，免得点出一个不存在的地址。
     """
-    try:
-        with open(PUBLIC_FILE, encoding='utf-8') as f:
-            return {ln.strip() for ln in f if ln.strip() and not ln.startswith('#')}
-    except FileNotFoundError:
-        return set()
+    global _PUBLIC_NAMES
+    if _PUBLIC_NAMES is None:
+        try:
+            with open(PUBLIC_FILE, encoding='utf-8') as f:
+                _PUBLIC_NAMES = {ln.strip() for ln in f
+                                 if ln.strip() and not ln.startswith('#')}
+        except FileNotFoundError:
+            _PUBLIC_NAMES = set()
+    return _PUBLIC_NAMES
 
 
 def name_cell(name, players):
     """成绩表里的姓名格：有个人主页的做成内链，没有的保持纯文本。"""
     txt = esc(name)
-    if name in players:
+    if name in players and name in public_names():
         return '<a href="%s">%s</a>' % (player_href(name), txt)
     return txt
 
@@ -909,13 +916,19 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
     qmap = qmap or {}
     rows, rounds = compute(ms)
     idmap = roster_ids(t, ms)
-    roster = roster_rows(t['id']) if not rows else []
+    # 只录了编排表、还没出结果的对局：页面按「未开赛」处理
+    played = sum(1 for m in ms
+                 if m['player1'] != BYE and m['player2'] != BYE
+                 and (m['winner'] or '') != '' and (m['result'] or '') != '')
+    roster = roster_rows(t['id']) if (not rows or not played) else []
     # 成绩表只收录了部分对局的赛事，算出来的名次不等于最终成绩；
     # 登记过名次的（报道公布或棋友补录）以登记的为准。
     fixed = event_ranks_for(t['id'])
     for r in rows:
         if r['name'] in fixed:
             r['rank'] = fixed[r['name']]
+        elif not played:
+            r['rank'] = ''          # 还没出成绩，名次一栏留空
 
     info = []
     if t['organizer']:
@@ -929,8 +942,10 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
     if rows:
         info.append('棋手：%d 人' % len(rows))
         info.append('轮次：%d 轮' % (declared_rounds(t['id']) or max(rounds)))
-        info.append('对局：%d 局' % sum(
-            1 for m in ms if m['player1'] != BYE and m['player2'] != BYE))
+        if played:
+            info.append('对局：%d 局' % played)
+        else:
+            info.append('状态：未开赛')
     elif roster:
         info.append('棋手：%d 人' % len(roster))
         info.append('状态：未开赛')
@@ -964,6 +979,11 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
             body.append('            <p class="qp-hint">成绩表里结果带金色小标的格子，'
                         '是当时记下了棋谱的对局——点一下就在下方展开棋盘与逐手复盘。</p>')
         body += crosstab(rows, rounds, idmap, players, qmap, t['id'])
+        if roster:
+            body.append('')
+            body.append('            <p class="qp-hint">首轮台次与先后手据编排表录入，'
+                        '底色带阴影的一格是先手（黑方）；报名名单如下。</p>')
+            body += roster_table(roster, players)
         if qmap:
             body.append('')
             body.append('            <div class="qp-panel" data-qp-panel hidden></div>')
