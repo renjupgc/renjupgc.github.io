@@ -11,8 +11,21 @@ MODEL_PATH = os.path.join(REPO_DIR, "bisai", "data", "model_20260704.json")
 with open(SHANHAI_PATH, "r", encoding="utf-8") as f:
     shanhai_html = f.read()
 
-# Extra CSS for result badge and round navigation selector
-extra_css = """
+# Extra layout CSS ensuring player names NEVER overlap on any screen width
+layout_fix_css = """
+/* 桌面端防重叠与列宽锁定 */
+table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+th.t-no, td.c-no{width:52px;text-align:center}
+th.t-prob, td.c-prob{width:260px;text-align:center;padding:11px 16px}
+th.t-bn, td.c-bn{width:calc((100% - 312px) / 2);text-align:left;padding-left:16px;min-width:0}
+th.t-wn, td.c-wn{width:calc((100% - 312px) / 2);text-align:right;padding-right:16px;min-width:0}
+
+.pn{
+  font:400 16px/1.25 var(--dis);letter-spacing:.01em;color:var(--ink);
+  display:inline-block;vertical-align:middle;
+  max-width:calc(100% - 75px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
 .m-res{text-align:center;margin-bottom:6px}
 .res-tag{display:inline-block;font:400 12px/1 var(--num);letter-spacing:.04em;padding:2.5px 10px;border-radius:12px}
 .res-b{background:#ddefe5;color:#0d4736}
@@ -30,6 +43,29 @@ extra_css = """
 .rd-tab:hover{background:var(--mint);color:var(--green)}
 .rd-tab.active{font-weight:600;color:#fff;background:var(--green);box-shadow:0 2px 6px rgba(13,71,54,.25)}
 
+/* 窄屏响应式：黑白双方严格对称各占 1fr，绝不互相重叠覆盖 */
+@media (max-width:820px){
+  tbody tr{
+    display:grid;grid-template-columns:32px minmax(0,1fr) minmax(0,1fr);
+    grid-template-areas:
+      "no bh wn"
+      "pb pb pb";
+    align-items:center;gap:10px 12px;padding:13px 15px 14px;
+    border-bottom:1px solid var(--line2);
+  }
+  td.c-bn{grid-area:bh;text-align:left;min-width:0;overflow:hidden;padding:0!important;width:auto!important}
+  td.c-wn{grid-area:wn;text-align:right;min-width:0;overflow:hidden;padding:0!important;width:auto!important}
+  td.c-bn .pn{max-width:calc(100% - 65px);font-size:14.5px}
+  td.c-wn .pn{max-width:calc(100% - 65px);font-size:14.5px}
+  .rd-nav{margin-left:0;margin-top:6px;width:100%}
+}
+
+@media (max-width:520px){
+  tbody tr{grid-template-columns:28px minmax(0,1fr) minmax(0,1fr);gap:8px 8px;padding:10px 10px 12px}
+  td.c-bn .pn, td.c-wn .pn{font-size:13px;max-width:calc(100% - 50px)}
+  .pid, .pscore{font-size:11px;padding:2px 4px;margin:0 2px}
+}
+
 @media (prefers-color-scheme:dark){
   .rd-nav .rd-tab{background:#232d28;color:#85928a}
   .rd-nav .rd-tab:hover{background:#1e2a24;color:#93d3b6}
@@ -37,8 +73,10 @@ extra_css = """
 }
 """
 
-if ".rd-nav" not in shanhai_html:
-    shanhai_html = shanhai_html.replace("</style>", extra_css + "</style>")
+# Replace or inject layout CSS
+shanhai_html = re.sub(r"/\* 选轮导航 \*/.*?</style>", layout_fix_css + "\n</style>", shanhai_html, flags=re.DOTALL)
+if ".res-tag" not in shanhai_html:
+    shanhai_html = shanhai_html.replace("</style>", layout_fix_css + "\n</style>")
 
 # Official player numbering (https://www.ljrenju.com/news/rif2026/ywc14.htm)
 # Foreign players keep original Latin names (DO NOT translate)
@@ -113,10 +151,6 @@ def predict_gbdt(sample):
     exp_s = [math.exp(s - max_s) for s in scores]
     sum_e = sum(exp_s)
     probs = [e / sum_e for e in exp_s]
-    # In LightGBM multi-class model:
-    # class 0: white (假后) win
-    # class 1: draw (和棋)
-    # class 2: black (假先) win
     pw = round(probs[0] * 100, 1)
     pd = round(probs[1] * 100, 1)
     pb = round(100.0 - pw - pd, 1)
@@ -133,7 +167,7 @@ def get_feat(b_id, w_id):
     dr_b = PLAYERS[b_id]["dr"]
     dr_w = PLAYERS[w_id]["dr"]
     comb_dr = (dr_b + dr_w) / 2.0
-    h2h = 0.5 # Neutral prior for no historical matchups
+    h2h = 0.5
     c_b_id = PLAYERS[b_id]["country_id"]
     c_w_id = PLAYERS[w_id]["country_id"]
     return [22, rb, rw, diff, mean_r, stdb, stdw, j_std, dr_b, dr_w, comb_dr, h2h, c_b_id, c_w_id]
@@ -209,19 +243,18 @@ for r in range(1, 8):
         row_html = (
             f'      <tr>\n'
             f'        <td class="c-no">{table_idx}</td>\n'
-            f'        <td class="c-bn"><span class="pid">{p_b["no"]}</span><span class="pn">{p_b["name"]}</span><span class="pscore">{sb_str}</span></td>\n'
+            f'        <td class="c-bn"><span class="pid">{p_b["no"]}</span><span class="pn" title="{p_b["name"]}">{p_b["name"]}</span><span class="pscore">{sb_str}</span></td>\n'
             f'        <td class="c-prob">\n'
             f'          <div class="m-res"><span class="res-tag {res_cls}">{res_str}</span></div>\n'
             f'          <span class="bar" title="假先 {pb}% · 和 {pd}% · 假后 {pw}%"><i class="s-b" style="width:{pb:.2f}%"></i><i class="s-d" style="width:{pd:.2f}%"></i><i class="s-w" style="width:{pw:.2f}%"></i></span>\n'
             f'          <span class="nums"><span class="n"><em>假先</em><span class="v{cls_b}">{pb}<i>%</i></span></span><span class="n"><em>和棋</em><span class="v{cls_d}">{pd}<i>%</i></span></span><span class="n"><em>假后</em><span class="v{cls_w}">{pw}<i>%</i></span></span></span>\n'
             f'        </td>\n'
-            f'        <td class="c-wn"><span class="pscore">{sw_str}</span><span class="pn">{p_w["name"]}</span><span class="pid">{p_w["no"]}</span></td>\n'
+            f'        <td class="c-wn"><span class="pscore">{sw_str}</span><span class="pn" title="{p_w["name"]}">{p_w["name"]}</span><span class="pid">{p_w["no"]}</span></td>\n'
             f'      </tr>'
         )
         rows.append(row_html)
         
     for prefix in ["2026-shiqing-b", "2026-wyc-b"]:
-        # Build round nav with proper target links
         nav_tabs = []
         for nav_r in range(1, 8):
             active_cls = " active" if nav_r == r else ""
@@ -229,10 +262,8 @@ for r in range(1, 8):
             nav_tabs.append(f'<a class="rd-tab{active_cls}" href="{target_href}">第 {nav_r} 轮</a>')
         nav_html = '<div class="rd-nav">' + "".join(nav_tabs) + '</div>'
         
-        # Replace title
         html = re.sub(r"<title>.*?</title>", f"<title>世青赛 · 男子青年组（B组）第 {r} 轮对阵概率预测表</title>", shanhai_html)
         
-        # Replace hd with round navigation
         new_hd = (
             f'    <div class="hd">\n'
             f'      <h1><em>「世青赛」</em><span class="yr">2026</span> 年第 14 届世界青少年连珠锦标赛</h1>\n'
@@ -244,7 +275,6 @@ for r in range(1, 8):
         )
         html = re.sub(r"<div class=\"hd\">.*?</div>", new_hd, html, flags=re.DOTALL)
         
-        # Replace tbody
         new_tbody = "      <tbody>\n" + "\n".join(rows) + "\n      </tbody>"
         html = re.sub(r"<tbody>.*?</tbody>", new_tbody, html, flags=re.DOTALL)
         
@@ -265,4 +295,4 @@ for r in range(1, 8):
             scores[b] += 0.5
             scores[w] += 0.5
 
-print("Regenerated all 7 rounds with corrected names and calibrated draw rates!")
+print("Regenerated all 7 rounds with anti-overlapping CSS layout!")

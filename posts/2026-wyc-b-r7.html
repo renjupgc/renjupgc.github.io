@@ -213,6 +213,19 @@ td.c-prob{width:248px;padding:11px 22px}
 
 .pscore{display:inline-block;padding:1px 6px;margin:0 4px;font-size:12px;color:var(--ink3);background:var(--line2);border-radius:10px;vertical-align:middle;}
 
+/* 桌面端防重叠与列宽锁定 */
+table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+th.t-no, td.c-no{width:52px;text-align:center}
+th.t-prob, td.c-prob{width:260px;text-align:center;padding:11px 16px}
+th.t-bn, td.c-bn{width:calc((100% - 312px) / 2);text-align:left;padding-left:16px;min-width:0}
+th.t-wn, td.c-wn{width:calc((100% - 312px) / 2);text-align:right;padding-right:16px;min-width:0}
+
+.pn{
+  font:400 16px/1.25 var(--dis);letter-spacing:.01em;color:var(--ink);
+  display:inline-block;vertical-align:middle;
+  max-width:calc(100% - 75px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
 .m-res{text-align:center;margin-bottom:6px}
 .res-tag{display:inline-block;font:400 12px/1 var(--num);letter-spacing:.04em;padding:2.5px 10px;border-radius:12px}
 .res-b{background:#ddefe5;color:#0d4736}
@@ -230,11 +243,35 @@ td.c-prob{width:248px;padding:11px 22px}
 .rd-tab:hover{background:var(--mint);color:var(--green)}
 .rd-tab.active{font-weight:600;color:#fff;background:var(--green);box-shadow:0 2px 6px rgba(13,71,54,.25)}
 
+/* 窄屏响应式：黑白双方严格对称各占 1fr，绝不互相重叠覆盖 */
+@media (max-width:820px){
+  tbody tr{
+    display:grid;grid-template-columns:32px minmax(0,1fr) minmax(0,1fr);
+    grid-template-areas:
+      "no bh wn"
+      "pb pb pb";
+    align-items:center;gap:10px 12px;padding:13px 15px 14px;
+    border-bottom:1px solid var(--line2);
+  }
+  td.c-bn{grid-area:bh;text-align:left;min-width:0;overflow:hidden;padding:0!important;width:auto!important}
+  td.c-wn{grid-area:wn;text-align:right;min-width:0;overflow:hidden;padding:0!important;width:auto!important}
+  td.c-bn .pn{max-width:calc(100% - 65px);font-size:14.5px}
+  td.c-wn .pn{max-width:calc(100% - 65px);font-size:14.5px}
+  .rd-nav{margin-left:0;margin-top:6px;width:100%}
+}
+
+@media (max-width:520px){
+  tbody tr{grid-template-columns:28px minmax(0,1fr) minmax(0,1fr);gap:8px 8px;padding:10px 10px 12px}
+  td.c-bn .pn, td.c-wn .pn{font-size:13px;max-width:calc(100% - 50px)}
+  .pid, .pscore{font-size:11px;padding:2px 4px;margin:0 2px}
+}
+
 @media (prefers-color-scheme:dark){
   .rd-nav .rd-tab{background:#232d28;color:#85928a}
   .rd-nav .rd-tab:hover{background:#1e2a24;color:#93d3b6}
   .rd-nav .rd-tab.active{background:#2c5b49;color:#fff}
 }
+
 </style>
 </head>
 <body>
@@ -261,83 +298,83 @@ td.c-prob{width:248px;padding:11px 22px}
             <tbody>
       <tr>
         <td class="c-no">1</td>
-        <td class="c-bn"><span class="pid">16</span><span class="pn">李嘉骏</span><span class="pscore">4分</span></td>
+        <td class="c-bn"><span class="pid">16</span><span class="pn" title="李嘉骏">李嘉骏</span><span class="pscore">4分</span></td>
         <td class="c-prob">
           <div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>
           <span class="bar" title="假先 16.2% · 和 7.9% · 假后 75.9%"><i class="s-b" style="width:16.20%"></i><i class="s-d" style="width:7.90%"></i><i class="s-w" style="width:75.90%"></i></span>
           <span class="nums"><span class="n"><em>假先</em><span class="v">16.2<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">7.9<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">75.9<i>%</i></span></span></span>
         </td>
-        <td class="c-wn"><span class="pscore">6分</span><span class="pn">钟煜阳</span><span class="pid">4</span></td>
+        <td class="c-wn"><span class="pscore">6分</span><span class="pn" title="钟煜阳">钟煜阳</span><span class="pid">4</span></td>
       </tr>
       <tr>
         <td class="c-no">2</td>
-        <td class="c-bn"><span class="pid">8</span><span class="pn">康庭瑞</span><span class="pscore">4.5分</span></td>
+        <td class="c-bn"><span class="pid">8</span><span class="pn" title="康庭瑞">康庭瑞</span><span class="pscore">4.5分</span></td>
         <td class="c-prob">
           <div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>
           <span class="bar" title="假先 16.7% · 和 8.7% · 假后 74.6%"><i class="s-b" style="width:16.70%"></i><i class="s-d" style="width:8.70%"></i><i class="s-w" style="width:74.60%"></i></span>
           <span class="nums"><span class="n"><em>假先</em><span class="v">16.7<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">8.7<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">74.6<i>%</i></span></span></span>
         </td>
-        <td class="c-wn"><span class="pscore">5分</span><span class="pn">陈浩源</span><span class="pid">12</span></td>
+        <td class="c-wn"><span class="pscore">5分</span><span class="pn" title="陈浩源">陈浩源</span><span class="pid">12</span></td>
       </tr>
       <tr>
         <td class="c-no">3</td>
-        <td class="c-bn"><span class="pid">13</span><span class="pn">Noskov Pavel</span><span class="pscore">3分</span></td>
+        <td class="c-bn"><span class="pid">13</span><span class="pn" title="Noskov Pavel">Noskov Pavel</span><span class="pscore">3分</span></td>
         <td class="c-prob">
           <div class="m-res"><span class="res-tag res-w">0 : 1</span></div>
           <span class="bar" title="假先 10.2% · 和 3.6% · 假后 86.2%"><i class="s-b" style="width:10.20%"></i><i class="s-d" style="width:3.60%"></i><i class="s-w" style="width:86.20%"></i></span>
           <span class="nums"><span class="n"><em>假先</em><span class="v">10.2<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">3.6<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">86.2<i>%</i></span></span></span>
         </td>
-        <td class="c-wn"><span class="pscore">3.5分</span><span class="pn">丁泽宇</span><span class="pid">11</span></td>
+        <td class="c-wn"><span class="pscore">3.5分</span><span class="pn" title="丁泽宇">丁泽宇</span><span class="pid">11</span></td>
       </tr>
       <tr>
         <td class="c-no">4</td>
-        <td class="c-bn"><span class="pid">7</span><span class="pn">周士杰</span><span class="pscore">3分</span></td>
+        <td class="c-bn"><span class="pid">7</span><span class="pn" title="周士杰">周士杰</span><span class="pscore">3分</span></td>
         <td class="c-prob">
           <div class="m-res"><span class="res-tag res-w">0 : 1</span></div>
           <span class="bar" title="假先 3.7% · 和 1.8% · 假后 94.5%"><i class="s-b" style="width:3.70%"></i><i class="s-d" style="width:1.80%"></i><i class="s-w" style="width:94.50%"></i></span>
           <span class="nums"><span class="n"><em>假先</em><span class="v">3.7<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">1.8<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">94.5<i>%</i></span></span></span>
         </td>
-        <td class="c-wn"><span class="pscore">3分</span><span class="pn">Startsev Maksim</span><span class="pid">5</span></td>
+        <td class="c-wn"><span class="pscore">3分</span><span class="pn" title="Startsev Maksim">Startsev Maksim</span><span class="pid">5</span></td>
       </tr>
       <tr>
         <td class="c-no">5</td>
-        <td class="c-bn"><span class="pid">14</span><span class="pn">Sidorov Mikhail</span><span class="pscore">3分</span></td>
+        <td class="c-bn"><span class="pid">14</span><span class="pn" title="Sidorov Mikhail">Sidorov Mikhail</span><span class="pscore">3分</span></td>
         <td class="c-prob">
           <div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>
           <span class="bar" title="假先 70.7% · 和 10.2% · 假后 19.1%"><i class="s-b" style="width:70.70%"></i><i class="s-d" style="width:10.20%"></i><i class="s-w" style="width:19.10%"></i></span>
           <span class="nums"><span class="n"><em>假先</em><span class="v top pos">70.7<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">10.2<i>%</i></span></span><span class="n"><em>假后</em><span class="v">19.1<i>%</i></span></span></span>
         </td>
-        <td class="c-wn"><span class="pscore">3分</span><span class="pn">Kazantsev Konstantin</span><span class="pid">15</span></td>
+        <td class="c-wn"><span class="pscore">3分</span><span class="pn" title="Kazantsev Konstantin">Kazantsev Konstantin</span><span class="pid">15</span></td>
       </tr>
       <tr>
         <td class="c-no">6</td>
-        <td class="c-bn"><span class="pid">3</span><span class="pn">药博凡</span><span class="pscore">2分</span></td>
+        <td class="c-bn"><span class="pid">3</span><span class="pn" title="药博凡">药博凡</span><span class="pscore">2分</span></td>
         <td class="c-prob">
           <div class="m-res"><span class="res-tag res-b">1 : 0</span></div>
           <span class="bar" title="假先 13.9% · 和 4.5% · 假后 81.6%"><i class="s-b" style="width:13.90%"></i><i class="s-d" style="width:4.50%"></i><i class="s-w" style="width:81.60%"></i></span>
           <span class="nums"><span class="n"><em>假先</em><span class="v">13.9<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">4.5<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">81.6<i>%</i></span></span></span>
         </td>
-        <td class="c-wn"><span class="pscore">2.5分</span><span class="pn">潘冠臣</span><span class="pid">10</span></td>
+        <td class="c-wn"><span class="pscore">2.5分</span><span class="pn" title="潘冠臣">潘冠臣</span><span class="pid">10</span></td>
       </tr>
       <tr>
         <td class="c-no">7</td>
-        <td class="c-bn"><span class="pid">9</span><span class="pn">Vershinin Ivan</span><span class="pscore">2.5分</span></td>
+        <td class="c-bn"><span class="pid">9</span><span class="pn" title="Vershinin Ivan">Vershinin Ivan</span><span class="pscore">2.5分</span></td>
         <td class="c-prob">
           <div class="m-res"><span class="res-tag res-b">1 : 0</span></div>
           <span class="bar" title="假先 75.0% · 和 8.7% · 假后 16.3%"><i class="s-b" style="width:75.00%"></i><i class="s-d" style="width:8.70%"></i><i class="s-w" style="width:16.30%"></i></span>
           <span class="nums"><span class="n"><em>假先</em><span class="v top pos">75.0<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">8.7<i>%</i></span></span><span class="n"><em>假后</em><span class="v">16.3<i>%</i></span></span></span>
         </td>
-        <td class="c-wn"><span class="pscore">1分</span><span class="pn">Barinov Random</span><span class="pid">2</span></td>
+        <td class="c-wn"><span class="pscore">1分</span><span class="pn" title="Barinov Random">Barinov Random</span><span class="pid">2</span></td>
       </tr>
       <tr>
         <td class="c-no">8</td>
-        <td class="c-bn"><span class="pid">1</span><span class="pn">王鑫宇</span><span class="pscore">2分</span></td>
+        <td class="c-bn"><span class="pid">1</span><span class="pn" title="王鑫宇">王鑫宇</span><span class="pscore">2分</span></td>
         <td class="c-prob">
           <div class="m-res"><span class="res-tag res-b">1 : 0</span></div>
           <span class="bar" title="假先 85.1% · 和 5.2% · 假后 9.7%"><i class="s-b" style="width:85.10%"></i><i class="s-d" style="width:5.20%"></i><i class="s-w" style="width:9.70%"></i></span>
           <span class="nums"><span class="n"><em>假先</em><span class="v top pos">85.1<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">5.2<i>%</i></span></span><span class="n"><em>假后</em><span class="v">9.7<i>%</i></span></span></span>
         </td>
-        <td class="c-wn"><span class="pscore">0分</span><span class="pn">蔡嘉睦</span><span class="pid">6</span></td>
+        <td class="c-wn"><span class="pscore">0分</span><span class="pn" title="蔡嘉睦">蔡嘉睦</span><span class="pid">6</span></td>
       </tr>
       </tbody>
     </table>
