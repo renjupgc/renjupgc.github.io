@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>世青赛 · 男子青年组（B组）第 3 轮对阵概率预测表</title>
+<style>
+@font-face{
+  font-family:"ShuHei";
+  font-style:normal;
+  font-weight:400 900;
+  font-display:swap;
+  src:local("Alimama ShuHeiTi Bold"),local("Alimama ShuHeiTi"),local("AlimamaShuHeiTi-Bold"),local("阿里妈妈数黑体"),
+      url("../fonts/AlimamaShuHeiTi-Bold.woff2") format("woff2"),
+      url("https://cdn.jsdelivr.net/npm/@fontpkg/alimama-shu-hei-ti/AlimamaShuHeiTi-Bold.woff2") format("woff2");
+}
+* { font-family: "ShuHei", "Alimama ShuHeiTi", "AlimamaShuHeiTi-Bold", "阿里妈妈数黑体", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important; }
+
+:root{
+  --paper:#f2f0e9;
+  --card:#fffefb;
+  --ink:#15201c;
+  --ink3:#7c877f;
+  --line:#e4dfd2;
+  --line2:#eeeadf;
+  --green:#0d4736;
+  --mint:#e5f0ea;
+  --mint2:#f2f8f5;
+  --pos-bg:#ddefe5;
+  --neg-bg:#e7e5db;
+  --neg-ink:#6d776f;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;
+  --mono:ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  /* 展示字体：阿里妈妈数黑体子集，中文与数字统一 */
+  --dis:"ShuHei","PingFang SC","Microsoft YaHei",var(--sans);
+  --num:var(--dis);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;font-synthesis:none}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font:400 15px/1.6 var(--sans);
+  -webkit-font-smoothing:antialiased;
+  padding:28px 20px 40px;
+}
+.sheet{max-width:1020px;margin:0 auto}
+
+.card{
+  background:var(--card);border:1px solid var(--line);
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 16px 40px -30px rgba(12,50,40,.5);
+}
+.card::before{
+  content:"";display:block;height:4px;
+  background:linear-gradient(90deg,#0d4736 0%,#2f7f63 42%,#cf8f45 100%);
+}
+
+/* 标题 */
+.hd{padding:19px 22px 17px;border-bottom:1px solid var(--line)}
+.hd h1{
+  margin:0;font:400 27px/1.32 var(--dis);letter-spacing:.005em;
+  color:var(--ink);white-space:nowrap;
+}
+.hd h1 em{font-style:normal;color:var(--green)}
+.hd h1 .yr{
+  font-family:var(--num);font-weight:400;letter-spacing:.01em;
+  font-size:1.06em;
+}
+.hd-sub{
+  margin:9px 0 0;display:flex;align-items:center;gap:9px;
+  font:400 13.5px/1 var(--dis);letter-spacing:.09em;color:#68746d;
+}
+.hd-sub .rd{
+  font:400 14px/1 var(--num);letter-spacing:.05em;
+  color:var(--green);background:var(--mint);
+  border-radius:5px;padding:5px 8px 4px;
+}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+thead th{
+  background:var(--mint);vertical-align:bottom;
+  font:400 13px/1 var(--dis);letter-spacing:.13em;color:#2c5b49;
+  padding:12px 10px;white-space:nowrap;border-bottom:1px solid #d3e5db;
+}
+thead th.t-no{width:56px;text-align:center}
+thead th.t-bn{text-align:left;padding-left:20px}
+thead th.t-wn{text-align:right;padding-right:20px}
+thead th.t-prob{width:248px;padding:11px 22px 12px}
+
+/* 表头：与单元格同构，上为「胜率分布」，下为三项名称 */
+.ph-nums{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:baseline}
+.ph-nums i{font-style:normal;font:400 13px/1 var(--dis);letter-spacing:.07em;color:#2c5b49}
+.ph-nums i:nth-child(1){text-align:left}
+.ph-nums i:nth-child(2){text-align:center}
+.ph-nums i:nth-child(3){text-align:right}
+
+tbody tr{border-bottom:1px solid var(--line2);transition:background .15s}
+tbody tr:nth-child(even){background:#fafdfb}
+tbody tr:hover{background:var(--mint2)}
+tbody tr:last-child{border-bottom:0}
+td{padding:10px;vertical-align:middle}
+
+td.c-no{text-align:center;width:56px;
+  font:400 14.5px/1 var(--num);letter-spacing:.02em;color:var(--ink3);
+  font-variant-numeric:tabular-nums}
+td.c-bn{text-align:left;padding-left:20px;white-space:nowrap}
+td.c-wn{text-align:right;padding-right:20px;white-space:nowrap}
+.pn{font:400 17.5px/1 var(--dis);letter-spacing:.01em;color:var(--ink)}
+.pid{
+  display:inline-block;min-width:26px;text-align:center;
+  font:400 13px/1 var(--num);letter-spacing:.02em;
+  color:#8d978f;background:#f1f0e8;
+  border-radius:5px;padding:4px 5px 3px;margin:0 10px;vertical-align:2px;
+}
+td.c-bn .pid{margin-left:0}
+td.c-wn .pid{margin-right:0}
+
+/* 概率块：条在上，三个数在下 */
+td.c-prob{width:248px;padding:11px 22px}
+.bar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:#f0eee5;gap:1.5px}
+.bar i{display:block;height:100%}
+.bar .s-b{background:linear-gradient(180deg,#1a5f49,#0d4736)}
+.bar .s-d{background:linear-gradient(180deg,#e6b273,#cf8f45)}
+.bar .s-w{background:linear-gradient(180deg,#cfdbd4,#b6c8bf)}
+
+.nums{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:8px}
+.n{display:flex;flex-direction:column;gap:5px;min-width:0}
+.n:nth-child(1){justify-self:start;align-items:flex-start}
+.n:nth-child(2){justify-self:center;align-items:center}
+.n:nth-child(3){justify-self:end;align-items:flex-end}
+.n em{display:none;font-style:normal;font:400 10px/1 var(--dis);letter-spacing:.1em;color:#a3aca5}
+
+.v{
+  display:inline-block;text-align:center;white-space:nowrap;
+  font:400 17px/1 var(--num);letter-spacing:.01em;
+  color:var(--ink3);padding:6px 7px 5px;border-radius:8px;
+  transition:background .15s;
+}
+.v i{font-style:normal;font-size:.66em;font-weight:400;opacity:.66;margin-left:1.5px}
+
+.v.top{font-weight:400}
+.v.top.pos{background:var(--pos-bg);color:var(--green)}
+.v.top.neg{background:var(--neg-bg);color:var(--neg-ink);
+  box-shadow:inset 0 0 0 1px rgba(21,32,28,.05)}
+.v.top.neg i{opacity:.55}
+
+/* 深色 */
+@media (prefers-color-scheme:dark){
+  body{background:#121614;color:#e9efe9}
+  .card{background:#181d1a;border-color:#26332c}
+  .hd{border-color:#26332c}
+  .hd h1{color:#eef4ef}
+  .hd h1 em{color:#8fc7ae}
+  .hd-sub{color:#7f8d85}
+  .hd-sub .rd{background:#1e2a24;color:#93d3b6}
+  thead th{background:#1e2a24;color:#8fc7ae;border-color:#2b3a32}
+  .ph-nums i{color:#8fc7ae}
+  tbody tr{border-color:#232d28}
+  tbody tr:nth-child(even){background:#1a201c}
+  tbody tr:hover{background:#1f2a24}
+  .pn{color:#e9efe9}
+  .pid{background:#232d28;color:#85928a}
+  td.c-no{color:#7f8d85}
+  .bar{background:#1b231f}
+  .bar .s-w{background:linear-gradient(180deg,#43594e,#375046)}
+  .bar .s-d{background:linear-gradient(180deg,#c9945a,#a9773f)}
+  .n em{color:#6d7a72}
+  .v.top.pos{background:#1b3a2e;color:#93d3b6;box-shadow:inset 0 0 0 1px #2b5443}
+  .v.top.neg{background:#262a26;color:#9aa39c;box-shadow:inset 0 0 0 1px #343a34}
+}
+
+/* 窄屏：行变卡片 */
+@media (max-width:820px){
+  body{padding:12px 12px 28px}
+  .sheet{max-width:none}
+  .hd{padding:15px 15px 13px}
+  .hd h1{font-size:19.5px;line-height:1.45;white-space:normal}
+  .hd-sub{margin-top:7px;font-size:13px;gap:8px}
+  .hd-sub .rd{font-size:13px;padding:4px 7px 3px}
+  table,tbody,tr,td{display:block}
+  thead{display:none}
+  tbody tr{
+    display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+    grid-template-areas:
+      "no bh wn"
+      "pb pb pb";
+    align-items:center;gap:11px 10px;padding:13px 15px 14px;
+    border-bottom:1px solid var(--line2);
+  }
+  tbody tr:nth-child(even){background:#fafdfb}
+  td{padding:0!important;border:0;width:auto!important;height:auto!important;white-space:normal}
+
+  td.c-no{grid-area:no;text-align:left}
+  td.c-bn{grid-area:bh;text-align:left}
+  td.c-wn{grid-area:wn;text-align:right}
+  td.c-prob{grid-area:pb;padding:0!important}
+
+  td.c-bn .pid{margin:0 6px 0 0;vertical-align:1px}
+  td.c-wn .pid{margin:0 0 0 6px;vertical-align:1px}
+  .pn{font-size:17px}
+
+  .bar{height:8px}
+  .nums{margin-top:9px}
+  .n em{display:block;margin-bottom:1px}
+  .v{font-size:17px;padding:5px 8px 4px}
+}
+
+@media print{
+  body{background:#fff;padding:0}
+  .card{box-shadow:none;border:0;border-radius:0}
+  tbody tr{break-inside:avoid}
+  .sheet{max-width:none}
+}
+
+.pscore{display:inline-block;padding:1px 6px;margin:0 4px;font-size:12px;color:var(--ink3);background:var(--line2);border-radius:10px;vertical-align:middle;}
+
+.m-res{text-align:center;margin-bottom:6px}
+.res-tag{display:inline-block;font:400 12px/1 var(--num);letter-spacing:.04em;padding:2.5px 10px;border-radius:12px}
+.res-b{background:#ddefe5;color:#0d4736}
+.res-w{background:#e8edf5;color:#1e3a5f}
+.res-d{background:#f5edd6;color:#7a5a10}
+
+/* 选轮导航 */
+.rd-nav{display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap;margin-left:12px;vertical-align:middle}
+.rd-tab{
+  font:400 13px/1 var(--num);letter-spacing:.03em;
+  color:var(--ink3);background:var(--line2);
+  border-radius:6px;padding:5px 9px 4px;text-decoration:none;
+  transition:all .15s ease;
+}
+.rd-tab:hover{background:var(--mint);color:var(--green)}
+.rd-tab.active{font-weight:600;color:#fff;background:var(--green);box-shadow:0 2px 6px rgba(13,71,54,.25)}
+
+@media (prefers-color-scheme:dark){
+  .rd-nav .rd-tab{background:#232d28;color:#85928a}
+  .rd-nav .rd-tab:hover{background:#1e2a24;color:#93d3b6}
+  .rd-nav .rd-tab.active{background:#2c5b49;color:#fff}
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="card">
+        <div class="hd">
+      <h1><em>「世青赛」</em><span class="yr">2026</span> 年第 14 届世界青少年连珠锦标赛</h1>
+      <div class="hd-sub">
+        <span>男子青年组（B组）</span>
+        <div class="rd-nav"><a class="rd-tab" href="2026-shiqing-b-r1.html">第 1 轮</a><a class="rd-tab" href="2026-shiqing-b-r2.html">第 2 轮</a><a class="rd-tab active" href="2026-shiqing-b-r3.html">第 3 轮</a><a class="rd-tab" href="2026-shiqing-b-r4.html">第 4 轮</a><a class="rd-tab" href="2026-shiqing-b-r5.html">第 5 轮</a><a class="rd-tab" href="2026-shiqing-b-r6.html">第 6 轮</a><a class="rd-tab" href="2026-shiqing-b-r7.html">第 7 轮</a></div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th class="t-no">台号</th>
+          <th class="t-bn">假先方</th>
+          <th class="t-prob">
+            <span class="ph-nums"><i>假先胜率</i><i>和棋率</i><i>假后胜率</i></span>
+          </th>
+          <th class="t-wn">假后方</th>
+        </tr>
+      </thead>
+            <tbody>
+      <tr>
+        <td class="c-no">1</td>
+        <td class="c-bn"><span class="pid">5</span><span class="pn">斯塔尔采夫</span><span class="pscore">2分</span></td>
+        <td class="c-prob">
+          <div class="m-res"><span class="res-tag res-w">0 : 1</span></div>
+          <span class="bar" title="假先 18.3% · 和 1.8% · 假后 79.9%"><i class="s-b" style="width:18.30%"></i><i class="s-d" style="width:1.80%"></i><i class="s-w" style="width:79.90%"></i></span>
+          <span class="nums"><span class="n"><em>假先</em><span class="v">18.3<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">1.8<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">79.9<i>%</i></span></span></span>
+        </td>
+        <td class="c-wn"><span class="pscore">2分</span><span class="pn">钟煜阳</span><span class="pid">4</span></td>
+      </tr>
+      <tr>
+        <td class="c-no">2</td>
+        <td class="c-bn"><span class="pid">8</span><span class="pn">康庭瑞</span><span class="pscore">2分</span></td>
+        <td class="c-prob">
+          <div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>
+          <span class="bar" title="假先 62.2% · 和 3.3% · 假后 34.5%"><i class="s-b" style="width:62.20%"></i><i class="s-d" style="width:3.30%"></i><i class="s-w" style="width:34.50%"></i></span>
+          <span class="nums"><span class="n"><em>假先</em><span class="v top pos">62.2<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">3.3<i>%</i></span></span><span class="n"><em>假后</em><span class="v">34.5<i>%</i></span></span></span>
+        </td>
+        <td class="c-wn"><span class="pscore">2分</span><span class="pn">丁泽宇</span><span class="pid">11</span></td>
+      </tr>
+      <tr>
+        <td class="c-no">3</td>
+        <td class="c-bn"><span class="pid">15</span><span class="pn">卡赞采夫</span><span class="pscore">1分</span></td>
+        <td class="c-prob">
+          <div class="m-res"><span class="res-tag res-b">1 : 0</span></div>
+          <span class="bar" title="假先 66.4% · 和 2.8% · 假后 30.8%"><i class="s-b" style="width:66.40%"></i><i class="s-d" style="width:2.80%"></i><i class="s-w" style="width:30.80%"></i></span>
+          <span class="nums"><span class="n"><em>假先</em><span class="v top pos">66.4<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">2.8<i>%</i></span></span><span class="n"><em>假后</em><span class="v">30.8<i>%</i></span></span></span>
+        </td>
+        <td class="c-wn"><span class="pscore">1分</span><span class="pn">王鑫宇</span><span class="pid">1</span></td>
+      </tr>
+      <tr>
+        <td class="c-no">4</td>
+        <td class="c-bn"><span class="pid">7</span><span class="pn">周士杰</span><span class="pscore">1分</span></td>
+        <td class="c-prob">
+          <div class="m-res"><span class="res-tag res-b">1 : 0</span></div>
+          <span class="bar" title="假先 19.0% · 和 2.0% · 假后 79.0%"><i class="s-b" style="width:19.00%"></i><i class="s-d" style="width:2.00%"></i><i class="s-w" style="width:79.00%"></i></span>
+          <span class="nums"><span class="n"><em>假先</em><span class="v">19.0<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">2.0<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">79.0<i>%</i></span></span></span>
+        </td>
+        <td class="c-wn"><span class="pscore">1分</span><span class="pn">韦尔希宁</span><span class="pid">9</span></td>
+      </tr>
+      <tr>
+        <td class="c-no">5</td>
+        <td class="c-bn"><span class="pid">10</span><span class="pn">潘冠臣</span><span class="pscore">1分</span></td>
+        <td class="c-prob">
+          <div class="m-res"><span class="res-tag res-w">0 : 1</span></div>
+          <span class="bar" title="假先 35.5% · 和 3.6% · 假后 60.9%"><i class="s-b" style="width:35.50%"></i><i class="s-d" style="width:3.60%"></i><i class="s-w" style="width:60.90%"></i></span>
+          <span class="nums"><span class="n"><em>假先</em><span class="v">35.5<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">3.6<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">60.9<i>%</i></span></span></span>
+        </td>
+        <td class="c-wn"><span class="pscore">1分</span><span class="pn">西多罗夫</span><span class="pid">14</span></td>
+      </tr>
+      <tr>
+        <td class="c-no">6</td>
+        <td class="c-bn"><span class="pid">12</span><span class="pn">陈浩源</span><span class="pscore">1分</span></td>
+        <td class="c-prob">
+          <div class="m-res"><span class="res-tag res-b">1 : 0</span></div>
+          <span class="bar" title="假先 85.2% · 和 2.1% · 假后 12.7%"><i class="s-b" style="width:85.20%"></i><i class="s-d" style="width:2.10%"></i><i class="s-w" style="width:12.70%"></i></span>
+          <span class="nums"><span class="n"><em>假先</em><span class="v top pos">85.2<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">2.1<i>%</i></span></span><span class="n"><em>假后</em><span class="v">12.7<i>%</i></span></span></span>
+        </td>
+        <td class="c-wn"><span class="pscore">1分</span><span class="pn">李嘉骏</span><span class="pid">16</span></td>
+      </tr>
+      <tr>
+        <td class="c-no">7</td>
+        <td class="c-bn"><span class="pid">2</span><span class="pn">巴里诺夫</span><span class="pscore">0分</span></td>
+        <td class="c-prob">
+          <div class="m-res"><span class="res-tag res-w">0 : 1</span></div>
+          <span class="bar" title="假先 26.8% · 和 1.9% · 假后 71.3%"><i class="s-b" style="width:26.80%"></i><i class="s-d" style="width:1.90%"></i><i class="s-w" style="width:71.30%"></i></span>
+          <span class="nums"><span class="n"><em>假先</em><span class="v">26.8<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">1.9<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">71.3<i>%</i></span></span></span>
+        </td>
+        <td class="c-wn"><span class="pscore">0分</span><span class="pn">药博凡</span><span class="pid">3</span></td>
+      </tr>
+      <tr>
+        <td class="c-no">8</td>
+        <td class="c-bn"><span class="pid">6</span><span class="pn">蔡嘉睦</span><span class="pscore">0分</span></td>
+        <td class="c-prob">
+          <div class="m-res"><span class="res-tag res-w">0 : 1</span></div>
+          <span class="bar" title="假先 20.6% · 和 2.2% · 假后 77.2%"><i class="s-b" style="width:20.60%"></i><i class="s-d" style="width:2.20%"></i><i class="s-w" style="width:77.20%"></i></span>
+          <span class="nums"><span class="n"><em>假先</em><span class="v">20.6<i>%</i></span></span><span class="n"><em>和棋</em><span class="v">2.2<i>%</i></span></span><span class="n"><em>假后</em><span class="v top pos">77.2<i>%</i></span></span></span>
+        </td>
+        <td class="c-wn"><span class="pscore">0分</span><span class="pn">诺斯科夫</span><span class="pid">13</span></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>
