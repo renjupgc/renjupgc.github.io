@@ -326,12 +326,10 @@ matches_tbody = "\n".join(match_rows)
 
 def format_pct_str(pct):
     if pct <= 0:
-        return "0.0%"
-    if pct < 0.005:
-        return "<0.01%"
-    if pct < 0.1 or (pct > 99.9 and pct < 100.0):
-        return f"{pct:.2f}%"
-    return f"{pct:.1f}%"
+        return "0.00%"
+    if pct >= 100.0:
+        return "100.00%"
+    return f"{pct:.2f}%"
 
 def get_heat_level(pct):
     if pct <= 0:
@@ -379,7 +377,7 @@ for p_rank_order, p_idx in enumerate(sorted_player_indices):
         pct = cnt / float(N_SIM) * 100
         lvl = get_heat_level(pct)
         if cnt == 0:
-            val_html = '<span class="hm-val hm-zero">-</span>'
+            val_html = '<span class="hm-val hm-zero">0.00%</span>'
         else:
             val_text = format_pct_str(pct)
             val_html = f'<span class="hm-val">{val_text}</span>'
@@ -851,7 +849,7 @@ window.addEventListener('DOMContentLoaded', function() {{
         </div>
         <div class="view-switch">
           <button class="v-btn active" id="btn-match" onclick="setView('match')">对阵表</button>
-          <button class="v-btn" id="btn-stand" onclick="setView('stand')">名次表</button>
+          <button class="v-btn" id="btn-stand" onclick="setView('stand')">详情</button>
         </div>
       </div>
     </div>
