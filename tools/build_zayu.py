@@ -555,6 +555,10 @@ def rating_page(rows, as_of, n_tournaments, n_games):
             '            </div>',
             '        </header>',
             '',
+            '        <p class="rating-hint">这张表只有最后时点。想看每个人一路怎么走上来，'
+            '去<a href="shiguang.html">等级分时光机</a>拖时间轴：任一时刻的榜单、'
+            '在位次上上下下的箭头、个人的等级分曲线都在那儿。</p>',
+            '',
             '        <div class="table-scroll">',
             '        <table class="ratings">',
             '            <thead><tr>',

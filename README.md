@@ -16,11 +16,12 @@ zalun.html  zashi.html  zayu.html  zaji.html     四个栏目页
 posts/                文章页（24 篇），自成一体，只有正文在 HTML 里
 zayu/                 杂豫：赛事、成绩与棋手
   t{id}.html          每场赛事一页：赛事信息 + 成绩表
-  p/{姓名}.html       每位棋手一页：等级分、参赛记录、逐局战绩（354 页）
+  p/{姓名}.html       每位棋手一页：等级分走势、参赛记录、逐局战绩、成绩卡（614 页）
   rating.html         等级分总表
+  shiguang.html       等级分时光机：拖时间轴看每个比赛日的榜单
   renwu.html          人物小传
 zaji/                 杂技：工具页
-  dapu.html           打谱（含图片认谱）
+  dapu.html           打谱（含开局命名、同型局、图片认谱）
   molun.html          末轮计算器（含成绩单 OCR）
   predict.html        胜率预测
   jinzhao.html        禁手找茬
@@ -32,6 +33,11 @@ assets/
   layout.js           页头/页脚/音乐盒/无刷新跳转
   board.js            棋盘渲染与交互
   players.js          棋手搜索索引（脚本生成）
+  rating-history.js   等级分时序，时光机与棋手曲线共用（脚本生成）
+  openings-data.js    有手顺的对局语料，开局与同型检索用（脚本生成）
+  openings.js         26 开局命名 + 225 维向量同型检索
+  timemachine.js      时光机页面逻辑
+  playercard.js  qr.js  棋手成绩卡（Canvas 出图，二维码自研编码）
   qipu.js  qipu/      棋谱数据与复盘（脚本生成）
   predict.js          预测模型参数与交手记录（脚本生成）
   engine/             Rapfi 引擎 wasm
@@ -60,9 +66,11 @@ python -m http.server 8000
 页面分两类：手写的（首页、栏目页、文章页、工具页）和生成的（赛事页、棋手页、索引数据）。改了 `data/renju.db` 之后按顺序跑：
 
 ```bash
-python tools/build_zayu.py       # 赛事页 + 等级分表 + zayu.html
-python tools/build_players.py    # 棋手主页，并给等级分表里的姓名补内链
-python tools/build_qipu.py       # 从 matches.board_record 导出棋谱 JSON
+python tools/build_zayu.py            # 赛事页 + 等级分表 + zayu.html
+python tools/build_rating_history.py  # 重放全部对局，导出等级分时序 JSON
+python tools/build_players.py         # 棋手主页（含走势图），并给等级分表里的姓名补内链
+python tools/build_qipu.py            # 从 matches.board_record 导出棋谱 JSON
+python tools/build_openings.py        # 导出有手顺的对局语料（开局命名 / 同型检索）
 python tools/build_predict.py    # 预测页的模型参数与交手记录
 python tools/build_seo.py        # canonical / og: / sitemap / robots / feed / 分享图
 python tools/build_img_attrs.py  # 图片尺寸、懒加载

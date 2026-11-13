@@ -194,9 +194,40 @@
         }).join('');
     }
 
+    /*
+     * 紧凑编码：#p=hhiijj，一手两个字母——第 1 个字母是列、第 2 个是行，都取自 a〜o。
+     * 长版 h8i9j10 一手要三到四个字符，一串下来上百字；紧凑版正好一半，
+     * 发到群里不容易被截断，一眼也还认得出是盘棋。
+     */
+    var ALPHA = 'abcdefghijklmno';
+
+    function encodeCompact(moves) {
+        return moves.map(function (m) {
+            return ALPHA.charAt(m.i) + ALPHA.charAt(SIZE - 1 - m.j);
+        }).join('');
+    }
+
+    function decodeCompact(str) {
+        var out = [];
+        for (var k = 0; k + 1 < str.length; k += 2) {
+            var ci = ALPHA.indexOf(str.charAt(k));
+            var rj = ALPHA.indexOf(str.charAt(k + 1));
+            if (ci < 0 || rj < 0) {
+                break;
+            }
+            out.push({ i: ci, j: SIZE - 1 - rj, color: out.length % 2 === 0 ? 'b' : 'w' });
+        }
+        return out;
+    }
+
     function decodeRoute(str) {
         var out = [];
         var s = String(str || '').replace(/^#/, '').toLowerCase();
+
+        /* 见到 p= 就走紧凑版；老的 h8i9j10 链接继续认 */
+        if (s.indexOf('p=') === 0) {
+            return decodeCompact(s.slice(2));
+        }
         var k = 0;
         while (k < s.length) {
             var m = /^([a-o])(\d{1,2})/.exec(s.slice(k));
@@ -1053,9 +1084,9 @@
         if (!this.hash) {
             return;
         }
-        var code = encodeMoves(this.moves.slice(0, Math.min(this.cursor, this.moves.length)));
+        var code = encodeCompact(this.moves.slice(0, Math.min(this.cursor, this.moves.length)));
         var bare = location.pathname + location.search;
-        var url = bare + (code ? '#' + code : '');
+        var url = bare + (code ? '#p=' + code : '');
         if (url === bare + location.hash) {
             return;
         }
@@ -1215,6 +1246,7 @@
         coord: coordOf,
         parse: parseMoves,
         encode: encodeMoves,
+        encodeCompact: encodeCompact,
         decode: decodeRoute
     };
 

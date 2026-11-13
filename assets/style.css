@@ -1862,6 +1862,26 @@ table.ratings .r-name a:hover {
     text-decoration: none;
 }
 
+/* 两条横幅叠着放时，把下一条的底边距收回来 */
+.banner + .banner {
+    margin-top: -22px;
+}
+
+/* ---------- 等级分表页的入口提示 ---------- */
+
+.rating-hint {
+    margin: 14px 0 20px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.85;
+    color: var(--ink-3);
+}
+
+.rating-hint a {
+    color: var(--gold-deep);
+    border-bottom: 1px solid rgba(176, 141, 87, 0.35);
+}
+
 .banner-text {
     font-size: 15px;
     letter-spacing: 0.02em;
@@ -1919,6 +1939,150 @@ table.ratings .r-name a:hover {
     font-size: 12.5px;
     line-height: 1.9;
     color: var(--faint);
+}
+
+/* 棋手页：成绩卡按钮 */
+.pcard-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    margin: -14px 0 32px;
+}
+
+.pcard-btn {
+    flex: none;
+    padding: 8px 16px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+
+.pcard-btn:hover { border-color: var(--gold); color: var(--gold-deep); }
+.pcard-btn.is-primary {
+    color: #fffdf7;
+    background: var(--gold-deep);
+    border-color: var(--gold-deep);
+}
+.pcard-btn.is-primary:hover { background: #6f5530; color: #fffdf7; }
+
+.pcard-hint {
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: var(--faint);
+}
+
+/* 棋手页：等级分走势（静态 SVG） */
+.p-curve { margin: 0 0 38px; }
+
+.pcurve {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 6px 0 2px;
+    overflow: visible;
+}
+
+.pc-grid { stroke: var(--line-soft); stroke-width: 1; }
+.pc-axis { fill: var(--faint); font-family: var(--mono); font-size: 10px; }
+.pc-line { fill: none; stroke: var(--gold-deep); stroke-width: 2; stroke-linejoin: round; }
+.pc-area { fill: var(--gold-tint); opacity: .6; }
+.pc-dot { fill: var(--gold-deep); }
+
+.pcurve-note {
+    margin: 4px 0 0;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.8;
+    color: var(--faint);
+}
+
+/* 成绩卡弹层 */
+.pcard-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(30, 27, 22, 0.62);
+    backdrop-filter: blur(3px);
+}
+
+.pcard-panel {
+    width: min(520px, 100%);
+    max-height: 94vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 18px 18px;
+    background: var(--paper);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 30px 70px -30px rgba(20, 14, 4, .7);
+}
+
+.pcard-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 2px 2px 12px;
+    font-family: var(--sans);
+}
+
+.pcard-head b {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.pcard-head span { font-size: 11px; color: var(--faint); }
+
+.pcard-x {
+    margin-left: auto;
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.pcard-x:hover { background: var(--surface-2); color: var(--ink); }
+
+.pcard-shot {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    border-radius: 10px;
+    background: var(--surface-2);
+}
+
+.pcard-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+
+.pcard-acts {
+    display: flex;
+    gap: 10px;
+    padding-top: 14px;
+}
+
+@media (max-width: 640px) {
+    .pcard-modal { padding: 12px; align-items: flex-end; }
+    .pcard-panel { max-height: 92vh; }
 }
 
 .mention-card {
@@ -3302,6 +3466,297 @@ table.ratings .r-name a:hover {
 .dapu .board {
     flex: 0 1 528px;
     min-width: 0;
+}
+
+/* 打谱页：局面链接 */
+.dapu-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: -6px 0 16px;
+}
+
+.dapu-btn {
+    flex: none;
+    padding: 7px 14px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+
+.dapu-btn:hover { border-color: var(--gold); color: var(--gold-deep); }
+.dapu-btn.is-done { border-color: var(--gold); color: var(--gold-deep); background: var(--gold-tint); }
+
+.dapu-code {
+    min-width: 0;
+    flex: 1 1 220px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dapu-code b { color: var(--gold-deep); font-weight: 600; }
+
+/* ---------- 开局命名与同型局 ---------- */
+
+.kaiju {
+    margin: 0 0 42px;
+}
+
+.kaiju-lead {
+    max-width: 64ch;
+    margin: 0 0 18px;
+    font-size: 13.5px;
+    line-height: 1.9;
+    color: var(--ink-3);
+}
+
+.kj-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.kj-card {
+    padding: 18px 20px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.kj-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.kj-head b {
+    font-family: var(--serif);
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    color: var(--ink);
+}
+
+.kj-code {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .06em;
+    color: var(--gold-deep);
+}
+
+.kj-why {
+    margin: 10px 0 0;
+    font-size: 13px;
+    line-height: 1.85;
+    color: var(--ink-3);
+}
+
+.kj-meta {
+    margin: 8px 0 0;
+    padding-top: 9px;
+    border-top: 1px dashed var(--line-soft);
+    font-family: var(--sans);
+    font-size: 11.5px;
+    letter-spacing: .02em;
+    color: var(--faint);
+}
+
+.kj-side {
+    min-width: 0;
+}
+
+.kj-side-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0 0 10px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: var(--ink-2);
+}
+
+.kj-side-head small {
+    font-weight: 400;
+    font-size: 11.5px;
+    letter-spacing: 0;
+    color: var(--faint);
+}
+
+.kj-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+}
+
+.kj-list li {
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.kj-row {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    grid-template-areas:
+        "score who"
+        "score sub";
+    gap: 2px 10px;
+    width: 100%;
+    padding: 10px 4px;
+    font: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    transition: background .16s ease;
+}
+
+.kj-row:hover {
+    background: var(--gold-tint);
+}
+
+.kj-score {
+    grid-area: score;
+    align-self: center;
+    font-family: var(--mono);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--gold-deep);
+}
+
+.kj-who {
+    grid-area: who;
+    font-size: 13.5px;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kj-who i {
+    margin: 0 6px;
+    font-style: normal;
+    font-size: 11px;
+    color: var(--faint);
+}
+
+.kj-sub {
+    grid-area: sub;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kj-empty {
+    padding: 12px 4px;
+    font-size: 12.5px;
+    color: var(--faint);
+}
+
+.kj-book {
+    margin: 18px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--line-soft);
+}
+
+.kj-book summary {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    letter-spacing: .04em;
+    color: var(--ink-3);
+    cursor: pointer;
+}
+
+.kj-book summary:hover {
+    color: var(--gold-deep);
+}
+
+.kj-book-wrap {
+    margin: 12px 0 0;
+}
+
+.kj-fam {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 10px;
+}
+
+.kj-fam > span {
+    flex: none;
+    width: 34px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--faint);
+}
+
+.kj-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 5px 9px;
+    font: inherit;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color .16s ease, background .16s ease;
+}
+
+.kj-chip b {
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+}
+
+.kj-chip i {
+    font-family: var(--mono);
+    font-style: normal;
+    font-size: 10px;
+    color: var(--faint);
+}
+
+.kj-chip:hover {
+    border-color: var(--gold);
+    background: var(--gold-tint);
+}
+
+.kj-chip:hover b,
+.kj-chip:hover i {
+    color: var(--gold-deep);
+}
+
+@media (max-width: 760px) {
+    .kj-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .kj-head b {
+        font-size: 23px;
+    }
+
+    .kj-fam > span {
+        width: 100%;
+    }
 }
 
 /* ---------- 图片转棋谱 ---------- */

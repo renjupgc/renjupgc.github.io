@@ -48,6 +48,24 @@
             <p class="player-note">等级分截至 2026-10-31，在 <a href="../rating.html">河南高校爱好者等级分</a>的 252 人中列第 114 位；上方对局数与胜负不含轮空、弃权，下方的对局记录则全部分局照录。
             </p>
 
+            <p class="pcard-row">
+                <button class="pcard-btn" type="button" data-card>存为成绩卡</button>
+                <span class="pcard-hint">把等级分、胜负与二维码画成一张图，发群里比截图清楚。</span>
+            </p>
+
+            <section class="p-curve">
+                <h2>等级分走势</h2>
+                <svg class="pcurve" viewBox="0 0 640 168" role="img" aria-label="梁奕轩的等级分曲线">
+                    <line class="pc-grid" x1="44" y1="14.0" x2="626" y2="14.0"></line><text class="pc-axis" x="38" y="17.0" text-anchor="end">1954</text><line class="pc-grid" x1="44" y1="78.0" x2="626" y2="78.0"></line><text class="pc-axis" x="38" y="81.0" text-anchor="end">1938</text><line class="pc-grid" x1="44" y1="142.0" x2="626" y2="142.0"></line><text class="pc-axis" x="38" y="145.0" text-anchor="end">1921</text>
+                    <path class="pc-area" d="M270.3 83.5 L302.7 83.5 L335.0 72.5 L367.3 72.5 L399.7 72.5 L432.0 72.5 L464.3 72.5 L496.7 72.5 L529.0 72.5 L561.3 72.5 L593.7 72.5 L626.0 72.5 L626.0 142.0 L270.3 142.0 Z"></path>
+                    <path class="pc-line" d="M270.3 83.5 L302.7 83.5 L335.0 72.5 L367.3 72.5 L399.7 72.5 L432.0 72.5 L464.3 72.5 L496.7 72.5 L529.0 72.5 L561.3 72.5 L593.7 72.5 L626.0 72.5"></path>
+                    <circle class="pc-dot" cx="626.0" cy="72.5" r="3.4"></circle>
+                    <text class="pc-axis" x="44" y="162">2025-08</text>
+                    <text class="pc-axis" x="626" y="162" text-anchor="end">2026-10</text>
+                </svg>
+                <p class="pcurve-note">每个折点是一场比赛日，平段就是那段时间没参赛。截至 2026-10-31 为 1939.11 分；想看当时的全站排名，去<a href="../shiguang.html">等级分时光机</a>。</p>
+            </section>
+
             <section>
                 <h2>参赛记录</h2>
                 <div class="table-scroll">
@@ -105,6 +123,7 @@
 </div>
 
 <script src="../../assets/layout.js"></script>
+<script src="../../assets/playercard.js"></script>
 
 </body>
 </html>

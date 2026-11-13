@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>等级分时光机 - 连珠杂箱</title>
+<meta name="description" content="拖动滑块回看每场赛事结束时的等级分榜单，点开棋手看他的分数曲线：等级分不再只是一张当前快照。">
+<!-- zbx:seo -->
+<link rel="canonical" href="https://renjupgc.github.io/zayu/shiguang.html">
+<meta property="og:site_name" content="连珠杂箱">
+<meta property="og:type" content="website">
+<meta property="og:title" content="等级分时光机">
+<meta property="og:description" content="拖动滑块回看每场赛事结束时的等级分榜单，点开棋手看他的分数曲线：等级分不再只是一张当前快照。">
+<meta property="og:url" content="https://renjupgc.github.io/zayu/shiguang.html">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="等级分时光机">
+<meta name="twitter:description" content="拖动滑块回看每场赛事结束时的等级分榜单，点开棋手看他的分数曲线：等级分不再只是一张当前快照。">
+<meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<!-- /zbx:seo -->
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+/* 时光机页专用。全站样式不动，这里只管本页的滑块与曲线。 */
+
+.tm-console {
+    margin: 26px 0 8px;
+    padding: 18px 20px 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.tm-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.tm-when { min-width: 0; }
+
+.tm-when b {
+    display: block;
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+}
+
+.tm-when span {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tm-nav { display: flex; gap: 6px; flex: none; }
+
+.tm-nav button {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    font-family: var(--sans);
+    font-size: 17px; line-height: 1;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+
+.tm-nav button:hover:not(:disabled) { border-color: var(--gold); color: var(--gold-deep); }
+.tm-nav button:disabled { opacity: .38; cursor: default; }
+
+/* 滑块：轨道用细分隔线，拇指做成一颗棋子 */
+.tm-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 22px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.tm-slider::-webkit-slider-runnable-track {
+    height: 3px;
+    background: linear-gradient(to right, var(--gold) var(--p, 0%), var(--line) var(--p, 0%));
+    border-radius: 2px;
+}
+
+.tm-slider::-moz-range-track {
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+}
+
+.tm-slider::-moz-range-progress {
+    height: 3px;
+    background: var(--gold);
+    border-radius: 2px;
+}
+
+.tm-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    margin-top: -7.5px;
+    background: var(--ink);
+    border: 2px solid var(--paper);
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(64, 46, 18, .3);
+}
+
+.tm-slider::-moz-range-thumb {
+    width: 16px; height: 16px;
+    background: var(--ink);
+    border: 2px solid var(--paper);
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(64, 46, 18, .3);
+}
+
+.tm-slider:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+
+/* 年份刻度 */
+.tm-ticks {
+    position: relative;
+    height: 16px;
+    margin-top: 2px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--faint);
+}
+
+.tm-ticks i {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    font-style: normal;
+}
+
+.tm-ticks i::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -6px;
+    width: 1px;
+    height: 4px;
+    background: var(--line);
+}
+
+.tm-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+    gap: 26px;
+    align-items: start;
+    margin-top: 22px;
+}
+
+.tm-list-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.tm-list-head h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.tm-list-head span {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.tm-rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line-soft);
+}
+
+.tm-row {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto auto;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--line-soft);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background .12s ease;
+}
+
+.tm-row:hover { background: var(--surface-2); }
+.tm-row.is-on { background: var(--gold-tint); }
+
+.tm-r {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: right;
+}
+
+.tm-row:nth-child(1) .tm-r,
+.tm-row:nth-child(2) .tm-r,
+.tm-row:nth-child(3) .tm-r { color: var(--gold-deep); }
+
+.tm-n {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tm-d {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    min-width: 30px;
+    text-align: right;
+}
+
+.tm-d.up { color: var(--win); }
+.tm-d.down { color: var(--loss); }
+
+.tm-p {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    min-width: 62px;
+}
+
+.tm-more {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 9px 0;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-3);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.tm-more:hover { border-color: var(--gold); color: var(--gold-deep); }
+
+/* 右侧：个人曲线 */
+.tm-side {
+    position: sticky;
+    top: 78px;
+    padding: 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.tm-side-empty {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: var(--muted);
+}
+
+.tm-side-name {
+    margin: 0 0 2px;
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.tm-side-meta {
+    margin: 0 0 14px;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.tm-side-meta b { color: var(--gold-deep); font-weight: 600; }
+
+.tm-chart { display: block; width: 100%; height: auto; overflow: visible; }
+
+.tm-chart .grid { stroke: var(--line-soft); stroke-width: 1; }
+.tm-chart .line { fill: none; stroke: var(--gold-deep); stroke-width: 1.8; stroke-linejoin: round; }
+.tm-chart .area { fill: var(--gold-tint); opacity: .55; }
+.tm-chart .dot { fill: var(--gold-deep); }
+.tm-chart .now { fill: var(--ink); }
+.tm-chart .now-ring { fill: none; stroke: var(--gold); stroke-width: 1.2; }
+.tm-chart .axis { fill: var(--faint); font-family: var(--mono); font-size: 9px; }
+
+.tm-foot {
+    margin-top: 8px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: var(--faint);
+}
+
+@media (max-width: 880px) {
+    .tm-body { grid-template-columns: minmax(0, 1fr); }
+    .tm-side { position: static; order: -1; }
+}
+</style>
+</head>
+
+<body data-nav="杂豫" data-base="../">
+
+<div class="container">
+
+    <div id="site-header"></div>
+
+    <main>
+
+        <header class="page-head">
+            <p class="eyebrow">杂豫 · 等级分</p>
+            <h1 class="page-title">等级分时光机</h1>
+            <p class="page-desc">把全部对局按日期重放一遍，就有每个赛事结束时的榜单。拖动滑块往回看，点名字看这位棋手一路的起伏。</p>
+        </header>
+
+        <section class="tm-console" aria-label="时点选择">
+            <div class="tm-head">
+                <div class="tm-when">
+                    <b id="tm-date">—</b>
+                    <span id="tm-event">—</span>
+                </div>
+                <div class="tm-nav">
+                    <button id="tm-prev" type="button" aria-label="上一个时点">‹</button>
+                    <button id="tm-next" type="button" aria-label="下一个时点">›</button>
+                </div>
+            </div>
+            <input id="tm-slider" class="tm-slider" type="range" min="0" max="0" value="0" step="1"
+                   aria-label="拖动选择时点">
+            <div class="tm-ticks" id="tm-ticks" aria-hidden="true"></div>
+        </section>
+
+        <div class="tm-body">
+
+            <section aria-label="榜单">
+                <div class="tm-list-head">
+                    <h2>当时的榜单</h2>
+                    <span id="tm-count"></span>
+                </div>
+                <ol class="tm-rows" id="tm-rows"></ol>
+                <button class="tm-more" id="tm-more" type="button" hidden></button>
+            </section>
+
+            <aside class="tm-side" id="tm-side" aria-live="polite">
+                <p class="tm-side-empty">在左边点一位棋手，这里会画出他从首次出场到现在的等级分曲线。</p>
+            </aside>
+
+        </div>
+
+        <p class="tm-foot" id="tm-foot"></p>
+
+    </main>
+
+</div>
+
+<script src="../assets/layout.js"></script>
+<script src="../assets/rating-history.js"></script>
+<script src="../assets/timemachine.js"></script>
+<script>
+/* 站内无刷新换页时外链脚本不会重跑，这里再叫一次；boot() 自带守卫，重复调用无害 */
+if (window.ZBX_TIMEMACHINE) { window.ZBX_TIMEMACHINE.boot(); }
+</script>
+
+</body>
+</html>

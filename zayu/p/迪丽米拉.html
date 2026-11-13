@@ -48,6 +48,24 @@
             <p class="player-note">等级分截至 2026-10-31，在 <a href="../rating.html">河南高校爱好者等级分</a>的 252 人中列第 210 位；上方对局数与胜负不含轮空、弃权，下方的对局记录则全部分局照录。
             </p>
 
+            <p class="pcard-row">
+                <button class="pcard-btn" type="button" data-card>存为成绩卡</button>
+                <span class="pcard-hint">把等级分、胜负与二维码画成一张图，发群里比截图清楚。</span>
+            </p>
+
+            <section class="p-curve">
+                <h2>等级分走势</h2>
+                <svg class="pcurve" viewBox="0 0 640 168" role="img" aria-label="迪丽米拉的等级分曲线">
+                    <line class="pc-grid" x1="44" y1="14.0" x2="626" y2="14.0"></line><text class="pc-axis" x="38" y="17.0" text-anchor="end">1779</text><line class="pc-grid" x1="44" y1="78.0" x2="626" y2="78.0"></line><text class="pc-axis" x="38" y="81.0" text-anchor="end">1764</text><line class="pc-grid" x1="44" y1="142.0" x2="626" y2="142.0"></line><text class="pc-axis" x="38" y="145.0" text-anchor="end">1749</text>
+                    <path class="pc-area" d="M205.7 78.0 L238.0 78.0 L270.3 78.0 L302.7 78.0 L335.0 78.0 L367.3 78.0 L399.7 78.0 L432.0 78.0 L464.3 78.0 L496.7 78.0 L529.0 78.0 L561.3 78.0 L593.7 78.0 L626.0 78.0 L626.0 142.0 L205.7 142.0 Z"></path>
+                    <path class="pc-line" d="M205.7 78.0 L238.0 78.0 L270.3 78.0 L302.7 78.0 L335.0 78.0 L367.3 78.0 L399.7 78.0 L432.0 78.0 L464.3 78.0 L496.7 78.0 L529.0 78.0 L561.3 78.0 L593.7 78.0 L626.0 78.0"></path>
+                    <circle class="pc-dot" cx="626.0" cy="78.0" r="3.4"></circle>
+                    <text class="pc-axis" x="44" y="162">2025-04</text>
+                    <text class="pc-axis" x="626" y="162" text-anchor="end">2026-10</text>
+                </svg>
+                <p class="pcurve-note">每个折点是一场比赛日，平段就是那段时间没参赛。截至 2026-10-31 为 1764.00 分；想看当时的全站排名，去<a href="../shiguang.html">等级分时光机</a>。</p>
+            </section>
+
             <section>
                 <h2>参赛记录</h2>
                 <div class="table-scroll">
@@ -97,6 +115,7 @@
 </div>
 
 <script src="../../assets/layout.js"></script>
+<script src="../../assets/playercard.js"></script>
 
 </body>
 </html>

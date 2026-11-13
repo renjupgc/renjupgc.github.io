@@ -36,7 +36,18 @@ import sys
 from urllib.parse import quote
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import build_zayu as bz          # noqa: E402  复用 HEAD / esc / compute 等
+import build_zayu as bz
+
+# 等级分时序：给棋手页画走势用。取不到就跳过这一节，页面照常生成。
+try:
+    import build_rating_history as rh
+    _snaps, _players = rh.build_series()[:2]
+    SNAPS = _snaps
+    SERIES = {row[0]: row[1] for row in _players}
+    DATES = [x['d'] for x in SNAPS]
+except Exception as _e:
+    print('！ 未取得等级分时序（%s），棋手页暂不画走势' % _e)
+    SNAPS, SERIES, DATES = [], {}, []          # noqa: E402  复用 HEAD / esc / compute 等
 import renwu_data as rw          # noqa: E402  杂豫「山河四省连珠人物」的人物资料
 
 ROOT = bz.ROOT
@@ -483,7 +494,15 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                     '与胜负不含轮空、弃权，下方的对局记录则全部分局照录。')
         body += ['            <p class="player-note">%s' % note,
                  '            </p>',
+                 '',
+                 '            <p class="pcard-row">',
+                 '                <button class="pcard-btn" type="button" data-card>'
+                 '存为成绩卡</button>',
+                 '                <span class="pcard-hint">把等级分、胜负与二维码画成一张图，'
+                 '发群里比截图清楚。</span>',
+                 '            </p>',
                  '']
+        body += curve_svg(name)
 
     if prof:
         body += render_renwu(prof)
@@ -607,13 +626,81 @@ def page(name, rec, events, games, reports, index, total_players, arts,
             name, '（%s）' % sub if sub else '', pt,
             '第 %s 名，' % rank if rank else '未入榜，', len(events) + len(extras))
 
-    return bz.HEAD.format(
+    html = bz.HEAD.format(
         title='%s - 杂豫 - 连珠杂箱' % bz.esc(name),
         desc=bz.esc(desc),
         base='../../',
         base_attr=' data-base="../../"',
         body='\n'.join(body))
 
+    # 成绩卡脚本只挂在棋手页；二维码模块由它按需加载，不占首屏
+    return html.replace(
+        '<script src="../../assets/layout.js"></script>',
+        '<script src="../../assets/layout.js"></script>' + chr(10) +
+        '<script src="../../assets/playercard.js"></script>')
+
+
+
+def curve_svg(name):
+    """棋手页的等级分走势：内联 SVG，静态输出，不依赖脚本。"""
+    row = SERIES.get(name)
+    if not row or len(row) < 2:
+        return []
+    pts = [(i, v) for i, v in enumerate(row) if v is not None]
+    if len(pts) < 2:
+        return []
+
+    W, H = 640, 168
+    padL, padR, padT, padB = 44, 14, 14, 26
+    pw, ph = W - padL - padR, H - padT - padB
+    lo = min(v for _i, v in pts)
+    hi = max(v for _i, v in pts)
+    if hi - lo < 30:
+        hi += 15
+        lo -= 15
+    span = len(row) - 1
+
+    def X(i):
+        return padL + (i / span) * pw
+
+    def Y(v):
+        return padT + ph - ((v - lo) / (hi - lo)) * ph
+
+    line = ' '.join('%s%.1f %.1f' % ('M' if k == 0 else 'L', X(i), Y(v))
+                    for k, (i, v) in enumerate(pts))
+    area = line + ' L%.1f %.1f L%.1f %.1f Z' % (X(pts[-1][0]), padT + ph,
+                                               X(pts[0][0]), padT + ph)
+
+    grid = []
+    for val in (hi, (hi + lo) / 2, lo):
+        y = Y(val)
+        grid.append('<line class="pc-grid" x1="%d" y1="%.1f" x2="%d" y2="%.1f"></line>'
+                    '<text class="pc-axis" x="%d" y="%.1f" text-anchor="end">%d</text>'
+                    % (padL, y, W - padR, y, padL - 6, y + 3, round(val)))
+
+    last_i, last_v = pts[-1]
+    return [
+        '            <section class="p-curve">',
+        '                <h2>等级分走势</h2>',
+        '                <svg class="pcurve" viewBox="0 0 %d %d" role="img" '
+        'aria-label="%s的等级分曲线">' % (W, H, bz.esc(name)),
+        '                    ' + ''.join(grid),
+        '                    <path class="pc-area" d="%s"></path>' % area,
+        '                    <path class="pc-line" d="%s"></path>' % line,
+        '                    <circle class="pc-dot" cx="%.1f" cy="%.1f" r="3.4"></circle>'
+        % (X(last_i), Y(last_v)),
+        '                    <text class="pc-axis" x="%d" y="%d">%s</text>'
+        % (padL, H - 6, bz.esc(DATES[pts[0][0]][:7])),
+        '                    <text class="pc-axis" x="%d" y="%d" text-anchor="end">%s</text>'
+        % (W - padR, H - 6, bz.esc(DATES[last_i][:7])),
+        '                </svg>',
+        '                <p class="pcurve-note">每个折点是一场比赛日，平段就是那段时间没参赛。'
+        '截至 %s 为 %.2f 分；想看当时的全站排名，去'
+        '<a href="../shiguang.html">等级分时光机</a>。</p>'
+        % (bz.esc(DATES[last_i]), last_v),
+        '            </section>',
+        '',
+    ]
 
 def patch_rating(names):
     """给等级分表的姓名单元格补内链；已是最新则原样返回。"""

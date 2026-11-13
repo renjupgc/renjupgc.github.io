@@ -48,6 +48,24 @@
             <p class="player-note">等级分截至 2026-10-31，在 <a href="../rating.html">河南高校爱好者等级分</a>的 252 人中列第 63 位；上方对局数与胜负不含轮空、弃权，下方的对局记录则全部分局照录。
             </p>
 
+            <p class="pcard-row">
+                <button class="pcard-btn" type="button" data-card>存为成绩卡</button>
+                <span class="pcard-hint">把等级分、胜负与二维码画成一张图，发群里比截图清楚。</span>
+            </p>
+
+            <section class="p-curve">
+                <h2>等级分走势</h2>
+                <svg class="pcurve" viewBox="0 0 640 168" role="img" aria-label="乔仕鑫的等级分曲线">
+                    <line class="pc-grid" x1="44" y1="14.0" x2="626" y2="14.0"></line><text class="pc-axis" x="38" y="17.0" text-anchor="end">2063</text><line class="pc-grid" x1="44" y1="78.0" x2="626" y2="78.0"></line><text class="pc-axis" x="38" y="81.0" text-anchor="end">2040</text><line class="pc-grid" x1="44" y1="142.0" x2="626" y2="142.0"></line><text class="pc-axis" x="38" y="145.0" text-anchor="end">2016</text>
+                    <path class="pc-area" d="M44.0 94.0 L76.3 93.1 L108.7 93.1 L141.0 99.8 L173.3 99.8 L205.7 99.8 L238.0 99.8 L270.3 100.4 L302.7 100.4 L335.0 55.6 L367.3 79.1 L399.7 79.1 L432.0 79.1 L464.3 79.1 L496.7 79.1 L529.0 82.5 L561.3 91.0 L593.7 91.7 L626.0 91.7 L626.0 142.0 L44.0 142.0 Z"></path>
+                    <path class="pc-line" d="M44.0 94.0 L76.3 93.1 L108.7 93.1 L141.0 99.8 L173.3 99.8 L205.7 99.8 L238.0 99.8 L270.3 100.4 L302.7 100.4 L335.0 55.6 L367.3 79.1 L399.7 79.1 L432.0 79.1 L464.3 79.1 L496.7 79.1 L529.0 82.5 L561.3 91.0 L593.7 91.7 L626.0 91.7"></path>
+                    <circle class="pc-dot" cx="626.0" cy="91.7" r="3.4"></circle>
+                    <text class="pc-axis" x="44" y="162">2024-06</text>
+                    <text class="pc-axis" x="626" y="162" text-anchor="end">2026-10</text>
+                </svg>
+                <p class="pcurve-note">每个折点是一场比赛日，平段就是那段时间没参赛。截至 2026-10-31 为 2034.58 分；想看当时的全站排名，去<a href="../shiguang.html">等级分时光机</a>。</p>
+            </section>
+
             <section class="p-renwu">
                 <h2>人物</h2>
                 <p class="pr-head"><span class="rh-dan">二级棋士</span><span class="rh-tag">河南 · 郑州</span></p>
@@ -147,6 +165,7 @@
 </div>
 
 <script src="../../assets/layout.js"></script>
+<script src="../../assets/playercard.js"></script>
 
 </body>
 </html>

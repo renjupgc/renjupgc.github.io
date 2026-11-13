@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>打谱 - 连珠杂箱</title>
-<meta name="description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，还能把棋盘图直接认成棋谱。只记棋不判胜负。">
+<meta name="description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/zaji/dapu.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
 <meta property="og:title" content="打谱">
-<meta property="og:description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，还能把棋盘图直接认成棋谱。只记棋不判胜负。">
+<meta property="og:description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
 <meta property="og:url" content="https://renjupgc.github.io/zaji/dapu.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="打谱">
-<meta name="twitter:description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，还能把棋盘图直接认成棋谱。只记棋不判胜负。">
+<meta name="twitter:description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
@@ -34,14 +34,46 @@
         <header class="page-head">
             <p class="eyebrow">杂技</p>
             <h1 class="page-title">打谱</h1>
-            <p class="page-desc">点着摆棋、按手数翻看；手上只有一张图的话，交给下面的识别。</p>
+            <p class="page-desc">点着摆棋、按手数翻看，摆到第三手认开局、找同型局；手上只有一张图的话，交给下面的识别。</p>
         </header>
 
         <section>
             <div class="dapu">
                 <div class="board" data-board data-editable data-hash></div>
             </div>
-            <p class="qipu-tip">想摆现成的对局，去<a href="../zayu.html">杂豫</a>翻一场比赛，成绩表里有谱的格子点一下就能展开。</p>
+            <div class="dapu-bar">
+                <button class="dapu-btn" id="dapu-share" type="button">复制局面链接</button>
+                <code class="dapu-code" id="dapu-code">摆几手，这里会给出可分享的链接</code>
+            </div>
+            <p class="qipu-tip">局面本身就写在地址栏里（<code>#p=hhiijj</code>，一手两个字母），所以复制链接发给棋友，对方一打开就是同一个局面。想摆现成的对局，去<a href="../zayu.html">杂豫</a>翻一场比赛，成绩表里有谱的格子点一下就能展开。</p>
+        </section>
+
+        <section class="kaiju" id="kaiju">
+            <h2>开局</h2>
+            <p class="kaiju-lead">连珠的前三手决定了开局的名字：第一手在天元、第二手贴在 3×3 以内、第三手在 5×5 以内，把旋转和镜像重复的形并掉，正好二十六种。摆到第三手，下面就会报出名字；摆得越多，右边的同型局比对得越准。</p>
+
+            <div class="kj-grid">
+                <div class="kj-card">
+                    <div class="kj-head">
+                        <b id="kj-name">—</b>
+                        <span class="kj-code" id="kj-code"></span>
+                    </div>
+                    <p class="kj-why" id="kj-why">摆到第三手，这里会给出开局名。</p>
+                    <p class="kj-meta" id="kj-meta"></p>
+                </div>
+
+                <div class="kj-side">
+                    <div class="kj-side-head">同型局<small id="kj-side-note"></small></div>
+                    <ol class="kj-list" id="kj-list">
+                        <li class="kj-empty">摆几手再看</li>
+                    </ol>
+                </div>
+            </div>
+
+            <details class="kj-book" open>
+                <summary>二十六种开局 · 点一个摆到盘上</summary>
+                <div class="kj-book-wrap" id="kj-book"></div>
+            </details>
         </section>
 
         <section class="scan" id="scan">
@@ -80,6 +112,116 @@
 <script src="../assets/layout.js"></script>
 <script src="../assets/board.js"></script>
 <script src="../assets/dapu.js"></script>
+<script src="../assets/openings-data.js"></script>
+<script src="../assets/openings.js"></script>
+<script src="../assets/kaiju.js"></script>
+<script>
+/*
+ * 局面链接
+ * ------------------------------------------------------------
+ * 棋盘自己会把局面写进地址栏（见 board.js 的 syncHash），这里只做两件事：
+ * 把当前链接复制到剪贴板，以及把编码回显出来，方便肉眼确认。
+ * 站内无刷新换页会让本段重跑，所以用 data-ready 挡一下。
+ */
+(function () {
+    'use strict';
+
+    var btn = document.getElementById('dapu-share');
+    if (!btn || btn.dataset.ready === '1') {
+        return;
+    }
+    btn.dataset.ready = '1';
+
+    var out = document.getElementById('dapu-code');
+    var host = document.querySelector('.board[data-board]');
+
+    function board() {
+        return host && window.GomokuBoard ? window.GomokuBoard.get(host) : null;
+    }
+
+    /* 换页刚进来时棋盘可能还没挂上，等一小会儿再问 */
+    function withBoard(fn, tries) {
+        var b = board();
+        if (b) {
+            fn(b);
+            return;
+        }
+        if ((tries || 0) < 12) {
+            window.setTimeout(function () { withBoard(fn, (tries || 0) + 1); }, 60);
+        }
+    }
+
+    function link(b) {
+        var moves = b.getMoves().slice(0, b.getCursor());
+        var code = window.GomokuBoard.encodeCompact(moves);
+        var base = location.origin + location.pathname;
+        return { code: code, url: code ? base + '#p=' + code : base };
+    }
+
+    function paint(b) {
+        if (!out) {
+            return;
+        }
+        var l = link(b);
+        if (!l.code) {
+            out.textContent = '摆几手，这里会给出可分享的链接';
+            return;
+        }
+        out.innerHTML = '<b>#p=' + l.code + '</b>';
+        out.title = l.url;
+    }
+
+    function copy(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function (ok, bad) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+            document.body.appendChild(ta);
+            ta.select();
+            var done = false;
+            try {
+                done = document.execCommand('copy');
+            } catch (e) { /* 忽略 */ }
+            document.body.removeChild(ta);
+            done ? ok() : bad(new Error('copy'));
+        });
+    }
+
+    function flash(text, ok) {
+        var old = btn.textContent;
+        btn.textContent = text;
+        btn.classList.toggle('is-done', !!ok);
+        window.setTimeout(function () {
+            btn.textContent = old;
+            btn.classList.remove('is-done');
+        }, 1600);
+    }
+
+    btn.addEventListener('click', function () {
+        withBoard(function (b) {
+            var l = link(b);
+            if (!l.code) {
+                flash('先摆几手', false);
+                return;
+            }
+            copy(l.url).then(function () {
+                flash('已复制', true);
+            }).catch(function () {
+                flash('复制失败，请手动复制地址栏', false);
+            });
+        });
+    });
+
+    withBoard(function (b) {
+        paint(b);
+        b.onChange(function () { paint(b); });
+    });
+})();
+</script>
 
 </body>
 </html>
