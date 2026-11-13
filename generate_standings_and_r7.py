@@ -397,11 +397,13 @@ for p_rank_order, p_idx in enumerate(sorted_player_indices):
     # Main player row
     p_row = (
         f'      <tr class="player-row" id="prow-{p_idx}" onclick="toggleRow({p_idx})">\n'
-        f'        <td class="c-pn-std"><span class="pid">{no}</span><span class="pn" title="{name}">{name}</span></td>\n'
-        f'        <td class="c-pct-std"><span class="v{cls_top1}">{str_top1}</span></td>\n'
-        f'        <td class="c-pct-std"><span class="v{cls_top3}">{str_top3}</span></td>\n'
-        f'        <td class="c-pct-std"><span class="v{cls_top8}">{str_top8}</span></td>\n'
-        f'        <td class="c-exp-std"><span class="exp-badge">{exp_r:.2f}</span></td>\n'
+        f'        <td class="c-pn-std">\n'
+        f'          <span class="pid">{no}</span><span class="pn" title="{name}">{name}</span>\n'
+        f'        </td>\n'
+        f'        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v{cls_top1}">{str_top1}</span></td>\n'
+        f'        <td class="c-pct-std m-stat" data-label="前三率"><span class="v{cls_top3}">{str_top3}</span></td>\n'
+        f'        <td class="c-pct-std m-stat" data-label="前八率"><span class="v{cls_top8}">{str_top8}</span></td>\n'
+        f'        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>{exp_r:.2f}</span></td>\n'
         f'        <td class="c-dist-std">\n'
         f'          <div class="dist-preview-wrap">\n'
         f'            <span class="mini-hm-bar" title="1~16名热力图概览">{mini_bar_html}</span>\n'
@@ -409,11 +411,12 @@ for p_rank_order, p_idx in enumerate(sorted_player_indices):
         f'          </div>\n'
         f'        </td>\n'
         f'      </tr>\n'
-        f'      <tr class="detail-row" id="detail-{p_idx}" style="display:none">\n'
+        f'      <tr class="detail-row" id="detail-{p_idx}">\n'
         f'        <td colspan="6" class="detail-cell">\n'
         f'          <div class="detail-wrap">\n'
         f'            <div class="hm-header">\n'
         f'              <span class="hm-title">第 1 ~ 16 名分布热力图</span>\n'
+        f'              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>\n'
         f'            </div>\n'
         f'            <div class="hm-scroll">\n'
         f'              <div class="hm-grid">\n'
@@ -428,13 +431,13 @@ for p_rank_order, p_idx in enumerate(sorted_player_indices):
 
 standings_tbody = "\n".join(standings_rows)
 
-# Full CSS incorporating view-switcher, standings table with connected heatmap grid and collapsible rows
+# Full CSS incorporating view-switcher, standings table with connected heatmap grid and mobile optimization
 full_page_html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>世青赛 · 男子青年组（B组）第 7 轮对阵与名次概率预测表</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>世青赛 · 男子青年组（B组）第 7 轮对阵与详情预测表</title>
 <style>
 @font-face{{
   font-family:"ShuHei";
@@ -603,8 +606,8 @@ td.c-prob{{width:260px;padding:11px 16px}}
 .v.top.pos{{background:var(--pos-bg);color:var(--green);font-weight:600}}
 .v.bold{{font-weight:600;color:var(--ink)}}
 
-/* 名次预测表格样式 */
-.table-scroll{{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}}
+/* 详情表格（桌面端） */
+.table-scroll{{width:100%}}
 table.table-standings{{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}}
 table.table-standings thead th{{
   background:var(--mint);font:400 13px/1 var(--dis);letter-spacing:.05em;color:#2c5b49;
@@ -618,9 +621,10 @@ table.table-standings thead th{{
   display:inline-block;font:600 13px/1 var(--num);padding:3px 8px;border-radius:6px;
   background:#f1f0e8;color:var(--ink);
 }}
+.exp-lbl{{display:none;font-style:normal;font-size:11px;opacity:.7}}
 .c-dist-std{{text-align:right;padding-right:18px}}
 
-/* 主行点击交互 */
+/* 主行交互 */
 tr.player-row{{cursor:pointer;transition:background .15s ease}}
 tr.player-row:hover{{background:var(--mint2)}}
 tr.player-row.is-open{{background:var(--mint2);border-bottom-color:transparent}}
@@ -647,16 +651,21 @@ tr.player-row.is-open{{background:var(--mint2);border-bottom-color:transparent}}
 }}
 .btn-all-exp:hover{{background:rgba(13,71,54,.15)}}
 
+/* 手机端置顶快捷栏（桌面端隐藏） */
+.standings-mobile-bar{{display:none}}
+
 /* 展开详情行 */
-tr.detail-row{{background:#faf8f2;border-bottom:1px solid var(--line2)}}
+tr.detail-row{{display:none;background:#faf8f2;border-bottom:1px solid var(--line2)}}
+tr.detail-row.is-open{{display:table-row}}
 td.detail-cell{{padding:10px 18px 16px}}
 .detail-wrap{{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px 14px;box-shadow:0 3px 10px rgba(0,0,0,.03)}}
 .hm-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}}
 .hm-title{{font:600 13px/1 var(--dis);color:var(--green);display:flex;align-items:center;gap:5px}}
 .hm-title::before{{content:"◆";font-size:10px;color:var(--green)}}
+.hm-hint{{display:none;font-size:11px;color:var(--ink3);font-family:var(--dis)}}
 
 /* 连贯热力图格子（格子连着） */
-.hm-scroll{{overflow-x:auto;-webkit-overflow-scrolling:touch}}
+.hm-scroll{{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}}
 .hm-grid{{
   display:grid;grid-template-columns:repeat(16,minmax(48px,1fr));
   border:1px solid var(--line);border-radius:8px;overflow:hidden;
@@ -671,7 +680,7 @@ td.detail-cell{{padding:10px 18px 16px}}
 .hm-cell:last-child{{border-right:none}}
 .hm-cell:hover{{filter:brightness(0.96)}}
 .hm-rk{{font-size:11px;line-height:1;font-family:var(--dis);opacity:.8;margin-bottom:4px}}
-.hm-val{{font-size:12px;line-height:1.15;font-family:var(--num);white-space:nowrap}}
+.hm-val{{font-size:11.5px;line-height:1.15;font-family:var(--num);white-space:nowrap}}
 .hm-val.hm-zero{{opacity:.3;font-weight:400}}
 
 /* 热力梯度色彩 */
@@ -683,39 +692,122 @@ td.detail-cell{{padding:10px 18px 16px}}
 .hm-lvl-5{{background:#23835f;color:#ffffff;font-weight:700}}
 .hm-lvl-6{{background:#0d4736;color:#ffffff;font-weight:700}}
 
-/* 窄屏响应式 */
+/* 移动端与窄屏适配 */
 @media (max-width:820px){{
-  body{{padding:12px 12px 28px}}
+  body{{padding:10px 10px 24px}}
   .sheet{{max-width:none}}
-  .hd{{padding:15px 15px 13px}}
-  .hd h1{{font-size:19.5px;line-height:1.45;white-space:normal}}
+  .hd{{padding:14px 14px 12px}}
+  .hd h1{{font-size:18.5px;line-height:1.4;white-space:normal}}
   .hd-row{{margin-top:8px;flex-direction:column;align-items:flex-start;gap:10px}}
+  .hd-sub{{width:100%;justify-content:space-between;gap:8px}}
+  .rd-nav{{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;padding-bottom:3px}}
+  .rd-nav::-webkit-scrollbar{{display:none}}
+  .rd-tab{{flex-shrink:0;padding:5px 8px 4px;font-size:12px}}
   .view-switch{{width:100%;display:flex}}
   .v-btn{{flex:1;text-align:center}}
   
+  /* 对阵表响应式卡片 */
   table.table-matches, table.table-matches tbody, table.table-matches tr, table.table-matches td{{display:block}}
   table.table-matches thead{{display:none}}
   table.table-matches tbody tr{{
-    display:grid;grid-template-columns:32px minmax(0,1fr) minmax(0,1fr);
+    display:grid;grid-template-columns:30px minmax(0,1fr) minmax(0,1fr);
     grid-template-areas:
       "no bh wn"
       "pb pb pb";
-    align-items:center;gap:10px 12px;padding:13px 15px 14px;
+    align-items:center;gap:10px 10px;padding:12px 14px 13px;
     border-bottom:1px solid var(--line2);
   }}
   table.table-matches td.c-bn{{grid-area:bh;text-align:left;min-width:0;overflow:hidden;padding:0!important;width:auto!important}}
   table.table-matches td.c-wn{{grid-area:wn;text-align:right;min-width:0;overflow:hidden;padding:0!important;width:auto!important}}
   table.table-matches td.c-prob{{grid-area:pb;padding:0!important;width:auto!important}}
-  table.table-matches td.c-bn .pn, table.table-matches td.c-wn .pn{{max-width:calc(100% - 65px);font-size:14.5px}}
-  
-  table.table-standings{{min-width:680px}}
-  .mini-hm-bar{{width:80px}}
+  table.table-matches td.c-bn .pn, table.table-matches td.c-wn .pn{{max-width:calc(100% - 62px);font-size:14px}}
 }}
 
-@media (max-width:520px){{
-  table.table-matches tbody tr{{grid-template-columns:28px minmax(0,1fr) minmax(0,1fr);gap:8px 8px;padding:10px 10px 12px}}
-  table.table-matches td.c-bn .pn, table.table-matches td.c-wn .pn{{font-size:13px;max-width:calc(100% - 50px)}}
-  .pid, .pscore{{font-size:11px;padding:2px 4px;margin:0 2px}}
+/* 针对手机端 (<= 640px) 详情卡片化重构 */
+@media (max-width:640px){{
+  .standings-mobile-bar{{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:9px 14px;background:var(--mint);border-bottom:1px solid #d3e5db;
+    font:500 13px/1 var(--dis);color:#2c5b49;
+  }}
+  
+  table.table-standings{{display:block;width:100%}}
+  table.table-standings thead{{display:none}}
+  table.table-standings tbody{{display:block}}
+  
+  tr.player-row{{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    grid-template-areas:
+      "name name exp"
+      "t1   t3   t8"
+      "bar  bar  bar";
+    padding:13px 14px;
+    gap:9px 8px;
+    border-bottom:1px solid var(--line2);
+    align-items:center;
+  }}
+  
+  td.c-pn-std{{
+    grid-area:name;padding:0!important;text-align:left;
+    display:flex;align-items:center;overflow:hidden;
+  }}
+  td.c-pn-std .pn{{font-size:15px;max-width:calc(100% - 40px)}}
+  
+  td.c-exp-std{{
+    grid-area:exp;padding:0!important;text-align:right;
+    display:flex;justify-content:flex-end;align-items:center;
+  }}
+  .exp-lbl{{display:inline}}
+  .exp-badge{{font-size:12px;padding:3px 7px}}
+  
+  /* 指标卡片小块 */
+  td.m-stat{{
+    padding:0!important;display:flex;flex-direction:column;align-items:center;
+    background:var(--paper);border-radius:6px;padding:6px 2px 5px!important;
+  }}
+  td.m-stat::before{{
+    content:attr(data-label);
+    font-size:11px;line-height:1;color:var(--ink3);margin-bottom:4px;
+    font-family:var(--dis);letter-spacing:.02em;
+  }}
+  td.m-stat:nth-of-type(2){{grid-area:t1}}
+  td.m-stat:nth-of-type(3){{grid-area:t3}}
+  td.m-stat:nth-of-type(4){{grid-area:t8}}
+  td.m-stat .v{{font-size:14px;padding:2px 4px;background:transparent!important}}
+  td.m-stat .v.top.pos{{color:var(--green);font-weight:700}}
+  
+  td.c-dist-std{{
+    grid-area:bar;padding:0!important;width:100%;
+  }}
+  .dist-preview-wrap{{
+    width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  }}
+  .mini-hm-bar{{flex:1;width:auto!important;height:11px}}
+  .btn-expand{{padding:4px 8px;font-size:11.5px}}
+  
+  /* 手机端详情展开行 */
+  tr.detail-row{{display:none}}
+  tr.detail-row.is-open{{display:block!important}}
+  td.detail-cell{{display:block;padding:8px 12px 14px!important}}
+  .detail-wrap{{padding:10px 10px 12px}}
+  .hm-header{{margin-bottom:6px}}
+  .hm-hint{{display:inline-block}}
+  .hm-grid{{
+    grid-template-columns:repeat(16,minmax(42px,1fr));
+    min-width:672px;
+  }}
+  .hm-cell{{padding:6px 1px 5px}}
+  .hm-rk{{font-size:10px;margin-bottom:2px}}
+  .hm-val{{font-size:10.5px}}
+}}
+
+@media (max-width:400px){{
+  body{{padding:8px 8px 20px}}
+  .hd{{padding:12px 12px 10px}}
+  .hd h1{{font-size:17px}}
+  tr.player-row{{padding:11px 12px}}
+  td.m-stat .v{{font-size:13px}}
 }}
 
 @media (prefers-color-scheme:dark){{
@@ -731,7 +823,9 @@ td.detail-cell{{padding:10px 18px 16px}}
   .view-switch{{background:#232d28}}
   .v-btn{{color:#85928a}}
   .v-btn.active{{background:#1e2a24;color:#93d3b6}}
-  table.table-matches thead th, table.table-standings thead th{{background:#1e2a24;color:#8fc7ae;border-color:#2b3a32}}
+  table.table-matches thead th, table.table-standings thead th, .standings-mobile-bar{{
+    background:#1e2a24;color:#8fc7ae;border-color:#2b3a32;
+  }}
   .ph-nums i{{color:#8fc7ae}}
   tbody tr{{border-color:#232d28}}
   tbody tr:nth-child(even){{background:#1a201c}}
@@ -742,11 +836,14 @@ td.detail-cell{{padding:10px 18px 16px}}
   .detail-wrap{{background:#181d1a;border-color:#26332c}}
   .hm-title{{color:#93d3b6}}
   .hm-title::before{{color:#93d3b6}}
+  .hm-hint{{color:#7f8d85}}
   .pn{{color:#e9efe9}}
   .pid{{background:#232d28;color:#85928a}}
   td.c-no{{color:#7f8d85}}
   .pscore{{background:#232d28;color:#85928a}}
   .exp-badge{{background:#232d28;color:#d0ded5}}
+  td.m-stat{{background:#151b18}}
+  td.m-stat::before{{color:#7f8d85}}
   .mini-hm-bar{{border-color:#2b3a32}}
   .btn-expand{{background:#232d28;border-color:#2b3a32;color:#9ec2b0}}
   .btn-expand:hover{{background:#1e2a24;border-color:#385b49;color:#fff}}
@@ -789,26 +886,22 @@ function toggleRow(idx) {{
   var pRow = document.getElementById('prow-' + idx);
   var btn = document.getElementById('btn-exp-' + idx);
   if (!dRow) return;
-  if (dRow.style.display === 'none' || dRow.style.display === '') {{
-    dRow.style.display = 'table-row';
-    if (pRow) pRow.classList.add('is-open');
-    if (btn) btn.innerHTML = '<span>收起</span><i class="arr">▴</i>';
-  }} else {{
-    dRow.style.display = 'none';
-    if (pRow) pRow.classList.remove('is-open');
-    if (btn) btn.innerHTML = '<span>展开</span><i class="arr">▾</i>';
-  }}
+  var isOpen = dRow.classList.toggle('is-open');
+  if (pRow) pRow.classList.toggle('is-open', isOpen);
+  if (btn) btn.innerHTML = isOpen ? '<span>收起</span><i class="arr">▴</i>' : '<span>展开</span><i class="arr">▾</i>';
 }}
 
 var allExpanded = false;
 function toggleAllRows() {{
   allExpanded = !allExpanded;
-  var btnAll = document.getElementById('btn-all-exp');
-  var rows = document.querySelectorAll('.detail-row');
+  var dRows = document.querySelectorAll('.detail-row');
   var pRows = document.querySelectorAll('.player-row');
   var btns = document.querySelectorAll('.btn-expand');
-  for (var i = 0; i < rows.length; i++) {{
-    rows[i].style.display = allExpanded ? 'table-row' : 'none';
+  var btnAlls = document.querySelectorAll('.btn-all-exp');
+  
+  for (var i = 0; i < dRows.length; i++) {{
+    if (allExpanded) dRows[i].classList.add('is-open');
+    else dRows[i].classList.remove('is-open');
   }}
   for (var j = 0; j < pRows.length; j++) {{
     if (allExpanded) pRows[j].classList.add('is-open');
@@ -817,8 +910,8 @@ function toggleAllRows() {{
   for (var k = 0; k < btns.length; k++) {{
     btns[k].innerHTML = allExpanded ? '<span>收起</span><i class="arr">▴</i>' : '<span>展开</span><i class="arr">▾</i>';
   }}
-  if (btnAll) {{
-    btnAll.textContent = allExpanded ? '全部收起 ▴' : '全部展开 ▾';
+  for (var m = 0; m < btnAlls.length; m++) {{
+    btnAlls[m].textContent = allExpanded ? '全部收起 ▴' : '全部展开 ▾';
   }}
 }}
 
@@ -873,8 +966,12 @@ window.addEventListener('DOMContentLoaded', function() {{
       </table>
     </div>
 
-    <!-- 视图 2：模拟 10,000,000 次名次概率分布表（热力图连格 + 展开查看） -->
+    <!-- 视图 2：模拟 10,000,000 次名次概率分布表（自适应手机端卡片与展开热力图） -->
     <div id="view-standings" style="display:none">
+      <div class="standings-mobile-bar">
+        <span>名次概率预测</span>
+        <button class="btn-all-exp" type="button" onclick="toggleAllRows()">全部展开 ▾</button>
+      </div>
       <div class="table-scroll">
         <table class="table-standings">
           <thead>
@@ -916,4 +1013,4 @@ with open(standings_path, "w", encoding="utf-8") as f:
     stand_html = stand_html.replace('id="btn-stand" class="v-btn"', 'id="btn-stand" class="v-btn active"')
     f.write(stand_html)
 
-print("Successfully generated 2026-shiqing-b-r7.html and 2026-shiqing-b-standings.html!")
+print("Successfully generated mobile-adapted 2026-shiqing-b-r7.html and 2026-shiqing-b-standings.html!")

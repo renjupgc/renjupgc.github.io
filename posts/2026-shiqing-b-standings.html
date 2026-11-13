@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>世青赛 · 男子青年组（B组）第 7 轮对阵与名次概率预测表</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>世青赛 · 男子青年组（B组）第 7 轮对阵与详情预测表</title>
 <style>
 @font-face{
   font-family:"ShuHei";
@@ -172,8 +172,8 @@ td.c-prob{width:260px;padding:11px 16px}
 .v.top.pos{background:var(--pos-bg);color:var(--green);font-weight:600}
 .v.bold{font-weight:600;color:var(--ink)}
 
-/* 名次预测表格样式 */
-.table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* 详情表格（桌面端） */
+.table-scroll{width:100%}
 table.table-standings{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.table-standings thead th{
   background:var(--mint);font:400 13px/1 var(--dis);letter-spacing:.05em;color:#2c5b49;
@@ -187,9 +187,10 @@ table.table-standings thead th{
   display:inline-block;font:600 13px/1 var(--num);padding:3px 8px;border-radius:6px;
   background:#f1f0e8;color:var(--ink);
 }
+.exp-lbl{display:none;font-style:normal;font-size:11px;opacity:.7}
 .c-dist-std{text-align:right;padding-right:18px}
 
-/* 主行点击交互 */
+/* 主行交互 */
 tr.player-row{cursor:pointer;transition:background .15s ease}
 tr.player-row:hover{background:var(--mint2)}
 tr.player-row.is-open{background:var(--mint2);border-bottom-color:transparent}
@@ -216,16 +217,21 @@ tr.player-row.is-open{background:var(--mint2);border-bottom-color:transparent}
 }
 .btn-all-exp:hover{background:rgba(13,71,54,.15)}
 
+/* 手机端置顶快捷栏（桌面端隐藏） */
+.standings-mobile-bar{display:none}
+
 /* 展开详情行 */
-tr.detail-row{background:#faf8f2;border-bottom:1px solid var(--line2)}
+tr.detail-row{display:none;background:#faf8f2;border-bottom:1px solid var(--line2)}
+tr.detail-row.is-open{display:table-row}
 td.detail-cell{padding:10px 18px 16px}
 .detail-wrap{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px 14px;box-shadow:0 3px 10px rgba(0,0,0,.03)}
 .hm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .hm-title{font:600 13px/1 var(--dis);color:var(--green);display:flex;align-items:center;gap:5px}
 .hm-title::before{content:"◆";font-size:10px;color:var(--green)}
+.hm-hint{display:none;font-size:11px;color:var(--ink3);font-family:var(--dis)}
 
 /* 连贯热力图格子（格子连着） */
-.hm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.hm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
 .hm-grid{
   display:grid;grid-template-columns:repeat(16,minmax(48px,1fr));
   border:1px solid var(--line);border-radius:8px;overflow:hidden;
@@ -240,7 +246,7 @@ td.detail-cell{padding:10px 18px 16px}
 .hm-cell:last-child{border-right:none}
 .hm-cell:hover{filter:brightness(0.96)}
 .hm-rk{font-size:11px;line-height:1;font-family:var(--dis);opacity:.8;margin-bottom:4px}
-.hm-val{font-size:12px;line-height:1.15;font-family:var(--num);white-space:nowrap}
+.hm-val{font-size:11.5px;line-height:1.15;font-family:var(--num);white-space:nowrap}
 .hm-val.hm-zero{opacity:.3;font-weight:400}
 
 /* 热力梯度色彩 */
@@ -252,39 +258,122 @@ td.detail-cell{padding:10px 18px 16px}
 .hm-lvl-5{background:#23835f;color:#ffffff;font-weight:700}
 .hm-lvl-6{background:#0d4736;color:#ffffff;font-weight:700}
 
-/* 窄屏响应式 */
+/* 移动端与窄屏适配 */
 @media (max-width:820px){
-  body{padding:12px 12px 28px}
+  body{padding:10px 10px 24px}
   .sheet{max-width:none}
-  .hd{padding:15px 15px 13px}
-  .hd h1{font-size:19.5px;line-height:1.45;white-space:normal}
+  .hd{padding:14px 14px 12px}
+  .hd h1{font-size:18.5px;line-height:1.4;white-space:normal}
   .hd-row{margin-top:8px;flex-direction:column;align-items:flex-start;gap:10px}
+  .hd-sub{width:100%;justify-content:space-between;gap:8px}
+  .rd-nav{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;padding-bottom:3px}
+  .rd-nav::-webkit-scrollbar{display:none}
+  .rd-tab{flex-shrink:0;padding:5px 8px 4px;font-size:12px}
   .view-switch{width:100%;display:flex}
   .v-btn{flex:1;text-align:center}
   
+  /* 对阵表响应式卡片 */
   table.table-matches, table.table-matches tbody, table.table-matches tr, table.table-matches td{display:block}
   table.table-matches thead{display:none}
   table.table-matches tbody tr{
-    display:grid;grid-template-columns:32px minmax(0,1fr) minmax(0,1fr);
+    display:grid;grid-template-columns:30px minmax(0,1fr) minmax(0,1fr);
     grid-template-areas:
       "no bh wn"
       "pb pb pb";
-    align-items:center;gap:10px 12px;padding:13px 15px 14px;
+    align-items:center;gap:10px 10px;padding:12px 14px 13px;
     border-bottom:1px solid var(--line2);
   }
   table.table-matches td.c-bn{grid-area:bh;text-align:left;min-width:0;overflow:hidden;padding:0!important;width:auto!important}
   table.table-matches td.c-wn{grid-area:wn;text-align:right;min-width:0;overflow:hidden;padding:0!important;width:auto!important}
   table.table-matches td.c-prob{grid-area:pb;padding:0!important;width:auto!important}
-  table.table-matches td.c-bn .pn, table.table-matches td.c-wn .pn{max-width:calc(100% - 65px);font-size:14.5px}
-  
-  table.table-standings{min-width:680px}
-  .mini-hm-bar{width:80px}
+  table.table-matches td.c-bn .pn, table.table-matches td.c-wn .pn{max-width:calc(100% - 62px);font-size:14px}
 }
 
-@media (max-width:520px){
-  table.table-matches tbody tr{grid-template-columns:28px minmax(0,1fr) minmax(0,1fr);gap:8px 8px;padding:10px 10px 12px}
-  table.table-matches td.c-bn .pn, table.table-matches td.c-wn .pn{font-size:13px;max-width:calc(100% - 50px)}
-  .pid, .pscore{font-size:11px;padding:2px 4px;margin:0 2px}
+/* 针对手机端 (<= 640px) 详情卡片化重构 */
+@media (max-width:640px){
+  .standings-mobile-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:9px 14px;background:var(--mint);border-bottom:1px solid #d3e5db;
+    font:500 13px/1 var(--dis);color:#2c5b49;
+  }
+  
+  table.table-standings{display:block;width:100%}
+  table.table-standings thead{display:none}
+  table.table-standings tbody{display:block}
+  
+  tr.player-row{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    grid-template-areas:
+      "name name exp"
+      "t1   t3   t8"
+      "bar  bar  bar";
+    padding:13px 14px;
+    gap:9px 8px;
+    border-bottom:1px solid var(--line2);
+    align-items:center;
+  }
+  
+  td.c-pn-std{
+    grid-area:name;padding:0!important;text-align:left;
+    display:flex;align-items:center;overflow:hidden;
+  }
+  td.c-pn-std .pn{font-size:15px;max-width:calc(100% - 40px)}
+  
+  td.c-exp-std{
+    grid-area:exp;padding:0!important;text-align:right;
+    display:flex;justify-content:flex-end;align-items:center;
+  }
+  .exp-lbl{display:inline}
+  .exp-badge{font-size:12px;padding:3px 7px}
+  
+  /* 指标卡片小块 */
+  td.m-stat{
+    padding:0!important;display:flex;flex-direction:column;align-items:center;
+    background:var(--paper);border-radius:6px;padding:6px 2px 5px!important;
+  }
+  td.m-stat::before{
+    content:attr(data-label);
+    font-size:11px;line-height:1;color:var(--ink3);margin-bottom:4px;
+    font-family:var(--dis);letter-spacing:.02em;
+  }
+  td.m-stat:nth-of-type(2){grid-area:t1}
+  td.m-stat:nth-of-type(3){grid-area:t3}
+  td.m-stat:nth-of-type(4){grid-area:t8}
+  td.m-stat .v{font-size:14px;padding:2px 4px;background:transparent!important}
+  td.m-stat .v.top.pos{color:var(--green);font-weight:700}
+  
+  td.c-dist-std{
+    grid-area:bar;padding:0!important;width:100%;
+  }
+  .dist-preview-wrap{
+    width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  }
+  .mini-hm-bar{flex:1;width:auto!important;height:11px}
+  .btn-expand{padding:4px 8px;font-size:11.5px}
+  
+  /* 手机端详情展开行 */
+  tr.detail-row{display:none}
+  tr.detail-row.is-open{display:block!important}
+  td.detail-cell{display:block;padding:8px 12px 14px!important}
+  .detail-wrap{padding:10px 10px 12px}
+  .hm-header{margin-bottom:6px}
+  .hm-hint{display:inline-block}
+  .hm-grid{
+    grid-template-columns:repeat(16,minmax(42px,1fr));
+    min-width:672px;
+  }
+  .hm-cell{padding:6px 1px 5px}
+  .hm-rk{font-size:10px;margin-bottom:2px}
+  .hm-val{font-size:10.5px}
+}
+
+@media (max-width:400px){
+  body{padding:8px 8px 20px}
+  .hd{padding:12px 12px 10px}
+  .hd h1{font-size:17px}
+  tr.player-row{padding:11px 12px}
+  td.m-stat .v{font-size:13px}
 }
 
 @media (prefers-color-scheme:dark){
@@ -300,7 +389,9 @@ td.detail-cell{padding:10px 18px 16px}
   .view-switch{background:#232d28}
   .v-btn{color:#85928a}
   .v-btn.active{background:#1e2a24;color:#93d3b6}
-  table.table-matches thead th, table.table-standings thead th{background:#1e2a24;color:#8fc7ae;border-color:#2b3a32}
+  table.table-matches thead th, table.table-standings thead th, .standings-mobile-bar{
+    background:#1e2a24;color:#8fc7ae;border-color:#2b3a32;
+  }
   .ph-nums i{color:#8fc7ae}
   tbody tr{border-color:#232d28}
   tbody tr:nth-child(even){background:#1a201c}
@@ -311,11 +402,14 @@ td.detail-cell{padding:10px 18px 16px}
   .detail-wrap{background:#181d1a;border-color:#26332c}
   .hm-title{color:#93d3b6}
   .hm-title::before{color:#93d3b6}
+  .hm-hint{color:#7f8d85}
   .pn{color:#e9efe9}
   .pid{background:#232d28;color:#85928a}
   td.c-no{color:#7f8d85}
   .pscore{background:#232d28;color:#85928a}
   .exp-badge{background:#232d28;color:#d0ded5}
+  td.m-stat{background:#151b18}
+  td.m-stat::before{color:#7f8d85}
   .mini-hm-bar{border-color:#2b3a32}
   .btn-expand{background:#232d28;border-color:#2b3a32;color:#9ec2b0}
   .btn-expand:hover{background:#1e2a24;border-color:#385b49;color:#fff}
@@ -358,26 +452,22 @@ function toggleRow(idx) {
   var pRow = document.getElementById('prow-' + idx);
   var btn = document.getElementById('btn-exp-' + idx);
   if (!dRow) return;
-  if (dRow.style.display === 'none' || dRow.style.display === '') {
-    dRow.style.display = 'table-row';
-    if (pRow) pRow.classList.add('is-open');
-    if (btn) btn.innerHTML = '<span>收起</span><i class="arr">▴</i>';
-  } else {
-    dRow.style.display = 'none';
-    if (pRow) pRow.classList.remove('is-open');
-    if (btn) btn.innerHTML = '<span>展开</span><i class="arr">▾</i>';
-  }
+  var isOpen = dRow.classList.toggle('is-open');
+  if (pRow) pRow.classList.toggle('is-open', isOpen);
+  if (btn) btn.innerHTML = isOpen ? '<span>收起</span><i class="arr">▴</i>' : '<span>展开</span><i class="arr">▾</i>';
 }
 
 var allExpanded = false;
 function toggleAllRows() {
   allExpanded = !allExpanded;
-  var btnAll = document.getElementById('btn-all-exp');
-  var rows = document.querySelectorAll('.detail-row');
+  var dRows = document.querySelectorAll('.detail-row');
   var pRows = document.querySelectorAll('.player-row');
   var btns = document.querySelectorAll('.btn-expand');
-  for (var i = 0; i < rows.length; i++) {
-    rows[i].style.display = allExpanded ? 'table-row' : 'none';
+  var btnAlls = document.querySelectorAll('.btn-all-exp');
+  
+  for (var i = 0; i < dRows.length; i++) {
+    if (allExpanded) dRows[i].classList.add('is-open');
+    else dRows[i].classList.remove('is-open');
   }
   for (var j = 0; j < pRows.length; j++) {
     if (allExpanded) pRows[j].classList.add('is-open');
@@ -386,8 +476,8 @@ function toggleAllRows() {
   for (var k = 0; k < btns.length; k++) {
     btns[k].innerHTML = allExpanded ? '<span>收起</span><i class="arr">▴</i>' : '<span>展开</span><i class="arr">▾</i>';
   }
-  if (btnAll) {
-    btnAll.textContent = allExpanded ? '全部收起 ▴' : '全部展开 ▾';
+  for (var m = 0; m < btnAlls.length; m++) {
+    btnAlls[m].textContent = allExpanded ? '全部收起 ▴' : '全部展开 ▾';
   }
 }
 
@@ -521,8 +611,12 @@ window.addEventListener('DOMContentLoaded', function() {
       </table>
     </div>
 
-    <!-- 视图 2：模拟 10,000,000 次名次概率分布表（热力图连格 + 展开查看） -->
+    <!-- 视图 2：模拟 10,000,000 次名次概率分布表（自适应手机端卡片与展开热力图） -->
     <div id="view-standings">
+      <div class="standings-mobile-bar">
+        <span>名次概率预测</span>
+        <button class="btn-all-exp" type="button" onclick="toggleAllRows()">全部展开 ▾</button>
+      </div>
       <div class="table-scroll">
         <table class="table-standings">
           <thead>
@@ -539,11 +633,13 @@ window.addEventListener('DOMContentLoaded', function() {
           </thead>
           <tbody>
       <tr class="player-row" id="prow-3" onclick="toggleRow(3)">
-        <td class="c-pn-std"><span class="pid">4</span><span class="pn" title="钟煜阳">钟煜阳</span></td>
-        <td class="c-pct-std"><span class="v top pos">99.99%</span></td>
-        <td class="c-pct-std"><span class="v top pos">100.00%</span></td>
-        <td class="c-pct-std"><span class="v top pos">100.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">1.00</span></td>
+        <td class="c-pn-std">
+          <span class="pid">4</span><span class="pn" title="钟煜阳">钟煜阳</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v top pos">99.99%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v top pos">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>1.00</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-6" title="第 1 名: 99.99%"></i><i class="m-seg hm-lvl-1" title="第 2 名: 0.01%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -551,11 +647,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-3" style="display:none">
+      <tr class="detail-row" id="detail-3">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -566,11 +663,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-11" onclick="toggleRow(11)">
-        <td class="c-pn-std"><span class="pid">12</span><span class="pn" title="陈浩源">陈浩源</span></td>
-        <td class="c-pct-std"><span class="v bold">0.01%</span></td>
-        <td class="c-pct-std"><span class="v top pos">100.00%</span></td>
-        <td class="c-pct-std"><span class="v top pos">100.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">2.17</span></td>
+        <td class="c-pn-std">
+          <span class="pid">12</span><span class="pn" title="陈浩源">陈浩源</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v bold">0.01%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v top pos">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>2.17</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-1" title="第 1 名: 0.01%"></i><i class="m-seg hm-lvl-6" title="第 2 名: 83.31%"></i><i class="m-seg hm-lvl-4" title="第 3 名: 16.68%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -578,11 +677,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-11" style="display:none">
+      <tr class="detail-row" id="detail-11">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -593,11 +693,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-7" onclick="toggleRow(7)">
-        <td class="c-pn-std"><span class="pid">8</span><span class="pn" title="康庭瑞">康庭瑞</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v top pos">87.92%</span></td>
-        <td class="c-pct-std"><span class="v top pos">100.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">2.95</span></td>
+        <td class="c-pn-std">
+          <span class="pid">8</span><span class="pn" title="康庭瑞">康庭瑞</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v top pos">87.92%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>2.95</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-4" title="第 2 名: 16.68%"></i><i class="m-seg hm-lvl-6" title="第 3 名: 71.23%"></i><i class="m-seg hm-lvl-3" title="第 4 名: 12.08%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -605,11 +707,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-7" style="display:none">
+      <tr class="detail-row" id="detail-7">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -620,11 +723,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-10" onclick="toggleRow(10)">
-        <td class="c-pn-std"><span class="pid">11</span><span class="pn" title="丁泽宇">丁泽宇</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v top pos">100.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">4.54</span></td>
+        <td class="c-pn-std">
+          <span class="pid">11</span><span class="pn" title="丁泽宇">丁泽宇</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>4.54</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-6" title="第 4 名: 74.96%"></i><i class="m-seg hm-lvl-3" title="第 5 名: 14.82%"></i><i class="m-seg hm-lvl-1" title="第 6 名: 0.04%"></i><i class="m-seg hm-lvl-2" title="第 7 名: 1.18%"></i><i class="m-seg hm-lvl-3" title="第 8 名: 9.01%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -632,11 +737,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-10" style="display:none">
+      <tr class="detail-row" id="detail-10">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -647,11 +753,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-15" onclick="toggleRow(15)">
-        <td class="c-pn-std"><span class="pid">16</span><span class="pn" title="李嘉骏">李嘉骏</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v bold">12.08%</span></td>
-        <td class="c-pct-std"><span class="v top pos">100.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">5.24</span></td>
+        <td class="c-pn-std">
+          <span class="pid">16</span><span class="pn" title="李嘉骏">李嘉骏</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v bold">12.08%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>5.24</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-3" title="第 3 名: 12.08%"></i><i class="m-seg hm-lvl-3" title="第 4 名: 6.68%"></i><i class="m-seg hm-lvl-4" title="第 5 名: 26.02%"></i><i class="m-seg hm-lvl-5" title="第 6 名: 55.22%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -659,11 +767,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-15" style="display:none">
+      <tr class="detail-row" id="detail-15">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -674,11 +783,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-4" onclick="toggleRow(4)">
-        <td class="c-pn-std"><span class="pid">5</span><span class="pn" title="Startsev Maksim">Startsev Maksim</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v top pos">96.43%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">5.58</span></td>
+        <td class="c-pn-std">
+          <span class="pid">5</span><span class="pn" title="Startsev Maksim">Startsev Maksim</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">96.43%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>5.58</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-3" title="第 4 名: 5.98%"></i><i class="m-seg hm-lvl-5" title="第 5 名: 55.26%"></i><i class="m-seg hm-lvl-4" title="第 6 名: 23.73%"></i><i class="m-seg hm-lvl-3" title="第 7 名: 11.16%"></i><i class="m-seg hm-lvl-1" title="第 8 名: 0.29%"></i><i class="m-seg hm-lvl-1" title="第 9 名: 0.95%"></i><i class="m-seg hm-lvl-2" title="第 10 名: 2.06%"></i><i class="m-seg hm-lvl-1" title="第 11 名: 0.53%"></i><i class="m-seg hm-lvl-1" title="第 12 名: 0.04%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -686,11 +797,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-4" style="display:none">
+      <tr class="detail-row" id="detail-4">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -701,11 +813,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-13" onclick="toggleRow(13)">
-        <td class="c-pn-std"><span class="pid">14</span><span class="pn" title="Sidorov Mikhail">Sidorov Mikhail</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v top pos">81.61%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">7.29</span></td>
+        <td class="c-pn-std">
+          <span class="pid">14</span><span class="pn" title="Sidorov Mikhail">Sidorov Mikhail</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">81.61%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>7.29</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 4 名: 0.31%"></i><i class="m-seg hm-lvl-2" title="第 5 名: 3.84%"></i><i class="m-seg hm-lvl-4" title="第 6 名: 16.24%"></i><i class="m-seg hm-lvl-5" title="第 7 名: 59.44%"></i><i class="m-seg hm-lvl-2" title="第 8 名: 1.77%"></i><i class="m-seg hm-lvl-3" title="第 9 名: 5.54%"></i><i class="m-seg hm-lvl-3" title="第 10 名: 10.67%"></i><i class="m-seg hm-lvl-2" title="第 11 名: 2.10%"></i><i class="m-seg hm-lvl-1" title="第 12 名: 0.08%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -713,11 +827,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-13" style="display:none">
+      <tr class="detail-row" id="detail-13">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -728,11 +843,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-14" onclick="toggleRow(14)">
-        <td class="c-pn-std"><span class="pid">15</span><span class="pn" title="Kazantsev Konstantin">Kazantsev Konstantin</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v bold">30.91%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">9.03</span></td>
+        <td class="c-pn-std">
+          <span class="pid">15</span><span class="pn" title="Kazantsev Konstantin">Kazantsev Konstantin</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v bold">30.91%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>9.03</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 5 名: 0.11%"></i><i class="m-seg hm-lvl-2" title="第 6 名: 2.79%"></i><i class="m-seg hm-lvl-4" title="第 7 名: 16.24%"></i><i class="m-seg hm-lvl-3" title="第 8 名: 11.78%"></i><i class="m-seg hm-lvl-4" title="第 9 名: 21.32%"></i><i class="m-seg hm-lvl-5" title="第 10 名: 39.55%"></i><i class="m-seg hm-lvl-3" title="第 11 名: 7.82%"></i><i class="m-seg hm-lvl-1" title="第 12 名: 0.40%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -740,11 +857,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-14" style="display:none">
+      <tr class="detail-row" id="detail-14">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -755,11 +873,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-9" onclick="toggleRow(9)">
-        <td class="c-pn-std"><span class="pid">10</span><span class="pn" title="潘冠臣">潘冠臣</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v top pos">65.79%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">9.05</span></td>
+        <td class="c-pn-std">
+          <span class="pid">10</span><span class="pn" title="潘冠臣">潘冠臣</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">65.79%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>9.05</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-6" title="第 8 名: 65.79%"></i><i class="m-seg hm-lvl-4" title="第 9 名: 15.86%"></i><i class="m-seg hm-lvl-2" title="第 10 名: 3.79%"></i><i class="m-seg hm-lvl-1" title="第 11 名: 0.60%"></i><i class="m-seg hm-lvl-1" title="第 12 名: 0.40%"></i><i class="m-seg hm-lvl-2" title="第 13 名: 3.66%"></i><i class="m-seg hm-lvl-3" title="第 14 名: 9.90%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -767,11 +887,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-9" style="display:none">
+      <tr class="detail-row" id="detail-9">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -782,11 +903,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-8" onclick="toggleRow(8)">
-        <td class="c-pn-std"><span class="pid">9</span><span class="pn" title="Vershinin Ivan">Vershinin Ivan</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v bold">10.93%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">9.87</span></td>
+        <td class="c-pn-std">
+          <span class="pid">9</span><span class="pn" title="Vershinin Ivan">Vershinin Ivan</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v bold">10.93%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>9.87</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-3" title="第 8 名: 10.93%"></i><i class="m-seg hm-lvl-5" title="第 9 名: 51.15%"></i><i class="m-seg hm-lvl-3" title="第 10 名: 12.84%"></i><i class="m-seg hm-lvl-3" title="第 11 名: 6.04%"></i><i class="m-seg hm-lvl-2" title="第 12 名: 4.70%"></i><i class="m-seg hm-lvl-3" title="第 13 名: 12.39%"></i><i class="m-seg hm-lvl-2" title="第 14 名: 1.94%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -794,11 +917,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-8" style="display:none">
+      <tr class="detail-row" id="detail-8">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -809,11 +933,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-6" onclick="toggleRow(6)">
-        <td class="c-pn-std"><span class="pid">7</span><span class="pn" title="周士杰">周士杰</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v bold">3.98%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">10.57</span></td>
+        <td class="c-pn-std">
+          <span class="pid">7</span><span class="pn" title="周士杰">周士杰</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v bold">3.98%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>10.57</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 5 名: 0.04%"></i><i class="m-seg hm-lvl-1" title="第 6 名: 0.68%"></i><i class="m-seg hm-lvl-2" title="第 7 名: 2.99%"></i><i class="m-seg hm-lvl-1" title="第 8 名: 0.28%"></i><i class="m-seg hm-lvl-2" title="第 9 名: 4.07%"></i><i class="m-seg hm-lvl-4" title="第 10 名: 26.78%"></i><i class="m-seg hm-lvl-5" title="第 11 名: 56.85%"></i><i class="m-seg hm-lvl-3" title="第 12 名: 8.32%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -821,11 +947,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-6" style="display:none">
+      <tr class="detail-row" id="detail-6">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -836,11 +963,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-12" onclick="toggleRow(12)">
-        <td class="c-pn-std"><span class="pid">13</span><span class="pn" title="Noskov Pavel">Noskov Pavel</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v bold">10.35%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">11.74</span></td>
+        <td class="c-pn-std">
+          <span class="pid">13</span><span class="pn" title="Noskov Pavel">Noskov Pavel</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v bold">10.35%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>11.74</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 5 名: 0.02%"></i><i class="m-seg hm-lvl-2" title="第 6 名: 1.19%"></i><i class="m-seg hm-lvl-3" title="第 7 名: 9.00%"></i><i class="m-seg hm-lvl-1" title="第 8 名: 0.15%"></i><i class="m-seg hm-lvl-2" title="第 9 名: 1.11%"></i><i class="m-seg hm-lvl-2" title="第 10 名: 3.54%"></i><i class="m-seg hm-lvl-3" title="第 11 名: 13.25%"></i><i class="m-seg hm-lvl-4" title="第 12 名: 21.48%"></i><i class="m-seg hm-lvl-5" title="第 13 名: 50.27%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 15 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -848,11 +977,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-12" style="display:none">
+      <tr class="detail-row" id="detail-12">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -863,11 +993,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-0" onclick="toggleRow(0)">
-        <td class="c-pn-std"><span class="pid">1</span><span class="pn" title="王鑫宇">王鑫宇</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">12.21</span></td>
+        <td class="c-pn-std">
+          <span class="pid">1</span><span class="pn" title="王鑫宇">王鑫宇</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v">0.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>12.21</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 10 名: 0.44%"></i><i class="m-seg hm-lvl-3" title="第 11 名: 10.27%"></i><i class="m-seg hm-lvl-5" title="第 12 名: 62.01%"></i><i class="m-seg hm-lvl-4" title="第 13 名: 22.75%"></i><i class="m-seg hm-lvl-2" title="第 14 名: 4.02%"></i><i class="m-seg hm-lvl-1" title="第 15 名: 0.50%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -875,11 +1007,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-0" style="display:none">
+      <tr class="detail-row" id="detail-0">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -890,11 +1023,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-2" onclick="toggleRow(2)">
-        <td class="c-pn-std"><span class="pid">3</span><span class="pn" title="药博凡">药博凡</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">13.85</span></td>
+        <td class="c-pn-std">
+          <span class="pid">3</span><span class="pn" title="药博凡">药博凡</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v">0.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>13.85</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 10 名: 0.48%"></i><i class="m-seg hm-lvl-2" title="第 11 名: 2.58%"></i><i class="m-seg hm-lvl-2" title="第 12 名: 3.01%"></i><i class="m-seg hm-lvl-3" title="第 13 名: 9.05%"></i><i class="m-seg hm-lvl-6" title="第 14 名: 75.35%"></i><i class="m-seg hm-lvl-3" title="第 15 名: 9.53%"></i><i class="m-seg hm-lvl-0" title="第 16 名: 0.00%"></i></span>
@@ -902,11 +1037,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-2" style="display:none">
+      <tr class="detail-row" id="detail-2">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -917,11 +1053,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-1" onclick="toggleRow(1)">
-        <td class="c-pn-std"><span class="pid">2</span><span class="pn" title="Barinov Random">Barinov Random</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">14.89</span></td>
+        <td class="c-pn-std">
+          <span class="pid">2</span><span class="pn" title="Barinov Random">Barinov Random</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v">0.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>14.89</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-2" title="第 13 名: 1.25%"></i><i class="m-seg hm-lvl-3" title="第 14 名: 8.78%"></i><i class="m-seg hm-lvl-6" title="第 15 名: 89.94%"></i><i class="m-seg hm-lvl-1" title="第 16 名: 0.03%"></i></span>
@@ -929,11 +1067,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-1" style="display:none">
+      <tr class="detail-row" id="detail-1">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
@@ -944,11 +1083,13 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
       </tr>
       <tr class="player-row" id="prow-5" onclick="toggleRow(5)">
-        <td class="c-pn-std"><span class="pid">6</span><span class="pn" title="蔡嘉睦">蔡嘉睦</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-pct-std"><span class="v">0.00%</span></td>
-        <td class="c-exp-std"><span class="exp-badge">16.00</span></td>
+        <td class="c-pn-std">
+          <span class="pid">6</span><span class="pn" title="蔡嘉睦">蔡嘉睦</span>
+        </td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v">0.00%</span></td>
+        <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>16.00</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
             <span class="mini-hm-bar" title="1~16名热力图概览"><i class="m-seg hm-lvl-0" title="第 1 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 2 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 3 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 4 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 5 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 6 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 7 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 8 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 9 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 10 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 11 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 12 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 13 名: 0.00%"></i><i class="m-seg hm-lvl-0" title="第 14 名: 0.00%"></i><i class="m-seg hm-lvl-1" title="第 15 名: 0.03%"></i><i class="m-seg hm-lvl-6" title="第 16 名: 99.97%"></i></span>
@@ -956,11 +1097,12 @@ window.addEventListener('DOMContentLoaded', function() {
           </div>
         </td>
       </tr>
-      <tr class="detail-row" id="detail-5" style="display:none">
+      <tr class="detail-row" id="detail-5">
         <td colspan="6" class="detail-cell">
           <div class="detail-wrap">
             <div class="hm-header">
               <span class="hm-title">第 1 ~ 16 名分布热力图</span>
+              <span class="hm-hint">左右滑动查看 16 名 ⇄</span>
             </div>
             <div class="hm-scroll">
               <div class="hm-grid">
