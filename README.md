@@ -50,6 +50,7 @@ data/
   renju.db            赛事主库：tournaments / matches / ratings / players
   manual.db           手工补丁：改名、弃权、隐藏赛事、名次修正
   public_players.txt  可公开的棋手名单：名册之外不出页、不进搜索、不挂内链
+  rating_excluded.txt 不计等级分的赛事（非公开进行）：公示表与时光机都按它排除
 
 tools/                构建脚本（见下）
 docs/ROADMAP.md       改进建议与创意清单
@@ -84,6 +85,11 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 `data/public_players.txt` 是可公开的棋手名单：`zayu/p/` 只给名单里的人出页，站内搜索与等级分表的
 内链也只认这份名单。名单之外的人照旧出现在成绩表里（那是赛事记录），但不单独出页、不进搜索。
 补人时确认后往名单里加一行，重跑 `build_players.py`。
+
+`data/rating_excluded.txt` 是不计等级分的赛事：非公开进行的比赛（不对外报名、不公示成绩、站上
+不出赛事页）留在库里备查，但不进 WHR 计算。`build_zayu.py`、`recompute_ratings.py`、
+`build_rating_history.py` 读的是同一份名单，所以公示表与时光机末帧逐人相等；改完重跑
+`build_rating_history.py` 与 `build_players.py` 即可。
 
 依赖只有 Python 3 标准库，没有第三方包。
 

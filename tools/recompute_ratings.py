@@ -23,7 +23,8 @@ def main(dry=False):
     unis = {r['name']: r['university'] or '' for r in snap}
     regions = {r['name']: r['region'] or '' for r in snap}
 
-    rows, as_of = bz.compute_ratings(ms, unis, regions)
+    rows, as_of = bz.compute_ratings(ms, unis, regions,
+                                     exclude_tids=bz.unrated_tids(ts))
     if not rows:
         print('！ 未安装 whr 库，退出')
         return 1

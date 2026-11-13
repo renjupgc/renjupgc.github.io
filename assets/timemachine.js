@@ -163,7 +163,7 @@
                     '<span class="tm-n">' + esc(r.n) + '</span>' +
                     d +
                     '<span class="tm-g">' + (r.g ? r.g + ' 局' : '') + '</span>' +
-                    '<span class="tm-p">' + r.v.toFixed(1) + '</span>' +
+                    '<span class="tm-p">' + r.v.toFixed(2) + '</span>' +
                     '</li>';
             }
             rowsBox.innerHTML = html;
@@ -299,9 +299,9 @@
                 '<p class="tm-side-meta">' +
                 (now === null
                     ? '此时尚未出场'
-                    : '此时第 <b>' + rank + '</b> 名 · <b>' + now.toFixed(1) + '</b> 分'
+                    : '此时第 <b>' + rank + '</b> 名 · <b>' + now.toFixed(2) + '</b> 分'
                       + (nowG ? '（' + nowG + ' 局）' : '')) +
-                '　｜　最高 <b>' + peak.toFixed(1) + '</b>' +
+                '　｜　最高 <b>' + peak.toFixed(2) + '</b>' +
                 '</p>' +
                 chartSVG(s, state.idx) +
                 '<p class="tm-foot">横轴自 ' + SNAPS[s.first].d + ' 起，每个点是一个比赛日，'
@@ -348,9 +348,9 @@
         SNAPS.forEach(function (x) { games += x.g || 0; });
         if (foot) {
             foot.textContent = '共 ' + N + ' 个时点、' + games + ' 局对局、' + PLAYERS.length +
-                ' 位入册棋手。每个时点都单独重算：只喂该日及之前的对局，后来的胜负不进账，' +
-                '所以这里的分数与等级分表的公示值口径不同（表是拿全量数据另算的），' +
-                '位置与涨落可比，绝对值差几十到一百多都属正常。';
+                ' 位入册棋手。每个时点都单独重算：只喂该日及之前的对局，后来的胜负不进账；' +
+                '非公开进行的比赛整批不计，规则与等级分表相同。' +
+                '所以末时点的数值与等级分表逐人相等，往前拖就是当时的分。';
         }
 
         render();

@@ -62,7 +62,8 @@ def main():
     regions = {r['name']: r['region'] or '' for r in ratings}
 
     # 1) 等级分：不带门槛算一遍，顺带拿到 listed 标记
-    rows, as_of = bz.compute_ratings(matches, unis, regions, apply_threshold=False)
+    rows, as_of = bz.compute_ratings(matches, unis, regions, apply_threshold=False,
+                                     exclude_tids=bz.unrated_tids(tournaments))
     if not rows:
         print('！ 未安装 whr 库，退出')
         return 1

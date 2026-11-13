@@ -46,6 +46,8 @@ DETAIL_DIR = os.path.join(ROOT, 'zayu')
 RATING_OUT = os.path.join(DETAIL_DIR, 'rating.html')
 # 可公开的棋手名单：名册外的人不出个人主页，姓名也就不做内链
 PUBLIC_FILE = os.path.join(ROOT, 'data', 'public_players.txt')
+# 不计入等级分的赛事（非公开进行）：公示表与时光机都读这一份，两侧口径保持一致
+UNRATED_FILE = os.path.join(ROOT, 'data', 'rating_excluded.txt')
 
 # 等级分参数：沿用 WHR 公开实现（renjurating）的取值
 RATING_W2 = 19.3          # 等级分随时间的波动幅度
@@ -455,11 +457,37 @@ def compute(ms):
 
 # ---------------------------------------------------------------- 等级分
 
-def compute_ratings(ms, unis, regions, apply_threshold=True):
+def unrated_event_names():
+    """不计入等级分的赛事名（非公开进行的比赛）。
+
+    名单在 data/rating_excluded.txt，一行一个赛事名。读不到就当没有排除项。
+    """
+    if not os.path.exists(UNRATED_FILE):
+        return set()
+    names = set()
+    with open(UNRATED_FILE, encoding='utf-8') as f:
+        for line in f:
+            s = line.strip()
+            if s and not s.startswith('#'):
+                names.add(s)
+    return names
+
+
+def unrated_tids(ts):
+    """把上面那份赛事名换成赛事 id。同一届赛事按组别拆成多条记录时一并命中。"""
+    bad = unrated_event_names()
+    if not bad:
+        return set()
+    return {t['id'] for t in ts if (t['name'] or '').strip() in bad}
+
+
+def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=()):
     """用 WHR（Whole-History Rating）算法预先计算每位棋手的等级分。
 
     只统计真正下完的对局：轮空、弃权（f0 / 0f / ff）与无结果的对局都不计入，
     和局按 0.5 计（因此「对局数」也只含非弃权、非轮空的对局）。
+    非公开进行的赛事（data/rating_excluded.txt，经 exclude_tids 传进来）整批跳过，
+    既不进分数也不进对局数与参赛场次。
     参数：w2 = 19.3，每人首日附加两个虚拟和棋，输出「WHR 分数 + 基准分 2000」。
     长期未参赛按 0.9995 每周衰减，最多累计 730 天；起点为 365 天，
     只参加过一次比赛的棋手从 180 天起算。
@@ -475,6 +503,8 @@ def compute_ratings(ms, unis, regions, apply_threshold=True):
         p1, p2, w = m['player1'], m['player2'], m['winner']
         if p1 in (None, '', BYE) or p2 in (None, '', BYE) or not m['date']:
             continue
+        if exclude_tids and m['tournament_id'] in exclude_tids:
+            continue                    # 非公开进行的赛事，整批不计
         res = {'1': 'B', '0': 'W', '0.5': 'D'}.get(w)
         if res:
             played.append((p1, p2, res, datetime.date.fromisoformat(m['date']),
@@ -974,7 +1004,8 @@ def main(src):
         if old.startswith('t') and old.endswith('.html'):
             os.remove(os.path.join(DETAIL_DIR, old))
 
-    ratings, as_of = compute_ratings(ms, unis, regions)
+    ratings, as_of = compute_ratings(ms, unis, regions,
+                                     exclude_tids=unrated_tids(ts))
     write_db(ts, ms, ratings)
     players = all_players(ms)
     qipu = qipu_index()
