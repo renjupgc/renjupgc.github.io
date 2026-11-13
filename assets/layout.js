@@ -238,6 +238,14 @@
             artist: '汪峰',
             album: '生来彷徨',
             volume: 0.5
+        },
+        {
+            src: 'assets/audio/bowu.mp3',
+            cover: 'assets/img/music-cover-born-in-hesitation.jpg',
+            title: '薄雾',
+            artist: '汪峰',
+            album: '生来彷徨',
+            volume: 0.5
         }
     ];
 
