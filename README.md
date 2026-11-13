@@ -48,7 +48,7 @@ assets/
 
 data/
   renju.db            赛事主库：tournaments / matches / ratings / players
-  manual.db           手工补丁：改名、弃权、隐藏赛事、名次修正
+  manual.db           手工补丁：补录赛事与对局、改名、弃权、隐藏赛事、名次修正
   public_players.txt  可公开的棋手名单：名册之外不出页、不进搜索、不挂内链
   rating_excluded.txt 不计等级分的赛事（非公开进行）：公示表与时光机都按它排除
 
@@ -81,6 +81,17 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 ```
 
 后两个是「全站扫一遍」的脚本，可反复执行（幂等）：手写页面加了新文章、换了配图之后单独跑它们就行。
+
+补录赛事与对局（源备份库不在手边时也走这条路）：在 `data/manual.db` 的 `tournaments_extra`、
+`matches_extra` 各插一行——只收录部分对局时，`total_rounds` 填规程里的总轮数，页面靠它显示「共几轮」；
+再往 `data/renju.db` 补同一条，然后
+
+```bash
+python tools/recompute_ratings.py     # 重算全表：WHR 是全历史拟合，多一场早期赛事会牵动所有人
+python tools/build_zayu.py --rebuild  # 重出赛事页（沿用库内快照，不重算等级分）
+```
+
+`zayu.html` 的赛事名单是手工挑的，新赛事要自己加一行 `<li>`，`build_zayu.py` 只照这份名单出页。
 
 `data/public_players.txt` 是可公开的棋手名单：`zayu/p/` 只给名单里的人出页，站内搜索与等级分表的
 内链也只认这份名单。名单之外的人照旧出现在成绩表里（那是赛事记录），但不单独出页、不进搜索。

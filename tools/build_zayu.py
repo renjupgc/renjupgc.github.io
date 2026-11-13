@@ -757,6 +757,25 @@ def roster_table(rows, players=()):
     return out
 
 
+def declared_rounds(tid):
+    """赛事规程里登记的总轮数（manual.db tournaments_extra.total_rounds）。
+
+    只收录了部分对局的赛事，轮次数推不出来——已录对局的轮次最大值不一定就是
+    比赛的轮数（末几轮没留下记录时更少），所以按登记的写，没登记再退回推算。
+    """
+    if not os.path.exists(MANUAL_DB):
+        return 0
+    m = sqlite3.connect(MANUAL_DB)
+    try:
+        row = m.execute('SELECT total_rounds FROM tournaments_extra WHERE id=?',
+                        (tid,)).fetchone()
+    except sqlite3.OperationalError:
+        row = None
+    finally:
+        m.close()
+    return (row[0] or 0) if row else 0
+
+
 def event_ranks_for(tid):
     """某场赛事里人工/报道登记的名次：{姓名: 名次}。"""
     if not os.path.exists(MANUAL_DB):
@@ -813,7 +832,7 @@ def detail_page(t, ms, players=(), qmap=None):
         info.append('用时：' + esc(t['time_limit']))
     if rows:
         info.append('棋手：%d 人' % len(rows))
-        info.append('轮次：%d 轮' % max(rounds))
+        info.append('轮次：%d 轮' % (declared_rounds(t['id']) or max(rounds)))
         info.append('对局：%d 局' % sum(
             1 for m in ms if m['player1'] != BYE and m['player2'] != BYE))
     elif roster:
