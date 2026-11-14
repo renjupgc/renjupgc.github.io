@@ -34,7 +34,6 @@ body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.6 inherit
   font-size:13px;color:var(--ink3)}
 .mlink{color:var(--green);text-decoration:none;font-size:13px;
   border-bottom:1px solid var(--line);padding-bottom:1px}
-.tip{margin:10px 22px 0;font-size:12.5px;color:var(--ink3)}
 .tb-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 thead th{font-size:12.5px;font-weight:600;color:var(--ink3);text-align:center;
@@ -45,8 +44,6 @@ tbody td.c-rk{font-weight:700;color:var(--green);width:72px}
 tbody td.c-nm{text-align:left;padding-left:18px;color:var(--ink3)}
 tbody td.c-hit{font-weight:600}
 tbody tr:last-child td{border-bottom:none}
-tbody tr.total td{background:var(--mint2);font-weight:600}
-tbody tr.total td.c-rk{font-weight:700}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
 .big{display:flex;flex-wrap:wrap;gap:14px;padding:16px 22px;border-bottom:1px solid var(--line)}
 .kpi{flex:1 1 120px;min-width:120px}
@@ -70,10 +67,9 @@ tbody tr.total td.c-rk{font-weight:700}
         <a class="mlink" href="2026-shanhai.html">对阵表 ↗</a>
         <a class="mlink" href="2026-shanhai-details.html">名次表 ↗</a>
       </div>
-      <p class="tip">只统计同时有概率与赛果的台；命中率＝概率最高的一类与赛果相同；Brier 越小越准（0–2）；对数损失越小越好。</p>
     </div>
     <div class="big" id="kpi">
-      <div class="kpi"><b id="k-n">—</b><span>已评台数</span></div>
+      <div class="kpi"><b id="k-hit">—</b><span>命中</span></div>
       <div class="kpi"><b id="k-acc">—</b><span>命中率</span></div>
       <div class="kpi"><b id="k-brier">—</b><span>平均 Brier 值</span></div>
       <div class="kpi"><b id="k-ll">—</b><span>对数损失</span></div>
@@ -146,7 +142,8 @@ tbody tr.total td.c-rk{font-weight:700}
 
   function render(d) {
     var o = d.overall || {};
-    document.getElementById('k-n').textContent = o.n == null ? '—' : o.n;
+    document.getElementById('k-hit').textContent =
+      (o.hit == null || o.n == null) ? '—' : (o.hit + ' / ' + o.n);
     document.getElementById('k-acc').textContent = pct(o.accuracy);
     document.getElementById('k-brier').textContent = fix3(o.brier);
     document.getElementById('k-ll').textContent = fix3(o.logloss);
@@ -164,17 +161,6 @@ tbody tr.total td.c-rk{font-weight:700}
         '</tr>';
     }).join('');
 
-    if (rows) {
-      rows += '<tr class="total">' +
-        '<td class="c-rk">合计</td>' +
-        '<td>' + (o.n == null ? '—' : o.n) + '</td>' +
-        '<td>' + (o.hit == null ? '—' : o.hit) + '</td>' +
-        '<td>' + pct(o.accuracy) + '</td>' +
-        '<td>' + fix3(o.brier) + '</td>' +
-        '<td>' + fix3(o.logloss) + '</td>' +
-        '<td>' + pct(o.confidence) + '</td>' +
-        '</tr>';
-    }
     tbody.innerHTML = rows || '<tr><td colspan="7" class="empty">还没有可评的对局</td></tr>';
   }
 })();
