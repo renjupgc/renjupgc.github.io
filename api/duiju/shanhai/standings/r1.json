@@ -32,9 +32,9 @@
       "no": 2,
       "name": "钟煜阳",
       "score": 1.0,
-      "buch": 0.0,
-      "med": 0.0,
-      "wins": 1,
+      "buch": 0.5,
+      "med": 0.5,
+      "wins": 0,
       "played": 1,
       "results": [
         {
@@ -42,12 +42,12 @@
           "color": "white",
           "opponent_no": 25,
           "opponent": "许逸豪",
-          "result": "W"
+          "result": "BF"
         }
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 3,
       "name": "韦振强",
       "score": 1.0,
@@ -66,7 +66,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 6,
       "name": "章小剑",
       "score": 1.0,
@@ -85,7 +85,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 8,
       "name": "徐嘉琦",
       "score": 1.0,
@@ -104,7 +104,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 11,
       "name": "童晨",
       "score": 1.0,
@@ -123,7 +123,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 16,
       "name": "于宁",
       "score": 1.0,
@@ -142,7 +142,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 18,
       "name": "焦政瑞",
       "score": 1.0,
@@ -161,7 +161,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 19,
       "name": "赵云",
       "score": 1.0,
@@ -180,7 +180,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 22,
       "name": "刘沁",
       "score": 1.0,
@@ -199,7 +199,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 24,
       "name": "马子轩",
       "score": 1.0,
@@ -218,7 +218,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 27,
       "name": "梁中",
       "score": 1.0,
@@ -237,7 +237,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 28,
       "name": "肖伊康",
       "score": 1.0,
@@ -256,7 +256,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 30,
       "name": "黄大兴",
       "score": 1.0,
@@ -275,7 +275,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 32,
       "name": "夏建晋",
       "score": 1.0,
@@ -294,7 +294,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 33,
       "name": "李嘉骏",
       "score": 1.0,
@@ -313,7 +313,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 35,
       "name": "万俊宏",
       "score": 1.0,
@@ -332,7 +332,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 37,
       "name": "周楠",
       "score": 1.0,
@@ -351,7 +351,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 38,
       "name": "黄健光",
       "score": 1.0,
@@ -370,7 +370,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 40,
       "name": "何舒军",
       "score": 1.0,
@@ -389,7 +389,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 43,
       "name": "陈浩源",
       "score": 1.0,
@@ -408,7 +408,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 44,
       "name": "崔展铭",
       "score": 1.0,
@@ -427,7 +427,7 @@
       ]
     },
     {
-      "rank": 1,
+      "rank": 2,
       "no": 46,
       "name": "鲁益",
       "score": 1.0,
@@ -732,25 +732,6 @@
     },
     {
       "rank": 25,
-      "no": 25,
-      "name": "许逸豪",
-      "score": 0.0,
-      "buch": 1.0,
-      "med": 1.0,
-      "wins": 0,
-      "played": 1,
-      "results": [
-        {
-          "round": 1,
-          "color": "black",
-          "opponent_no": 2,
-          "opponent": "钟煜阳",
-          "result": "W"
-        }
-      ]
-    },
-    {
-      "rank": 25,
       "no": 26,
       "name": "蔡子扬",
       "score": 0.0,
@@ -898,6 +879,25 @@
           "opponent_no": 22,
           "opponent": "刘沁",
           "result": "W"
+        }
+      ]
+    },
+    {
+      "rank": 46,
+      "no": 25,
+      "name": "许逸豪",
+      "score": 0.0,
+      "buch": 0.5,
+      "med": 0.5,
+      "wins": 0,
+      "played": 1,
+      "results": [
+        {
+          "round": 1,
+          "color": "black",
+          "opponent_no": 2,
+          "opponent": "钟煜阳",
+          "result": "BF"
         }
       ]
     }

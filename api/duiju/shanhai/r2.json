@@ -14,8 +14,8 @@
     3
   ],
   "model": "model_20261113",
-  "predicted_at": "2026-11-14 13:20:27",
-  "updated_at": "2026-11-14 13:20:27",
+  "predicted_at": "2026-11-14 13:22:01",
+  "updated_at": "2026-11-14 13:22:01",
   "games": [
     {
       "table": 1,
@@ -30,9 +30,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 95.3,
-        "draw": 1.9,
-        "white": 2.8
+        "black": 95.1,
+        "draw": 2.0,
+        "white": 2.9
       },
       "result": "B",
       "prediction_correct": true
@@ -310,9 +310,9 @@
         "score": 0
       },
       "prediction": {
-        "black": 50.2,
-        "draw": 9.8,
-        "white": 40.0
+        "black": 46.9,
+        "draw": 10.0,
+        "white": 43.1
       },
       "result": "BF",
       "prediction_correct": false

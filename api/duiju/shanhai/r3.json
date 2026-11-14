@@ -14,8 +14,8 @@
     3
   ],
   "model": "model_20261113",
-  "predicted_at": "2026-11-14 13:20:44",
-  "updated_at": "2026-11-14 13:20:44",
+  "predicted_at": "2026-11-14 13:22:15",
+  "updated_at": "2026-11-14 13:22:15",
   "games": [
     {
       "table": 1,
@@ -30,9 +30,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 39.8,
-        "draw": 19.1,
-        "white": 41.1
+        "black": 39.5,
+        "draw": 19.7,
+        "white": 40.8
       },
       "result": null,
       "prediction_correct": null

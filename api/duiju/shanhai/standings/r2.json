@@ -110,9 +110,9 @@
       "no": 2,
       "name": "钟煜阳",
       "score": 2.0,
-      "buch": 1.5,
-      "med": 1.5,
-      "wins": 2,
+      "buch": 2.0,
+      "med": 2.0,
+      "wins": 1,
       "played": 2,
       "results": [
         {
@@ -120,7 +120,7 @@
           "color": "white",
           "opponent_no": 25,
           "opponent": "许逸豪",
-          "result": "W"
+          "result": "BF"
         },
         {
           "round": 2,
@@ -132,7 +132,7 @@
       ]
     },
     {
-      "rank": 4,
+      "rank": 5,
       "no": 3,
       "name": "韦振强",
       "score": 2.0,
@@ -158,7 +158,7 @@
       ]
     },
     {
-      "rank": 4,
+      "rank": 5,
       "no": 32,
       "name": "夏建晋",
       "score": 2.0,
@@ -470,12 +470,12 @@
       ]
     },
     {
-      "rank": 15,
+      "rank": 18,
       "no": 28,
       "name": "肖伊康",
       "score": 1.0,
-      "buch": 3.0,
-      "med": 3.0,
+      "buch": 2.5,
+      "med": 2.5,
       "wins": 1,
       "played": 2,
       "results": [
@@ -496,7 +496,7 @@
       ]
     },
     {
-      "rank": 19,
+      "rank": 18,
       "no": 30,
       "name": "黄大兴",
       "score": 1.0,
@@ -731,6 +731,32 @@
     },
     {
       "rank": 28,
+      "no": 7,
+      "name": "张硕",
+      "score": 1.0,
+      "buch": 2.0,
+      "med": 2.0,
+      "wins": 0,
+      "played": 2,
+      "results": [
+        {
+          "round": 1,
+          "color": "black",
+          "opponent_no": 30,
+          "opponent": "黄大兴",
+          "result": "W"
+        },
+        {
+          "round": 2,
+          "color": "white",
+          "opponent_no": 25,
+          "opponent": "许逸豪",
+          "result": "BF"
+        }
+      ]
+    },
+    {
+      "rank": 29,
       "no": 41,
       "name": "许业鹏",
       "score": 1.0,
@@ -752,32 +778,6 @@
           "opponent_no": 21,
           "opponent": "王思淼",
           "result": "B"
-        }
-      ]
-    },
-    {
-      "rank": 29,
-      "no": 7,
-      "name": "张硕",
-      "score": 1.0,
-      "buch": 1.5,
-      "med": 1.5,
-      "wins": 0,
-      "played": 2,
-      "results": [
-        {
-          "round": 1,
-          "color": "black",
-          "opponent_no": 30,
-          "opponent": "黄大兴",
-          "result": "W"
-        },
-        {
-          "round": 2,
-          "color": "white",
-          "opponent_no": 25,
-          "opponent": "许逸豪",
-          "result": "BF"
         }
       ]
     },
@@ -1094,33 +1094,7 @@
       ]
     },
     {
-      "rank": 40,
-      "no": 25,
-      "name": "许逸豪",
-      "score": 0.0,
-      "buch": 2.5,
-      "med": 2.5,
-      "wins": 0,
-      "played": 2,
-      "results": [
-        {
-          "round": 1,
-          "color": "black",
-          "opponent_no": 2,
-          "opponent": "钟煜阳",
-          "result": "W"
-        },
-        {
-          "round": 2,
-          "color": "black",
-          "opponent_no": 7,
-          "opponent": "张硕",
-          "result": "BF"
-        }
-      ]
-    },
-    {
-      "rank": 43,
+      "rank": 42,
       "no": 10,
       "name": "文英",
       "score": 0.0,
@@ -1146,7 +1120,7 @@
       ]
     },
     {
-      "rank": 43,
+      "rank": 42,
       "no": 23,
       "name": "蒙杰焕",
       "score": 0.0,
@@ -1172,7 +1146,33 @@
       ]
     },
     {
-      "rank": 43,
+      "rank": 42,
+      "no": 25,
+      "name": "许逸豪",
+      "score": 0.0,
+      "buch": 2.0,
+      "med": 2.0,
+      "wins": 0,
+      "played": 2,
+      "results": [
+        {
+          "round": 1,
+          "color": "black",
+          "opponent_no": 2,
+          "opponent": "钟煜阳",
+          "result": "BF"
+        },
+        {
+          "round": 2,
+          "color": "black",
+          "opponent_no": 7,
+          "opponent": "张硕",
+          "result": "BF"
+        }
+      ]
+    },
+    {
+      "rank": 42,
       "no": 34,
       "name": "袁攀峰",
       "score": 0.0,
@@ -1198,7 +1198,7 @@
       ]
     },
     {
-      "rank": 43,
+      "rank": 42,
       "no": 39,
       "name": "潘为",
       "score": 0.0,

@@ -13,9 +13,9 @@
     2,
     3
   ],
-  "model": "gbdt-20260704",
-  "predicted_at": "2026-11-14 01:29:38",
-  "updated_at": "2026-11-14 13:15:20",
+  "model": "model_20261113",
+  "predicted_at": "2026-11-14 13:21:46",
+  "updated_at": "2026-11-14 13:21:46",
   "games": [
     {
       "table": 1,
@@ -54,7 +54,7 @@
         "draw": 1.8,
         "white": 94.9
       },
-      "result": "W",
+      "result": "BF",
       "prediction_correct": true
     },
     {
