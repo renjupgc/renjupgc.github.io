@@ -357,8 +357,8 @@ td.c-prob{width:248px;padding:11px 22px}
       if (g.result === 'B') tag = '<div class="m-res"><span class="res-tag res-b">1 : 0</span></div>';
       else if (g.result === 'W') tag = '<div class="m-res"><span class="res-tag res-w">0 : 1</span></div>';
       else if (g.result === 'D') tag = '<div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>';
-      else if (g.result === 'BF') tag = '<div class="m-res"><span class="res-tag res-w" title="黑方弃权">- : +</span></div>';
-      else if (g.result === 'WF') tag = '<div class="m-res"><span class="res-tag res-b" title="白方弃权">+ : -</span></div>';
+      else if (g.result === 'BF') tag = '<div class="m-res"><span class="res-tag res-w">- : +</span></div>';
+      else if (g.result === 'WF') tag = '<div class="m-res"><span class="res-tag res-b">+ : -</span></div>';
       return '<td class="c-prob">' + tag + '<span class="nopred">未预测</span></td>';
     }
     var pb = p.black, pd = p.draw, pw = p.white;
@@ -369,8 +369,8 @@ td.c-prob{width:248px;padding:11px 22px}
     if (g.result === 'B') tag = '<div class="m-res"><span class="res-tag res-b">1 : 0</span></div>';
     else if (g.result === 'W') tag = '<div class="m-res"><span class="res-tag res-w">0 : 1</span></div>';
     else if (g.result === 'D') tag = '<div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>';
-    else if (g.result === 'BF') tag = '<div class="m-res"><span class="res-tag res-w" title="黑方弃权">- : +</span></div>';
-    else if (g.result === 'WF') tag = '<div class="m-res"><span class="res-tag res-b" title="白方弃权">+ : -</span></div>';
+    else if (g.result === 'BF') tag = '<div class="m-res"><span class="res-tag res-w">- : +</span></div>';
+    else if (g.result === 'WF') tag = '<div class="m-res"><span class="res-tag res-b">+ : -</span></div>';
     return '<td class="c-prob">' + tag +
       '<span class="bar" title="假先 ' + pct(pb) + '% · 和 ' + pct(pd) + '% · 假后 ' + pct(pw) + '%">' +
       '<i class="s-b" style="width:' + (pb / total * 100).toFixed(2) + '%"></i>' +
