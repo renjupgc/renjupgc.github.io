@@ -358,6 +358,8 @@ td.c-prob{width:248px;padding:11px 22px}
     if (g.result === 'B') tag = '<div class="m-res"><span class="res-tag res-b">1 : 0</span></div>';
     else if (g.result === 'W') tag = '<div class="m-res"><span class="res-tag res-w">0 : 1</span></div>';
     else if (g.result === 'D') tag = '<div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>';
+    else if (g.result === 'BF') tag = '<div class="m-res"><span class="res-tag res-w" title="黑方弃权">0 : 1 (黑弃)</span></div>';
+    else if (g.result === 'WF') tag = '<div class="m-res"><span class="res-tag res-b" title="白方弃权">1 : 0 (白弃)</span></div>';
     return '<td class="c-prob">' + tag +
       '<span class="bar" title="假先 ' + pct(pb) + '% · 和 ' + pct(pd) + '% · 假后 ' + pct(pw) + '%">' +
       '<i class="s-b" style="width:' + (pb / total * 100).toFixed(2) + '%"></i>' +
@@ -377,7 +379,8 @@ td.c-prob{width:248px;padding:11px 22px}
       var pb = g.prediction.black, pd = g.prediction.draw, pw = g.prediction.white;
       var top = Math.max(pb, pd, pw);
       var fav = (pb === top) ? 'B' : ((pw === top) ? 'W' : 'D');
-      if (fav === g.result) {
+      var eff = (g.result === 'BF') ? 'W' : ((g.result === 'WF') ? 'B' : g.result);
+      if (fav === eff) {
         mark = '<span class="pred-mark ok">✔</span>';
       } else {
         mark = '<span class="pred-mark wrong">✘</span>';

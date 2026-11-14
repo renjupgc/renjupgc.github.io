@@ -19,7 +19,7 @@
         "no": 28,
         "name": "肖伊康"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 2,
@@ -31,7 +31,7 @@
         "no": 3,
         "name": "韦振强"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 3,
@@ -43,7 +43,7 @@
         "no": 32,
         "name": "夏建晋"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 4,
@@ -55,7 +55,7 @@
         "no": 33,
         "name": "李嘉骏"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 5,
@@ -67,7 +67,7 @@
         "no": 11,
         "name": "童晨"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 6,
@@ -79,7 +79,7 @@
         "no": 37,
         "name": "周楠"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 7,
@@ -91,7 +91,7 @@
         "no": 43,
         "name": "陈浩源"
       },
-      "result": null
+      "result": "D"
     },
     {
       "table": 8,
@@ -103,7 +103,7 @@
         "no": 19,
         "name": "赵云"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 9,
@@ -115,7 +115,7 @@
         "no": 27,
         "name": "梁中"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 10,
@@ -127,7 +127,7 @@
         "no": 44,
         "name": "崔展铭"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 11,
@@ -139,7 +139,7 @@
         "no": 46,
         "name": "鲁益"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 12,
@@ -151,7 +151,7 @@
         "no": 13,
         "name": "康哲铭"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 13,
@@ -163,7 +163,7 @@
         "no": 4,
         "name": "廖俊豪"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 14,
@@ -175,7 +175,7 @@
         "no": 5,
         "name": "彭维刚"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 15,
@@ -187,7 +187,7 @@
         "no": 7,
         "name": "张硕"
       },
-      "result": null
+      "result": "BF"
     },
     {
       "table": 16,
@@ -199,7 +199,7 @@
         "no": 9,
         "name": "康庭瑞"
       },
-      "result": null
+      "result": "D"
     },
     {
       "table": 17,
@@ -211,7 +211,7 @@
         "no": 29,
         "name": "庄义翔"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 18,
@@ -223,7 +223,7 @@
         "no": 31,
         "name": "陈超"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 19,
@@ -235,7 +235,7 @@
         "no": 34,
         "name": "袁攀峰"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 20,
@@ -247,7 +247,7 @@
         "no": 15,
         "name": "艾颖翔"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 21,
@@ -259,7 +259,7 @@
         "no": 17,
         "name": "王端国"
       },
-      "result": null
+      "result": "W"
     },
     {
       "table": 22,
@@ -271,7 +271,7 @@
         "no": 21,
         "name": "王思淼"
       },
-      "result": null
+      "result": "B"
     },
     {
       "table": 23,
@@ -283,7 +283,7 @@
         "no": 39,
         "name": "潘为"
       },
-      "result": null
+      "result": "B"
     }
   ]
 }

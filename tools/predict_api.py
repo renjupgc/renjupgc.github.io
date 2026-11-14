@@ -40,6 +40,17 @@ TZ = timezone(timedelta(hours=8))
 def now_str():
     return datetime.now(TZ).strftime('%Y-%m-%d %H:%M:%S')
 
+
+def get_effective_result(res):
+    """把 BF/WF 映射为等效对局胜方（BF 黑弃权=白胜 W，WF 白弃权=黑胜 B）。"""
+    if res in ('B', 'WF'):
+        return 'B'
+    if res in ('W', 'BF'):
+        return 'W'
+    if res == 'D':
+        return 'D'
+    return None
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
 DATA_DIR = os.path.join(ROOT, 'data')
@@ -311,6 +322,8 @@ def get_tournament_prior_history(conn, tid, upto_round=None):
         res = g['result']
         b_name = g['black_name']
         w_name = g['white_name']
+        if b_name == '轮空' or w_name == '轮空':
+            continue
         b_id = name_to_pid.get(b_name, b_name)
         w_id = name_to_pid.get(w_name, w_name)
         day = BASE_DAY + int(g['round'])
@@ -465,6 +478,40 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
     for g in games_rows:
         bn = g['black_name']
         wn = g['white_name']
+
+        # 轮空台特殊处理
+        if wn == '轮空' or bn == '轮空':
+            is_black_bye = (wn == '轮空')
+            pb = 100.0 if is_black_bye else 0.0
+            pw = 0.0 if is_black_bye else 100.0
+            fav = 'B' if is_black_bye else 'W'
+            res = g['result']
+            is_correct = (fav == res) if res in ('B', 'W', 'D') else None
+            real_name = bn if is_black_bye else wn
+            r_info = player_ratings.get(real_name, {'rating': BIAS, 'rd': 100.0})
+            out.append({
+                'table': g['table_no'],
+                'round': g['round'],
+                'black_no': g['black_no'],
+                'black_name': bn,
+                'white_no': g['white_no'],
+                'white_name': wn,
+                'rating_black': r_info['rating'] if is_black_bye else 0.0,
+                'rd_black': r_info['rd'] if is_black_bye else 0.0,
+                'rating_white': 0.0 if is_black_bye else r_info['rating'],
+                'rd_white': 0.0 if is_black_bye else r_info['rd'],
+                'dr_black': 0.0,
+                'dr_white': 0.0,
+                'h2h_score': 1.0 if is_black_bye else 0.0,
+                'p_black': pb,
+                'p_draw': 0.0,
+                'p_white': pw,
+                'fav': fav,
+                'result': res,
+                'is_correct': is_correct,
+            })
+            continue
+
         b_whr = player_ratings.get(bn, {'rating': BIAS, 'rd': 100.0})
         w_whr = player_ratings.get(wn, {'rating': BIAS, 'rd': 100.0})
         rb, stdb = b_whr['rating'], b_whr['rd']
@@ -503,7 +550,8 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
         top_prob = max(pb, pd, pw)
         fav = 'B' if pb == top_prob else ('W' if pw == top_prob else 'D')
         res = g['result']
-        is_correct = (fav == res) if res in ('B', 'W', 'D') else None
+        eff_res = get_effective_result(res)
+        is_correct = (fav == eff_res) if eff_res else None
 
         out.append({
             'table': g['table_no'],
@@ -541,7 +589,10 @@ def compute_metrics_for_games(games_rows):
 
     for g in games_rows:
         res = g.get('result')
-        if res not in ('B', 'D', 'W') or g.get('p_black') is None:
+        if not res or g.get('p_black') is None:
+            continue
+        eff_res = get_effective_result(res)
+        if not eff_res:
             continue
         pb = g['p_black'] / 100.0
         pd = g['p_draw'] / 100.0
@@ -550,13 +601,13 @@ def compute_metrics_for_games(games_rows):
 
         top = max(p, key=lambda k: p[k])
         n += 1
-        classes[res] += 1
+        classes[eff_res] += 1
         fav_counts[top] += 1
-        if top == res:
+        if top == eff_res:
             hit += 1
-            hit_by_class[res] += 1
-        brier += sum((p[k] - (1.0 if k == res else 0.0)) ** 2 for k in p)
-        logloss -= math.log(max(p[res], 1e-9))
+            hit_by_class[eff_res] += 1
+        brier += sum((p[k] - (1.0 if k == eff_res else 0.0)) ** 2 for k in p)
+        logloss -= math.log(max(p[eff_res], 1e-9))
         conf += p[top]
 
     if n == 0:
@@ -598,7 +649,10 @@ def evaluate_tournament_model(conn, tid, write=True, print_report=True):
         if stat:
             stat['round'] = rnd
             rounds_stats.append(stat)
-            pooled_rows.extend([r for r in rows_dict if r['result'] in ('B', 'W', 'D') and r['p_black'] is not None])
+            pooled_rows.extend([
+                r for r in rows_dict
+                if get_effective_result(r['result']) is not None and r['p_black'] is not None
+            ])
 
     if not rounds_stats:
         if print_report:

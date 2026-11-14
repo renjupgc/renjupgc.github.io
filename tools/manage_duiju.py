@@ -103,7 +103,18 @@ CREATE TABLE IF NOT EXISTS games (
 );
 """
 
-RESULTS = ('B', 'W', 'D')
+RESULTS = ('B', 'W', 'D', 'BF', 'WF')
+
+
+def get_effective_result(res):
+    """把 BF/WF 映射为等效对局胜方（BF 黑弃权=白胜 W，WF 白弃权=黑胜 B）。"""
+    if res in ('B', 'WF'):
+        return 'B'
+    if res in ('W', 'BF'):
+        return 'W'
+    if res == 'D':
+        return 'D'
+    return None
 
 
 def now_str():
@@ -368,7 +379,13 @@ def apply_results(conn, tid, rnd, spec):
 # ---------------------------------------------------------------- 名次
 
 # 山海杯名次口径：积分 → 对手分 → 中间对手分 → 胜局数 → 并列（同分同名次）
-POINT = {'B': (1.0, 0.0), 'W': (0.0, 1.0), 'D': (0.5, 0.5)}
+POINT = {
+    'B': (1.0, 0.0),
+    'W': (0.0, 1.0),
+    'D': (0.5, 0.5),
+    'BF': (0.0, 1.0),  # 黑弃权，白方得 1 分
+    'WF': (1.0, 0.0),  # 白弃权，黑方得 1 分
+}
 BYE_POINT = 1.0
 
 
@@ -384,6 +401,8 @@ def collect_players(conn, tid):
             ' WHERE tournament_id=? ORDER BY round, table_no', (tid,)):
         for no, name in ((g['black_no'], g['black_name']),
                          (g['white_no'], g['white_name'])):
+            if name == '轮空':
+                continue
             key = _player_key(no, name)
             players.setdefault(key, {'no': no, 'name': name, 'results': []})
     return players
@@ -413,15 +432,18 @@ def compute_standings(conn, tid, upto=None):
         b, w = _player_key(g['black_no'], g['black_name']), _player_key(
             g['white_no'], g['white_name'])
         res = g['result']
-        if res == 'B':
+        eff = get_effective_result(res)
+        if eff == 'B':
             bs, ws = 1.0, 0.0
-        elif res == 'W':
+        elif eff == 'W':
             bs, ws = 0.0, 1.0
-        elif res == 'D':
+        elif eff == 'D':
             bs, ws = 0.5, 0.5
         else:
             bs = ws = None
         for me, other, score, color in ((b, w, bs, 'black'), (w, b, ws, 'white')):
+            if me == '轮空':
+                continue
             players[me]['results'].append({
                 'round': g['round'], 'color': color, 'opponent': other,
                 'result': res, 'points': score,
@@ -446,13 +468,13 @@ def compute_standings(conn, tid, upto=None):
     # 对手分 / 中间对手分
     for p in players.values():
         # 未出结果的台不计：既不算对手，也不补虚拟对手
-        opps = [scores.get(r['opponent'], 0.0) for r in p['results'] if r['result']]
+        opps = [scores.get(r['opponent'], 0.0) for r in p['results'] if r['result'] and r['opponent'] != '轮空']
         p['buch'] = round(sum(opps), 4)
         if len(opps) >= 3:
             p['med'] = round(sum(opps) - max(opps) - min(opps), 4)
         else:
             p['med'] = p['buch']
-        p['played'] = len([r for r in p['results'] if r['result']])
+        p['played'] = len([r for r in p['results'] if r['result'] and r['opponent'] != '轮空'])
 
     ordered = sorted(
         players.values(),
@@ -478,8 +500,8 @@ def compute_standings(conn, tid, upto=None):
             'results': [{
                 'round': r['round'],
                 'color': r['color'],
-                'opponent_no': players[r['opponent']]['no'],
-                'opponent': players[r['opponent']]['name'],
+                'opponent_no': players[r['opponent']]['no'] if r['opponent'] in players else None,
+                'opponent': players[r['opponent']]['name'] if r['opponent'] in players else str(r['opponent']),
                 'result': r['result'],
             } for r in sorted(p['results'], key=lambda r: r['round'])],
         })
@@ -575,9 +597,9 @@ def export_api(conn):
             write_round(t, r, rows, all_rounds, dict(points))
             write_standings(conn, t, r['round'])
             for g in rows:
-                if g['result'] == 'B':
+                if g['result'] in ('B', 'WF'):
                     points[g['black_name']] = points.get(g['black_name'], 0) + 1
-                elif g['result'] == 'W':
+                elif g['result'] in ('W', 'BF'):
                     points[g['white_name']] = points.get(g['white_name'], 0) + 1
                 elif g['result'] == 'D':
                     points[g['black_name']] = points.get(g['black_name'], 0) + 0.5
@@ -668,11 +690,13 @@ def write_round(tour, rmeta, rows, round_list, points):
             'black': g['p_black'], 'draw': g['p_draw'], 'white': g['p_white'],
         }
         is_correct = None
-        if pred is not None and g['result'] in ('B', 'W', 'D'):
-            pb, pd, pw = pred['black'], pred['draw'], pred['white']
-            top = max(pb, pd, pw)
-            fav = 'B' if pb == top else ('W' if pw == top else 'D')
-            is_correct = (fav == g['result'])
+        if pred is not None and g['result']:
+            eff = get_effective_result(g['result'])
+            if eff:
+                pb, pd, pw = pred['black'], pred['draw'], pred['white']
+                top = max(pb, pd, pw)
+                fav = 'B' if pb == top else ('W' if pw == top else 'D')
+                is_correct = (fav == eff)
 
         payload['games'].append({
             'table': g['table_no'],
