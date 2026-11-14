@@ -259,11 +259,14 @@
       var archived = res[0], live = res[1];
       var seen = {};
       var all = [];
+      var addedLive = 0;
       archived.forEach(function (e) { seen[e.n || ('a' + e.t + e.p)] = 1; all.push(e); });
-      live.forEach(function (e) { if (!seen[e.n]) { all.push(e); seen[e.n] = 1; } });
+      live.forEach(function (e) {
+        if (!seen[e.n]) { all.push(e); seen[e.n] = 1; addedLive++; }
+      });
       all.sort(function (a, b) { return (a.t || 0) - (b.t || 0); });
       state.events = all;
-      state.live = live.length > 0;
+      state.live = addedLive > 0;
       state.err = archived.length ? '' : '归档文件还空着，显示的是通道里的实时记录';
       render();
     });
@@ -407,7 +410,7 @@
     var titles = {};
     views.forEach(function (v) { if (v.ti) { titles[v.p] = v.ti; } });
     bars($('pages'), rankMap(views, function (v) { return v.p; }).slice(0, 8),
-      function (p) { return (titles[p] || p).replace(/\s*[·|]\s*连珠杂箱$/, ''); },
+      function (p) { return (titles[p] || p).replace(/(\s*[·|—-]\s*连珠杂箱)+$/, ''); },
       function (p) { try { return decodeURIComponent(p); } catch (e) { return p; } });
     bars($('refs'), rankMap(views, function (v) { return v.r || '（直接访问）'; }).slice(0, 6), null);
     bars($('agents'), rankMap(views, function (v) { return agentOf(v.ua); }).slice(0, 6), null);
