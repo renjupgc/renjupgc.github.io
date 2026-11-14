@@ -6,9 +6,12 @@
 核心逻辑：
 1. 模型：使用截止 20261112 训练的最新 GBDT 决策树模型（bisai/data/model_20261112.json）。
 2. 特征：包含开局规则（塔拉山口-10 为 25）、双方等级分、等级分差、平均等级分、标准差、联合标准差、
-   衰减和棋率、历史交手胜率（H2H）以及国家属性。
-3. 动态滚动：预测第 R 轮时，自动提取本赛事第 1 ~ R-1 轮已出结果的实际对局（胜/平/负），
-   结合全量 WHR 算法进行增量收敛拟合，动态更新棋手在当轮开赛前的最新 rating 与 rd。
+   衰减和棋率、历史交手胜率（H2H）以及国家属性（共 14 维）。
+3. 全面动态滚动：预测第 R 轮时，自动提取本赛事第 1 ~ R-1 轮已出结果的实际对局（胜/平/负）：
+   a. WHR 评级：将前序对局并入全量世界对局库收敛拟合，动态更新棋手在当轮开赛前的最新 rating 与 rd，
+      由此 rating_diff、rating_mean、joint_std 同步动态更新。
+   b. 衰减和棋率：结合棋手历史先验与本赛事此前轮次的实际战绩（场次、和棋），增量计算当轮开赛前的最新 decayed_dr_tb、decayed_dr_tw 及 combined_decayed_dr。
+   c. 历史交手胜率：结合 h2h.json 历史衰减先验与本赛事此前轮次双方的实际直接对阵新赛果，增量更新 decayed_h2h_score。
 4. 正误判定：对赛果已出的对局自动判定预测正误（最高概率方与实际赛果一致为正确，否则为错误）。
 
 用法：
@@ -121,16 +124,65 @@ def load_h2h_meta():
     return _H2H_CACHE
 
 
-def get_h2h_rate(p1_id, p2_id):
-    """获取黑白双方历史交手相对胜率（黑方视角）。"""
+# ---------------------------------------------------------------- 动态特征计算（和棋率、交锋胜率）
+
+def get_dynamic_draw_rate(player_name, p_meta, player_stats, prior_weight=10.0):
+    """计算棋手在当前轮次开赛前的最新动态衰减和棋率。
+    
+    公式：(base_dr * prior_weight + tour_draws) / (prior_weight + tour_games)
+    前序轮次中若出现和棋，和棋倾向敏锐上升；若均为胜负局，和棋率被温和稀释。
+    """
+    meta = p_meta.get(player_name) or {}
+    base_dr = meta.get('decayed_draw_rate', 0.12)
+    stats = player_stats.get(player_name)
+    if not stats or stats.get('played', 0) == 0:
+        return base_dr
+    n = stats['played']
+    d = stats['draws']
+    return (base_dr * prior_weight + d) / (prior_weight + n)
+
+
+def get_dynamic_h2h_rate(p1_id, p2_id, p1_name, p2_name, pair_stats, prior_weight_cap=10.0):
+    """计算黑方 (p1) 对白方 (p2) 的最新动态交手胜率。
+    
+    结合 h2h.json 中的全量历史衰减先验与本赛事此前轮次双方的实际直接对局增量。
+    """
     h2h_data = load_h2h_meta()
-    if not p1_id or not p2_id or p1_id == 'unrated' or p2_id == 'unrated':
-        return 0.5
-    key = f'{p1_id}_{p2_id}' if p1_id < p2_id else f'{p2_id}_{p1_id}'
-    item = h2h_data.get(key)
-    if not item:
-        return 0.5
-    return item[4] if p1_id < p2_id else (1.0 - item[4])
+
+    # 历史衰减先验
+    item = None
+    if p1_id and p2_id and p1_id != 'unrated' and p2_id != 'unrated':
+        key = f'{p1_id}_{p2_id}' if p1_id < p2_id else f'{p2_id}_{p1_id}'
+        item = h2h_data.get(key)
+
+    if item:
+        tot_hist = item[0]
+        w_hist = min(tot_hist, prior_weight_cap)
+        rate_first_hist = item[4]  # key 是字典序较小的选手视角
+        score_first_hist = rate_first_hist * w_hist
+        key_first_is_p1 = (p1_id < p2_id)
+    else:
+        w_hist = 1.0
+        score_first_hist = 0.5
+        key_first_is_p1 = (p1_id < p2_id) if (p1_id and p2_id and p1_id != 'unrated' and p2_id != 'unrated') else (p1_name < p2_name)
+
+    # 本赛事此前各轮次的直接交锋增量
+    tour_pair = None
+    if p1_id and p2_id and p1_id != 'unrated' and p2_id != 'unrated':
+        pair_id = (min(p1_id, p2_id), max(p1_id, p2_id))
+        tour_pair = pair_stats.get(pair_id)
+    if not tour_pair:
+        pair_name = (min(p1_name, p2_name), max(p1_name, p2_name))
+        tour_pair = pair_stats.get(pair_name)
+
+    if tour_pair and tour_pair.get('games', 0) > 0:
+        k = tour_pair['games']
+        s_add = tour_pair['score_first']
+        rate_first = (score_first_hist + s_add) / (w_hist + k)
+    else:
+        rate_first = score_first_hist / w_hist
+
+    return rate_first if key_first_is_p1 else (1.0 - rate_first)
 
 
 # ---------------------------------------------------------------- GBDT 概率推断
@@ -181,7 +233,7 @@ def predict_gbdt(sample, model=None):
     return pb, pd, pw
 
 
-# ---------------------------------------------------------------- 动态滚动 WHR 等级分
+# ---------------------------------------------------------------- 动态滚动 WHR 与前序轮次上下文
 
 def load_initial_ratings(tid=None):
     """从源录入 JSON 中获取棋手的初始等级分 (姓名/编号 -> rating)。"""
@@ -230,23 +282,8 @@ def load_whr_base_games():
     return _WHR_BASE_GAMES_CACHE
 
 
-def compute_whr_ratings(conn, tid, upto_round=None):
-    """使用官方 whr 库动态计算指定轮次开赛前的全员 WHR 等级分与标准差。
-
-    如果指定了 upto_round，则只纳入本赛事 round < upto_round 的已出赛果对局。
-    """
-    try:
-        import whr
-    except ImportError:
-        print('！ 提示：未安装 whr 库 (pip install whr)', file=sys.stderr)
-        whr = None
-
-    base_games, name_to_pid, pid_to_name = load_whr_base_games()
-    init_ratings_name, init_ratings_no = load_initial_ratings(tid)
-    p_meta = load_players_meta()
-
-    # 提取本赛事此前各轮次已完成的对局
-    tour_games = []
+def get_tournament_prior_history(conn, tid, upto_round=None):
+    """提取本赛事此前各轮次 (round < upto_round) 已完成的对局，统计棋手状态与交锋记录。"""
     query = ('SELECT round, table_no, black_no, black_name, white_no, white_name, result'
              ' FROM games WHERE tournament_id=? AND result IN ("B","W","D")')
     params = [tid]
@@ -254,6 +291,12 @@ def compute_whr_ratings(conn, tid, upto_round=None):
         query += ' AND round < ?'
         params.append(upto_round)
     query += ' ORDER BY round, table_no'
+
+    p_stats = {}
+    pair_stats = {}
+    tour_games = []
+
+    base_games, name_to_pid, pid_to_name = load_whr_base_games()
 
     for g in conn.execute(query, params):
         res = g['result']
@@ -263,6 +306,68 @@ def compute_whr_ratings(conn, tid, upto_round=None):
         w_id = name_to_pid.get(w_name, w_name)
         day = BASE_DAY + int(g['round'])
         tour_games.append([b_id, w_id, res, day])
+
+        # 棋手局数与和棋数统计
+        for name in (b_name, w_name):
+            if name not in p_stats:
+                p_stats[name] = {'played': 0, 'draws': 0, 'wins': 0, 'losses': 0}
+
+        p_stats[b_name]['played'] += 1
+        p_stats[w_name]['played'] += 1
+        if res == 'D':
+            p_stats[b_name]['draws'] += 1
+            p_stats[w_name]['draws'] += 1
+        elif res == 'B':
+            p_stats[b_name]['wins'] += 1
+            p_stats[w_name]['losses'] += 1
+        elif res == 'W':
+            p_stats[w_name]['wins'] += 1
+            p_stats[b_name]['losses'] += 1
+
+        # 双方直接交手统计（按名字记录）
+        pair_name = (min(b_name, w_name), max(b_name, w_name))
+        if pair_name not in pair_stats:
+            pair_stats[pair_name] = {'games': 0, 'score_first': 0.0}
+        pair_stats[pair_name]['games'] += 1
+        if res == 'D':
+            pair_stats[pair_name]['score_first'] += 0.5
+        elif (res == 'B' and pair_name[0] == b_name) or (res == 'W' and pair_name[0] == w_name):
+            pair_stats[pair_name]['score_first'] += 1.0
+
+        # 若双方有 ID，按 ID 记录一份
+        if b_id and w_id and b_id != 'unrated' and w_id != 'unrated':
+            pair_id = (min(b_id, w_id), max(b_id, w_id))
+            if pair_id not in pair_stats:
+                pair_stats[pair_id] = {'games': 0, 'score_first': 0.0}
+            pair_stats[pair_id]['games'] += 1
+            if res == 'D':
+                pair_stats[pair_id]['score_first'] += 0.5
+            elif (res == 'B' and pair_id[0] == b_id) or (res == 'W' and pair_id[0] == w_id):
+                pair_stats[pair_id]['score_first'] += 1.0
+
+    return tour_games, p_stats, pair_stats
+
+
+def compute_whr_ratings(conn, tid, upto_round=None):
+    """使用官方 whr 库动态计算指定轮次开赛前的全员 WHR 等级分与标准差。
+
+    如果指定了 upto_round，则只纳入本赛事 round < upto_round 的已出赛果对局。
+    """
+    tour_games, _, _ = get_tournament_prior_history(conn, tid, upto_round)
+    return _run_whr(conn, tid, tour_games)
+
+
+def _run_whr(conn, tid, tour_games):
+    """运行 WHR 算法收敛拟合，输出所有选手最新 rating 与 rd。"""
+    try:
+        import whr
+    except ImportError:
+        print('！ 提示：未安装 whr 库 (pip install whr)', file=sys.stderr)
+        whr = None
+
+    base_games, name_to_pid, pid_to_name = load_whr_base_games()
+    init_ratings_name, init_ratings_no = load_initial_ratings(tid)
+    p_meta = load_players_meta()
 
     ratings = {}
     if whr is not None and base_games:
@@ -322,12 +427,29 @@ def compute_whr_ratings(conn, tid, upto_round=None):
     return ratings
 
 
+def compute_rolling_context(conn, tid, upto_round=None):
+    """动态滚动计算指定轮次开赛前的全量特征上下文：
+    1. ratings: 每位选手的 WHR 等级分与标准差（结合前序轮次对局收敛拟合）。
+    2. p_stats: 选手本赛事前序轮次出战局数与和局统计（用于衰减和棋率增量更新）。
+    3. pair_stats: 选手间前序轮次直接交手记录（用于交锋胜率增量更新）。
+    """
+    tour_games, p_stats, pair_stats = get_tournament_prior_history(conn, tid, upto_round)
+    ratings = _run_whr(conn, tid, tour_games)
+    return ratings, p_stats, pair_stats
+
+
 # ---------------------------------------------------------------- 对局预测 API
 
-def predict_games_list(games_rows, player_ratings, rule_name='塔拉山口-10', model=None):
-    """根据最新 20261112 GBDT 模型推断一组对局的胜率，并判断正误标记。"""
+def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None,
+                       rule_name='塔拉山口-10', model=None):
+    """根据最新 20261112 GBDT 模型推断一组对局的胜率，并判断正误标记。
+    
+    动态融入前序轮次的 WHR 等级分、标准差、衰减和棋率及 H2H 交锋更新。
+    """
     model = model or load_gbdt_model()
     p_meta = load_players_meta()
+    p_stats = p_stats or {}
+    pair_stats = pair_stats or {}
     rule_id = RULE_MAP.get(rule_name, 25)  # 默认塔拉山口-10 (25)
 
     out = []
@@ -347,10 +469,15 @@ def predict_games_list(games_rows, player_ratings, rule_name='塔拉山口-10', 
         diff = rb - rw
         mean_r = (rb + rw) / 2.0
         j_std = math.sqrt(stdb**2 + stdw**2)
-        dr_b = mb.get('decayed_draw_rate', 0.12)
-        dr_w = mw.get('decayed_draw_rate', 0.12)
+
+        # 动态衰减和棋率（融合前序轮次实战战绩）
+        dr_b = get_dynamic_draw_rate(bn, p_meta, p_stats)
+        dr_w = get_dynamic_draw_rate(wn, p_meta, p_stats)
         comb_dr = (dr_b + dr_w) / 2.0
-        h2h_rate = get_h2h_rate(p1_id, p2_id)
+
+        # 动态衰减交手胜率（融合前序轮次直接对阵赛果）
+        h2h_rate = get_dynamic_h2h_rate(p1_id, p2_id, bn, wn, pair_stats)
+
         c_b = mb.get('country_id', 5)
         c_w = mw.get('country_id', 5)
 
@@ -380,6 +507,9 @@ def predict_games_list(games_rows, player_ratings, rule_name='塔拉山口-10', 
             'rd_black': stdb,
             'rating_white': rw,
             'rd_white': stdw,
+            'dr_black': round(dr_b, 4),
+            'dr_white': round(dr_w, 4),
+            'h2h_score': round(h2h_rate, 4),
             'p_black': pb,
             'p_draw': pd,
             'p_white': pw,
@@ -393,7 +523,8 @@ def predict_games_list(games_rows, player_ratings, rule_name='塔拉山口-10', 
 def predict_round(conn, tid, rnd, write=False):
     """预测指定赛事的某一轮对局。
     
-    自动利用第 1 ~ rnd-1 轮的已出赛果滚动 WHR，再使用 20261112 GBDT 模型推断概率。
+    自动利用第 1 ~ rnd-1 轮的已出赛果滚动 WHR 与其他全部动态特征（和棋率、H2H等），
+    再使用 20261112 GBDT 模型推断概率。
     write=True 时写回 duiju.db。
     """
     model = load_gbdt_model()
@@ -401,8 +532,8 @@ def predict_round(conn, tid, rnd, write=False):
     tour = conn.execute('SELECT rule FROM tournaments WHERE id=?', (tid,)).fetchone()
     rule_name = (tour['rule'] if tour else None) or '塔拉山口-10'
 
-    # 动态滚动截至第 rnd 轮开赛前的等级分
-    ratings = compute_whr_ratings(conn, tid, upto_round=rnd)
+    # 动态滚动截至第 rnd 轮开赛前的所有特征上下文
+    ratings, p_stats, pair_stats = compute_rolling_context(conn, tid, upto_round=rnd)
 
     games = conn.execute(
         'SELECT round, table_no, black_no, black_name, white_no, white_name, result'
@@ -414,7 +545,8 @@ def predict_round(conn, tid, rnd, write=False):
 
     # 仅对未出赛果的台进行概率预测更新
     todo = [g for g in games if g['result'] not in ('B', 'W', 'D')]
-    preds = predict_games_list(todo, ratings, rule_name=rule_name, model=model)
+    preds = predict_games_list(todo, ratings, p_stats=p_stats, pair_stats=pair_stats,
+                               rule_name=rule_name, model=model)
 
     if write and preds:
         for p in preds:
@@ -425,14 +557,15 @@ def predict_round(conn, tid, rnd, write=False):
             )
         conn.commit()
 
-    all_preds = predict_games_list(games, ratings, rule_name=rule_name, model=model)
+    all_preds = predict_games_list(games, ratings, p_stats=p_stats, pair_stats=pair_stats,
+                                   rule_name=rule_name, model=model)
     return all_preds
 
 
 def predict_tournament(conn, tid, write=True):
     """预测一个赛事一系列对局的完整 API。
     
-    按轮次逐轮递增滚动计算前置轮次的赛果，完成所有未预测对局的概率赋值。
+    按轮次逐轮递增滚动计算前置轮次的赛果（WHR 等级分/RD、衰减和棋率、H2H），完成所有未预测对局的概率赋值。
     """
     rounds = [r['round'] for r in conn.execute(
         'SELECT DISTINCT round FROM games WHERE tournament_id=? ORDER BY round', (tid,)
@@ -452,14 +585,14 @@ def predict_tournament(conn, tid, write=True):
             total_predicted += len([p for p in preds if p['result'] not in ('B', 'W', 'D')])
 
     if write and total_predicted:
-        print(f'已完成赛事 {tid} 滚动 WHR + 20261112 GBDT 预测：共更新 {total_predicted} 台概率')
+        print(f'已完成赛事 {tid} 全特征动态滚动预测（WHR/和棋率/H2H）：共更新 {total_predicted} 台概率')
     return total_predicted
 
 
 # ---------------------------------------------------------------- CLI 命令行入口
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='按官方 WHR 滚动与最新 20261112 GBDT 预测对局')
+    ap = argparse.ArgumentParser(description='按官方 WHR 与全特征动态滚动最新 20261112 GBDT 预测对局')
     ap.add_argument('--tid', required=True, help='赛事 id，如 2026-shanhai')
     ap.add_argument('--round', type=int, help='只算指定轮次（默认全赛事所有轮次）')
     ap.add_argument('--write', action='store_true', help='把预测概率写回 data/duiju.db')
@@ -476,6 +609,7 @@ def main(argv=None):
                 res_str = p['result'] or '进行中'
                 print(f'{mark} 第{p["table"]:2d}台  {p["black_name"]}({p["rating_black"]:.0f}) vs {p["white_name"]}({p["rating_white"]:.0f})  '
                       f'胜率: {p["p_black"]:.1f}% / {p["p_draw"]:.1f}% / {p["p_white"]:.1f}%  '
+                      f'[和棋率: {p["dr_black"]:.3f}/{p["dr_white"]:.3f}, H2H: {p["h2h_score"]:.2f}]  '
                       f'[实际: {res_str}]')
         else:
             n = predict_tournament(conn, args.tid, write=args.write)
