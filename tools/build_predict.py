@@ -60,6 +60,13 @@ def main():
     ratings, tournaments, matches = bp.load_db()
     unis = {r['name']: r['university'] or '' for r in ratings}
     regions = {r['name']: r['region'] or '' for r in ratings}
+    # 未入榜的人不在 ratings 表里，籍贯与学校另记在 build_players.REGION_OVERRIDE；
+    # 预测页照样要显示，缺了就补上（只补空值，不覆盖表里的）。
+    for name, (reg, uni) in getattr(bp, 'REGION_OVERRIDE', {}).items():
+        if not regions.get(name):
+            regions[name] = reg
+        if not unis.get(name):
+            unis[name] = uni
 
     # 1) 等级分：不带门槛算一遍，顺带拿到 listed 标记
     #    tournaments 是 {id: 行}，unrated_tids 收的是行列表，取值后传
@@ -103,6 +110,9 @@ def main():
         print('  %3d+  %4d  %.3f  %.3f' % (b, n, obs / n, pred / n))
 
     # 4) 每人一条记录
+    # 名次要取等级分榜上的名次：上面那次 compute_ratings 是不带门槛算的，
+    # 里面的 rank 含未入榜的人，直接拿来用会和 rating.html 对不上。
+    snap_rank = {r['name']: r['rank'] for r in ratings}
     players = {}
     for name, r in rating.items():
         ev = []
@@ -119,7 +129,7 @@ def main():
         players[name] = {
             'r': round(r['rating'], 2),
             'listed': 1 if name in listed else 0,
-            'rank': r['rank'] if name in listed else 0,
+            'rank': (snap_rank.get(name) or 0) if name in listed else 0,
             'g': r['games'], 'w': r['wins'], 'd': r['draws'], 'l': r['losses'],
             'reg': regions.get(name, ''), 'uni': unis.get(name, ''),
             'ev': ev,
