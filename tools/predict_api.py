@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""赛事对局胜率预测 API（基于截止 20261112 最新模型与数据）。
+"""赛事对局胜率预测 API（基于截止 20261113 最新模型与数据）。
 
 本模块提供针对一个赛事（如 2026-shanhai）一系列对局的官方 WHR 动态滚动与最新 GBDT 预测接口。
 
 核心逻辑：
-1. 模型：使用截止 20261112 训练的最新 GBDT 决策树模型（bisai/data/model_20261112.json）。
+1. 模型：使用截止 20261113 训练的最新 GBDT 决策树模型（bisai/data/model_20261113.json）。
 2. 特征：包含开局规则（塔拉山口-10 为 25）、双方等级分、等级分差、平均等级分、标准差、联合标准差、
    衰减和棋率、历史交手胜率（H2H）以及国家属性（共 14 维）。
 3. 全面动态滚动：预测第 R 轮时，自动提取本赛事第 1 ~ R-1 轮已出结果的实际对局（胜/平/负）：
@@ -37,7 +37,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
 DATA_DIR = os.path.join(ROOT, 'data')
 WHR_GAMES_PATH = os.path.join(ROOT, 'data', 'whr_games.json.gz')
-MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261112.json')
+MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261113.json')
+if not os.path.exists(MODEL_PATH):
+    MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261112.json')
 if not os.path.exists(MODEL_PATH):
     MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model.json')
 
