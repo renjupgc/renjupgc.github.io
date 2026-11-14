@@ -1,12 +1,15 @@
 /* ==========================================================================
-   杂想 · 小游戏「答一句，看像不像」
+   杂想 · 小游戏「猜一句，看差几里」
    --------------------------------------------------------------------------
-   十道开放题，没有唯一答案：每题给一份参考答案，把答案拆成若干「要点」
-   （keys，带权重）。评分 = 0.8 × 要点覆盖 + 0.2 × 表达贴近。
-   要点覆盖用同义形式组匹配，并排除「不考虑对手」这类否定句的误命中；
-   表达贴近用字符 bigram 的 F1，放大一倍后封顶，只作微调。
-   ≥ 95% 判过，显示参考答案与逐点对照；< 90% 只给模糊提示，不给答案。
-   纯前端，无请求、无后端，进度存 localStorage。
+   玩法改成猜词：每题只答两三个字，页面返回与「本题答案（一组说法）」的
+   相似百分比，以及相似点。可以一直猜，一轮轮往上逼近；≥ 95% 算摸到，
+   揭示他那句话；< 90% 只给一句模糊的方向，不告诉差在哪。
+
+   评分：每题答案不是一个词，而是一组候选说法 cand[]（各带权重分值 v）。
+   用户输入 g 与每个候选做字面相似 sim()（全等 / 包含 / 字二元组 Dice /
+   共字），得分 = v × (0.35 + 0.65 × sim)，取最高者。
+   所以同义的说法都能拿到 95 上下，边缘方向落在 60–85，无关在 40 以下。
+   纯前端，无请求，进度存 localStorage。
    ========================================================================== */
 
 (function () {
@@ -16,331 +19,306 @@
 
     var QS = [
         {
-            id: 'q1',
+            id: 'g1',
+            ch: '题记',
+            q: '全篇他反复只讲一个动作，比「算」和「忍」都靠前。用一个字说它。',
+            ans: '停',
+            hint: '不是情绪上的稳，也不是多算几手；是一个让「算」变得有意义的空档。',
+            ref: '题记那一句：停一下。很多棋不是算错，是没停——没停就开了算不清的局，没停就在出杀前一手出了鬼招。停不是不动，是先把这一步断开，看清条件再动。',
+            cand: [
+                { w: '停', v: 99, say: '就是动手之前那一下「先别动」：断开，才看得见条件。', gap: '' },
+                { w: '止', v: 95, say: '同一件事的另一种说法：承认此刻不该再往下走。', gap: '' },
+                { w: '缓', v: 88, say: '方向接近，但缓只是把速度放慢，停是把这一步断掉。', gap: '差一层：缓还是同一条路，只是走得慢；停是暂时离开这条路。' },
+                { w: '冷静', v: 74, say: '沾到了心理那一侧，可冷是情绪，停是动作。', gap: '差一层：情绪稳下来，不等于手上停一下。' },
+                { w: '想', v: 64, say: '想是停之后才发生的事。', gap: '差一层：你给的是「怎么想」，他要的是「先别动」。' },
+                { w: '忍', v: 62, say: '忍是压住冲动，停是不让冲动发生。', gap: '差一层：忍还带着「想下但不能下」，停是根本不急着下。' }
+            ]
+        },
+        {
+            id: 'g2',
             ch: '一 · 定式',
-            q: '赛前十分钟，你才知道对手是谁。你手上有一套背得极熟的开局，也有一套自己只下过两三盘、但据你所知对方从没见过的冷门开局。你选哪一套？先说你的判断依据，再说你怎么在两套之间取舍。',
-            ref: [
-                '选哪套都不是关键，关键是先量三个数。',
-                '第一，自己的熟练度：这套棋我能不能不看棋谱走到第十手，并且第十手之后自己算得动。',
-                '第二，对手的信息量：我对他知道多少。如果他连我的常用开局都不清楚，冷门的收益才成立；如果他算力明显在我之上，冷门只会把局面推到我更不熟的地方。',
-                '第三，这盘棋的期望值：是必须赢，还是不能输。必须赢，才值得冒信息差的风险；不能输时，熟的那套即使被研究过，也比生的那套稳。',
-                '所以「熟」与「冷」不是两个流派，是同一道题的两种答案；条件变了，答案就变。'
-            ],
-            keys: [
-                { w: 3, f: ['熟练', '熟不熟', '算得动', '算得清', '背得', '记得住', '把握', '熟记', '会不会下', '下得来'] },
-                { w: 3, f: ['信息差', '对方不了解', '他没见过', '从没见过', '知道多少', '研究过', '了解对手', '对他了解', '他不了解我', '他不知道我', '知不知道我', '不清楚我', '不熟悉我'] },
-                { w: 2, f: ['必须赢', '不能输', '期望', '目标', '输不起', '值不值'] },
-                { w: 2, f: ['风险', '收益', '取舍', '权衡', '代价', '赌', '冒险', '划得来'] },
-                { w: 2, f: ['看情况', '取决于', '条件', '因人', '不绝对', '没有标准'] }
-            ],
-            hint: '先量自己，再量对手，最后量这一盘棋值多少。三样都要量，只量一样就会选错。'
+            q: '一套开局该不该用，第一标准不是喜不喜欢。两个字：看什么？',
+            ans: '算力',
+            hint: '不是背了多少，是背完之后还能接着算多少。',
+            ref: '「我算得动」——这套棋走到第几手脱离棋谱，之后每手要算多深。超过这个人的计算深度，他就只能靠猜；记得住不等于会下。',
+            cand: [
+                { w: '算力', v: 99, say: '这套棋走到第几手我还算得动——超过那条线，背下来的东西就不算我的。', gap: '' },
+                { w: '计算', v: 95, say: '几乎同一件事，只是没点出「有深浅」这一层。', gap: '' },
+                { w: '算得动', v: 96, say: '他本人的说法，比名词更贴。', gap: '' },
+                { w: '深度', v: 84, say: '说的是算力里的那根线，不是全部。', gap: '差一层：深度是那条线，算力是站在线这边的人。' },
+                { w: '熟练', v: 78, say: '熟练是算力的结果，不是判据。', gap: '差一层：熟是背下来的部分，题目问的是背完之后还能算的部分。' },
+                { w: '记忆', v: 64, say: '记忆恰恰是他不信任的那样东西。', gap: '差一层：记得住是他要说「不等于会下」的那一半。' }
+            ]
         },
         {
-            id: 'q2',
+            id: 'g3',
+            ch: '一 · 定式',
+            q: '冷门开局凭什么能赢？那份收益从哪来？三个字。',
+            ans: '信息差',
+            hint: '不是这套棋强，是他没准备。',
+            ref: '收益只在信息差上成立：如果他连我的常用开局都不清楚，冷门的收益才成立；如果他算力明显在我之上，冷门只会把局面推到我更不熟的地方。',
+            cand: [
+                { w: '信息差', v: 99, say: '他连我的常用开局都不清楚，冷门的收益才成立。', gap: '' },
+                { w: '他不知道', v: 93, say: '同一件事的口语版，方向没错。', gap: '差一层：不是「他不知道」这么笼统，是「他和我之间知道的多少不一样」。' },
+                { w: '陌生', v: 80, say: '陌生是双向的，收益只在单侧。', gap: '差一层：局面陌生对两边都成立；收益只在你比他多知道一点时才有。' },
+                { w: '冷门', v: 72, say: '冷门是手段，不是收益。', gap: '差一层：你答的是「用什么」，问的是「凭什么管用」。' },
+                { w: '研究', v: 62, say: '研究是准备的动作，不是收益本身。', gap: '差一层：研究过的人拿到的正是这个差，但方向要落在「差」上。' }
+            ]
+        },
+        {
+            id: 'g4',
             ch: '二 · 风险',
-            q: '中盘，你算出两条路。A 是一条十五手的连续冲四，你已经验到第十二手，后面三步只是「看起来能成」；B 是一手能把优势再扩大一点、但不成杀的棋。你只剩三分钟，对手还有十二分钟。你走哪条？',
-            ref: [
-                '先看时间账，再看棋。',
-                '三分钟要走完十五手，等于每手十二秒；而这条路的最后三步你还没验过——没验完的杀不叫杀，叫希望。',
-                '对手有十二分钟，他可以在局部慢慢找唯一防点，只要找到一个，你前面十二手全部白费，还赔上了时间。',
-                '所以顺序是：先用剩余时间把 A 的最后三步验完；验不完，就走 B。B 的作用不是等，是把先手留住，并且把对手的时间也吃掉——他要应对，同样要花时间。',
-                '真正的错误不是选了 B，是在没验完的杀上赌对手看不见。'
-            ],
-            keys: [
-                { w: 3, f: ['时间', '三分钟', '不够', '每手', '预算', '读秒', '来不及', '算时间', '没时间', '时间不够用'] },
-                { w: 3, f: ['没验', '验完', '没算完', '没算清', '不确定', '希望', '只是看起来'] },
-                { w: 2, f: ['对手的时间', '他也', '对方时间', '耗', '慢慢找', '找防点', '他也得想', '他也花时间'] },
-                { w: 1, f: ['先手', '主动', '留住', '主导'] },
-                { w: 1, f: ['侥幸', '赌', '指望', '看不见', '运气'] }
-            ],
-            hint: '时间也是棋的一部分，而且它跟棋是加在一起算的。先把两样东西各自的账算清，再决定走哪条。'
+            q: '一条十五手的连续冲四，你只验到第十二手。他说，这时候它已经不叫杀了——那它叫什么？两个字。',
+            ans: '希望',
+            hint: '不是「杀不杀」的问题，是你手上有没有把它验完。',
+            ref: '没验完的杀不叫杀，叫希望。而真正的错误不是没走这条路，是在没验完的杀上赌对手看不见。',
+            cand: [
+                { w: '希望', v: 99, say: '他的原话：没验完的杀不叫杀，叫希望。', gap: '' },
+                { w: '假杀', v: 94, say: '术语上站得住，也点出了「未验」这一层。', gap: '' },
+                { w: '没算完', v: 90, say: '说的是同一个状态，只是没有他那句的锋利。', gap: '' },
+                { w: '空想', v: 86, say: '意思很近，只是他讲得更客气一点。', gap: '差一层：空想是说根本没有；希望是说还差三步没验，舍不得放。' },
+                { w: '赌博', v: 76, say: '沾到了赌，但赌说的是心态，不是这条棋的性质。', gap: '差一层：赌是你选的动作，希望是这条棋现在的位置。' }
+            ]
         },
         {
-            id: 'q3',
+            id: 'g5',
+            ch: '二 · 风险',
+            q: '评价一手棋，他不问好不好看，先问一句。两个字。',
+            ans: '先手',
+            hint: '不是形状，是走完之后轮到谁。',
+            ref: '走完之后谁先手。看起来好的后手棋，等于把主动权送出去，还附赠一份满足感——这是他自认最常犯的错。',
+            cand: [
+                { w: '先手', v: 99, say: '走完之后谁先手——形状再好看，后手就是后手。', gap: '' },
+                { w: '主动权', v: 95, say: '同一件事的长说法。', gap: '' },
+                { w: '主动', v: 88, say: '方向对，还差一个字的那层具体。', gap: '差一层：主动是感觉，先手是能点出来的那一手。' },
+                { w: '轮到谁', v: 84, say: '问法很准，只是不太像术语。', gap: '差一层：你问对了，答案本身是那个词。' },
+                { w: '形状', v: 58, say: '形状正是他要往后放的那一样。', gap: '差一层：形状是问完之后才看的东西。' }
+            ]
+        },
+        {
+            id: 'g6',
             ch: '三 · 对手',
-            q: '同一套变化，你下能赢，你的队友下就输。请给出你判断「这套棋适合谁」的依据——至少三条，并说明哪一条最容易被忽略。',
-            ref: [
-                '至少要看三样。',
-                '一是算力：这套棋在第几手脱离记忆、之后每手要算多深；超过这个人的计算深度，他就只能靠猜。',
-                '二是风格：有人愿意在封闭局面里慢慢磨，有人一见复杂就兴奋；同一套棋给错风格的人，他会主动把局面走成自己不会的样子。',
-                '三是耐心与心理：需要长时间忍耐的棋，给一个坐不住的人，等于让他提前认输。',
-                '最容易忽略的是第三条——算力和风格都能在棋谱上看出来，耐心看不出来，只有一起下过、输过、被拖到过最后一分钟才知道。',
-                '所以同一套棋本身没有对错，只有配错了人。'
-            ],
-            keys: [
-                { w: 3, f: ['算力', '计算深度', '算得动', '算不动', '算不清', '算多深', '计算力', '算不到那么深', '算不下来'] },
-                { w: 2, f: ['风格', '棋风', '偏好', '喜欢', '性子', '爱乱', '爱稳'] },
-                { w: 2, f: ['耐心', '心理', '坐得住', '坐不住', '忍耐', '抗压', '情绪'] },
-                { w: 2, f: ['最容易忽略', '最易忽略', '看不出来', '只有一起下', '看不见的是'] },
-                { w: 1, f: ['因人', '不同的人', '适合', '人不一样', '看人', '配错', '配对'] }
-            ],
-            hint: '三样里有两样写在棋谱上，一样要一起下过才看得见。题目问的正是那一样。'
+            q: '同一套变化，你下能赢，队友下就输。差的不在棋上——两个字。',
+            ans: '因人',
+            hint: '三样里两样写在棋谱上，一样要一起下过才看得见。',
+            ref: '同一套棋本身没有对错，只有配错了人：算力、风格、耐心，三样里有一样不配，这套棋在他手上就是另一套。',
+            cand: [
+                { w: '因人', v: 99, say: '棋是同一套，人是不同的人——同一个答案配错人就作废。', gap: '' },
+                { w: '配人', v: 95, say: '同一层意思，说法更口语。', gap: '' },
+                { w: '挑人', v: 90, say: '方向对，带一点「先选人」的主动。', gap: '' },
+                { w: '风格', v: 82, say: '风格是三样里的一样，不是全部。', gap: '差一层：风格只是一条，算力和耐心同样会让人输。' },
+                { w: '算力', v: 78, say: '算力也是那三样里的一条。', gap: '差一层：只答一样，就漏了「配错」这个动作。' },
+                { w: '适合', v: 74, say: '说的是结果，没说清在哪儿适合。', gap: '差一层：适合是一句话的结论，题目要的是那句结论背后的那层。' }
+            ]
         },
         {
-            id: 'q4',
-            ch: '五 · 胜负',
-            q: '一盘本该赢的棋输了。复盘时你最先打开的是哪一段？为什么不是最后那手错棋？',
-            ref: [
-                '先找转折点，也就是局势第一次不由你掌握的那一手，而不是最后一次失手。',
-                '理由有三：最后那手错棋通常只是结果，前面的让步、时间透支、把可留的资源提前冲掉，才把它逼成唯一选择；从结果倒推，容易只记住「这里不该这么走」，换个局面照样犯；而找到转折点，能顺手查出当时的判断依据是什么——是没算、算错，还是根本没打算算。',
-                '真正的复盘产物不是「下次注意」，是「这个局面前我该先看什么」。'
-            ],
-            keys: [
-                { w: 3, f: ['转折', '第一次', '拐点', '从哪开始', '局势变', '不由我', '关键手'] },
-                { w: 3, f: ['只是结果', '不是根本', '表象', '症状', '最后那手', '结果倒推', '只是个结果', '表面上'] },
-                { w: 2, f: ['透支', '资源', '提前', '冲掉', '让步', '逼成'] },
-                { w: 1, f: ['依据', '当时想', '判断', '动机', '为什么这么'] },
-                { w: 1, f: ['产物', '清单', '检查', '可执行', '下次注意'] }
-            ],
-            hint: '错棋不会凭空出现。它前面一定有一手，让它变成了唯一的选择——先找那一手。'
-        },
-        {
-            id: 'q5',
-            ch: '一 · 定式',
-            q: '你打算在一盘正式比赛里脱谱。请给一个别人能用的判据：什么情况下脱谱是选择，什么情况下是逃。',
-            ref: [
-                '判据只有一条，但要能当场验：脱谱之后，我还能不能连续算清三手。',
-                '能，脱谱是选择——我在用自己算得动的东西，换掉背过的东西，局面仍在我手上。',
-                '不能，脱谱是逃——我背不下去了，于是把局面推到一个自己也不熟的地方，等于把胜负交给运气。',
-                '再加两个辅助条件：脱谱前手上要有一个后备计划，最差也能回到能守的形状；脱谱的时机最好在对方也脱离记忆之后，否则你脱的是自己的谱，他走的还是他的谱。'
-            ],
-            keys: [
-                { w: 4, f: ['算得清', '算得动', '还能算', '连续算', '连算', '计算', '算三手', '会不会下'] },
-                { w: 2, f: ['选择', '逃', '被迫', '背不下去', '躲', '硬脱'] },
-                { w: 2, f: ['后备', '退路', '最差', '能守', '保底', '计划', '兜底'] },
-                { w: 1, f: ['时机', '对方也', '同时', '等对方', '他也脱'] }
-            ],
-            hint: '问的不是「敢不敢脱」，是「脱了之后手上还剩下什么」。剩下的那个东西，决定这是选择还是逃。'
-        },
-        {
-            id: 'q6',
-            ch: '二 · 风险',
-            q: '有人说「安全棋不会死」，也有人说「安全棋是慢性死亡」。请给一个判据，用来区分一手棋是「安全」还是「缓」。',
-            ref: [
-                '区别不在这一手本身，在它跟谁下、换来了什么。',
-                '安全是相对的：对手没有进攻资源时，一手稳而有效的棋就是安全；对手已经攒了三条活二，同样一手稳棋就是把先手白送，那是缓。',
-                '所以判据有两条：一是对手当前的威胁密度；二是这手棋有没有让出先手——让出先手而没换到东西，就是缓。',
-                '第三条更隐蔽：这手的子力有没有被浪费，落在没有后续的位置上，形状再好看也是缓。',
-                '说到底，安全是「这手棋挡得住对方现在能做的事」，缓是「这手棋只让自己心里舒服」。'
-            ],
-            keys: [
-                { w: 3, f: ['威胁', '进攻资源', '对方能', '活二', '相对', '对手有攻', '在进攻', '有没有攻'] },
-                { w: 3, f: ['先手', '让出', '主动权', '交换', '白送'] },
-                { w: 2, f: ['子力', '浪费', '后续', '效率', '位置'] },
-                { w: 2, f: ['挡得住', '心里', '安慰', '舒服', '自我'] }
-            ],
-            hint: '同一手棋，换个对手就换个名字。判断标准不在这一手里，在这一手对面站着谁、它换回了什么。'
-        },
-        {
-            id: 'q7',
+            id: 'g7',
             ch: '四 · 时间',
-            q: '二十分钟包干，一局大约六十手。请给出你的时间分配，并说明哪一段最不该省、哪一段最该省。',
-            ref: [
-                '把它当预算，别当余额。',
-                '开局到第十手最该省——下的是记得住的东西，多想的每一分钟都是从后面借的。',
-                '中盘的头一手最不该省：局面第一次脱离记忆、对手的意图在这里第一次显形，这一段思考决定后面四十手是顺是逆。',
-                '后段要留出定额，至少留三到四分钟给读秒，因为真正的失手多发生在「时间不够所以随手」。',
-                '平均每手二十秒只是算术，实际用法是极不均匀的：十手用一分钟，关键三手用十分钟，剩下每手十秒。'
-            ],
-            keys: [
-                { w: 3, f: ['预算', '分配', '不均匀', '定额', '极不均匀', '留出'] },
-                { w: 2, f: ['开局', '前几手', '记得住', '少想', '省下', '前面快', '开局不用想'] },
-                { w: 3, f: ['关键', '中盘', '不省', '多想', '最重要', '转折', '关键处', '该花时间'] },
-                { w: 2, f: ['读秒', '最后', '留三', '留四', '余下'] },
-                { w: 1, f: ['平均', '二十秒', '算术'] }
-            ],
-            hint: '时间不是流水，是预算，而预算的特点是极不均匀。想清楚哪一段花的是「本钱」，哪一段花的是「利息」。'
+            q: '只剩三分钟，要走一条十五手的杀。他说，你最先算的不是棋。两个字。',
+            ans: '时间',
+            hint: '三分钟走十五手，等于每手十二秒；而另一边还剩十二分钟。',
+            ref: '先看时间账，再看棋。三分钟走十五手，每手十二秒；对手还有十二分钟，他能在局部慢慢找唯一防点，找到一个，你前面十二手全白费。',
+            cand: [
+                { w: '时间', v: 99, say: '时间也是棋的一部分，而且它跟棋是加在一起算的。', gap: '' },
+                { w: '时间账', v: 97, say: '更准的说法：不是时间本身，是账。', gap: '' },
+                { w: '读秒', v: 88, say: '读秒是那笔账最紧的一段，不是全账。', gap: '差一层：读秒只算自己，那笔账里还有对手剩多少。' },
+                { w: '预算', v: 84, say: '方向对，偏财务的说法，意思到了。', gap: '差一层：预算说的是你打算花多少，账说的是两个人各剩多少。' },
+                { w: '对手', v: 74, say: '对手的时间确实是账的一半。', gap: '差一层：只算对手，漏了自己这三分钟。' },
+                { w: '速度', v: 66, say: '速度是这个账算完之后的结论。', gap: '差一层：快慢不是原因，是算完账才有的判断。' }
+            ]
         },
         {
-            id: 'q8',
-            ch: '七 · 手筋',
-            q: '什么情况下该把一个已经做成的四留着不冲？请说明留与冲各自的代价。',
-            ref: [
-                '留四，是因为它还是一张牌；冲掉，它就只是一步棋。',
-                '留着的时候，它随时能变成先手，能在对方以为自己在进攻时把主动权抢回来，也能在最后关头换一个防守点。代价是它占着一个位置，可能挡住自己的形状，也可能在对方连续进攻时来不及用。',
-                '冲掉的好处是立刻拿到一手先手、多一个落点；代价是这张牌打出去了，对方也据此知道了你的形状，而且冲完往往要接着冲，一路冲到底，冲不出杀就什么也不剩。',
-                '所以判据是：局面还早、手上没别的资源，就留；已经在读秒、需要一个确定的落点，就冲。'
-            ],
-            keys: [
-                { w: 3, f: ['资源', '一张牌', '手段', '留着', '随时', '变化', '当牌打', '留着有用'] },
-                { w: 3, f: ['冲掉', '没了', '消耗', '打完', '暴露', '只知道', '打出去', '就没了'] },
-                { w: 1, f: ['挡', '占位', '位置', '形状', '代价'] },
-                { w: 2, f: ['时机', '还早', '读秒', '等一等', '现在'] },
-                { w: 1, f: ['冲不出', '什么也不剩', '空', '白费'] }
-            ],
-            hint: '留着它，你多一张牌；冲掉它，你多一步棋。哪个更值，看牌桌还剩几轮，也看手里还有没有别的牌。'
-        },
-        {
-            id: 'q9',
-            ch: '六 · 自省',
-            q: '什么时候「没有必要强攻」？请给三条你自己的判断，并说明这三条里哪条最常被你违反。',
-            ref: [
-                '三条。',
-                '第一，攻下去没有第二个手段：第一波被挡住之后，你手上没有新的资源，这种强攻只是把形状提前用完。',
-                '第二，对方有充分防守：他有一个明确的防点，而且防完还能反攻，你越攻越亏。',
-                '第三，结果期望不允许：和棋或小胜已经够用，强攻的期望值是负的——赢一分与输一分不对称时，不该拿必须赢去换可能输。',
-                '最常被违反的是第三条，因为前两条在棋盘上看得见，第三条在记分表上，人在局中容易只盯棋盘。'
-            ],
-            keys: [
-                { w: 3, negOk: true, f: ['手段', '后续', '资源', '第二波', '没有别的', '用完', '没有后手', '后继'] },
-                { w: 3, f: ['防守', '防点', '挡', '反攻', '防得住'] },
-                { w: 2, f: ['期望', '够用', '和棋', '小胜', '不划算', '不对称'] },
-                { w: 2, f: ['第三条', '记分', '最常', '违反', '棋盘外'] }
-            ],
-            hint: '攻不动，往往不是攻得不够，是没算这一攻值不值。三条里有一条不在棋盘上。'
-        },
-        {
-            id: 'q10',
+            id: 'g8',
             ch: '五 · 胜负',
-            q: '你连赢三盘，等级分涨了一截。这能不能说明你变强了？请说明你的判断，以及你需要补上什么证据才能这么说。',
-            ref: [
-                '不能，至少现在不能。',
-                '三盘是一个太小的样本：其中可能有一盘是对手失误送的，有一盘是开局正好撞在你的熟型上。等级分只记录结果，不记录对手强弱与偶然性。',
-                '要说明变强，需要三样证据：一是对手质量，赢的是谁比赢了几盘更重要；二是重复性，同样的判断在陌生局面里还能不能做出来；三是过程，赢的棋里有多少是算出来的、有多少是对方送出来的，把送出来的扣掉，剩下的才是你的。',
-                '能力是能重复的东西，一次好结果只是状态。'
-            ],
-            keys: [
-                { w: 2, f: ['样本', '三盘', '太少', '偶然', '运气', '不够', '几盘', '偶然性'] },
-                { w: 3, f: ['对手', '强弱', '赢的是谁', '水平', '质量', '赢谁'] },
-                { w: 3, f: ['重复', '稳定', '长期', '状态', '持续', '能再现'] },
-                { w: 2, f: ['过程', '算出来', '送', '怎么赢', '内容', '对方失误', '白送'] },
-                { w: 1, f: ['等级分', '只记', '结果', '分数'] }
-            ],
-            hint: '分数记的是结果，能力记的是重复。三盘之后，你手上有的到底是哪一种？'
+            q: '一盘该赢的棋输了。复盘时最先打开的不是最后一手。两个字。',
+            ans: '转折',
+            hint: '错棋不会凭空出现，它前面一定有一手把它逼成唯一选择。',
+            ref: '先找转折点，也就是局势第一次不由你掌握的那一手。最后那手错棋通常只是结果：前面的让步、时间透支、把可留的资源提前冲掉，才把它逼成唯一选择。',
+            cand: [
+                { w: '转折', v: 99, say: '局势第一次不由你掌握的那一手，才是要打开的那一段。', gap: '' },
+                { w: '拐点', v: 95, say: '同一件事的另一种叫法。', gap: '' },
+                { w: '关键手', v: 91, say: '方向对，但关键手不一定是转折点。', gap: '差一层：关键手可能是赢的那一手，也可能是输的那一手；要找的是「不由我」。' },
+                { w: '第一次', v: 86, say: '你说到了它的位置：第一次。', gap: '差一层：第一次什么？第一次失控——那个东西有个名字。' },
+                { w: '错棋', v: 62, say: '错棋是结果，不是入口。', gap: '差一层：错棋正是你说「不是它」的那一样。' }
+            ]
+        },
+        {
+            id: 'g9',
+            ch: '总 · 提要',
+            q: '他几乎不给通用结论。那他给什么？两个字。',
+            ans: '条件',
+            hint: '同一个问题，他总要先问三样：对谁、我算不算得动、这一局值多少。',
+            ref: '棋理是条件的函数：同一手棋的强弱，取决于对面是谁、我算不算得动、这一局是比赛还是推广。所以他不给通用结论，只给条件。',
+            cand: [
+                { w: '条件', v: 99, say: '对谁、在哪一档算力下、什么场合——他每次都先补齐这三样。', gap: '' },
+                { w: '前提', v: 93, say: '同一层意思，语气更硬一点。', gap: '' },
+                { w: '因人', v: 86, say: '因人只是三样里的第一样。', gap: '差一层：还有算力和场合；只答人，还是给了一个通用结论。' },
+                { w: '看情况', v: 80, say: '方向对，但这四个字本身太滑，什么都能套。', gap: '差一层：他不是「看情况」，是说得出看哪几样。' },
+                { w: '场合', v: 74, say: '场合是三样里的一样。', gap: '差一层：漏了人，也漏了算力。' },
+                { w: '具体', v: 66, say: '具体是形容词，没说出具体在哪。', gap: '差一层：落到哪几样上，才叫具体。' }
+            ]
+        },
+        {
+            id: 'g10',
+            ch: '总 · 提要',
+            q: '状态不可靠，眼力不可靠。他说只有一样靠得住——两个字。',
+            ans: '流程',
+            hint: '不是「下次注意」，是「下次还照这个顺序走一遍」。',
+            ref: '能重复的才算能力。只有流程可靠：固定的检查顺序、固定的复盘动作、固定的练习量。凡是「下次注意」能解决的，其实都没解决。',
+            cand: [
+                { w: '流程', v: 99, say: '固定的检查顺序、固定的复盘动作、固定的练习量——可重复的那一套。', gap: '' },
+                { w: '重复', v: 95, say: '说的正是「能重复的才算能力」这半句。', gap: '' },
+                { w: '固定', v: 88, say: '固定是流程的属性，不是流程本身。', gap: '差一层：固定说的是它不变，流程说的是它由几步组成。' },
+                { w: '习惯', v: 80, say: '习惯接近，但习惯可以是坏的。', gap: '差一层：习惯不保证对，流程是验过对的那一套。' },
+                { w: '复盘', v: 76, say: '复盘只是流程里的一步。', gap: '差一层：复盘是一个动作，流程是一串动作的顺序。' },
+                { w: '练习', v: 70, say: '练习也是流程里的一步。', gap: '差一层：练多少是量，按什么顺序练才是流程。' }
+            ]
         }
     ];
 
-    /* ---------- 文本归一与匹配 ---------- */
+    /* ---------- 归一与相似 ---------- */
 
-    var BLANK = /[\s\u3000]+/g;
-    /* 标点不删除，换成竖线当边界：这样「不能，样本太小」里的否定只作用于前半句，
-       不会把后半句的「样本」也一起否掉 */
-    var SEP = /[，。、；：？！“”‘’「」『』（）()《》〈〉【】〔〕—…·,.;:?!\x22'<>\[\]{}|~`@#$%^&*+=_\/\\-]/g;
-    var NEG = ['不', '没', '勿', '别', '非', '未', '莫', '无'];
-    /* 「能不能算得清」「有没有威胁」是疑问，不是否定，先把这些句式剔掉 */
-    var QFORM = /能不能|会不会|是不是|有没有|算不算|可不可以|要不要|该不该|对不对|好不好|行不行/g;
+    var STOP = '的了是吗呢吧啊呀嘛哦着过和与也就都还又很太在是有个这那你我他她它们';
 
     function norm(s) {
-        return String(s === null || s === undefined ? '' : s)
-            .toLowerCase().replace(BLANK, '').replace(SEP, '|').replace(/\|+/g, '|');
+        if (!s) { return ''; }
+        s = String(s).replace(/[\s\u3000]+/g, '');
+        s = s.replace(/[，。、；：？！“”‘’（）《》〈〉「」『』,.;:?!'"()<>\[\]{}·…—\-_/\\|~`@#$%^&*+=]/g, '');
+        s = s.replace(/^(我觉得是|我觉得|我认为是|我认为|应该是|可能是|大概是|或许|也许|答案|猜)/, '');
+        return s;
     }
 
-    /* 判断 form 命中处是否处于否定语境：只看紧邻的 3 个字，遇到标点边界就截断。
-       窗口放宽到 4 会把「别赌对手看不见」里的「看不见」也否掉 */
-    function negBefore(text, at) {
-        var seg = text.slice(Math.max(0, at - 3), at);
-        var bar = seg.lastIndexOf('|');
-        if (bar >= 0) { seg = seg.slice(bar + 1); }
-        seg = seg.replace(QFORM, '');
-        for (var i = 0; i < NEG.length; i++) {
-            if (seg.indexOf(NEG[i]) >= 0) { return true; }
-        }
-        return false;
+    function bigrams(s) {
+        var out = [], i;
+        if (s.length < 2) { return s ? [s] : []; }
+        for (i = 0; i < s.length - 1; i++) { out.push(s.substr(i, 2)); }
+        return out;
     }
 
-    function hitKey(u, key) {
-        var forms = key.f || [];
-        for (var i = 0; i < forms.length; i++) {
-            var f = norm(forms[i]);
-            if (f.length < 2) { continue; }
-            var at = u.indexOf(f);
-            while (at >= 0) {
-                if (key.negOk || !negBefore(u, at)) { return true; }
-                at = u.indexOf(f, at + 1);
-            }
+    function dice(a, b) {
+        var A = bigrams(a), B = bigrams(b);
+        if (!A.length || !B.length) { return 0; }
+        var pool = {}, i, hit = 0;
+        for (i = 0; i < A.length; i++) { pool[A[i]] = (pool[A[i]] || 0) + 1; }
+        for (i = 0; i < B.length; i++) {
+            if (pool[B[i]]) { pool[B[i]]--; hit++; }
         }
-        return false;
+        return 2 * hit / (A.length + B.length);
     }
 
-    /* 返回 { pct, cover, hit, total }
-       曲线用 cover^0.6：覆盖九成上下才摸到 95，覆盖一半约 66，
-       这样「说到大半」与「说到几乎全部」能分得开，又不至于差一个词就掉档。 */
-    function score(answer, item) {
-        var u = norm(answer);
-        var keys = item.keys || [];
-        var total = 0, hit = 0, hitN = 0, i;
-
-        for (i = 0; i < keys.length; i++) {
-            total += keys[i].w;
-            if (hitKey(u, keys[i])) { hit += keys[i].w; hitN++; }
+    function shared(a, b) {
+        var out = '', i, ch;
+        for (i = 0; i < a.length; i++) {
+            ch = a.charAt(i);
+            if (STOP.indexOf(ch) >= 0 || out.indexOf(ch) >= 0) { continue; }
+            if (b.indexOf(ch) >= 0) { out += ch; }
         }
+        return out;
+    }
 
-        var cover = total ? hit / total : 0;
-        var plain = u.replace(/\|/g, '');
-        var pct = Math.pow(cover, 0.6) * 100;
-        if (plain.length < 10) { pct *= 0.85; }
-        /* 防堆词：命中好几个要点，却每个要点平均不到五个字，基本是罗列词而非说理 */
-        if (hitN >= 3 && plain.length / hitN < 5) { pct *= 0.9; }
-        if (pct > 99.4) { pct = 99.4; }
-        if (pct < 0) { pct = 0; }
+    function sim(a, b) {
+        if (!a || !b) { return 0; }
+        if (a === b) { return 1; }
+        var sh = Math.min(a.length, b.length);
+        var lg = Math.max(a.length, b.length);
+        var ratio = sh / lg;
+        if (b.indexOf(a) >= 0) {
+            /* 猜的是备选说法的一个碎片，比整词弱 */
+            return 0.62 + 0.14 * ratio;
+        }
+        if (a.indexOf(b) >= 0) {
+            /* 猜的句子/长词里含着备选说法，比整词弱一点 */
+            return 0.74 + 0.12 * ratio;
+        }
+        var d = dice(a, b);
+        var common = shared(a, b);
+        var jac = common.length / Math.max(1, a.length + b.length - common.length);
+        var s = Math.max(d * 0.96, jac * 0.72);
+        if (common.length) { s = Math.max(s, 0.34); }
+        return Math.min(s, 0.80);
+    }
 
+    /* ---------- 评分 ---------- */
+
+    function score(input, item) {
+        var g = norm(input);
+        var best = null;
+        for (var i = 0; i < item.cand.length; i++) {
+            var c = item.cand[i];
+            var s = sim(g, norm(c.w));
+            var p = (s >= 1) ? c.v : c.v * (0.10 + 0.90 * Math.pow(s, 0.85));
+            if (!best || p > best.raw) { best = { raw: p, s: s, c: c }; }
+        }
+        var pct = Math.max(0, Math.min(99, Math.round(best.raw)));
+        /* 单字不成词：除非正对上一个单字答案，否则封顶 55 */
+        if (g.length === 1 && best.s < 1) { pct = Math.min(pct, 55); }
         return {
-            pct: Math.round(pct * 10) / 10,
-            cover: cover,
-            hit: hitN,
-            total: keys.length
+            pct: pct,
+            word: g,
+            cand: best.c,
+            s: best.s,
+            share: shared(g, norm(best.c.w)),
+            ans: norm(item.ans)
         };
     }
 
-    /* ---------- 评语 ---------- */
-
-    function verdict(pct, res) {
-        if (pct >= 95) {
-            return { cls: 'ok', t: '过了。', s: '你这一句，和参考答案几乎是同一句话——要点' + res.hit + '/' + res.total + ' 全中。' };
-        }
-        if (pct >= 90) {
-            return { cls: 'near', t: '差一点。', s: '意思到了，还差一个方向。你已经说到 ' + res.hit + ' 个要点，参考答案里有 ' + res.total + ' 个。' };
-        }
-        if (pct >= 70) {
-            return { cls: 'mid', t: '说对了一半。', s: '你碰到了 ' + res.total + ' 个方向里的 ' + res.hit + ' 个。' };
-        }
-        if (pct >= 40) {
-            return { cls: 'low', t: '只碰到边。', s: '你答的那部分也许对，但它不是这道题的主干。' };
-        }
-        return { cls: 'off', t: '还没接上。', s: '和参考答案几乎没有重合的地方。别急着改答案，先把题目再读一遍。' };
+    function verdict(pct) {
+        if (pct >= 95) { return { t: '摸到了。', s: '这就是他那个词。下面是他原话里的意思。', cls: 'ok' }; }
+        if (pct >= 88) { return { t: '很近了。', s: '方向对，还差一层没点破。', cls: 'near' }; }
+        if (pct >= 70) { return { t: '沾到边了。', s: '大概在同一片区域，但落点偏了一点。', cls: 'near' }; }
+        if (pct >= 45) { return { t: '还远。', s: '有一点关系，多半不是他要说的那一层。', cls: 'off' }; }
+        return { t: '不在这一题。', s: '换个方向，别再往这个字上加。', cls: 'low' };
     }
 
-    function hintFor(pct, item, res) {
-        if (pct >= 95) { return ''; }
-        if (pct >= 90) {
-            return '提示：已经很近了，只剩一个方向没说到。它多半不是「更难」的那个，而是「更不好承认」的那个。';
+    function points(res) {
+        var out = [];
+        var same = res.word === norm(res.cand.w);
+        if (res.pct < 45) {
+            /* 太远，没什么可比的 */
+            return out;
         }
-        if (pct >= 70) {
-            return '提示：' + item.hint + '（还差 ' + (res.total - res.hit) + ' 个方向。）';
+        if (res.pct >= 95) {
+            out.push('就是这个方向：' + res.cand.say);
+        } else if (same) {
+            out.push('「' + res.cand.w + '」在本题只是相邻的一路：' + res.cand.say);
+        } else {
+            out.push('最近的是「' + res.cand.w + '」这一路：' + res.cand.say);
         }
-        return '提示：先别想答案，把题干里的条件逐条抄出来——每抄一条，问自己「这条改变了什么」。条件数完，方向自然就有了。';
+        if (!same && res.pct < 95 && res.share && res.share.length) {
+            out.push('共用的字：「' + res.share.split('').join('」「') + '」——同一个字，未必同一层意思。');
+        }
+        if (res.pct < 95 && res.pct >= 70 && res.cand.gap) {
+            out.push(res.cand.gap);
+        }
+        return out;
     }
 
-    /* ---------- 状态 ---------- */
+    /* ---------- 对外（供测试） ---------- */
 
-    var KEY = 'zxgame.v1';
-    var S = { i: 0, best: {}, tries: {} };
-
-    try {
-        var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
-        if (saved && saved.best) { S.best = saved.best; }
-    } catch (e) { /* 忽略 */ }
-
-    function save() {
-        try { localStorage.setItem(KEY, JSON.stringify({ best: S.best })); } catch (e) { /* 忽略 */ }
-    }
-
-    function passCount() {
-        var n = 0, k;
-        for (k in S.best) { if (S.best[k] >= 95) { n++; } }
-        return n;
-    }
-
-    function avgPct() {
-        var sum = 0, n = 0, k;
-        for (k in S.best) { sum += S.best[k]; n++; }
-        return { avg: n ? Math.round(sum / n * 10) / 10 : 0, n: n };
-    }
+    window.ZXG = { QS: QS, score: score, sim: sim, norm: norm, points: points, verdict: verdict };
 
     /* ---------- DOM ---------- */
 
     var root = document.getElementById('zx-game');
     if (!root) { return; }
+
+    var KEY = 'zx-guess-v1';
+    var S = { i: 0, best: {}, log: {} };
+    try {
+        var raw = localStorage.getItem(KEY);
+        if (raw) {
+            var obj = JSON.parse(raw);
+            if (obj && typeof obj === 'object') {
+                S.i = Math.min(QS.length - 1, Math.max(0, obj.i || 0));
+                S.best = obj.best || {};
+                S.log = obj.log || {};
+            }
+        }
+    } catch (e) { /* 隐私模式忽略 */ }
+
+    function save() {
+        try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* 忽略 */ }
+    }
 
     var ui = {
         idx: root.querySelector('[data-ui="idx"]'),
@@ -352,155 +330,220 @@
         go: root.querySelector('[data-ui="go"]'),
         skip: root.querySelector('[data-ui="skip"]'),
         next: root.querySelector('[data-ui="next"]'),
+        count: root.querySelector('[data-ui="count"]'),
+        hist: root.querySelector('[data-ui="hist"]'),
         res: root.querySelector('[data-ui="res"]')
     };
 
+    function passCount() {
+        var n = 0, k;
+        for (k in S.best) { if (S.best[k] >= 95) { n++; } }
+        return n;
+    }
+
+    function dotsEl() { return root.querySelector('[data-ui="dots"]'); }
+
     function fillDots() {
-        var box = root.querySelector('[data-ui="dots"]');
+        var box = dotsEl();
         if (!box) { return; }
         var html = '', i;
         for (i = 0; i < QS.length; i++) {
             var b = S.best[QS[i].id] || 0;
-            var cls = b >= 95 ? 'is-pass' : (b >= 90 ? 'is-near' : (b > 0 ? 'is-try' : ''));
+            var cls = b >= 95 ? 'is-pass' : (b >= 88 ? 'is-near' : (b > 0 ? 'is-try' : ''));
             if (i === S.i) { cls += ' is-now'; }
-            html += '<i class="' + cls + '" title="第 ' + (i + 1) + ' 题' + (b ? '：' + b + '%' : '') + '"></i>';
+            html += '<button type="button" class="' + cls + '" data-jump="' + i +
+                '" title="第 ' + (i + 1) + ' 题' + (b ? '：最高 ' + b + '%' : '') + '"></button>';
         }
         box.innerHTML = html;
+    }
+
+    function fillHist(item) {
+        var list = (S.log[item.id] || []);
+        var best = S.best[item.id] || 0;
+        if (!list.length) {
+            ui.hist.innerHTML = '';
+            ui.hist.hidden = true;
+        } else {
+            var html = '';
+            for (var i = 0; i < list.length; i++) {
+                var g = list[i];
+                var cls = g.p >= 95 ? 'is-pass' : (g.p === best ? 'is-best' : (g.p >= 70 ? 'is-near' : ''));
+                html += '<li class="' + cls + '"><span class="zg-hw">' + g.w + '</span>' +
+                    '<span class="zg-hp">' + g.p + '%</span></li>';
+            }
+            ui.hist.innerHTML = html;
+            ui.hist.hidden = false;
+        }
+        var n = list.length;
+        var hi = n ? Math.max.apply(null, list.map(function (x) { return x.p; })) : 0;
+        ui.count.textContent = n
+            ? ('已猜 ' + n + ' 次 · 最高 ' + hi + '%')
+            : '还没猜过。两三个字就够，不必写成句子。';
     }
 
     function render() {
         var item = QS[S.i];
         ui.idx.textContent = '第 ' + (S.i + 1) + ' / ' + QS.length + ' 题';
-        ui.pass.textContent = '通过 ' + passCount();
+        ui.pass.textContent = '摸到 ' + passCount();
         ui.ch.textContent = item.ch;
         ui.q.textContent = item.q;
         ui.input.value = '';
-        ui.input.placeholder = '用自己的话写，不必模仿参考答案的句子。写到你觉得说完了为止。';
+        ui.input.disabled = false;
+        ui.res.innerHTML = '';
         ui.res.hidden = true;
-        ui.next.hidden = true;
         ui.go.hidden = false;
+        ui.go.textContent = '猜';
         ui.skip.hidden = false;
-        ui.go.textContent = '提交';
-        ui.bar.style.width = (S.i / QS.length * 100) + '%';
+        ui.next.textContent = (S.i === QS.length - 1) ? '看结果' : '下一题';
+        ui.bar.style.width = (S.i + (S.best[item.id] || 0) / 100) / QS.length * 100 + '%';
         fillDots();
+        fillHist(item);
         ui.input.focus();
     }
 
-    function renderResult(res, item) {
-        var v = verdict(res.pct, res);
-        var pass = res.pct >= 95;
-        var html = '';
-        html += '<div class="zg-pct zg-pct--' + v.cls + '"><b>' + res.pct.toFixed(1) + '</b><i>%</i></div>';
-        html += '<p class="zg-verdict"><b>' + v.t + '</b>' + v.s + '</p>';
-        if (!pass) {
-            html += '<p class="zg-hint">' + hintFor(res.pct, item, res) + '</p>';
-        }
-        if (pass) {
-            html += '<div class="zg-ref"><h4>参考答案</h4><ol>';
-            for (var i = 0; i < item.ref.length; i++) {
-                html += '<li>' + item.ref[i] + '</li>';
-            }
-            html += '</ol></div>';
-        }
-        ui.res.innerHTML = html;
-        ui.res.hidden = false;
-        return pass;
+    function reveal(item, title) {
+        return '<div class="zg-ref"><h4>' + title + '</h4><p class="zg-ansi">「' + item.ans + '」</p><p>' + item.ref + '</p></div>';
     }
 
-    function submit(bySkip) {
+    function submit() {
         var item = QS[S.i];
-        var text = ui.input.value;
-
-        if (!bySkip) {
-            if (norm(text).length < 6) {
-                ui.res.hidden = false;
-                ui.res.innerHTML = '<p class="zg-hint">再多写一点。六个字以内的答案，没法判断是懂还是蒙。</p>';
-                return;
-            }
-        }
-
-        var res = bySkip ? { pct: 0, cover: 0, hit: 0, total: (item.keys || []).length } : score(text, item);
-        var prev = S.best[item.id] || 0;
-        if (!bySkip && res.pct > prev) {
-            S.best[item.id] = res.pct;
-            save();
-        }
-        ui.pass.textContent = '通过 ' + passCount();
-        fillDots();
-
-        if (bySkip) {
-            ui.res.innerHTML = '<div class="zg-ref"><h4>参考答案（本题不计分）</h4><ol>' +
-                item.ref.map(function (p) { return '<li>' + p + '</li>'; }).join('') + '</ol></div>';
+        var g = norm(ui.input.value);
+        if (!g) {
+            ui.res.innerHTML = '<p class="zg-hint">先写一个词，两个字最好。</p>';
             ui.res.hidden = false;
-            ui.skip.hidden = true;
-            ui.go.hidden = true;
-            ui.next.hidden = false;
-            ui.next.textContent = (S.i === QS.length - 1) ? '看结果' : '下一题';
+            return;
+        }
+        if (g.length > 6) {
+            ui.res.innerHTML = '<p class="zg-hint">一次只猜一个词，最多六个字。写成一句话，就不是猜词了。</p>';
+            ui.res.hidden = false;
             return;
         }
 
-        var pass = renderResult(res, item);
-        ui.go.hidden = pass;
-        ui.go.textContent = '改一改，再交一次';
-        ui.skip.hidden = true;
-        ui.next.hidden = false;
-        ui.next.textContent = (S.i === QS.length - 1) ? '看结果' : '下一题';
-        if (pass) { ui.input.blur(); }
-        ui.res.scrollIntoView({ block: 'nearest' });
+        var res = score(g, item);
+        var prevBest = S.best[item.id] || 0;
+        if (res.pct > prevBest) { S.best[item.id] = res.pct; }
+
+        var list = S.log[item.id] || (S.log[item.id] = []);
+        if (!list.length || list[list.length - 1].w !== g) {
+            list.push({ w: g, p: res.pct });
+        } else {
+            list[list.length - 1].p = Math.max(list[list.length - 1].p, res.pct);
+        }
+        if (list.length > 12) { list.shift(); }
+        save();
+
+        ui.pass.textContent = '摸到 ' + passCount();
+        ui.bar.style.width = (S.i + (S.best[item.id] || 0) / 100) / QS.length * 100 + '%';
+        fillDots();
+        fillHist(item);
+
+        var v = verdict(res.pct);
+        var html = '';
+        html += '<div class="zg-pct zg-pct--' + v.cls + '"><b>' + res.pct + '</b><i>%</i></div>';
+        html += '<p class="zg-verdict"><b>' + v.t + '</b>' + v.s + '</p>';
+        var pts = points(res);
+        if (pts.length) {
+            html += '<ul class="zg-pts">' + pts.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>';
+        }
+        if (res.pct >= 95) {
+            html += reveal(item, '答案');
+            ui.input.disabled = true;
+            ui.go.hidden = true;
+            ui.skip.hidden = true;
+            ui.next.classList.add('is-hot');
+        } else {
+            /* 九十以下才给模糊方向；九十到九十四只留上面的相似点 */
+            if (res.pct < 90) {
+                html += '<p class="zg-hint">' + item.hint + '</p>';
+            }
+            ui.next.classList.remove('is-hot');
+        }
+        ui.res.innerHTML = html;
+        ui.res.hidden = false;
+        ui.input.select();
     }
 
+    ui.go.addEventListener('click', submit);
+
+    ui.skip.addEventListener('click', function () {
+        var item = QS[S.i];
+        ui.res.innerHTML = '<div class="zg-ref"><h4>答案（不计分）</h4><p class="zg-ansi">「' + item.ans + '」</p><p>' + item.ref + '</p></div>';
+        ui.res.hidden = false;
+        ui.go.hidden = true;
+        ui.skip.hidden = true;
+        ui.next.classList.add('is-hot');
+        ui.input.disabled = true;
+    });
+
+    ui.next.addEventListener('click', function () {
+        ui.next.classList.remove('is-hot');
+        if (S.i === QS.length - 1) { finalPanel(); return; }
+        S.i++;
+        save();
+        render();
+    });
+
+    ui.input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.isComposing) {
+            e.preventDefault();
+            submit();
+        }
+    });
+
+    root.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('[data-jump]') : null;
+        if (!btn) { return; }
+        S.i = parseInt(btn.getAttribute('data-jump'), 10) || 0;
+        save();
+        render();
+    });
+
     function finalPanel() {
-        var n = passCount(), st = avgPct(), avg = st.avg;
+        var n = passCount(), sum = 0, c = 0, k;
+        for (k in S.best) { sum += S.best[k]; c++; }
+        var avg = c ? sum / c : 0;
         var words;
-        if (n >= 9) {
-            words = '这不是背下来了，这是想通了。你答的不是本页的话，是本页背后的条件。';
-        } else if (n >= 6) {
-            words = '大部分方向你已经有了，剩下的多半是那些「不好承认」的部分——讲对手、讲自己、讲运气。';
-        } else if (n >= 3) {
-            words = '过了一半。回去把没过的那几题所属的章节重读一遍，再回来答，会比在这儿硬想快。';
+        if (n >= QS.length) {
+            words = '十题全摸到。说明你已经不是在猜词，而是在猜他的条件——他一开口，你大概知道他要往哪落。往下读那二十六条，会比第一遍快得多。';
+        } else if (n >= 7) {
+            words = '大半摸到了。没摸到的那几题，多半是他最不爱承认的部分：讲对手、讲自己、讲运气。回去把对应章节重读一遍再猜，会比在这儿硬凑快。';
+        } else if (n >= 4) {
+            words = '过了一半上下。这不是考试，是认路：把这些词记住，再读那二十六条，原文会突然变得很短。';
+        } else if (n >= 1) {
+            words = '刚刚上手。别急着往下猜，先看一眼提示里的方向——这些题考的不是词汇量，是他把哪两样东西搁在一起说。';
         } else {
-            words = '别把这当成考试。这些题的目的是让你把「我以为我知道」变成「我能说清」，说清之前，先抄条件。';
+            words = '猜得少，说明这些词还没进你的手。别急，从「题记」那一题往回走一遍，每题看一眼提示再猜。';
         }
         var html = '';
         html += '<div class="zg-final">';
-        html += '<div class="zg-final-n"><b>' + n + '</b><span>/ ' + QS.length + ' 过</span></div>';
-        html += '<div class="zg-final-a"><b>' + avg.toFixed(1) + '</b><span>% 平均（已答 ' + st.n + ' 题' + (st.n < QS.length ? '，其余未作答' : '') + '）</span></div>';
+        html += '<div class="zg-final-n"><b>' + n + '</b><span>/ ' + QS.length + ' 摸到</span></div>';
+        html += '<div class="zg-final-a"><b>' + avg.toFixed(0) + '</b><span>% 平均最高分（已猜 ' + c + ' 题' + (c < QS.length ? '，其余未猜' : '') + '）</span></div>';
         html += '<p class="zg-final-t">' + words + '</p>';
-        html += '<div class="zg-final-b"><button class="zg-btn" data-act="restart">从头再来</button></div>';
+        html += '<div class="zg-final-b"><button type="button" class="zg-btn" data-act="restart">从头再猜</button></div>';
         html += '</div>';
         ui.res.innerHTML = html;
         ui.res.hidden = false;
-        ui.q.textContent = '十题走完。';
         ui.ch.textContent = '结果';
+        ui.q.textContent = '十题走完。';
         ui.input.hidden = true;
-        var kb = root.querySelector('.zg-keys');
-        if (kb) { kb.hidden = true; }
         ui.go.hidden = true;
         ui.skip.hidden = true;
         ui.next.hidden = true;
+        ui.hist.hidden = true;
+        ui.count.hidden = true;
+        var kb = root.querySelector('.zg-keys');
+        if (kb) { kb.hidden = true; }
         ui.bar.style.width = '100%';
         ui.res.querySelector('[data-act="restart"]').addEventListener('click', function () {
-            S.i = 0;
-            S.best = {};
+            S = { i: 0, best: {}, log: {} };
             save();
             ui.input.hidden = false;
+            ui.count.hidden = false;
+            ui.next.hidden = false;
+            if (kb) { kb.hidden = false; }
             render();
         });
     }
-
-    ui.go.addEventListener('click', function () { submit(false); });
-    ui.skip.addEventListener('click', function () { submit(true); });
-    ui.next.addEventListener('click', function () {
-        if (S.i === QS.length - 1) { finalPanel(); return; }
-        S.i++;
-        render();
-    });
-    ui.input.addEventListener('keydown', function (e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            submit(false);
-        }
-    });
 
     render();
 })();

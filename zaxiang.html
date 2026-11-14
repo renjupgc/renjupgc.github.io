@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>杂想 - 连珠杂箱</title>
-<meta name="description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结与二十题习题。">
+<meta name="description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题与猜词小游戏。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/zaxiang.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
 <meta property="og:title" content="杂想">
-<meta property="og:description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结与二十题习题。">
+<meta property="og:description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题与猜词小游戏。">
 <meta property="og:url" content="https://renjupgc.github.io/zaxiang.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="杂想">
-<meta name="twitter:description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结与二十题习题。">
+<meta name="twitter:description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题与猜词小游戏。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
@@ -35,8 +35,40 @@
         <header class="page-head">
             <p class="eyebrow">栏目</p>
             <h1 class="page-title">杂想</h1>
-            <p class="page-desc">潘冠臣谈连珠的片段。一句一条，原话照录，其后释义，末附练习；另有全书云图、系统总结、二十题习题与一个答句小游戏。</p>
+            <p class="page-desc">潘冠臣谈连珠的片段。一句一条，原话照录，其后释义，末附练习；另有全书云图、系统总结、二十题习题与一个猜词小游戏。</p>
         </header>
+
+        <section class="zx-game" id="game">
+            <div class="zx-game-hd">
+                <p class="zx-game-kicker">小 游 戏 · 猜 一 句</p>
+                <h2 class="zx-game-title">离他的意思，还差几里</h2>
+                <p class="zx-game-lead">十问，每问只等你两三个字：这一问背后是哪个词。猜一次，给一个相似百分比和几条相似点；<b>九十五算摸到</b>，看见他那句话；<b>九十以下只给一句模糊的方向</b>。一题可以一直猜，一次比一次近。</p>
+                <p class="zx-game-note">猜词小程序背后有一个唯一的词，这里背后是一组说法：落到哪一种上都算对，落到边缘是七十分上下，落了空就是十位数。分数算的是字面与方向的重合，不衡量你的判断对不对。</p>
+            </div>
+            <div class="zg-panel" id="zx-game">
+                <div class="zg-top">
+                    <span class="zg-idx" data-ui="idx">第 1 / 10 题</span>
+                    <span class="zg-dots" data-ui="dots"></span>
+                    <span class="zg-pass" data-ui="pass">摸到 0</span>
+                </div>
+                <div class="zg-bar" aria-hidden="true"><i data-ui="bar"></i></div>
+                <p class="zg-ch" data-ui="ch"></p>
+                <p class="zg-q" data-ui="q"></p>
+                <div class="zg-row">
+                    <label class="zg-sr" for="zg-input">你猜的词</label>
+                    <input id="zg-input" class="zg-in zg-in--word" data-ui="input" type="text" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="两三个字">
+                    <button type="button" class="zg-btn zg-btn--go" data-ui="go">猜</button>
+                </div>
+                <p class="zg-count" data-ui="count"></p>
+                <ol class="zg-hist" data-ui="hist" hidden></ol>
+                <div class="zg-res" data-ui="res" hidden aria-live="polite"></div>
+                <div class="zg-btns">
+                    <button type="button" class="zg-btn zg-btn--ghost" data-ui="skip">看答案（不计分）</button>
+                    <button type="button" class="zg-btn zg-btn--next" data-ui="next">下一题</button>
+                </div>
+                <p class="zg-keys">回车即猜；上面的圆点可以直接跳到任意一题。</p>
+            </div>
+        </section>
 
         <figure class="zx-cloud" id="cloud">
             <div class="zx-cloud-bar">
@@ -230,7 +262,7 @@
                 <li><a href="#ch7"><b>七</b>手筋与规则：看起来好与实际好</a></li>
                 <li><a href="#sum"><b>总</b>总结：三处前后不一与七章主线</a></li>
                 <li><a href="#hw"><b>题</b>习题二十题：判断、辨析、实战</a></li>
-                <li><a href="#game"><b>戏</b>小游戏：答一句，看像不像</a></li>
+                <li><a href="#game"><b>戏</b>小游戏：猜一句，看差几里</a></li>
             </ul>
         </nav>
 
@@ -1284,32 +1316,6 @@
             </div>
         </section>
 
-        <section class="zx-game" id="game">
-            <h2><span class="zx-ch-no">戏</span>小游戏：答一句，看像不像</h2>
-            <p class="zx-game-lead">十道开放题，都没有唯一答案。每题背后是一份参考答案，答案里的说法被拆成几个要点；你用自己的话答，页面算出你的答案与这些要点的重合度，给一个百分比。<b>九十五以上算过</b>，你会看到参考答案；<b>九十以下只给一句模糊的提示</b>，不告诉你差在哪。</p>
-            <p class="zx-game-note">分数衡量的是「你想到的方向」和「参考答案的方向」重不重合，不衡量你的判断对不对。角度不同而同样成立的答案，这套算法看不出来——所以每题下面留了「看答案（不计分）」，随时可以对照自己判。答案不必模仿书面语，越像自己平时说话越好。</p>
-
-            <div class="zg-panel" id="zx-game">
-                <div class="zg-top">
-                    <span class="zg-idx" data-ui="idx">第 1 / 10 题</span>
-                    <span class="zg-dots" data-ui="dots" aria-hidden="true"></span>
-                    <span class="zg-pass" data-ui="pass">通过 0</span>
-                </div>
-                <div class="zg-bar" aria-hidden="true"><i data-ui="bar"></i></div>
-                <p class="zg-ch" data-ui="ch"></p>
-                <p class="zg-q" data-ui="q"></p>
-                <label class="zg-sr" for="zg-input">你的答案</label>
-                <textarea id="zg-input" class="zg-in" data-ui="input" rows="5" spellcheck="false"></textarea>
-                <div class="zg-btns">
-                    <button type="button" class="zg-btn zg-btn--go" data-ui="go">提交</button>
-                    <button type="button" class="zg-btn zg-btn--ghost" data-ui="skip">看答案（不计分）</button>
-                    <button type="button" class="zg-btn zg-btn--next" data-ui="next" hidden>下一题</button>
-                </div>
-                <div class="zg-res" data-ui="res" hidden aria-live="polite"></div>
-                <p class="zg-keys">快捷键：<kbd>Ctrl</kbd> + <kbd>Enter</kbd> 提交。</p>
-            </div>
-        </section>
-
         <div class="zx-foot" id="src-chat">
 
             <h2>附录一 · 出处</h2>
@@ -1334,10 +1340,11 @@
             <p class="zx-small">语音转文字常把「棋」写成「旗」「期」，把「脱谱」写成「脱普」，把「疏星两打」写成「舒性／属性／输星／输成两打」。凡语义可辨的，本页按上下文订正；订正后仍读不通的，保留原样并标〔？〕；整句混乱到无从判断的，用省略号略过，不拿整理者的猜测去替说话人圆场。</p>
 
             <h2>后续 · 练习与延伸</h2>
-            <p>练习分三类：条目里的一句一问，随读随做；<b>二十题</b>成组使用，A 组判断、B 组辨析、C 组实战，用来查记没记住、用没用上；页末的<b>小游戏</b>换成口头作答，把「说得出来」也算一遍。片段仍在收集，新的原话按主题归入现有七章，实在归不进去的另开一章；编号顺延，不回改旧号。云图与总表随条数变动而改；若某章长到十数条，会拆章，届时旧号仍不改。</p>
+            <p>练习分三类：条目里的一句一问，随读随做；<b>二十题</b>成组使用，A 组判断、B 组辨析、C 组实战，用来查记没记住、用没用上；页首的<b>猜词小游戏</b>把「说得出来」压成两三个字，看离他的说法还差几里。片段仍在收集，新的原话按主题归入现有七章，实在归不进去的另开一章；编号顺延，不回改旧号。云图与总表随条数变动而改；若某章长到十数条，会拆章，届时旧号仍不改。</p>
 
             <h2>更新记录</h2>
             <ul class="zx-log">
+                <li><b>2026-11-15</b>第五版。小游戏改成猜词：每题只答两三个字，返回与本题答案（一组说法）的相似百分比与相似点，可反复猜、逐轮逼近，九十五以上揭示原话，九十以下只给一句模糊方向；面板移到页面最上方。原「答一句」的长答版本撤下。</li>
                 <li><b>2026-11-15</b>第四版。页末加「小游戏」：十道开放题，写下自己的答案，页面算出与参考答案要点的重合度；九十五以上判过并显示参考答案，九十以下只给一句模糊的提示。作答进度存在本机。</li>
                 <li><b>2026-11-15</b>第三版。页首加「卫星云图」与三条提要；新增系统总结（三对张力、七章总表）与二十题习题；删去一句误录的对话（原 ZX-15），其后的编号顺次前移，全页二十六条。</li>
                 <li><b>2026-11-15</b>第二版。补入「杂论」十三篇文章中的棋观，共二十七条，分七章；每条配练习与参考答案；出处改为逐篇链接。</li>
