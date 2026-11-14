@@ -50,7 +50,7 @@ tbody td.c-no{color:var(--ink3);width:60px}
 tbody td.c-nm{text-align:left;padding-left:14px;font-weight:600;min-width:140px}
 tbody td.c-pt{font-weight:700}
 tbody td.c-bk,tbody td.c-md{color:var(--ink3)}
-th.c-ws,tbody td.c-ws{font-weight:400}
+th.c-ws,tbody td.c-ws{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif!important;font-weight:400!important;color:var(--ink3)}
 tbody tr:last-child td{border-bottom:none}
 tbody tr.shade td{background:var(--mint2)}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
@@ -158,19 +158,42 @@ tbody tr.shade td{background:var(--mint2)}
     var t = (idx.tournaments || []).filter(function (x) { return x.slug === SLUG; })[0];
     if (!t) throw new Error('index 里没有 ' + SLUG);
     document.getElementById('grp').textContent = t.group || '公开组';
+    var short = (String(t.name || '').match(/「([^」]+)」/) || [])[1] || '山海杯';
     document.getElementById('ttl').innerHTML = decorate(t.name, t.year) + ' · 名次表';
-    var rounds = (t.rounds || []).map(function (r) { return r.round; });
-    if (!ROUND) ROUND = rounds.length ? Math.max.apply(null, rounds) : 1;
 
-    navBox.innerHTML = rounds.map(function (r) {
+    var rList = t.rounds || [];
+    // 只有全部出赛果的完赛轮次才有名次表
+    var finishedList = rList.filter(function (r) {
+      return r.standings && (r.is_finished !== false) && (r.played >= r.games || r.played == null);
+    });
+    var finishedRounds = finishedList.map(function (r) { return r.round; });
+
+    if (!finishedRounds.length) {
+      document.getElementById('rnd').textContent = '未完赛';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">比赛进行中，待全轮完赛后公布名次表</td></tr>';
+      navBox.innerHTML = '';
+      return;
+    }
+
+    // 未指定 ?r= 或请求的轮次尚未全部完赛时，自动选择最新的已完赛轮次（不显示未完赛轮次的名次表）
+    if (!ROUND || finishedRounds.indexOf(ROUND) === -1) {
+      ROUND = Math.max.apply(null, finishedRounds);
+    }
+
+    // 名次表导航仅展示全部完赛的轮次
+    navBox.innerHTML = finishedList.map(function (item) {
+      var r = item.round;
       var cls = r === ROUND ? ' class="on"' : '';
       return '<a href="2026-shanhai-details.html?r=' + r + '"' + cls + '>第 ' + r + ' 轮</a>';
     }).join('');
     document.getElementById('mlink').href = '2026-shanhai.html?r=' + ROUND;
 
-    return getJSON(SAPI + 'r' + ROUND + '.json').then(render);
+    document.title = short + ' · 第 ' + ROUND + ' 轮名次表';
+    return getJSON(SAPI + 'r' + ROUND + '.json').then(render).catch(function () {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">第 ' + ROUND + ' 轮名次表未生成或读取失败</td></tr>';
+    });
   }).catch(function () {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">正在读取</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">数据读取失败，请稍后重试</td></tr>';
   });
 
   function render(d) {

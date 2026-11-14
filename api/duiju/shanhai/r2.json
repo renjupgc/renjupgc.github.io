@@ -8,14 +8,24 @@
     "rule": "塔拉山口-10"
   },
   "round": 2,
+  "is_finished": true,
   "rounds": [
-    1,
-    2,
-    3
+    {
+      "round": 1,
+      "is_finished": true
+    },
+    {
+      "round": 2,
+      "is_finished": true
+    },
+    {
+      "round": 3,
+      "is_finished": false
+    }
   ],
   "model": "model_20261113",
-  "predicted_at": "2026-11-14 13:40:57",
-  "updated_at": "2026-11-14 13:40:57",
+  "predicted_at": "2026-11-14 13:50:30",
+  "updated_at": "2026-11-14 13:50:30",
   "games": [
     {
       "table": 1,

@@ -64,11 +64,11 @@ if not os.path.exists(MODEL_PATH):
 PLAYERS_PATH = os.path.join(ROOT, 'bisai', 'data', 'players.json')
 H2H_PATH = os.path.join(ROOT, 'bisai', 'data', 'h2h.json')
 
-# WHR 官方基准常数
+# WHR 官方基准常数：比赛日期 2026-11-14，对应的天数为 (date(2026, 11, 14) - date(1970, 1, 1)).days = 20771
 W2 = 19.3
 VIRTUAL_GAMES = 2
 BIAS = 1900.0
-BASE_DAY = 20710
+BASE_DAY = 20771  # 比赛日期 2026-11-14
 
 # 规则 ID 映射
 RULE_MAP = {
@@ -302,6 +302,43 @@ def load_whr_base_games():
     return _WHR_BASE_GAMES_CACHE
 
 
+def get_tournament_day(conn, tid):
+    """获取指定赛事的实际比赛日期对应的 WHR 天数 (距 1970-01-01)。
+    山海杯固定为 2026-11-14；其他赛事优先从轮次预测时间、赛事更新时间或年份推断。"""
+    custom_dates = {
+        '2026-shanhai': '2026-11-14',
+    }
+    if tid in custom_dates:
+        ds = custom_dates[tid]
+        dt = datetime.strptime(ds, '%Y-%m-%d').date()
+        return (dt - datetime(1970, 1, 1).date()).days
+
+    row = conn.execute(
+        'SELECT predicted_at, updated_at FROM rounds WHERE tournament_id=? AND predicted_at IS NOT NULL ORDER BY round LIMIT 1',
+        (tid,)
+    ).fetchone()
+    if row and row['predicted_at']:
+        try:
+            dt = datetime.strptime(row['predicted_at'][:10], '%Y-%m-%d').date()
+            return (dt - datetime(1970, 1, 1).date()).days
+        except Exception:
+            pass
+
+    t_row = conn.execute('SELECT year, updated_at FROM tournaments WHERE id=?', (tid,)).fetchone()
+    if t_row:
+        if t_row['updated_at']:
+            try:
+                dt = datetime.strptime(t_row['updated_at'][:10], '%Y-%m-%d').date()
+                return (dt - datetime(1970, 1, 1).date()).days
+            except Exception:
+                pass
+        if t_row['year']:
+            dt = datetime(int(t_row['year']), 1, 1).date()
+            return (dt - datetime(1970, 1, 1).date()).days
+
+    return (datetime.now(TZ).date() - datetime(1970, 1, 1).date()).days
+
+
 def get_tournament_prior_history(conn, tid, upto_round=None):
     """提取本赛事此前各轮次 (round < upto_round) 已完成的对局，统计棋手状态与交锋记录。"""
     query = ('SELECT round, table_no, black_no, black_name, white_no, white_name, result'
@@ -317,6 +354,7 @@ def get_tournament_prior_history(conn, tid, upto_round=None):
     tour_games = []
 
     base_games, name_to_pid, pid_to_name = load_whr_base_games()
+    t_day = get_tournament_day(conn, tid)
 
     for g in conn.execute(query, params):
         res = g['result']
@@ -326,8 +364,7 @@ def get_tournament_prior_history(conn, tid, upto_round=None):
             continue
         b_id = name_to_pid.get(b_name, b_name)
         w_id = name_to_pid.get(w_name, w_name)
-        day = BASE_DAY + int(g['round'])
-        tour_games.append([b_id, w_id, res, day])
+        tour_games.append([b_id, w_id, res, t_day])
 
         # 棋手局数与和棋数统计
         for name in (b_name, w_name):

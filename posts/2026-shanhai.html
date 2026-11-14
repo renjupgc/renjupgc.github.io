@@ -318,7 +318,7 @@ td.c-prob{width:248px;padding:11px 22px}
   var ROUND = parseInt(fromQuery || fromPath || '1', 10);
   if (!(ROUND > 0)) ROUND = 1;
   var dlink = document.querySelector('a[href="2026-shanhai-details.html"]');
-  if (dlink) dlink.href = '2026-shanhai-details.html?r=' + ROUND;
+  if (dlink) dlink.href = '2026-shanhai-details.html';
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -419,13 +419,25 @@ td.c-prob{width:248px;padding:11px 22px}
 
   function nav(rounds, cur) {
     var el = document.getElementById('rdnav');
-    var list = (rounds || []).map(roundNo).filter(function (x) { return x > 0; });
-    list = list.filter(function (x, i) { return list.indexOf(x) === i; });
-    list.sort(function (a, b) { return a - b; });
+    var seen = {};
+    var list = [];
+    (rounds || []).forEach(function (x) {
+      var r = roundNo(x);
+      var fin = (typeof x === 'object' && x !== null) ? x.is_finished : null;
+      if (r > 0 && !seen[r]) {
+        seen[r] = true;
+        list.push({ round: r, is_finished: fin });
+      }
+    });
+    list.sort(function (a, b) { return a.round - b.round; });
     if (list.length === 0) { el.innerHTML = ''; return; }
-    if (list.length < 2 && list.indexOf(cur) !== -1) { el.innerHTML = ''; return; }
-    el.innerHTML = list.map(function (r) {
-      return '<a href="?r=' + r + '"' + (r === cur ? ' class="on"' : '') + '>第 ' + r + ' 轮</a>';
+    if (list.length < 2 && list.some(function (x) { return x.round === cur; })) { el.innerHTML = ''; return; }
+    el.innerHTML = list.map(function (item) {
+      var r = item.round;
+      var isCur = (r === cur);
+      var ongoing = (item.is_finished === false);
+      var label = '第 ' + r + ' 轮' + (ongoing ? ' (进行中)' : '');
+      return '<a href="?r=' + r + '"' + (isCur ? ' class="on"' : '') + '>' + label + '</a>';
     }).join('');
   }
 
@@ -433,16 +445,34 @@ td.c-prob{width:248px;padding:11px 22px}
     var t = d.tournament || {};
     var r = d.round;
     var short = (String(t.name || '').match(/「([^」]+)」/) || [])[1] || '山海杯';
+    var games = (d.games || []).slice().sort(function (a, b) { return a.table - b.table; });
 
-    document.title = short + ' · 第 ' + r + ' 轮对阵概率预测表';
+    var isCurOngoing = (d.is_finished === false) || (games.length > 0 && games.some(function (g) { return !g.result; }));
+    var rTitle = '第 ' + r + ' 轮' + (isCurOngoing ? '（进行中）' : '');
+
+    document.title = short + ' · ' + rTitle + '对阵概率预测表';
     document.getElementById('ttl').innerHTML = decorate(t.name || short, t.year);
     document.getElementById('grp').textContent = t.group || '';
-    document.getElementById('rnd').textContent = '第 ' + r + ' 轮';
-    nav(d.rounds, r);
-    var dl = document.getElementById("dlink");
-    if (dl) dl.href = "2026-shanhai-details.html?r=" + r;
+    document.getElementById('rnd').textContent = rTitle;
 
-    var games = (d.games || []).slice().sort(function (a, b) { return a.table - b.table; });
+    var rounds = (d.rounds || []).map(function (x) {
+      var rn = roundNo(x);
+      var fin = (typeof x === 'object' && x !== null) ? x.is_finished : null;
+      if (rn === r && fin == null) fin = !isCurOngoing;
+      return { round: rn, is_finished: fin };
+    });
+    nav(rounds, r);
+    var dl = document.getElementById("dlink");
+    if (dl) {
+      var finRound = null;
+      for (var i = 0; i < rounds.length; i++) {
+        if (rounds[i].is_finished) {
+          if (finRound == null || rounds[i].round > finRound) finRound = rounds[i].round;
+        }
+      }
+      dl.href = finRound ? "2026-shanhai-details.html?r=" + finRound : "2026-shanhai-details.html";
+    }
+
     document.getElementById('rows').innerHTML = games.length
       ? games.map(row).join('')
       : '<tr class="ph"><td colspan="4">这一轮还没有对局。</td></tr>';

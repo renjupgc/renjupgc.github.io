@@ -616,9 +616,8 @@ def export_api(conn):
             'SELECT * FROM rounds WHERE tournament_id=? ORDER BY round',
             (t['id'],),
         ).fetchall()
-        all_rounds = [r['round'] for r in rounds]
-        rmeta = []
-        points = {}      # 姓名 → 本轮开赛前的累计分；分数不入库，导出时按赛果现算
+        
+        round_data = []
         for r in rounds:
             rows = conn.execute(
                 'SELECT * FROM games WHERE tournament_id=? AND round=? ORDER BY table_no',
@@ -626,24 +625,38 @@ def export_api(conn):
             ).fetchall()
             played, predicted = _round_stats(rows)
             is_finished = (len(rows) > 0 and all(bool(g['result']) for g in rows))
-            rmeta.append({
-                'round': r['round'],
-                'games': len(rows),
-                'predicted': predicted,
+            round_data.append({
+                'r': r,
+                'rows': rows,
                 'played': played,
-                'model': r['model'],
-                'predicted_at': r['predicted_at'],
-                'updated_at': r['updated_at'],
-                'standings': ('api/duiju/%s/standings/r%d.json' % (t['slug'], r['round'])) if is_finished else None,
+                'predicted': predicted,
+                'is_finished': is_finished,
             })
-            write_round(t, r, rows, all_rounds, dict(points))
-            if is_finished:
-                write_standings(conn, t, r['round'])
+
+        rmeta = [{
+            'round': d['r']['round'],
+            'games': len(d['rows']),
+            'predicted': d['predicted'],
+            'played': d['played'],
+            'is_finished': d['is_finished'],
+            'model': d['r']['model'],
+            'predicted_at': d['r']['predicted_at'],
+            'updated_at': d['r']['updated_at'],
+            'standings': ('api/duiju/%s/standings/r%d.json' % (t['slug'], d['r']['round'])) if d['is_finished'] else None,
+        } for d in round_data]
+
+        rounds_summary = [{'round': m['round'], 'is_finished': m['is_finished']} for m in rmeta]
+
+        points = {}      # 姓名 → 本轮开赛前的累计分；分数不入库，导出时按赛果现算
+        for d in round_data:
+            write_round(t, d['r'], d['rows'], rounds_summary, dict(points), is_finished=d['is_finished'])
+            if d['is_finished']:
+                write_standings(conn, t, d['r']['round'])
             else:
-                stale_path = os.path.join(API_ROOT, t['slug'], 'standings', 'r%d.json' % r['round'])
+                stale_path = os.path.join(API_ROOT, t['slug'], 'standings', 'r%d.json' % d['r']['round'])
                 if os.path.exists(stale_path):
                     os.remove(stale_path)
-            for g in rows:
+            for g in d['rows']:
                 if g['result'] in ('B', 'WF'):
                     points[g['black_name']] = points.get(g['black_name'], 0) + 1
                 elif g['result'] in ('W', 'BF'):
@@ -715,7 +728,7 @@ def write_metrics(conn, tour, rmeta):
     predict_api.evaluate_tournament_model(conn, tour['id'], write=True, print_report=False)
 
 
-def write_round(tour, rmeta, rows, round_list, points):
+def write_round(tour, rmeta, rows, rounds_summary, points, is_finished=False):
     payload = {
         'tournament': {
             'id': tour['id'],
@@ -726,7 +739,8 @@ def write_round(tour, rmeta, rows, round_list, points):
             'rule': tour['rule'],
         },
         'round': rmeta['round'],
-        'rounds': sorted(set(round_list + [rmeta['round']])),
+        'is_finished': is_finished,
+        'rounds': rounds_summary,
         'model': rmeta['model'],
         'predicted_at': rmeta['predicted_at'],
         'updated_at': rmeta['updated_at'],
