@@ -92,7 +92,7 @@
 
 .zx-toc {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
     margin: 0 0 8px;
     padding: 0;
@@ -512,6 +512,472 @@
     color: var(--ink-3);
 }
 
+/* ---------- 卫星云图 ---------- */
+
+.zx-cloud {
+    margin: 0 0 10px;
+    padding: 18px 20px 20px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+    box-shadow: var(--shadow-sm);
+}
+
+.zx-cloud-bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.zx-cloud-k {
+    font-family: var(--serif);
+    font-size: 13px;
+    letter-spacing: 0.3em;
+    color: var(--gold-deep);
+}
+
+.zx-cloud-t {
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+}
+
+.zx-cloud-map {
+    position: relative;
+    aspect-ratio: 680 / 470;
+    margin: 0 -4px;
+}
+
+.zx-cloud-svg {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.zx-cloud-svg a {
+    cursor: pointer;
+}
+
+.zx-cloud-grid path,
+.zx-cloud-grid rect {
+    fill: none;
+    stroke: #ebe2cf;
+    stroke-width: 1;
+}
+
+.zx-cloud-grid .zx-cloud-tick {
+    stroke: #cbbea4;
+}
+
+.zx-cloud-orbit {
+    fill: none;
+    stroke: var(--gold);
+    stroke-opacity: 0.2;
+    stroke-dasharray: 2 7;
+}
+
+.zx-cl {
+    transition: opacity 0.2s ease;
+}
+
+.zx-cl-edge {
+    fill: none;
+    stroke: var(--gold-deep);
+    stroke-opacity: 0.3;
+    stroke-width: 1;
+    stroke-dasharray: 26 16;
+    stroke-linecap: round;
+    transition: stroke-opacity 0.2s ease;
+}
+
+.zx-cloud-svg a:hover .zx-cl-edge {
+    stroke-opacity: 0.6;
+}
+
+.zx-cloud-ch {
+    font-family: var(--serif);
+    font-size: 34px;
+    fill: var(--gold-deep);
+}
+
+/* 章名标签：用 HTML 叠在 SVG 上，字号不随画布缩放而变小 */
+
+.zx-cloud-lb {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    transform: translate(-50%, -50%);
+    font-family: var(--sans);
+    font-size: clamp(11px, 1.85vw, 13px);
+    line-height: 1.35;
+    color: var(--ink);
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+/* 云团中心偏深，给标签一层很淡的纸色光晕，保证读数 */
+
+
+.zx-cloud-lb b {
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.zx-cloud-lb i {
+    font-style: normal;
+    font-size: 0.8em;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+.zx-cloud-lb:hover {
+    background: rgba(255, 253, 247, 0.94);
+    color: var(--gold-deep);
+    text-decoration: none;
+}
+
+.zx-cloud-cap {
+    margin: 12px 0 0;
+}
+
+.zx-cloud-cap p {
+    margin: 0 0 7px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.9;
+    color: var(--muted);
+}
+
+.zx-cloud-cap p:last-child {
+    margin-bottom: 0;
+}
+
+/* ---------- 提要 ---------- */
+
+.zx-h {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 0;
+    border: 0;
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+}
+
+.zx-h::before {
+    content: none;
+}
+
+.zx-h .zx-ch-no {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.24em;
+    color: var(--gold);
+    white-space: nowrap;
+}
+
+.zx-core {
+    margin: 52px 0 0;
+}
+
+.zx-core-lead {
+    margin: 0 0 22px;
+    font-family: var(--serif);
+    font-size: 16.5px;
+    line-height: 2.05;
+    color: var(--ink-2);
+}
+
+.zx-ax {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 12px;
+}
+
+.zx-ax li {
+    padding: 18px 20px 16px;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+
+.zx-ax b {
+    display: block;
+    margin-bottom: 6px;
+    font-family: var(--serif);
+    font-size: 16.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+}
+
+.zx-ax p {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 15px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
+.zx-ax span {
+    display: block;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+}
+
+.zx-core-tail {
+    margin: 20px 0 0;
+    padding: 14px 16px;
+    border-left: 2px solid var(--gold);
+    border-radius: 0 10px 10px 0;
+    background: var(--surface-2);
+    font-family: var(--serif);
+    font-size: 15.5px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
+.zx-core-tail b {
+    color: var(--gold-deep);
+    font-weight: 600;
+}
+
+/* ---------- 总结 ---------- */
+
+.zx-sum,
+.zx-hw {
+    margin: 56px 0 0;
+}
+
+.zx-sum > p,
+.zx-hw-lead {
+    margin: 0 0 20px;
+    font-family: var(--serif);
+    font-size: 16px;
+    line-height: 2.05;
+    color: var(--ink-2);
+}
+
+.zx-sum-tail {
+    margin: 0;
+    padding: 16px 18px;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    background: rgba(176, 141, 87, 0.05);
+    font-family: var(--serif);
+    font-size: 15px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
+/* 表格 */
+
+.zx-tbl-wrap {
+    margin: 0 0 24px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.zx-tbl {
+    width: 100%;
+    min-width: 620px;
+    border-collapse: collapse;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: var(--ink-2);
+}
+
+.zx-tbl th,
+.zx-tbl td {
+    padding: 11px 12px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.zx-tbl thead th {
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.zx-tbl tbody th {
+    font-family: var(--serif);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--gold-deep);
+    white-space: nowrap;
+}
+
+.zx-tbl tbody tr:last-child th,
+.zx-tbl tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.zx-tbl-ref {
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+}
+
+.zx-tbl--rubric {
+    min-width: 420px;
+}
+
+.zx-tbl--rubric th:first-child {
+    width: 72px;
+}
+
+/* ---------- 习题 ---------- */
+
+.zx-hw-g {
+    margin: 0 0 34px;
+}
+
+.zx-hw-g h3 {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 0 0 6px;
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.zx-hw-g h3 span {
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: var(--gold-tint);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: var(--gold-deep);
+}
+
+.zx-hw-note {
+    margin: 0 0 14px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: var(--muted);
+}
+
+.zx-q {
+    margin: 0 0 8px;
+    padding: 11px 14px 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    background: var(--surface);
+}
+
+.zx-q-t {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 15.5px;
+    line-height: 1.8;
+    color: var(--ink);
+}
+
+.zx-q-t b {
+    display: inline-block;
+    margin-right: 8px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    color: var(--gold-deep);
+}
+
+.zx-q details {
+    margin-top: 5px;
+}
+
+.zx-q summary {
+    cursor: pointer;
+    width: fit-content;
+    padding-bottom: 1px;
+    border-bottom: 1px dashed var(--line);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    color: var(--gold-deep);
+    list-style: none;
+}
+
+.zx-q summary::-webkit-details-marker {
+    display: none;
+}
+
+.zx-q summary::before {
+    content: "▸ ";
+    font-size: 10px;
+    vertical-align: 1px;
+}
+
+.zx-q details[open] summary::before {
+    content: "▾ ";
+}
+
+.zx-q summary:hover {
+    color: var(--ink);
+}
+
+.zx-q details p {
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    border-left: 2px solid var(--line);
+    border-radius: 0 8px 8px 0;
+    background: var(--surface-2);
+    font-family: var(--serif);
+    font-size: 14.5px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
+.zx-hw-tail {
+    margin: 22px 0 0;
+    padding: 14px 16px;
+    border-left: 2px solid var(--gold);
+    border-radius: 0 10px 10px 0;
+    background: var(--surface-2);
+    font-family: var(--serif);
+    font-size: 14.5px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
 /* ---------- 窄屏 ---------- */
 
 @media (max-width: 640px) {
@@ -541,5 +1007,57 @@
 
     .zx-eh .zx-from {
         margin-left: 0;
+    }
+
+    .zx-cloud {
+        padding: 14px 12px 16px;
+    }
+
+    .zx-cloud-lb {
+        padding: 2px 5px;
+        font-size: 11px;
+    }
+
+    .zx-cloud-ch {
+        font-size: 30px;
+    }
+
+    .zx-cloud-cap p {
+        font-size: 12px;
+    }
+
+    .zx-h {
+        margin-bottom: 14px;
+        font-size: 19px;
+    }
+
+    .zx-ax li {
+        padding: 15px 16px 14px;
+    }
+
+    .zx-ax b {
+        font-size: 15.5px;
+    }
+
+    .zx-tbl {
+        font-size: 13px;
+    }
+
+    .zx-q {
+        padding: 12px 13px;
+    }
+
+    .zx-q-t {
+        font-size: 15px;
+    }
+
+    .zx-toc {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 460px) {
+    .zx-toc {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
