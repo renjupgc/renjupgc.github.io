@@ -456,8 +456,22 @@ def main():
     df, valid_games, player_game_history, h2h_stats, tournament_dates = step2_build_dataset(base)
     out_model = step3_train_gbdt(df)
     step4_export_assets(base, out_model, valid_games, player_game_history, h2h_stats, tournament_dates)
+
+    # 步骤 5：自动评估新模型在当前赛事已完赛对局上的实战表现并刷新 metrics.json
     print("=" * 70)
-    print("全部训练与产物生成流程圆满完成！")
+    print("步骤 5：新模型自动评估与实战指标校验...")
+    try:
+        import predict_api
+        conn = predict_api.connect()
+        tids = [r['id'] for r in conn.execute('SELECT id FROM tournaments').fetchall()]
+        for tid in tids:
+            predict_api.evaluate_tournament_model(conn, tid, write=True, print_report=True)
+        conn.close()
+    except Exception as e:
+        print(f"提示：赛事评估调用跳过或出错: {e}")
+
+    print("=" * 70)
+    print("全部训练、产物生成与新模型自动评估流程圆满完成！")
     return 0
 
 

@@ -1,0 +1,61 @@
+{
+  "tournament": {
+    "id": "2026-shanhai",
+    "slug": "shanhai",
+    "name": "「山海杯」2026 年全国五子棋业余棋王争霸赛线下总决赛",
+    "year": 2026,
+    "group": "公开组",
+    "rule": "塔拉山口-10"
+  },
+  "model": "model_20261113",
+  "evaluated_at": "2026-11-14 12:57:02",
+  "rounds": [
+    {
+      "n": 23,
+      "hit": 16,
+      "accuracy": 0.6957,
+      "brier": 0.3435,
+      "logloss": 0.5851,
+      "confidence": 0.7669,
+      "results": {
+        "B": 8,
+        "D": 1,
+        "W": 14
+      },
+      "hit_by_result": {
+        "B": 8,
+        "D": 0,
+        "W": 8
+      },
+      "fav_distribution": {
+        "B": 15,
+        "D": 0,
+        "W": 8
+      },
+      "round": 1
+    }
+  ],
+  "overall": {
+    "n": 23,
+    "hit": 16,
+    "accuracy": 0.6957,
+    "brier": 0.3435,
+    "logloss": 0.5851,
+    "confidence": 0.7669,
+    "results": {
+      "B": 8,
+      "D": 1,
+      "W": 14
+    },
+    "hit_by_result": {
+      "B": 8,
+      "D": 0,
+      "W": 8
+    },
+    "fav_distribution": {
+      "B": 15,
+      "D": 0,
+      "W": 8
+    }
+  }
+}

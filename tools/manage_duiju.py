@@ -643,32 +643,7 @@ def _metrics_of(rows):
 
 
 def write_metrics(conn, tour, rmeta):
-    rounds = []
-    pooled = []
-    for m in rmeta:
-        rows = conn.execute(
-            'SELECT * FROM games WHERE tournament_id=? AND round=? ORDER BY table_no',
-            (tour['id'], m['round'])).fetchall()
-        stat = _metrics_of(rows)
-        if stat is None:
-            continue
-        stat['round'] = m['round']
-        rounds.append(stat)
-        pooled.extend(rows)
-    if not rounds:
-        return
-    overall = _metrics_of(pooled)
-    payload = {
-        'tournament': {
-            'id': tour['id'], 'slug': tour['slug'], 'name': tour['name'],
-            'year': tour['year'], 'group': tour['group_name'], 'rule': tour['rule'],
-        },
-        'rounds': rounds,
-        'overall': overall,
-    }
-    out_dir = os.path.join(API_ROOT, tour['slug'])
-    os.makedirs(out_dir, exist_ok=True)
-    dump_json(os.path.join(out_dir, 'metrics.json'), payload)
+    predict_api.evaluate_tournament_model(conn, tour['id'], write=True, print_report=False)
 
 
 def write_round(tour, rmeta, rows, round_list, points):

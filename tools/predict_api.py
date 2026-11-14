@@ -25,6 +25,7 @@
 """
 
 import argparse
+from datetime import datetime, timezone, timedelta
 import glob
 import gzip
 import json
@@ -32,6 +33,12 @@ import math
 import os
 import sqlite3
 import sys
+
+TZ = timezone(timedelta(hours=8))
+
+
+def now_str():
+    return datetime.now(TZ).strftime('%Y-%m-%d %H:%M:%S')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
@@ -522,12 +529,143 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
     return out
 
 
-def predict_round(conn, tid, rnd, write=False):
+# ---------------------------------------------------------------- 模型评估 API
+
+def compute_metrics_for_games(games_rows):
+    """计算一组有赛果对局的评估指标 (Accuracy, Brier, LogLoss, Confidence, 分类命中明细)。"""
+    n = hit = 0
+    brier = logloss = conf = 0.0
+    classes = {'B': 0, 'D': 0, 'W': 0}
+    hit_by_class = {'B': 0, 'D': 0, 'W': 0}
+    fav_counts = {'B': 0, 'D': 0, 'W': 0}
+
+    for g in games_rows:
+        res = g.get('result')
+        if res not in ('B', 'D', 'W') or g.get('p_black') is None:
+            continue
+        pb = g['p_black'] / 100.0
+        pd = g['p_draw'] / 100.0
+        pw = g['p_white'] / 100.0
+        p = {'B': pb, 'D': pd, 'W': pw}
+
+        top = max(p, key=lambda k: p[k])
+        n += 1
+        classes[res] += 1
+        fav_counts[top] += 1
+        if top == res:
+            hit += 1
+            hit_by_class[res] += 1
+        brier += sum((p[k] - (1.0 if k == res else 0.0)) ** 2 for k in p)
+        logloss -= math.log(max(p[res], 1e-9))
+        conf += p[top]
+
+    if n == 0:
+        return None
+
+    return {
+        'n': n,
+        'hit': hit,
+        'accuracy': round(hit / float(n), 4),
+        'brier': round(brier / n, 4),
+        'logloss': round(logloss / n, 4),
+        'confidence': round(conf / n, 4),
+        'results': classes,
+        'hit_by_result': hit_by_class,
+        'fav_distribution': fav_counts
+    }
+
+
+def evaluate_tournament_model(conn, tid, write=True, print_report=True):
+    """自动评估当前/最新模型在指定赛事的整体及逐轮实战表现，并自动写回 metrics.json。"""
+    tour = conn.execute('SELECT * FROM tournaments WHERE id=?', (tid,)).fetchone()
+    if not tour:
+        return None
+    slug = tour['slug']
+
+    rounds = [r['round'] for r in conn.execute(
+        'SELECT DISTINCT round FROM games WHERE tournament_id=? ORDER BY round', (tid,)
+    )]
+
+    rounds_stats = []
+    pooled_rows = []
+    for rnd in rounds:
+        rows = conn.execute(
+            'SELECT * FROM games WHERE tournament_id=? AND round=? ORDER BY table_no',
+            (tid, rnd)
+        ).fetchall()
+        rows_dict = [dict(r) for r in rows]
+        stat = compute_metrics_for_games(rows_dict)
+        if stat:
+            stat['round'] = rnd
+            rounds_stats.append(stat)
+            pooled_rows.extend([r for r in rows_dict if r['result'] in ('B', 'W', 'D') and r['p_black'] is not None])
+
+    if not rounds_stats:
+        if print_report:
+            print(f'赛事 {tid} 尚无已出赛果的已预测对局，暂无评估样本。')
+        return None
+
+    overall = compute_metrics_for_games(pooled_rows)
+    model_name = os.path.basename(MODEL_PATH).replace('.json', '')
+
+    payload = {
+        'tournament': {
+            'id': tour['id'],
+            'slug': tour['slug'],
+            'name': tour['name'],
+            'year': tour['year'],
+            'group': tour['group_name'],
+            'rule': tour['rule'],
+        },
+        'model': model_name,
+        'evaluated_at': now_str(),
+        'rounds': rounds_stats,
+        'overall': overall,
+    }
+
+    if write:
+        out_dir = os.path.join(ROOT, 'api', 'duiju', slug)
+        os.makedirs(out_dir, exist_ok=True)
+        m_file = os.path.join(out_dir, 'metrics.json')
+        with open(m_file, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+        bisai_m_file = os.path.join(ROOT, 'bisai', 'data', 'metrics.json')
+        with open(bisai_m_file, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    if print_report:
+        print("=" * 68)
+        print(f"📊 模型实战评估看板 ({tour['name']} | 当前评估模型: {model_name})")
+        print("=" * 68)
+        ov = overall
+        acc_pct = ov['accuracy'] * 100
+        print(f"总完赛台数: {ov['n']} 台 | 命中: {ov['hit']} 台 | 命中率: {acc_pct:.2f}%")
+        print(f"对数损失 (Log-Loss): {ov['logloss']:.4f} | Brier 校准误差: {ov['brier']:.4f} | 平均置信度: {ov['confidence']*100:.2f}%")
+        print("【分项命中率】")
+        for res_k, name_k in [('B', '黑胜'), ('W', '白胜'), ('D', '和棋')]:
+            tot_c = ov['results'].get(res_k, 0)
+            hit_c = ov['hit_by_result'].get(res_k, 0)
+            rate_c = (hit_c / tot_c * 100) if tot_c > 0 else 0.0
+            print(f"  - {name_k} ({res_k}): 实际 {tot_c:2d} 局，命中 {hit_c:2d} 局 ({rate_c:5.1f}%)")
+        print("-" * 68)
+        for r_stat in rounds_stats:
+            print(f"  第 {r_stat['round']} 轮: 完赛 {r_stat['n']} 台，命中 {r_stat['hit']} 台 ({r_stat['accuracy']*100:.1f}%) | "
+                  f"LogLoss {r_stat['logloss']:.4f} | Brier {r_stat['brier']:.4f}")
+        if write:
+            print(f"✔ 最新评估指标已自动同步持久化至: api/duiju/{slug}/metrics.json")
+        print("=" * 68)
+
+    return payload
+
+
+def predict_round(conn, tid, rnd, write=False, overwrite=False):
     """预测指定赛事的某一轮对局。
     
     自动利用第 1 ~ rnd-1 轮的已出赛果滚动 WHR 与其他全部动态特征（和棋率、H2H等），
-    再使用 20261112 GBDT 模型推断概率。
+    再使用 20261113 GBDT 模型推断概率。
     write=True 时写回 duiju.db。
+    overwrite=True 时强制覆盖已有概率（即使已有赛果或旧概率）。
     """
     model = load_gbdt_model()
     # 获取赛事规则
@@ -545,8 +683,12 @@ def predict_round(conn, tid, rnd, write=False):
     if not games:
         return []
 
-    # 仅对未出赛果的台进行概率预测更新
-    todo = [g for g in games if g['result'] not in ('B', 'W', 'D')]
+    # 判定待预测的对局列表
+    if overwrite:
+        todo = games
+    else:
+        todo = [g for g in games if g['result'] not in ('B', 'W', 'D')]
+
     preds = predict_games_list(todo, ratings, p_stats=p_stats, pair_stats=pair_stats,
                                rule_name=rule_name, model=model)
 
@@ -557,14 +699,23 @@ def predict_round(conn, tid, rnd, write=False):
                 ' WHERE tournament_id=? AND round=? AND table_no=?',
                 (p['p_black'], p['p_draw'], p['p_white'], tid, rnd, p['table'])
             )
+        model_name = os.path.basename(MODEL_PATH).replace('.json', '')
+        now = now_str()
+        conn.execute(
+            'UPDATE rounds SET model=?, predicted_at=?, updated_at=?'
+            ' WHERE tournament_id=? AND round=?',
+            (model_name, now, now, tid, rnd)
+        )
         conn.commit()
+        # 预测写回后自动触发当前模型评估与 metrics.json 更新
+        evaluate_tournament_model(conn, tid, write=True, print_report=False)
 
     all_preds = predict_games_list(games, ratings, p_stats=p_stats, pair_stats=pair_stats,
                                    rule_name=rule_name, model=model)
     return all_preds
 
 
-def predict_tournament(conn, tid, write=True):
+def predict_tournament(conn, tid, write=True, overwrite=False):
     """预测一个赛事一系列对局的完整 API。
     
     按轮次逐轮递增滚动计算前置轮次的赛果（WHR 等级分/RD、衰减和棋率、H2H），完成所有未预测对局的概率赋值。
@@ -578,34 +729,48 @@ def predict_tournament(conn, tid, write=True):
 
     total_predicted = 0
     for rnd in rounds:
-        unpredicted = conn.execute(
-            'SELECT COUNT(*) c FROM games WHERE tournament_id=? AND round=? AND p_black IS NULL',
-            (tid, rnd)
-        ).fetchone()['c']
-        preds = predict_round(conn, tid, rnd, write=write)
-        if unpredicted > 0:
-            total_predicted += len([p for p in preds if p['result'] not in ('B', 'W', 'D')])
+        if overwrite:
+            preds = predict_round(conn, tid, rnd, write=write, overwrite=True)
+            total_predicted += len(preds)
+        else:
+            unpredicted = conn.execute(
+                'SELECT COUNT(*) c FROM games WHERE tournament_id=? AND round=? AND p_black IS NULL',
+                (tid, rnd)
+            ).fetchone()['c']
+            preds = predict_round(conn, tid, rnd, write=write, overwrite=False)
+            if unpredicted > 0:
+                total_predicted += len([p for p in preds if p['result'] not in ('B', 'W', 'D')])
 
-    if write and total_predicted:
-        print(f'已完成赛事 {tid} 全特征动态滚动预测（WHR/和棋率/H2H）：共更新 {total_predicted} 台概率')
+    if write:
+        if total_predicted:
+            print(f'已完成赛事 {tid} 全特征动态滚动预测（WHR/和棋率/H2H）：共更新 {total_predicted} 台概率')
+        # 每次有了新预测后，自动评估新模型实战表现并刷新指标看板
+        evaluate_tournament_model(conn, tid, write=True, print_report=True)
+
     return total_predicted
 
 
 # ---------------------------------------------------------------- CLI 命令行入口
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='按官方 WHR 与全特征动态滚动最新 20261112 GBDT 预测对局')
+    ap = argparse.ArgumentParser(description='按官方 WHR 与全特征动态滚动最新 20261113 GBDT 预测并自动评估')
     ap.add_argument('--tid', required=True, help='赛事 id，如 2026-shanhai')
     ap.add_argument('--round', type=int, help='只算指定轮次（默认全赛事所有轮次）')
     ap.add_argument('--write', action='store_true', help='把预测概率写回 data/duiju.db')
+    ap.add_argument('--overwrite', action='store_true', help='强制覆盖已有预测概率（即使已有赛果或旧概率）')
+    ap.add_argument('--eval', '--evaluate', action='store_true', dest='evaluate', help='自动评估当前模型在指定赛事的实战表现')
     ap.add_argument('--db', help='数据库路径，默认 data/duiju.db')
     args = ap.parse_args(argv)
 
     conn = connect(args.db)
     try:
+        if args.evaluate:
+            evaluate_tournament_model(conn, args.tid, write=args.write, print_report=True)
+            return 0
+
         if args.round:
-            rows = predict_round(conn, args.tid, args.round, write=args.write)
-            print(f'=== {args.tid} 第 {args.round} 轮预测结果 (基于 20261112 模型，共 {len(rows)} 台) ===')
+            rows = predict_round(conn, args.tid, args.round, write=args.write, overwrite=args.overwrite)
+            print(f'=== {args.tid} 第 {args.round} 轮预测结果 (基于最新模型，共 {len(rows)} 台) ===')
             for p in rows:
                 mark = '✔' if p['is_correct'] is True else ('✘' if p['is_correct'] is False else '·')
                 res_str = p['result'] or '进行中'
@@ -613,8 +778,10 @@ def main(argv=None):
                       f'胜率: {p["p_black"]:.1f}% / {p["p_draw"]:.1f}% / {p["p_white"]:.1f}%  '
                       f'[和棋率: {p["dr_black"]:.3f}/{p["dr_white"]:.3f}, H2H: {p["h2h_score"]:.2f}]  '
                       f'[实际: {res_str}]')
+            if args.write:
+                evaluate_tournament_model(conn, args.tid, write=True, print_report=True)
         else:
-            n = predict_tournament(conn, args.tid, write=args.write)
+            n = predict_tournament(conn, args.tid, write=args.write, overwrite=args.overwrite)
             print(f'赛事 {args.tid} 处理完成，更新 {n} 台未预测对局')
     finally:
         conn.close()
