@@ -107,7 +107,7 @@ api/duiju/index.json       赛事与轮次索引
 api/duiju/shanhai/r1.json  单轮：赛事信息 + 23 台对局 + 预测
         │  fetch
         ▼
-posts/2026-shanhai-r1.html 照接口画表格；同一页用 ?r=N 换轮，不再一轮一个文件
+posts/2026-shanhai.html   照接口画表格；同一页用 ?r=N 换轮，不再一轮一个文件
 ```
 
 ```bash
@@ -165,8 +165,8 @@ python tools/manage_duiju.py show                            # 库里有什么
 有值后页面会在概率块上方挂一个比分标签。台次旁的「N 分」是这一轮开赛前的累计分，
 由库里前几轮的 `result` 现算，不进库。
 
-页面：<https://renjupgc.github.io/posts/2026-shanhai-r1.html>，`?r=2` 之类切到别的轮次。
-旧的 `posts/2026-shanhai-cup-r1.html` 已删除；那份单页 HTML 里的数据与样式都不再是本页的来源。
+页面：<https://renjupgc.github.io/posts/2026-shanhai.html>，`?r=2` 之类切到别的轮次。
+旧的 `posts/2026-shanhai-r1.html` 已改名到此页；更早的 `posts/2026-shanhai-cup-r1.html` 已删除。
 `data/duiju.db` 和 `api/duiju/` 都要提交：前者是源，后者才是线上被读的那份。
 
 **名次表（详情）接口**：导出时按每轮的赛果各算一份名次表，写到
@@ -183,6 +183,18 @@ python tools/manage_duiju.py show                            # 库里有什么
 分数依旧不入库：库里只有对局与概率，名次表是导出时按 `result` 现算的。
 页面：<https://renjupgc.github.io/posts/2026-shanhai-details.html>，`?r=N` 切轮次，
 对阵页右上角有「名次表 ↗」入口。
+
+**新对局自动预测**：`sync`（以及 `all`）录完新对局后会给「已有对阵、还没有概率、
+也还没有赛果」的台补预测，用的是一条三项 logistic：等级分差 → 黑胜 / 和 / 白胜，
+参数由**每场赛事最早那轮已公布的概率**标定（后面的轮次不再回头参与拟合，避免自己拟合
+自己），等级分取录入源 JSON 里的 `rating`（只在内存里用，不入库）。因此新轮次一对阵入库，
+概率就自动出来了，`predict` 也可以单独跑。概率一旦写进库就不再被 JSON 的空值覆盖；
+一台有了 `result`，它的概率定死。
+
+**模型评估**：导出时把「有概率又有赛果」的台汇总成
+`api/duiju/shanhai/metrics.json`（每轮一份 + 整体）：命中率、平均 Brier 值、对数损失、
+平均置信度。页面 <https://renjupgc.github.io/posts/2026-shanhai-metrics.html>，
+对阵页与名次表右上角都有「模型评估 ↗」入口。
 
 补录赛事与对局（源备份库不在手边时也走这条路）：在 `data/manual.db` 的 `tournaments_extra`、
 `matches_extra` 各插一行——只收录部分对局时，`total_rounds` 填规程里的总轮数，页面靠它显示「共几轮」；

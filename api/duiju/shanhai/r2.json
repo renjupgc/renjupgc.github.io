@@ -14,7 +14,7 @@
   ],
   "model": null,
   "predicted_at": null,
-  "updated_at": "2026-11-14 10:36:17",
+  "updated_at": "2026-11-14 10:42:05",
   "games": [
     {
       "table": 1,
@@ -28,7 +28,11 @@
         "name": "肖伊康",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 91.9,
+        "draw": 4.6,
+        "white": 3.5
+      },
       "result": null
     },
     {
@@ -43,7 +47,11 @@
         "name": "韦振强",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 11.2,
+        "draw": 6.5,
+        "white": 82.3
+      },
       "result": null
     },
     {
@@ -58,7 +66,11 @@
         "name": "夏建晋",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 67.7,
+        "draw": 9.4,
+        "white": 22.9
+      },
       "result": null
     },
     {
@@ -73,7 +85,11 @@
         "name": "李嘉骏",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 64.7,
+        "draw": 9.6,
+        "white": 25.7
+      },
       "result": null
     },
     {
@@ -88,7 +104,11 @@
         "name": "童晨",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 79.6,
+        "draw": 7.7,
+        "white": 12.7
+      },
       "result": null
     },
     {
@@ -103,7 +123,11 @@
         "name": "周楠",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 1.8,
+        "draw": 2.7,
+        "white": 95.5
+      },
       "result": null
     },
     {
@@ -118,7 +142,11 @@
         "name": "陈浩源",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 49.0,
+        "draw": 10.3,
+        "white": 40.7
+      },
       "result": null
     },
     {
@@ -133,7 +161,11 @@
         "name": "赵云",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 35.4,
+        "draw": 10.0,
+        "white": 54.6
+      },
       "result": null
     },
     {
@@ -148,7 +180,11 @@
         "name": "梁中",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 75.9,
+        "draw": 8.4,
+        "white": 15.7
+      },
       "result": null
     },
     {
@@ -163,7 +199,11 @@
         "name": "崔展铭",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 60.9,
+        "draw": 9.9,
+        "white": 29.2
+      },
       "result": null
     },
     {
@@ -178,7 +218,11 @@
         "name": "鲁益",
         "score": 1
       },
-      "prediction": null,
+      "prediction": {
+        "black": 75.6,
+        "draw": 8.4,
+        "white": 16.0
+      },
       "result": null
     },
     {
@@ -193,7 +237,11 @@
         "name": "康哲铭",
         "score": 0.5
       },
-      "prediction": null,
+      "prediction": {
+        "black": 15.4,
+        "draw": 7.5,
+        "white": 77.1
+      },
       "result": null
     },
     {
@@ -208,7 +256,11 @@
         "name": "廖俊豪",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 67.4,
+        "draw": 9.4,
+        "white": 23.2
+      },
       "result": null
     },
     {
@@ -223,7 +275,11 @@
         "name": "彭维刚",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 86.2,
+        "draw": 6.3,
+        "white": 7.5
+      },
       "result": null
     },
     {
@@ -238,7 +294,11 @@
         "name": "张硕",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 47.8,
+        "draw": 10.3,
+        "white": 41.9
+      },
       "result": null
     },
     {
@@ -253,7 +313,11 @@
         "name": "康庭瑞",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 60.2,
+        "draw": 10.0,
+        "white": 29.8
+      },
       "result": null
     },
     {
@@ -268,7 +332,11 @@
         "name": "庄义翔",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 52.3,
+        "draw": 10.3,
+        "white": 37.4
+      },
       "result": null
     },
     {
@@ -283,7 +351,11 @@
         "name": "陈超",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 4.4,
+        "draw": 4.2,
+        "white": 91.4
+      },
       "result": null
     },
     {
@@ -298,7 +370,11 @@
         "name": "袁攀峰",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 90.8,
+        "draw": 5.0,
+        "white": 4.2
+      },
       "result": null
     },
     {
@@ -313,7 +389,11 @@
         "name": "艾颖翔",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 66.8,
+        "draw": 9.5,
+        "white": 23.7
+      },
       "result": null
     },
     {
@@ -328,7 +408,11 @@
         "name": "王端国",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 27.7,
+        "draw": 9.3,
+        "white": 63.0
+      },
       "result": null
     },
     {
@@ -343,7 +427,11 @@
         "name": "王思淼",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 44.6,
+        "draw": 10.3,
+        "white": 45.1
+      },
       "result": null
     },
     {
@@ -358,7 +446,11 @@
         "name": "潘为",
         "score": 0
       },
-      "prediction": null,
+      "prediction": {
+        "black": 86.6,
+        "draw": 6.2,
+        "white": 7.2
+      },
       "result": null
     }
   ]

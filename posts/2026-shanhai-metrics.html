@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>山海杯 · 模型评估</title>
+<style>
+@font-face{
+  font-family:"ShuHei";
+  font-style:normal;
+  font-weight:400 900;
+  font-display:swap;
+  src:local("Alimama ShuHeiTi Bold"),local("Alimama ShuHeiTi"),local("AlimamaShuHeiTi-Bold"),local("阿里妈妈数黑体"),
+      url("../fonts/AlimamaShuHeiTi-Bold.woff2") format("woff2");
+}
+*{font-family:"ShuHei","Alimama ShuHeiTi",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;box-sizing:border-box}
+:root{
+  --paper:#f2f0e9;--card:#fffefb;--ink:#15201c;--ink3:#7c877f;
+  --line:#e4dfd2;--line2:#eeeadf;--green:#0d4736;--mint:#e5f0ea;--mint2:#f2f8f5;
+}
+html{-webkit-text-size-adjust:100%;font-synthesis:none}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.6 inherit;
+  -webkit-font-smoothing:antialiased;padding:28px 20px 40px}
+.sheet{max-width:1020px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  box-shadow:0 16px 40px -30px rgba(12,50,40,.5)}
+.card::before{content:"";display:block;height:4px;
+  background:linear-gradient(90deg,#0d4736 0%,#2f7f63 42%,#cf8f45 100%)}
+.hd{padding:19px 22px 17px;border-bottom:1px solid var(--line)}
+.hd h1{margin:0;font-weight:700;font-size:25px;line-height:1.34;letter-spacing:.005em}
+.hd h1 em{font-style:normal;color:var(--green)}
+.hd h1 .yr{color:var(--green);font-weight:700}
+.hd-sub{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;
+  font-size:13px;color:var(--ink3)}
+.mlink{color:var(--green);text-decoration:none;font-size:13px;
+  border-bottom:1px solid var(--line);padding-bottom:1px}
+.tip{margin:10px 22px 0;font-size:12.5px;color:var(--ink3)}
+.tb-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+thead th{font-size:12.5px;font-weight:600;color:var(--ink3);text-align:center;
+  padding:11px 8px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th.t-l{text-align:left;padding-left:18px}
+tbody td{padding:9px 8px;border-bottom:1px solid var(--line2);text-align:center;font-size:14px}
+tbody td.c-rk{font-weight:700;color:var(--green);width:72px}
+tbody td.c-nm{text-align:left;padding-left:18px;color:var(--ink3)}
+tbody td.c-hit{font-weight:600}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.total td{background:var(--mint2);font-weight:600}
+tbody tr.total td.c-rk{font-weight:700}
+.empty{padding:30px;text-align:center;color:var(--ink3)}
+.big{display:flex;flex-wrap:wrap;gap:14px;padding:16px 22px;border-bottom:1px solid var(--line)}
+.kpi{flex:1 1 120px;min-width:120px}
+.kpi b{display:block;font-size:26px;line-height:1.2;color:var(--green);font-weight:700}
+.kpi span{font-size:12.5px;color:var(--ink3)}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#121614;--card:#171c1a;--ink:#e8ece7;--ink3:#9aa79f;--line:#2a322e;
+    --line2:#222925;--green:#7fd0ae;--mint:#1d2a25;--mint2:#1a211e}
+  body{background:var(--paper)}
+  .mlink{color:var(--green)}
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="card">
+    <div class="hd">
+      <h1 id="ttl"><em>「山海杯」</em><span class="yr">2026</span> 年全国五子棋业余棋王争霸赛线下总决赛 · 模型评估</h1>
+      <div class="hd-sub">
+        <span id="grp">公开组</span>
+        <a class="mlink" href="2026-shanhai.html">对阵表 ↗</a>
+        <a class="mlink" href="2026-shanhai-details.html">名次表 ↗</a>
+      </div>
+      <p class="tip">只统计同时有概率与赛果的台；命中率＝概率最高的一类与赛果相同；Brier 越小越准（0–2）；对数损失越小越好。</p>
+    </div>
+    <div class="big" id="kpi">
+      <div class="kpi"><b id="k-n">—</b><span>已评台数</span></div>
+      <div class="kpi"><b id="k-acc">—</b><span>命中率</span></div>
+      <div class="kpi"><b id="k-brier">—</b><span>平均 Brier 值</span></div>
+      <div class="kpi"><b id="k-ll">—</b><span>对数损失</span></div>
+      <div class="kpi"><b id="k-conf">—</b><span>平均置信度</span></div>
+    </div>
+    <div class="tb-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:88px">轮次</th>
+            <th>已评台数</th>
+            <th>命中</th>
+            <th>命中率</th>
+            <th>平均 Brier 值</th>
+            <th>对数损失</th>
+            <th>平均置信度</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="7" class="empty">正在读取</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var SLUG = 'shanhai';
+  var INDEX = '../api/duiju/index.json';
+  var MAPI = '../api/duiju/' + SLUG + '/metrics.json';
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pct(v) {
+    if (v == null) return '—';
+    return (Math.round(v * 1000) / 10).toFixed(1) + '%';
+  }
+  function fix3(v) {
+    if (v == null) return '—';
+    return (Math.round(v * 1000) / 1000).toFixed(3);
+  }
+  function decorate(name, year) {
+    var s = esc(name);
+    s = s.replace(/「([^」"]{1,24})」/, '<em>「$1」</em>');
+    if (year) s = s.replace(String(year) + ' 年', '<span class="yr">' + year + '</span> 年');
+    return s;
+  }
+  function getJSON(url) {
+    return fetch(url, { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error(url + ' ' + r.status);
+      return r.json();
+    });
+  }
+
+  var tbody = document.getElementById('rows');
+
+  getJSON(INDEX).then(function (idx) {
+    var t = (idx.tournaments || []).filter(function (x) { return x.slug === SLUG; })[0];
+    if (!t) throw new Error('index 里没有 ' + SLUG);
+    document.getElementById('grp').textContent = t.group || '公开组';
+    document.getElementById('ttl').innerHTML = decorate(t.name, t.year) + ' · 模型评估';
+    return getJSON(MAPI);
+  }).then(render).catch(function () {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">正在读取</td></tr>';
+  });
+
+  function render(d) {
+    var o = d.overall || {};
+    document.getElementById('k-n').textContent = o.n == null ? '—' : o.n;
+    document.getElementById('k-acc').textContent = pct(o.accuracy);
+    document.getElementById('k-brier').textContent = fix3(o.brier);
+    document.getElementById('k-ll').textContent = fix3(o.logloss);
+    document.getElementById('k-conf').textContent = pct(o.confidence);
+
+    var rows = (d.rounds || []).map(function (s) {
+      return '<tr>' +
+        '<td class="c-rk">第 ' + s.round + ' 轮</td>' +
+        '<td>' + s.n + '</td>' +
+        '<td class="c-hit">' + s.hit + '</td>' +
+        '<td>' + pct(s.accuracy) + '</td>' +
+        '<td>' + fix3(s.brier) + '</td>' +
+        '<td>' + fix3(s.logloss) + '</td>' +
+        '<td>' + pct(s.confidence) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    if (rows) {
+      rows += '<tr class="total">' +
+        '<td class="c-rk">合计</td>' +
+        '<td>' + (o.n == null ? '—' : o.n) + '</td>' +
+        '<td>' + (o.hit == null ? '—' : o.hit) + '</td>' +
+        '<td>' + pct(o.accuracy) + '</td>' +
+        '<td>' + fix3(o.brier) + '</td>' +
+        '<td>' + fix3(o.logloss) + '</td>' +
+        '<td>' + pct(o.confidence) + '</td>' +
+        '</tr>';
+    }
+    tbody.innerHTML = rows || '<tr><td colspan="7" class="empty">还没有可评的对局</td></tr>';
+  }
+})();
+</script>
+</body>
+</html>

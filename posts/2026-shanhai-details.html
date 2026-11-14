@@ -51,6 +51,7 @@ tbody td.c-no{color:var(--ink3);width:60px}
 tbody td.c-nm{text-align:left;padding-left:14px;font-weight:600;min-width:140px}
 tbody td.c-pt{font-weight:700}
 tbody td.c-bk,tbody td.c-md{color:var(--ink3)}
+th.c-ws,tbody td.c-ws{font-weight:400}
 tbody tr:last-child td{border-bottom:none}
 tbody tr.shade td{background:var(--mint2)}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
@@ -71,7 +72,8 @@ tbody tr.shade td{background:var(--mint2)}
       <div class="hd-sub">
         <span id="grp">公开组</span>
         <span class="rd" id="rnd">第 1 轮</span>
-        <a class="mlink" id="mlink" href="2026-shanhai-r1.html">对阵表 ↗</a>
+        <a class="mlink" id="mlink" href="2026-shanhai.html?r=1">对阵表 ↗</a>
+        <a class="mlink" href="2026-shanhai-metrics.html">模型评估 ↗</a>
         <nav class="rd-nav" id="rdnav"></nav>
       </div>
       <p class="tip" id="rule">破同分规则：积分 → 对手分 → 中间对手分 → 胜局数，仍相同则并列名次</p>
@@ -86,7 +88,7 @@ tbody tr.shade td{background:var(--mint2)}
             <th>积分</th>
             <th>对手分</th>
             <th>中间<br>对手分</th>
-            <th>胜局数</th>
+            <th class="c-ws">胜局数</th>
           </tr>
         </thead>
         <tbody id="rows">
@@ -143,7 +145,7 @@ tbody tr.shade td{background:var(--mint2)}
       var cls = r === ROUND ? ' class="on"' : '';
       return '<a href="2026-shanhai-details.html?r=' + r + '"' + cls + '>第 ' + r + ' 轮</a>';
     }).join('');
-    document.getElementById('mlink').href = '2026-shanhai-r' + ROUND + '.html?r=' + ROUND;
+    document.getElementById('mlink').href = '2026-shanhai.html?r=' + ROUND;
 
     return getJSON(SAPI + 'r' + ROUND + '.json').then(render);
   }).catch(function () {
@@ -161,7 +163,7 @@ tbody tr.shade td{background:var(--mint2)}
         '<td class="c-pt">' + num(p.score) + '</td>' +
         '<td class="c-bk">' + num(p.buch) + '</td>' +
         '<td class="c-md">' + num(p.med) + '</td>' +
-        '<td>' + (p.wins == null ? '—' : p.wins) + '</td>' +
+        '<td class="c-ws">' + (p.wins == null ? '—' : p.wins) + '</td>' +
         '</tr>';
     }).join('');
     tbody.innerHTML = html || '<tr><td colspan="7" class="empty">还没有名次</td></tr>';
