@@ -411,70 +411,111 @@ def collect_players(conn, tid):
 def compute_standings(conn, tid, upto=None):
     """按山海杯口径算名次：积分 → 对手分 → 中间对手分 → 胜局数，末了并列同名次。
 
-    对手分 = 所有对手的积分之和（对手的积分取截至本轮的总分）；
-    中间对手分 = 对手分去掉最高、最低各一个（对手不足 3 人时等于对手分）；
-    胜局数 = 真正赢下来的盘数（轮空、弃权白捡的不算）。
-    轮空：记 1 分，对手位按「总轮数一半」的虚拟对手计入对手分。
-    分数不入库，全部按赛果现算。
+    对手分计算规则（FIDE/连珠瑞士制虚拟积分口径）：
+    1. 虚拟积分 = 积分 + 0.5 * (弃权次数 + 退赛轮数 - 对手弃权次数 - 轮空次数)
+    2. 对手分 = 所有对手的虚拟积分之和，轮空算做一个虚拟积分 = 0.5 * 总轮数的对手；未编排退赛轮次对手虚拟积分为 0
+    3. 中间对手分 = 去掉最高、最低各一个对手虚拟积分后求和（对手不足 3 人时等于对手分）
+    4. 胜局数 = 真正赢下来的盘数（轮空、弃权白捡的不算）
     """
     rounds = [r['round'] for r in conn.execute(
         'SELECT round FROM rounds WHERE tournament_id=? ORDER BY round', (tid,))]
     if upto is None:
         upto = max(rounds) if rounds else 0
     total = max(rounds) if rounds else upto
+    round_list = [r for r in rounds if r <= upto]
 
     players = collect_players(conn, tid)
     games = conn.execute(
         'SELECT * FROM games WHERE tournament_id=? AND round<=? ORDER BY round, table_no',
         (tid, upto)).fetchall()
 
+    stats = {}
+    for k, p in players.items():
+        stats[k] = {
+            'score': 0.0,
+            'wins': 0,
+            'floss': 0,      # 自己弃权次数
+            'fwin': 0,       # 对手弃权次数
+            'bye': 0,        # 轮空次数
+            'rounds_played': set(),
+            'opponents': {}  # round -> opponent_key (or '轮空')
+        }
+
     for g in games:
-        b, w = _player_key(g['black_no'], g['black_name']), _player_key(
-            g['white_no'], g['white_name'])
+        rnd = g['round']
+        b_key = _player_key(g['black_no'], g['black_name'])
+        w_key = _player_key(g['white_no'], g['white_name'])
         res = g['result']
-        eff = get_effective_result(res)
-        if eff == 'B':
-            bs, ws = 1.0, 0.0
-        elif eff == 'W':
-            bs, ws = 0.0, 1.0
-        elif eff == 'D':
-            bs, ws = 0.5, 0.5
-        else:
-            bs = ws = None
-        for me, other, score, color in ((b, w, bs, 'black'), (w, b, ws, 'white')):
-            if me == '轮空':
-                continue
-            players[me]['results'].append({
-                'round': g['round'], 'color': color, 'opponent': other,
-                'result': res, 'points': score,
+
+        if b_key != '轮空':
+            stats[b_key]['rounds_played'].add(rnd)
+            stats[b_key]['opponents'][rnd] = w_key
+            players[b_key]['results'].append({
+                'round': rnd, 'color': 'black', 'opponent': w_key, 'result': res
+            })
+        if w_key != '轮空':
+            stats[w_key]['rounds_played'].add(rnd)
+            stats[w_key]['opponents'][rnd] = b_key
+            players[w_key]['results'].append({
+                'round': rnd, 'color': 'white', 'opponent': b_key, 'result': res
             })
 
-    # 积分 / 胜局数
-    for p in players.values():
-        score = 0.0
-        wins = 0
-        for r in p['results']:
-            if r['result']:
-                score += POINT[r['result']][0 if r['color'] == 'black' else 1]
-                if r['result'] == 'B' and r['color'] == 'black':
-                    wins += 1
-                elif r['result'] == 'W' and r['color'] == 'white':
-                    wins += 1
-        p['score'] = score
-        p['wins'] = wins
+        # 积分、胜局与弃权/轮空统计
+        if w_key == '轮空':
+            stats[b_key]['score'] += 1.0
+            stats[b_key]['bye'] += 1
+        elif b_key == '轮空':
+            stats[w_key]['score'] += 1.0
+            stats[w_key]['bye'] += 1
+        elif res == 'B':
+            stats[b_key]['score'] += 1.0
+            stats[b_key]['wins'] += 1
+        elif res == 'W':
+            stats[w_key]['score'] += 1.0
+            stats[w_key]['wins'] += 1
+        elif res == 'D':
+            stats[b_key]['score'] += 0.5
+            stats[w_key]['score'] += 0.5
+        elif res == 'BF':
+            stats[b_key]['floss'] += 1
+            stats[w_key]['fwin'] += 1
+            stats[w_key]['score'] += 1.0
+        elif res == 'WF':
+            stats[w_key]['floss'] += 1
+            stats[b_key]['fwin'] += 1
+            stats[b_key]['score'] += 1.0
 
-    scores = {k: v['score'] for k, v in players.items()}
+    # 虚拟积分 = 积分 + 0.5 * (弃权次数 + 退赛轮数 - 对手弃权次数 - 轮空次数)
+    virtual_scores = {}
+    for k, st in stats.items():
+        withdraw = len(round_list) - len(st['rounds_played'])
+        v_score = st['score'] + 0.5 * (st['floss'] + withdraw - st['fwin'] - st['bye'])
+        virtual_scores[k] = v_score
+        players[k]['score'] = st['score']
+        players[k]['wins'] = st['wins']
 
-    # 对手分 / 中间对手分
-    for p in players.values():
-        # 未出结果的台不计：既不算对手，也不补虚拟对手
-        opps = [scores.get(r['opponent'], 0.0) for r in p['results'] if r['result'] and r['opponent'] != '轮空']
-        p['buch'] = round(sum(opps), 4)
-        if len(opps) >= 3:
-            p['med'] = round(sum(opps) - max(opps) - min(opps), 4)
+    # 轮空算做一个虚拟积分 = 0.5 * 总轮数的对手
+    bye_virtual_score = 0.5 * len(round_list)
+
+    for k, p in players.items():
+        st = stats[k]
+        opp_vals = []
+        for rnd in round_list:
+            if rnd not in st['rounds_played']:
+                opp_vals.append(0.0)
+            else:
+                opp = st['opponents'][rnd]
+                if opp == '轮空':
+                    opp_vals.append(bye_virtual_score)
+                else:
+                    opp_vals.append(virtual_scores.get(opp, 0.0))
+
+        p['buch'] = round(sum(opp_vals), 4)
+        if len(opp_vals) >= 3:
+            p['med'] = round(sum(sorted(opp_vals)[1:-1]), 4)
         else:
             p['med'] = p['buch']
-        p['played'] = len([r for r in p['results'] if r['result'] and r['opponent'] != '轮空'])
+        p['played'] = len(st['rounds_played'])
 
     ordered = sorted(
         players.values(),
