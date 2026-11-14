@@ -144,27 +144,34 @@
     (function resolveIp() {
         if (!ipWait) { return; }
         var done = false;
-        var timer = setTimeout(function () { finish(''); }, 2500);
+        var timer = setTimeout(function () { finish(''); }, 3000);
         function finish(value) {
             if (done) { return; }
             done = true;
             clearTimeout(timer);
             ip = value || '';
             ipWait = false;
-            try { sessionStorage.setItem('zbx.ip', ip); } catch (e) { /* 忽略 */ }
+            /* 取到才缓存，没取到下次换页再试 */
+            if (ip) {
+                try { sessionStorage.setItem('zbx.ip', ip); } catch (e) { /* 忽略 */ }
+            }
             flush();
         }
+        /* 多备几个：国内网络下 ipify 未必通，ipip 一般可达 */
         var list = [
             'https://api.ipify.org?format=json',
-            'https://api.ip.sb/geoip',
-            'https://ipapi.co/json/'
+            'https://myip.ipip.net/json',
+            'https://ipinfo.io/json',
+            'https://api64.ipify.org?format=json'
         ];
         (function next(i) {
             if (done || i >= list.length) { if (!done) { finish(''); } return; }
             fetch(list[i], { mode: 'cors', cache: 'no-store' })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
-                    var v = d && (d.ip || d.query || d.address);
+                    var v = d && (d.ip || d.query || d.address ||
+                        (d.data && d.data.ip) || (d.clientIp));
+                    if (v && v.indexOf('.') < 0 && v.indexOf(':') < 0) { v = ''; }
                     if (v) { finish(String(v)); } else { next(i + 1); }
                 })
                 .catch(function () { next(i + 1); });

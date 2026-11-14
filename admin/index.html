@@ -264,6 +264,8 @@
       live.forEach(function (e) {
         if (!seen[e.n]) { all.push(e); seen[e.n] = 1; addedLive++; }
       });
+      /* 只算正式站点上的访问：本地调试、假域名测过的数据不混进来 */
+      all = all.filter(function (e) { return !e.h || e.h === 'renjupgc.github.io'; });
       all.sort(function (a, b) { return (a.t || 0) - (b.t || 0); });
       state.events = all;
       state.live = addedLive > 0;
