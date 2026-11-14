@@ -31,7 +31,8 @@ def main(dry=False):
 
     old = {r['name']: r['rating'] for r in snap}
     new = {r['name']: r['pt'] for r in rows}
-    changed = [(n, old[n], new[n]) for n in new if n in old and abs(new[n] - old[n]) > 0.005]
+    changed = [(n, old[n], new[n]) for n in new
+               if n in old and old[n] is not None and abs(new[n] - old[n]) > 0.005]
     changed.sort(key=lambda x: -abs(x[2] - x[1]))
     print('as_of %s  入榜 %d 人  分数变动 %d 人' % (as_of, len(rows), len(changed)))
     for n, a, b in changed[:12]:
@@ -39,7 +40,8 @@ def main(dry=False):
 
     oldrank = {r['name']: r['rank'] for r in snap}
     moved = [(r['name'], oldrank[r['name']], r['rank']) for r in rows
-             if r['name'] in oldrank and oldrank[r['name']] != r['rank']]
+             if r['name'] in oldrank and oldrank[r['name']] is not None
+             and oldrank[r['name']] != r['rank']]
     print('名次变动 %d 人' % len(moved))
     for n, a, b in moved[:12]:
         print('  %-6s 第 %s -> 第 %s' % (n, a, b))
