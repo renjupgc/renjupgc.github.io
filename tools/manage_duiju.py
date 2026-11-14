@@ -358,6 +358,149 @@ def apply_results(conn, tid, rnd, spec):
     print('共 %d 项，%d 台有改动' % (len(items), changed))
 
 
+# ---------------------------------------------------------------- 名次
+
+# 山海杯名次口径：积分 → 对手分 → 中间对手分 → 胜局数 → 并列（同分同名次）
+POINT = {'B': (1.0, 0.0), 'W': (0.0, 1.0), 'D': (0.5, 0.5)}
+BYE_POINT = 1.0
+
+
+def _player_key(no, name):
+    return no if no is not None else name
+
+
+def collect_players(conn, tid):
+    """库里出现过的全部棋手：编号、姓名。"""
+    players = {}
+    for g in conn.execute(
+            'SELECT black_no, black_name, white_no, white_name FROM games'
+            ' WHERE tournament_id=? ORDER BY round, table_no', (tid,)):
+        for no, name in ((g['black_no'], g['black_name']),
+                         (g['white_no'], g['white_name'])):
+            key = _player_key(no, name)
+            players.setdefault(key, {'no': no, 'name': name, 'results': []})
+    return players
+
+
+def compute_standings(conn, tid, upto=None):
+    """按山海杯口径算名次：积分 → 对手分 → 中间对手分 → 胜局数，末了并列同名次。
+
+    对手分 = 所有对手的积分之和（对手的积分取截至本轮的总分）；
+    中间对手分 = 对手分去掉最高、最低各一个（对手不足 3 人时等于对手分）；
+    胜局数 = 真正赢下来的盘数（轮空、弃权白捡的不算）。
+    轮空：记 1 分，对手位按「总轮数一半」的虚拟对手计入对手分。
+    分数不入库，全部按赛果现算。
+    """
+    rounds = [r['round'] for r in conn.execute(
+        'SELECT round FROM rounds WHERE tournament_id=? ORDER BY round', (tid,))]
+    if upto is None:
+        upto = max(rounds) if rounds else 0
+    total = max(rounds) if rounds else upto
+
+    players = collect_players(conn, tid)
+    games = conn.execute(
+        'SELECT * FROM games WHERE tournament_id=? AND round<=? ORDER BY round, table_no',
+        (tid, upto)).fetchall()
+
+    for g in games:
+        b, w = _player_key(g['black_no'], g['black_name']), _player_key(
+            g['white_no'], g['white_name'])
+        res = g['result']
+        if res == 'B':
+            bs, ws = 1.0, 0.0
+        elif res == 'W':
+            bs, ws = 0.0, 1.0
+        elif res == 'D':
+            bs, ws = 0.5, 0.5
+        else:
+            bs = ws = None
+        for me, other, score, color in ((b, w, bs, 'black'), (w, b, ws, 'white')):
+            players[me]['results'].append({
+                'round': g['round'], 'color': color, 'opponent': other,
+                'result': res, 'points': score,
+            })
+
+    # 积分 / 胜局数
+    for p in players.values():
+        score = 0.0
+        wins = 0
+        for r in p['results']:
+            if r['result']:
+                score += POINT[r['result']][0 if r['color'] == 'black' else 1]
+                if r['result'] == 'B' and r['color'] == 'black':
+                    wins += 1
+                elif r['result'] == 'W' and r['color'] == 'white':
+                    wins += 1
+        p['score'] = score
+        p['wins'] = wins
+
+    scores = {k: v['score'] for k, v in players.items()}
+
+    # 对手分 / 中间对手分
+    for p in players.values():
+        # 未出结果的台不计：既不算对手，也不补虚拟对手
+        opps = [scores.get(r['opponent'], 0.0) for r in p['results'] if r['result']]
+        p['buch'] = round(sum(opps), 4)
+        if len(opps) >= 3:
+            p['med'] = round(sum(opps) - max(opps) - min(opps), 4)
+        else:
+            p['med'] = p['buch']
+        p['played'] = len([r for r in p['results'] if r['result']])
+
+    ordered = sorted(
+        players.values(),
+        key=lambda p: (-p['score'], -p['buch'], -p['med'], -p['wins'],
+                       p['no'] if p['no'] is not None else 9999, p['name']))
+
+    ranking = []
+    last_key, last_rank = None, 0
+    for idx, p in enumerate(ordered, 1):
+        key = (p['score'], p['buch'], p['med'], p['wins'])
+        if key != last_key:
+            last_rank = idx
+            last_key = key
+        ranking.append({
+            'rank': last_rank,
+            'no': p['no'],
+            'name': p['name'],
+            'score': round(p['score'], 4),
+            'buch': p['buch'],
+            'med': p['med'],
+            'wins': p['wins'],
+            'played': p['played'],
+            'results': [{
+                'round': r['round'],
+                'color': r['color'],
+                'opponent_no': players[r['opponent']]['no'],
+                'opponent': players[r['opponent']]['name'],
+                'result': r['result'],
+            } for r in sorted(p['results'], key=lambda r: r['round'])],
+        })
+    return ranking, rounds, total
+
+
+def standings_payload(conn, tour, rnd):
+    ranking, rounds, total = compute_standings(conn, tour['id'], rnd)
+    played_games = conn.execute(
+        'SELECT COUNT(*) c FROM games WHERE tournament_id=? AND round=? AND result IS NOT NULL',
+        (tour['id'], rnd)).fetchone()['c']
+    return {
+        'tournament': {
+            'id': tour['id'], 'slug': tour['slug'], 'name': tour['name'],
+            'year': tour['year'], 'group': tour['group_name'], 'rule': tour['rule'],
+        },
+        'round': rnd,
+        'rounds': rounds,
+        'total_rounds': total,
+        'played': played_games,
+        'tiebreak': ['score', 'buch', 'med', 'wins'],
+        'points': {'win': 1.0, 'draw': 0.5, 'bye': BYE_POINT},
+        'ranking': ranking,
+    }
+
+
+
+
 # ---------------------------------------------------------------- export
 
 def _round_stats(rows):
@@ -405,8 +548,10 @@ def export_api(conn):
                 'model': r['model'],
                 'predicted_at': r['predicted_at'],
                 'updated_at': r['updated_at'],
+                'standings': 'api/duiju/%s/standings/r%d.json' % (t['slug'], r['round']),
             })
             write_round(t, r, rows, all_rounds, dict(points))
+            write_standings(conn, t, r['round'])
             for g in rows:
                 if g['result'] == 'B':
                     points[g['black_name']] = points.get(g['black_name'], 0) + 1
@@ -530,6 +675,14 @@ def show(conn, tid=None):
             'SELECT COUNT(*) c FROM games WHERE tournament_id=?', (t['id'],)
         ).fetchone()['c']
         print('    合计 %d 局' % total)
+
+
+def write_standings(conn, tour, rnd):
+    """每轮一份名次表：积分 → 对手分 → 中间对手分 → 胜局数 → 并列同名次。"""
+    out_dir = os.path.join(API_ROOT, tour['slug'], 'standings')
+    os.makedirs(out_dir, exist_ok=True)
+    dump_json(os.path.join(out_dir, 'r%d.json' % rnd),
+              standings_payload(conn, tour, rnd))
 
 
 # ---------------------------------------------------------------- main

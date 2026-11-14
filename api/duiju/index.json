@@ -18,7 +18,8 @@
           "played": 0,
           "model": "gbdt-20260704",
           "predicted_at": "2026-11-14 01:29:38",
-          "updated_at": "2026-11-14 09:39:36"
+          "updated_at": "2026-11-14 09:39:36",
+          "standings": "api/duiju/shanhai/standings/r1.json"
         }
       ]
     }
