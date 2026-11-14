@@ -1349,6 +1349,97 @@
     opacity: 0.85;
 }
 
+/* 提示：相关词 */
+.zg-clues {
+    margin: 16px 0 0;
+    padding: 14px 16px;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+}
+
+.zg-clues-k {
+    margin: 0 0 10px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.8;
+    color: var(--muted);
+}
+
+.zg-clues-b {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.zg-clue {
+    padding: 5px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    font-family: var(--serif);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.zg-clue:hover {
+    border-color: var(--gold);
+    background: var(--gold-tint);
+    color: var(--gold-deep);
+}
+
+/* 每题一份 JSON */
+.zg-json {
+    margin: 16px 0 0;
+}
+
+.zg-json summary {
+    font-family: var(--sans);
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    color: var(--faint);
+    cursor: pointer;
+}
+
+.zg-json summary:hover {
+    color: var(--gold-deep);
+}
+
+.zg-json pre,
+.zx-json-echo {
+    margin: 10px 0 0;
+    padding: 14px 16px;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: var(--ink-3);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+}
+
+.zx-json-echo {
+    margin: 0 0 22px;
+    border-color: var(--gold-tint);
+    background: #fbf7ee;
+}
+
+.zg-keys code {
+    padding: 1px 5px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--surface-2);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+}
+
 .zg-btns {
     display: flex;
     flex-wrap: wrap;
