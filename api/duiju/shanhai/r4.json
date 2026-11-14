@@ -8,7 +8,7 @@
     "rule": "塔拉山口-10"
   },
   "round": 4,
-  "is_finished": false,
+  "is_finished": true,
   "rounds": [
     {
       "round": 1,
@@ -24,6 +24,10 @@
     },
     {
       "round": 4,
+      "is_finished": true
+    },
+    {
+      "round": 5,
       "is_finished": false
     }
   ],
@@ -48,8 +52,8 @@
         "draw": 12.5,
         "white": 27.1
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "W",
+      "prediction_correct": false
     },
     {
       "table": 2,
@@ -68,8 +72,8 @@
         "draw": 17.8,
         "white": 45.2
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "D",
+      "prediction_correct": false
     },
     {
       "table": 3,
@@ -88,8 +92,8 @@
         "draw": 16.3,
         "white": 22.1
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "D",
+      "prediction_correct": false
     },
     {
       "table": 4,
@@ -108,8 +112,8 @@
         "draw": 7.2,
         "white": 81.1
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "D",
+      "prediction_correct": false
     },
     {
       "table": 5,
@@ -128,8 +132,8 @@
         "draw": 3.8,
         "white": 6.2
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "W",
+      "prediction_correct": false
     },
     {
       "table": 6,
@@ -148,8 +152,8 @@
         "draw": 4.7,
         "white": 84.7
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": false
     },
     {
       "table": 7,
@@ -168,8 +172,8 @@
         "draw": 12.9,
         "white": 47.6
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": false
     },
     {
       "table": 8,
@@ -188,8 +192,8 @@
         "draw": 15.2,
         "white": 22.3
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "D",
+      "prediction_correct": false
     },
     {
       "table": 9,
@@ -208,8 +212,8 @@
         "draw": 15.2,
         "white": 67.6
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 10,
@@ -228,8 +232,8 @@
         "draw": 10.2,
         "white": 41.0
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 11,
@@ -248,8 +252,8 @@
         "draw": 12.3,
         "white": 49.7
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": false
     },
     {
       "table": 12,
@@ -268,8 +272,8 @@
         "draw": 13.3,
         "white": 25.5
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 13,
@@ -288,8 +292,8 @@
         "draw": 15.2,
         "white": 24.8
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 14,
@@ -308,8 +312,8 @@
         "draw": 10.4,
         "white": 26.6
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "W",
+      "prediction_correct": false
     },
     {
       "table": 15,
@@ -328,8 +332,8 @@
         "draw": 2.4,
         "white": 93.1
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 16,
@@ -348,8 +352,8 @@
         "draw": 3.1,
         "white": 2.3
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 17,
@@ -368,8 +372,8 @@
         "draw": 4.8,
         "white": 83.0
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": false
     },
     {
       "table": 18,
@@ -388,8 +392,8 @@
         "draw": 1.7,
         "white": 95.2
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "D",
+      "prediction_correct": false
     },
     {
       "table": 19,
@@ -408,8 +412,8 @@
         "draw": 8.9,
         "white": 78.2
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 20,
@@ -428,8 +432,8 @@
         "draw": 11.9,
         "white": 28.4
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 21,
@@ -448,8 +452,8 @@
         "draw": 10.7,
         "white": 25.9
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 22,
@@ -468,8 +472,8 @@
         "draw": 3.0,
         "white": 93.6
       },
-      "result": null,
-      "prediction_correct": null
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 23,

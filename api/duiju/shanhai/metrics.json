@@ -8,7 +8,7 @@
     "rule": "塔拉山口-10"
   },
   "model": "model_20261113",
-  "evaluated_at": "2026-11-14 18:32:30",
+  "evaluated_at": "2026-11-14 18:47:22",
   "rounds": [
     {
       "n": 23,
@@ -81,29 +81,53 @@
         "W": 16
       },
       "round": 3
+    },
+    {
+      "n": 22,
+      "hit": 10,
+      "accuracy": 0.4545,
+      "brier": 0.7333,
+      "logloss": 1.2412,
+      "confidence": 0.7019,
+      "results": {
+        "B": 10,
+        "D": 5,
+        "W": 7
+      },
+      "hit_by_result": {
+        "B": 6,
+        "D": 0,
+        "W": 4
+      },
+      "fav_distribution": {
+        "B": 11,
+        "D": 0,
+        "W": 11
+      },
+      "round": 4
     }
   ],
   "overall": {
-    "n": 68,
-    "hit": 47,
-    "accuracy": 0.6912,
-    "brier": 0.4194,
-    "logloss": 0.7252,
-    "confidence": 0.742,
+    "n": 90,
+    "hit": 57,
+    "accuracy": 0.6333,
+    "brier": 0.4962,
+    "logloss": 0.8513,
+    "confidence": 0.7322,
     "results": {
-      "B": 22,
-      "D": 6,
-      "W": 40
+      "B": 32,
+      "D": 11,
+      "W": 47
     },
     "hit_by_result": {
-      "B": 21,
-      "D": 0,
-      "W": 26
-    },
-    "fav_distribution": {
-      "B": 38,
+      "B": 27,
       "D": 0,
       "W": 30
+    },
+    "fav_distribution": {
+      "B": 49,
+      "D": 0,
+      "W": 41
     }
   }
 }

@@ -8,7 +8,7 @@
       "year": 2026,
       "group": "公开组",
       "rule": "塔拉山口-10",
-      "updated_at": "2026-11-14 18:31:31",
+      "updated_at": "2026-11-14 18:45:07",
       "api": "api/duiju/shanhai/",
       "metrics": "api/duiju/shanhai/metrics.json",
       "rounds": [
@@ -19,8 +19,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_20261113",
-          "predicted_at": "2026-11-14 18:31:46",
-          "updated_at": "2026-11-14 18:31:46",
+          "predicted_at": "2026-11-14 18:45:27",
+          "updated_at": "2026-11-14 18:45:27",
           "standings": "api/duiju/shanhai/standings/r1.json"
         },
         {
@@ -30,8 +30,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_20261113",
-          "predicted_at": "2026-11-14 18:32:00",
-          "updated_at": "2026-11-14 18:32:00",
+          "predicted_at": "2026-11-14 18:45:41",
+          "updated_at": "2026-11-14 18:45:41",
           "standings": "api/duiju/shanhai/standings/r2.json"
         },
         {
@@ -40,8 +40,8 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
+          "model": "model_20261113",
+          "predicted_at": "2026-11-14 13:54:29",
           "updated_at": "2026-11-14 16:42:17",
           "standings": "api/duiju/shanhai/standings/r3.json"
         },
@@ -49,11 +49,22 @@
           "round": 4,
           "games": 23,
           "predicted": 22,
+          "played": 22,
+          "is_finished": true,
+          "model": "model_20261113",
+          "predicted_at": "2026-11-14 16:43:22",
+          "updated_at": "2026-11-14 16:43:22",
+          "standings": "api/duiju/shanhai/standings/r4.json"
+        },
+        {
+          "round": 5,
+          "games": 23,
+          "predicted": 22,
           "played": 0,
           "is_finished": false,
           "model": "model_20261113",
-          "predicted_at": "2026-11-14 18:32:30",
-          "updated_at": "2026-11-14 18:32:30",
+          "predicted_at": "2026-11-14 18:46:24",
+          "updated_at": "2026-11-14 18:46:24",
           "standings": null
         }
       ]

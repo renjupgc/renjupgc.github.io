@@ -24,12 +24,16 @@
     },
     {
       "round": 4,
+      "is_finished": true
+    },
+    {
+      "round": 5,
       "is_finished": false
     }
   ],
   "model": "model_20261113",
-  "predicted_at": "2026-11-14 18:31:46",
-  "updated_at": "2026-11-14 18:31:46",
+  "predicted_at": "2026-11-14 18:45:27",
+  "updated_at": "2026-11-14 18:45:27",
   "games": [
     {
       "table": 1,
