@@ -12,9 +12,9 @@
     1,
     2
   ],
-  "model": null,
-  "predicted_at": null,
-  "updated_at": "2026-11-14 10:42:05",
+  "model": "model_20261113",
+  "predicted_at": "2026-11-14 12:57:55",
+  "updated_at": "2026-11-14 12:57:55",
   "games": [
     {
       "table": 1,
