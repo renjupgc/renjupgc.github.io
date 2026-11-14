@@ -616,10 +616,13 @@ table.table-standings thead th{{
 .c-pn-std{{text-align:left;white-space:nowrap;padding-left:18px}}
 .c-pn-std .pid{{margin-left:0;margin-right:8px}}
 .c-pct-std{{text-align:center;white-space:nowrap}}
+table.table-standings .v{{background:transparent!important;padding:4px 0}}
+table.table-standings .v.top.pos{{color:var(--green);font-weight:600;background:transparent!important}}
+table.table-standings .v.bold{{color:var(--ink);font-weight:600;background:transparent!important}}
 .c-exp-std{{text-align:center;white-space:nowrap}}
 .exp-badge{{
-  display:inline-block;font:600 13px/1 var(--num);padding:3px 8px;border-radius:6px;
-  background:#f1f0e8;color:var(--ink);
+  display:inline-block;font:600 14px/1 var(--num);padding:0;
+  background:transparent!important;color:var(--ink);
 }}
 .exp-lbl{{display:none;font-style:normal;font-size:11px;opacity:.7}}
 .c-dist-std{{text-align:right;padding-right:18px}}
@@ -759,7 +762,7 @@ td.detail-cell{{padding:10px 18px 16px}}
     display:flex;justify-content:flex-end;align-items:center;
   }}
   .exp-lbl{{display:inline}}
-  .exp-badge{{font-size:12px;padding:3px 7px}}
+  .exp-badge{{font-size:12px;padding:0;background:transparent!important}}
   
   /* 指标卡片小块 */
   td.m-stat{{
@@ -841,7 +844,9 @@ td.detail-cell{{padding:10px 18px 16px}}
   .pid{{background:#232d28;color:#85928a}}
   td.c-no{{color:#7f8d85}}
   .pscore{{background:#232d28;color:#85928a}}
-  .exp-badge{{background:#232d28;color:#d0ded5}}
+  .exp-badge{{background:transparent!important;color:#eef4ef}}
+  table.table-standings .v.top.pos{{color:#93d3b6;background:transparent!important}}
+  table.table-standings .v.bold{{color:#eef4ef;background:transparent!important}}
   td.m-stat{{background:#151b18}}
   td.m-stat::before{{color:#7f8d85}}
   .mini-hm-bar{{border-color:#2b3a32}}
@@ -871,7 +876,7 @@ function setView(view) {{
     viewStandings.style.display = 'block';
     btnMatch.classList.remove('active');
     btnStand.classList.add('active');
-    if (history.replaceState) history.replaceState(null, null, '#standings');
+    if (history.replaceState) history.replaceState(null, null, '#details');
   }} else {{
     viewMatches.style.display = 'block';
     viewStandings.style.display = 'none';
@@ -916,7 +921,7 @@ function toggleAllRows() {{
 }}
 
 window.addEventListener('DOMContentLoaded', function() {{
-  if (window.location.hash === '#standings') {{
+  if (window.location.hash === '#details' || window.location.hash === '#standings') {{
     setView('stand');
   }}
 }});
@@ -1004,13 +1009,18 @@ r7_path = os.path.join(REPO_DIR, "posts", "2026-shiqing-b-r7.html")
 with open(r7_path, "w", encoding="utf-8") as f:
     f.write(full_page_html)
 
-# Also write to standalone standings page 2026-shiqing-b-standings.html
+# Also write to standalone standings and details pages
+stand_html = full_page_html.replace('id="view-matches"', 'id="view-matches" style="display:none"')
+stand_html = stand_html.replace('id="view-standings" style="display:none"', 'id="view-standings"')
+stand_html = stand_html.replace('id="btn-match" class="v-btn active"', 'id="btn-match" class="v-btn"')
+stand_html = stand_html.replace('id="btn-stand" class="v-btn"', 'id="btn-stand" class="v-btn active"')
+
 standings_path = os.path.join(REPO_DIR, "posts", "2026-shiqing-b-standings.html")
 with open(standings_path, "w", encoding="utf-8") as f:
-    stand_html = full_page_html.replace('id="view-matches"', 'id="view-matches" style="display:none"')
-    stand_html = stand_html.replace('id="view-standings" style="display:none"', 'id="view-standings"')
-    stand_html = stand_html.replace('id="btn-match" class="v-btn active"', 'id="btn-match" class="v-btn"')
-    stand_html = stand_html.replace('id="btn-stand" class="v-btn"', 'id="btn-stand" class="v-btn active"')
     f.write(stand_html)
 
-print("Successfully generated mobile-adapted 2026-shiqing-b-r7.html and 2026-shiqing-b-standings.html!")
+details_path = os.path.join(REPO_DIR, "posts", "2026-shiqing-b-details.html")
+with open(details_path, "w", encoding="utf-8") as f:
+    f.write(stand_html)
+
+print("Successfully generated 2026-shiqing-b-r7.html, 2026-shiqing-b-details.html and 2026-shiqing-b-standings.html!")
