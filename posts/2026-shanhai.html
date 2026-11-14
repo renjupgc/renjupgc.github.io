@@ -435,9 +435,7 @@ td.c-prob{width:248px;padding:11px 22px}
     el.innerHTML = list.map(function (item) {
       var r = item.round;
       var isCur = (r === cur);
-      var ongoing = (item.is_finished === false);
-      var label = '第 ' + r + ' 轮' + (ongoing ? ' (进行中)' : '');
-      return '<a href="?r=' + r + '"' + (isCur ? ' class="on"' : '') + '>' + label + '</a>';
+      return '<a href="?r=' + r + '"' + (isCur ? ' class="on"' : '') + '>第 ' + r + ' 轮</a>';
     }).join('');
   }
 
@@ -448,7 +446,7 @@ td.c-prob{width:248px;padding:11px 22px}
     var games = (d.games || []).slice().sort(function (a, b) { return a.table - b.table; });
 
     var isCurOngoing = (d.is_finished === false) || (games.length > 0 && games.some(function (g) { return !g.result; }));
-    var rTitle = '第 ' + r + ' 轮' + (isCurOngoing ? '（进行中）' : '');
+    var rTitle = '第 ' + r + ' 轮';
 
     document.title = short + ' · ' + rTitle + '对阵概率预测表';
     document.getElementById('ttl').innerHTML = decorate(t.name || short, t.year);
