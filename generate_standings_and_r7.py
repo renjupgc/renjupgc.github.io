@@ -3,7 +3,7 @@ import os, json, math, time, re
 import numpy as np
 
 REPO_DIR = r"C:\Users\yaolz\WorkBuddy\2026-11-10-00-26-58\renjupgc.github.io"
-SHANHAI_PATH = os.path.join(REPO_DIR, "posts", "2026-shanhai-cup-r1.html")
+SHANHAI_PATH = os.path.join(REPO_DIR, "tools", "predict-page.template.html")
 PIT_GB_PATH = r"C:\Users\yaolz\Downloads\whr_renju-master\whr_renju-master\data\game_base_20260704_renju.json"
 LATEST_GB_PATH = r"C:\Users\yaolz\Downloads\whr_renju-master\whr_renju-master\data\game_base_20261112_renju.json"
 MODEL_PATH = os.path.join(REPO_DIR, "bisai", "data", "model_20260704.json")

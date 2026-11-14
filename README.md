@@ -31,6 +31,9 @@ zaji/                 杂技：工具页
   jinzhao.html        禁手找茬
   vcf.html            VCF 做题
 bisai/index.html      单届选拔赛成绩表，浏览器里用 sql.js 读 bisai.db
+api/duiju/            只读 JSON 接口（GitHub Pages 本身就是「服务器」，没有后端）
+  index.json          赛事与轮次索引
+  shanhai/r1.json     山海杯第 1 轮：逐台对局与预测概率
 
 assets/
   style.css           全站样式（唯一一份）
@@ -53,6 +56,8 @@ data/
   manual.db           手工补丁：补录赛事与对局、改名、弃权、隐藏赛事、名次修正
   public_players.txt  可公开的棋手名单：名册之外不出页、不进搜索、不挂内链
   rating_excluded.txt 不计等级分的赛事（非公开进行）：公示表与时光机都按它排除
+  duiju.db            对局库：逐台对局 + 预测概率（山海杯等），api/duiju/ 由它导出
+  shanhai/2026-r1.json  山海杯第 1 轮的录入源文件（一轮一份）
 
 tools/                构建脚本（见下）
 docs/ROADMAP.md       改进建议与创意清单
@@ -83,6 +88,62 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 ```
 
 后两个是「全站扫一遍」的脚本，可反复执行（幂等）：手写页面加了新文章、换了配图之后单独跑它们就行。
+
+## 对局库与预测接口（duiju.db）
+
+山海杯这类「逐台预测」的页面不再把数据写进 HTML。库里只放对局（台次、双方编号与姓名、
+赛果）和预测概率；等级分只留在录入源文件里，分数按前几轮赛果现算，两者都不入库。
+`tools/manage_duiju.py` 负责把一轮对局录进去、再摊成站点上的 JSON。GitHub Pages 没有
+后端，这份静态 JSON 就是接口，挂在站点自己的域名下。
+
+```
+data/shanhai/2026-r1.json   一轮的录入源文件：台号、黑白双方、等级分、预测概率
+        │  record
+        ▼
+data/duiju.db              唯一的数据源（tournaments / rounds / games）
+        │  export
+        ▼
+api/duiju/index.json       赛事与轮次索引
+api/duiju/shanhai/r1.json  单轮：赛事信息 + 23 台对局 + 预测
+        │  fetch
+        ▼
+posts/2026-shanhai-r1.html 照接口画表格；同一页用 ?r=N 换轮，不再一轮一个文件
+```
+
+```bash
+python tools/manage_duiju.py all data/shanhai/2026-r1.json   # 录入 + 导出
+python tools/manage_duiju.py export                          # 只导出
+python tools/manage_duiju.py result --tid 2026-shanhai --round 1 --table 3 --value B
+python tools/manage_duiju.py show                            # 库里有什么
+```
+
+`record` 整轮覆盖写库，可反复执行；一轮的 JSON（`rating` 只是给源文件留个底，
+不入库、不进接口）：
+
+```json
+{
+  "tournament": {"id": "2026-shanhai", "name": "「山海杯」2026 年全国五子棋业余棋王争霸赛线下总决赛",
+                 "year": 2026, "group": "公开组", "rule": "塔拉山口-10", "slug": "shanhai"},
+  "round": 1,
+  "predicted_at": "2026-11-14 01:29:38",
+  "model": "gbdt-20260704",
+  "games": [
+    {"table": 1,
+     "black": {"no": 1, "name": "王俊锴", "rating": 2347.3},
+     "white": {"no": 24, "name": "马子轩", "rating": 2164.7},
+     "prediction": {"black": 65.6, "draw": 9.3, "white": 25.2},
+     "result": null}
+  ]
+}
+```
+
+`prediction` 缺省表示这一轮还没跑预测；`result` 取 `B`（黑胜）/`W`（白胜）/`D`（和），
+有值后页面会在概率块上方挂一个比分标签。台次旁的「N 分」是这一轮开赛前的累计分，
+由库里前几轮的 `result` 现算，不进库。
+
+页面：<https://renjupgc.github.io/posts/2026-shanhai-r1.html>，`?r=2` 之类切到别的轮次。
+旧的 `posts/2026-shanhai-cup-r1.html` 已删除；那份单页 HTML 里的数据与样式都不再是本页的来源。
+`data/duiju.db` 和 `api/duiju/` 都要提交：前者是源，后者才是线上被读的那份。
 
 补录赛事与对局（源备份库不在手边时也走这条路）：在 `data/manual.db` 的 `tournaments_extra`、
 `matches_extra` 各插一行——只收录部分对局时，`total_rounds` 填规程里的总轮数，页面靠它显示「共几轮」；
