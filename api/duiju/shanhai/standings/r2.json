@@ -11,9 +11,10 @@
   "rounds": [
     1,
     2,
-    3
+    3,
+    4
   ],
-  "total_rounds": 3,
+  "total_rounds": 4,
   "played": 23,
   "tiebreak": [
     "score",

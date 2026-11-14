@@ -11,140 +11,278 @@
   "games": [
     {
       "table": 1,
-      "black": { "no": 37, "name": "周楠" },
-      "white": { "no": 2, "name": "钟煜阳" },
-      "result": null
+      "black": {
+        "no": 37,
+        "name": "周楠"
+      },
+      "white": {
+        "no": 2,
+        "name": "钟煜阳"
+      },
+      "result": "W"
     },
     {
       "table": 2,
-      "black": { "no": 3, "name": "韦振强" },
-      "white": { "no": 35, "name": "万俊宏" },
-      "result": null
+      "black": {
+        "no": 3,
+        "name": "韦振强"
+      },
+      "white": {
+        "no": 35,
+        "name": "万俊宏"
+      },
+      "result": "W"
     },
     {
       "table": 3,
-      "black": { "no": 44, "name": "崔展铭" },
-      "white": { "no": 8, "name": "徐嘉琦" },
-      "result": null
+      "black": {
+        "no": 44,
+        "name": "崔展铭"
+      },
+      "white": {
+        "no": 8,
+        "name": "徐嘉琦"
+      },
+      "result": "W"
     },
     {
       "table": 4,
-      "black": { "no": 27, "name": "梁中" },
-      "white": { "no": 38, "name": "黄健光" },
-      "result": null
+      "black": {
+        "no": 27,
+        "name": "梁中"
+      },
+      "white": {
+        "no": 38,
+        "name": "黄健光"
+      },
+      "result": "W"
     },
     {
       "table": 5,
-      "black": { "no": 32, "name": "夏建晋" },
-      "white": { "no": 40, "name": "何舒军" },
-      "result": null
+      "black": {
+        "no": 32,
+        "name": "夏建晋"
+      },
+      "white": {
+        "no": 40,
+        "name": "何舒军"
+      },
+      "result": "W"
     },
     {
       "table": 6,
-      "black": { "no": 13, "name": "康哲铭" },
-      "white": { "no": 18, "name": "焦政瑞" },
-      "result": null
+      "black": {
+        "no": 13,
+        "name": "康哲铭"
+      },
+      "white": {
+        "no": 18,
+        "name": "焦政瑞"
+      },
+      "result": "D"
     },
     {
       "table": 7,
-      "black": { "no": 43, "name": "陈浩源" },
-      "white": { "no": 36, "name": "王嘉欣" },
-      "result": null
+      "black": {
+        "no": 43,
+        "name": "陈浩源"
+      },
+      "white": {
+        "no": 36,
+        "name": "王嘉欣"
+      },
+      "result": "B"
     },
     {
       "table": 8,
-      "black": { "no": 5, "name": "彭维刚" },
-      "white": { "no": 24, "name": "马子轩" },
-      "result": null
+      "black": {
+        "no": 5,
+        "name": "彭维刚"
+      },
+      "white": {
+        "no": 24,
+        "name": "马子轩"
+      },
+      "result": "W"
     },
     {
       "table": 9,
-      "black": { "no": 28, "name": "肖伊康" },
-      "white": { "no": 6, "name": "章小剑" },
-      "result": null
+      "black": {
+        "no": 28,
+        "name": "肖伊康"
+      },
+      "white": {
+        "no": 6,
+        "name": "章小剑"
+      },
+      "result": "W"
     },
     {
       "table": 10,
-      "black": { "no": 7, "name": "张硕" },
-      "white": { "no": 41, "name": "许业鹏" },
-      "result": null
+      "black": {
+        "no": 7,
+        "name": "张硕"
+      },
+      "white": {
+        "no": 41,
+        "name": "许业鹏"
+      },
+      "result": "W"
     },
     {
       "table": 11,
-      "black": { "no": 11, "name": "童晨" },
-      "white": { "no": 30, "name": "黄大兴" },
-      "result": null
+      "black": {
+        "no": 11,
+        "name": "童晨"
+      },
+      "white": {
+        "no": 30,
+        "name": "黄大兴"
+      },
+      "result": "W"
     },
     {
       "table": 12,
-      "black": { "no": 29, "name": "庄义翔" },
-      "white": { "no": 14, "name": "张欣怡" },
-      "result": null
+      "black": {
+        "no": 29,
+        "name": "庄义翔"
+      },
+      "white": {
+        "no": 14,
+        "name": "张欣怡"
+      },
+      "result": "W"
     },
     {
       "table": 13,
-      "black": { "no": 31, "name": "陈超" },
-      "white": { "no": 16, "name": "于宁" },
-      "result": null
+      "black": {
+        "no": 31,
+        "name": "陈超"
+      },
+      "white": {
+        "no": 16,
+        "name": "于宁"
+      },
+      "result": "B"
     },
     {
       "table": 14,
-      "black": { "no": 17, "name": "王端国" },
-      "white": { "no": 42, "name": "钟保贵" },
-      "result": null
+      "black": {
+        "no": 17,
+        "name": "王端国"
+      },
+      "white": {
+        "no": 42,
+        "name": "钟保贵"
+      },
+      "result": "D"
     },
     {
       "table": 15,
-      "black": { "no": 19, "name": "赵云" },
-      "white": { "no": 45, "name": "朱佳颐" },
-      "result": null
+      "black": {
+        "no": 19,
+        "name": "赵云"
+      },
+      "white": {
+        "no": 45,
+        "name": "朱佳颐"
+      },
+      "result": "B"
     },
     {
       "table": 16,
-      "black": { "no": 33, "name": "李嘉骏" },
-      "white": { "no": 22, "name": "刘沁" },
-      "result": null
+      "black": {
+        "no": 33,
+        "name": "李嘉骏"
+      },
+      "white": {
+        "no": 22,
+        "name": "刘沁"
+      },
+      "result": "D"
     },
     {
       "table": 17,
-      "black": { "no": 46, "name": "鲁益" },
-      "white": { "no": 9, "name": "康庭瑞" },
-      "result": null
+      "black": {
+        "no": 46,
+        "name": "鲁益"
+      },
+      "white": {
+        "no": 9,
+        "name": "康庭瑞"
+      },
+      "result": "B"
     },
     {
       "table": 18,
-      "black": { "no": 10, "name": "文英" },
-      "white": { "no": 26, "name": "蔡子扬" },
-      "result": null
+      "black": {
+        "no": 10,
+        "name": "文英"
+      },
+      "white": {
+        "no": 26,
+        "name": "蔡子扬"
+      },
+      "result": "W"
     },
     {
       "table": 19,
-      "black": { "no": 21, "name": "王思淼" },
-      "white": { "no": 1, "name": "王俊锴" },
-      "result": null
+      "black": {
+        "no": 21,
+        "name": "王思淼"
+      },
+      "white": {
+        "no": 1,
+        "name": "王俊锴"
+      },
+      "result": "W"
     },
     {
       "table": 20,
-      "black": { "no": 4, "name": "廖俊豪" },
-      "white": { "no": 20, "name": "周鹏" },
-      "result": null
+      "black": {
+        "no": 4,
+        "name": "廖俊豪"
+      },
+      "white": {
+        "no": 20,
+        "name": "周鹏"
+      },
+      "result": "W"
     },
     {
       "table": 21,
-      "black": { "no": 34, "name": "袁攀峰" },
-      "white": { "no": 12, "name": "邢家辉" },
-      "result": null
+      "black": {
+        "no": 34,
+        "name": "袁攀峰"
+      },
+      "white": {
+        "no": 12,
+        "name": "邢家辉"
+      },
+      "result": "W"
     },
     {
       "table": 22,
-      "black": { "no": 15, "name": "艾颖翔" },
-      "white": { "no": 23, "name": "蒙杰焕" },
-      "result": null
+      "black": {
+        "no": 15,
+        "name": "艾颖翔"
+      },
+      "white": {
+        "no": 23,
+        "name": "蒙杰焕"
+      },
+      "result": "W"
     },
     {
       "table": 23,
-      "black": { "no": 39, "name": "潘为" },
-      "white": { "no": null, "name": "轮空" },
+      "black": {
+        "no": 39,
+        "name": "潘为"
+      },
+      "white": {
+        "no": null,
+        "name": "轮空"
+      },
       "result": "B"
     }
   ]
