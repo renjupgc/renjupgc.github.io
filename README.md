@@ -184,12 +184,28 @@ python tools/manage_duiju.py show                            # 库里有什么
 页面：<https://renjupgc.github.io/posts/2026-shanhai-details.html>，`?r=N` 切轮次，
 对阵页右上角有「名次表 ↗」入口。
 
-**新对局自动预测**：`sync`（以及 `all`）录完新对局后会给「已有对阵、还没有概率、
-也还没有赛果」的台补预测，用的是一条三项 logistic：等级分差 → 黑胜 / 和 / 白胜，
-参数由**每场赛事最早那轮已公布的概率**标定（后面的轮次不再回头参与拟合，避免自己拟合
-自己），等级分取录入源 JSON 里的 `rating`（只在内存里用，不入库）。因此新轮次一对阵入库，
-概率就自动出来了，`predict` 也可以单独跑。概率一旦写进库就不再被 JSON 的空值覆盖；
-一台有了 `result`，它的概率定死。
+**新对局自动预测**：预测单独做成接口 `tools/predict_api.py`，`sync`（以及 `all`）
+录完新对局后就调它。把一个赛事的一组对局交给它，返回每台的
+`p_black / p_draw / p_white`。
+
+```python
+from predict_api import predict_tournament, predict_round
+predict_tournament(conn, '2026-shanhai')            # 全赛事：所有还没出赛果的台
+predict_round(conn, '2026-shanhai', 2, write=True)  # 只算某一轮
+```
+
+```bash
+python tools/predict_api.py --tid 2026-shanhai --round 2   # 打印每台概率
+python tools/predict_api.py --tid 2026-shanhai --write     # 写回 duiju.db
+```
+
+**WHR 滚动与 GBDT 预测**：预测第 N 轮时，把这场赛事第 1..N-1 轮的赛果纳入官方 WHR
+（Whole-History Rating，`w2=19.3`，`virtual_games=2`）进行全历史等级分动态滚动计算，
+得到每位棋手开赛前的最新 `rating` 与不确定度 `rd`，再由官方 GBDT 决策树模型（`model_20260704.json`）
+精准输出黑胜 / 和棋 / 白胜概率。
+
+对于赛果已出的对局，对阵表最前方自动标注绿勾（✔，预测命中）或红叉（✘，预测失误）。
+概率写进库后不会被 JSON 空值覆盖；一台有了 `result`，它的概率定死、不再重算。
 
 **模型评估**：导出时把「有概率又有赛果」的台汇总成
 `api/duiju/shanhai/metrics.json`（每轮一份 + 整体）：命中率、平均 Brier 值、对数损失、

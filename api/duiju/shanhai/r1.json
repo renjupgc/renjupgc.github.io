@@ -33,7 +33,8 @@
         "draw": 9.3,
         "white": 25.2
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": false
     },
     {
       "table": 2,
@@ -52,7 +53,8 @@
         "draw": 3.5,
         "white": 88.5
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 3,
@@ -71,7 +73,8 @@
         "draw": 12.6,
         "white": 19.6
       },
-      "result": "B"
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 4,
@@ -90,7 +93,8 @@
         "draw": 11.9,
         "white": 31.0
       },
-      "result": "B"
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 5,
@@ -109,7 +113,8 @@
         "draw": 13.1,
         "white": 36.9
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": false
     },
     {
       "table": 6,
@@ -128,7 +133,8 @@
         "draw": 2.2,
         "white": 95.7
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 7,
@@ -147,7 +153,8 @@
         "draw": 3.2,
         "white": 88.4
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 8,
@@ -166,7 +173,8 @@
         "draw": 10.7,
         "white": 64.3
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 9,
@@ -185,7 +193,8 @@
         "draw": 12.5,
         "white": 42.1
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": false
     },
     {
       "table": 10,
@@ -204,7 +213,8 @@
         "draw": 6.7,
         "white": 12.2
       },
-      "result": "B"
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 11,
@@ -223,7 +233,8 @@
         "draw": 5.5,
         "white": 15.2
       },
-      "result": "B"
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 12,
@@ -242,7 +253,8 @@
         "draw": 2.2,
         "white": 4.9
       },
-      "result": "B"
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 13,
@@ -261,7 +273,8 @@
         "draw": 6.1,
         "white": 7.8
       },
-      "result": "D"
+      "result": "D",
+      "prediction_correct": false
     },
     {
       "table": 14,
@@ -280,7 +293,8 @@
         "draw": 10.2,
         "white": 17.3
       },
-      "result": "B"
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 15,
@@ -299,7 +313,8 @@
         "draw": 2.8,
         "white": 92.5
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 16,
@@ -318,7 +333,8 @@
         "draw": 8.5,
         "white": 27.4
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": false
     },
     {
       "table": 17,
@@ -337,7 +353,8 @@
         "draw": 2.4,
         "white": 94.6
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 18,
@@ -356,7 +373,8 @@
         "draw": 2.8,
         "white": 93.1
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 19,
@@ -375,7 +393,8 @@
         "draw": 3.3,
         "white": 3.4
       },
-      "result": "B"
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 20,
@@ -394,7 +413,8 @@
         "draw": 1.1,
         "white": 3.3
       },
-      "result": "B"
+      "result": "B",
+      "prediction_correct": true
     },
     {
       "table": 21,
@@ -413,7 +433,8 @@
         "draw": 11.6,
         "white": 18.6
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": false
     },
     {
       "table": 22,
@@ -432,7 +453,8 @@
         "draw": 11.0,
         "white": 64.2
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": true
     },
     {
       "table": 23,
@@ -451,7 +473,8 @@
         "draw": 13.6,
         "white": 34.9
       },
-      "result": "W"
+      "result": "W",
+      "prediction_correct": false
     }
   ]
 }

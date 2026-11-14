@@ -243,6 +243,11 @@ td.c-prob{width:248px;padding:11px 22px}
 .res-w{background:#e8edf5;color:#1e3a5f}
 .res-d{background:#f5edd6;color:#7a5a10}
 
+/* 预测正误标记：对局最前方的绿勾 / 红叉 */
+.pred-mark{display:inline-block;font-size:13.5px;line-height:1;font-weight:700;margin-right:4px;vertical-align:baseline}
+.pred-mark.ok{color:#15803d}
+.pred-mark.wrong{color:#dc2626}
+
 /* 未预测 / 载入中 / 出错 */
 .nopred{display:block;text-align:center;font:400 13px/1 var(--dis);letter-spacing:.09em;color:#a8b1a9;padding:9px 0}
 .ph td{padding:26px 24px;text-align:left;font:400 13.5px/1.8 var(--sans);color:var(--ink3)}
@@ -259,6 +264,8 @@ td.c-prob{width:248px;padding:11px 22px}
   .ph td{color:#7f8d85}
   .ph td .msg{color:#e9efe9}
   .nopred{color:#6d7a72}
+  .pred-mark.ok{color:#4ade80}
+  .pred-mark.wrong{color:#f87171}
 }
 
 @media (max-width:820px){
@@ -365,8 +372,19 @@ td.c-prob{width:248px;padding:11px 22px}
 
   function row(g) {
     var b = g.black || {}, w = g.white || {};
+    var mark = '';
+    if (g.result && g.prediction && g.prediction.black != null) {
+      var pb = g.prediction.black, pd = g.prediction.draw, pw = g.prediction.white;
+      var top = Math.max(pb, pd, pw);
+      var fav = (pb === top) ? 'B' : ((pw === top) ? 'W' : 'D');
+      if (fav === g.result) {
+        mark = '<span class="pred-mark ok">✔</span>';
+      } else {
+        mark = '<span class="pred-mark wrong">✘</span>';
+      }
+    }
     return '<tr>' +
-      '<td class="c-no">' + (g.table == null ? '' : g.table) + '</td>' +
+      '<td class="c-no">' + mark + '<span class="t-no-val">' + (g.table == null ? '' : g.table) + '</span></td>' +
       '<td class="c-bn"><span class="pid">' + (b.no == null ? '' : b.no) + '</span>' +
         '<span class="pn" title="' + esc(b.name) + '">' + esc(b.name) + '</span>' +
         '<span class="pscore">' + score(b.score) + '</span></td>' +

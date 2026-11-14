@@ -58,6 +58,9 @@ import math
 import os
 import sqlite3
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import predict_api  # noqa: E402  同目录的预测接口
 from datetime import datetime, timezone, timedelta
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -507,118 +510,17 @@ def standings_payload(conn, tour, rnd):
 
 # ---------------------------------------------------------------- 预测
 
-def load_ratings():
-    """从录入源 JSON 的 rating 字段收集「编号 → 等级分」（只在内存里用，不入库）。"""
-    out = {}
-    base = os.path.join(ROOT, 'data')
-    if not os.path.isdir(base):
-        return out
-    for sub in sorted(os.listdir(base)):
-        folder = os.path.join(base, sub)
-        if not os.path.isdir(folder):
-            continue
-        for name in sorted(os.listdir(folder)):
-            if not name.endswith('.json'):
-                continue
-            try:
-                data = json.load(open(os.path.join(folder, name), encoding='utf-8'))
-            except (ValueError, OSError):
-                continue
-            for g in data.get('games') or []:
-                for key in ('black', 'white'):
-                    side = g.get(key) or {}
-                    no, r = side.get('no'), side.get('rating')
-                    if no is not None and r is not None:
-                        out[int(no)] = float(r)
-    return out
-
-
-def _softmax(z):
-    m = max(z)
-    e = [math.exp(v - m) for v in z]
-    s = sum(e)
-    return [v / s for v in e]
-
-
-def fit_model(conn, ratings):
-    """用库里已经公布过概率的对局（等级分差 → 黑胜/和/白胜）拟合一个三项 logistic。
-
-    每轮新对局进来时，概率就由这套参数算出来；它与第 1 轮那批已发布数字同源，
-    拟合只用「有概率」的对局，不依赖外部模型文件。"""
-    xs, ys = [], []
-    # 只用每场赛事最早那轮的已发布概率来标定：那批数字是模型跑出来的，
-    # 后面的轮次由这里算，不再反过来参与拟合，避免自己拟合自己。
-    for g in conn.execute(
-            'SELECT g.black_no, g.white_no, g.p_black, g.p_draw, g.p_white'
-            ' FROM games g JOIN ('
-            '   SELECT tournament_id, MIN(round) AS r FROM games'
-            '   WHERE p_black IS NOT NULL GROUP BY tournament_id'
-            ' ) m ON m.tournament_id = g.tournament_id AND m.r = g.round'
-            ' WHERE g.p_black IS NOT NULL'):
-        b, w = g['black_no'], g['white_no']
-        if b not in ratings or w not in ratings:
-            continue
-        xs.append((ratings[b] - ratings[w]) / 200.0)
-        ys.append((g['p_black'] / 100.0, g['p_draw'] / 100.0, g['p_white'] / 100.0))
-    if len(xs) < 8:
-        return None
-
-    # 参数：每个类别一组 (截距, 斜率)
-    W = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
-    W[0] = [0.4, 0.6]
-    W[1] = [-1.2, 0.0]
-    W[2] = [-0.4, -0.6]
-    lr = 0.35
-    for _ in range(4000):
-        grad = [[0.0, 0.0] for _ in range(3)]
-        for x, y in zip(xs, ys):
-            z = [W[k][0] + W[k][1] * x for k in range(3)]
-            p = _softmax(z)
-            for k in range(3):
-                d = p[k] - y[k]
-                grad[k][0] += d
-                grad[k][1] += d * x
-        n = float(len(xs))
-        for k in range(3):
-            W[k][0] -= lr * grad[k][0] / n
-            W[k][1] -= lr * grad[k][1] / n
-    return W
-
-
 def predict_missing(conn, only_tid=None):
-    """给还没有概率、也还没有赛果的台补上预测，返回补了几台。"""
-    ratings = load_ratings()
-    model = fit_model(conn, ratings)
-    if model is None:
-        print('可标定的对局太少，先不预测')
-        return 0
-    if not ratings:
-        print('没有等级分可比，先不预测')
-        return 0
+    """预测交给 tools/predict_api.py：按前几轮的赛果滚动 WHR，再算概率。
 
-    fills = 0
-    for t in conn.execute('SELECT id, slug FROM tournaments'):
-        if only_tid and t['id'] != only_tid:
-            continue
-        for g in conn.execute(
-                'SELECT id, black_no, white_no FROM games'
-                ' WHERE tournament_id=? AND p_black IS NULL AND result IS NULL',
-                (t['id'],)).fetchall():
-            b, w = g['black_no'], g['white_no']
-            if b not in ratings or w not in ratings:
-                continue
-            x = (ratings[b] - ratings[w]) / 200.0
-            p = _softmax([model[k][0] + model[k][1] * x for k in range(3)])
-            pb = round(p[0] * 100, 1)
-            pd = round(p[1] * 100, 1)
-            pw = round(100.0 - pb - pd, 1)
-            conn.execute('UPDATE games SET p_black=?, p_draw=?, p_white=? WHERE id=?',
-                         (pb, pd, pw, g['id']))
-            fills += 1
-    if fills:
-        conn.commit()
-        print('补预测 %d 台' % fills)
-    return fills
+    只填「还没有赛果」的台；已经有赛果的那几台概率定死，不会被重算。"""
+    tids = [t['id'] for t in conn.execute('SELECT id FROM tournaments')]
+    if only_tid:
+        tids = [t for t in tids if t == only_tid]
+    total = 0
+    for tid in tids:
+        total += predict_api.predict_tournament(conn, tid, write=True)
+    return total
 
 
 # ---------------------------------------------------------------- export
@@ -787,6 +689,16 @@ def write_round(tour, rmeta, rows, round_list, points):
         'games': [],
     }
     for g in rows:
+        pred = None if g['p_black'] is None else {
+            'black': g['p_black'], 'draw': g['p_draw'], 'white': g['p_white'],
+        }
+        is_correct = None
+        if pred is not None and g['result'] in ('B', 'W', 'D'):
+            pb, pd, pw = pred['black'], pred['draw'], pred['white']
+            top = max(pb, pd, pw)
+            fav = 'B' if pb == top else ('W' if pw == top else 'D')
+            is_correct = (fav == g['result'])
+
         payload['games'].append({
             'table': g['table_no'],
             'black': {
@@ -797,10 +709,9 @@ def write_round(tour, rmeta, rows, round_list, points):
                 'no': g['white_no'], 'name': g['white_name'],
                 'score': points.get(g['white_name'], 0),
             },
-            'prediction': None if g['p_black'] is None else {
-                'black': g['p_black'], 'draw': g['p_draw'], 'white': g['p_white'],
-            },
+            'prediction': pred,
             'result': g['result'],
+            'prediction_correct': is_correct,
         })
 
     out_dir = os.path.join(API_ROOT, tour['slug'])
