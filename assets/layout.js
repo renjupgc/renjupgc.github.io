@@ -59,6 +59,7 @@
         { text: '首页', href: 'index.html' },
         { text: '杂论', href: 'zalun.html' },
         { text: '杂史', href: 'zashi.html' },
+        { text: '杂想', href: 'zaxiang.html' },
         { text: '杂豫', href: 'zayu.html' },
         { text: '杂技', href: 'zaji.html' },
         { text: '关于', href: 'index.html#about' }
