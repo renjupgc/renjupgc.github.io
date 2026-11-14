@@ -8,7 +8,7 @@
     "rule": "塔拉山口-10"
   },
   "model": "model_20261113",
-  "evaluated_at": "2026-11-14 13:23:48",
+  "evaluated_at": "2026-11-14 13:25:09",
   "rounds": [
     {
       "n": 23,
@@ -57,51 +57,27 @@
         "W": 6
       },
       "round": 2
-    },
-    {
-      "n": 1,
-      "hit": 1,
-      "accuracy": 1.0,
-      "brier": 0.0,
-      "logloss": 0.0,
-      "confidence": 1.0,
-      "results": {
-        "B": 1,
-        "D": 0,
-        "W": 0
-      },
-      "hit_by_result": {
-        "B": 1,
-        "D": 0,
-        "W": 0
-      },
-      "fav_distribution": {
-        "B": 1,
-        "D": 0,
-        "W": 0
-      },
-      "round": 3
     }
   ],
   "overall": {
-    "n": 47,
-    "hit": 31,
-    "accuracy": 0.6596,
-    "brier": 0.3951,
-    "logloss": 0.6633,
-    "confidence": 0.7604,
+    "n": 46,
+    "hit": 30,
+    "accuracy": 0.6522,
+    "brier": 0.4037,
+    "logloss": 0.6778,
+    "confidence": 0.7552,
     "results": {
-      "B": 19,
+      "B": 18,
       "D": 3,
       "W": 25
     },
     "hit_by_result": {
-      "B": 18,
+      "B": 17,
       "D": 0,
       "W": 13
     },
     "fav_distribution": {
-      "B": 33,
+      "B": 32,
       "D": 0,
       "W": 14
     }

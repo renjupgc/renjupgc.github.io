@@ -589,8 +589,8 @@ def predict_missing(conn, only_tid=None):
 # ---------------------------------------------------------------- export
 
 def _round_stats(rows):
-    played = sum(1 for r in rows if r['result'])
-    predicted = sum(1 for r in rows if r['p_black'] is not None)
+    played = sum(1 for r in rows if r['result'] and r['black_name'] != '轮空' and r['white_name'] != '轮空')
+    predicted = sum(1 for r in rows if r['p_black'] is not None and r['black_name'] != '轮空' and r['white_name'] != '轮空')
     return played, predicted
 
 
@@ -727,11 +727,12 @@ def write_round(tour, rmeta, rows, round_list, points):
         'games': [],
     }
     for g in rows:
-        pred = None if g['p_black'] is None else {
+        is_bye = (g['black_name'] == '轮空' or g['white_name'] == '轮空')
+        pred = None if (is_bye or g['p_black'] is None) else {
             'black': g['p_black'], 'draw': g['p_draw'], 'white': g['p_white'],
         }
         is_correct = None
-        if pred is not None and g['result']:
+        if not is_bye and pred is not None and g['result']:
             eff = get_effective_result(g['result'])
             if eff:
                 pb, pd, pw = pred['black'], pred['draw'], pred['white']

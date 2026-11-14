@@ -14,8 +14,8 @@
     3
   ],
   "model": "model_20261113",
-  "predicted_at": "2026-11-14 13:23:48",
-  "updated_at": "2026-11-14 13:23:48",
+  "predicted_at": "2026-11-14 13:25:08",
+  "updated_at": "2026-11-14 13:25:08",
   "games": [
     {
       "table": 1,
@@ -469,13 +469,9 @@
         "name": "轮空",
         "score": null
       },
-      "prediction": {
-        "black": 100.0,
-        "draw": 0.0,
-        "white": 0.0
-      },
+      "prediction": null,
       "result": "B",
-      "prediction_correct": true
+      "prediction_correct": null
     }
   ]
 }

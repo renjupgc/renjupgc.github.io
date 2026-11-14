@@ -345,16 +345,27 @@ td.c-prob{width:248px;padding:11px 22px}
   }
 
   function probCell(g) {
+    var b = g.black || {}, w = g.white || {};
+    var isBye = (b.name === '轮空' || w.name === '轮空');
+    var tag = '';
+    if (isBye) {
+      if (g.result) tag = '<div class="m-res"><span class="res-tag res-b">:-</span></div>';
+      return '<td class="c-prob">' + tag + '<span class="nopred">轮空</span></td>';
+    }
     var p = g.prediction || {};
     if (p.black == null || p.draw == null || p.white == null) {
-      return '<td class="c-prob"><span class="nopred">未预测</span></td>';
+      if (g.result === 'B') tag = '<div class="m-res"><span class="res-tag res-b">1 : 0</span></div>';
+      else if (g.result === 'W') tag = '<div class="m-res"><span class="res-tag res-w">0 : 1</span></div>';
+      else if (g.result === 'D') tag = '<div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>';
+      else if (g.result === 'BF') tag = '<div class="m-res"><span class="res-tag res-w" title="黑方弃权">- : +</span></div>';
+      else if (g.result === 'WF') tag = '<div class="m-res"><span class="res-tag res-b" title="白方弃权">+ : -</span></div>';
+      return '<td class="c-prob">' + tag + '<span class="nopred">未预测</span></td>';
     }
     var pb = p.black, pd = p.draw, pw = p.white;
     var total = pb + pd + pw || 1;
     var top = Math.max(pb, pd, pw);
     // 最高的一项没到 50%：这盘没有明显优势，底色改用灰的，不再用绿色强调
     var muted = top < 50;
-    var tag = '';
     if (g.result === 'B') tag = '<div class="m-res"><span class="res-tag res-b">1 : 0</span></div>';
     else if (g.result === 'W') tag = '<div class="m-res"><span class="res-tag res-w">0 : 1</span></div>';
     else if (g.result === 'D') tag = '<div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>';
@@ -374,8 +385,9 @@ td.c-prob{width:248px;padding:11px 22px}
 
   function row(g) {
     var b = g.black || {}, w = g.white || {};
+    var isBye = (b.name === '轮空' || w.name === '轮空');
     var mark = '';
-    if (g.result && g.prediction && g.prediction.black != null) {
+    if (!isBye && g.result && g.prediction && g.prediction.black != null) {
       var pb = g.prediction.black, pd = g.prediction.draw, pw = g.prediction.white;
       var top = Math.max(pb, pd, pw);
       var fav = (pb === top) ? 'B' : ((pw === top) ? 'W' : 'D');

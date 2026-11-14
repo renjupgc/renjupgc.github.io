@@ -479,16 +479,8 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
         bn = g['black_name']
         wn = g['white_name']
 
-        # 轮空台特殊处理
+        # 轮空台不参与预测，也不算做预测内
         if wn == '轮空' or bn == '轮空':
-            is_black_bye = (wn == '轮空')
-            pb = 100.0 if is_black_bye else 0.0
-            pw = 0.0 if is_black_bye else 100.0
-            fav = 'B' if is_black_bye else 'W'
-            res = g['result']
-            is_correct = (fav == res) if res in ('B', 'W', 'D') else None
-            real_name = bn if is_black_bye else wn
-            r_info = player_ratings.get(real_name, {'rating': BIAS, 'rd': 100.0})
             out.append({
                 'table': g['table_no'],
                 'round': g['round'],
@@ -496,19 +488,19 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
                 'black_name': bn,
                 'white_no': g['white_no'],
                 'white_name': wn,
-                'rating_black': r_info['rating'] if is_black_bye else 0.0,
-                'rd_black': r_info['rd'] if is_black_bye else 0.0,
-                'rating_white': 0.0 if is_black_bye else r_info['rating'],
-                'rd_white': 0.0 if is_black_bye else r_info['rd'],
+                'rating_black': player_ratings.get(bn, {}).get('rating', 0.0),
+                'rd_black': player_ratings.get(bn, {}).get('rd', 0.0),
+                'rating_white': player_ratings.get(wn, {}).get('rating', 0.0),
+                'rd_white': player_ratings.get(wn, {}).get('rd', 0.0),
                 'dr_black': 0.0,
                 'dr_white': 0.0,
-                'h2h_score': 1.0 if is_black_bye else 0.0,
-                'p_black': pb,
-                'p_draw': 0.0,
-                'p_white': pw,
-                'fav': fav,
-                'result': res,
-                'is_correct': is_correct,
+                'h2h_score': 0.5,
+                'p_black': None,
+                'p_draw': None,
+                'p_white': None,
+                'fav': None,
+                'result': g['result'],
+                'is_correct': None,
             })
             continue
 
@@ -588,6 +580,8 @@ def compute_metrics_for_games(games_rows):
     fav_counts = {'B': 0, 'D': 0, 'W': 0}
 
     for g in games_rows:
+        if g.get('black_name') == '轮空' or g.get('white_name') == '轮空':
+            continue
         res = g.get('result')
         if not res or g.get('p_black') is None:
             continue
@@ -828,10 +822,13 @@ def main(argv=None):
             for p in rows:
                 mark = '✔' if p['is_correct'] is True else ('✘' if p['is_correct'] is False else '·')
                 res_str = p['result'] or '进行中'
-                print(f'{mark} 第{p["table"]:2d}台  {p["black_name"]}({p["rating_black"]:.0f}) vs {p["white_name"]}({p["rating_white"]:.0f})  '
-                      f'胜率: {p["p_black"]:.1f}% / {p["p_draw"]:.1f}% / {p["p_white"]:.1f}%  '
-                      f'[和棋率: {p["dr_black"]:.3f}/{p["dr_white"]:.3f}, H2H: {p["h2h_score"]:.2f}]  '
-                      f'[实际: {res_str}]')
+                if p['p_black'] is None:
+                    print(f'· 第{p["table"]:2d}台  {p["black_name"]} vs {p["white_name"]}  [轮空免测]  [实际: {res_str}]')
+                else:
+                    print(f'{mark} 第{p["table"]:2d}台  {p["black_name"]}({p["rating_black"]:.0f}) vs {p["white_name"]}({p["rating_white"]:.0f})  '
+                          f'胜率: {p["p_black"]:.1f}% / {p["p_draw"]:.1f}% / {p["p_white"]:.1f}%  '
+                          f'[和棋率: {p["dr_black"]:.3f}/{p["dr_white"]:.3f}, H2H: {p["h2h_score"]:.2f}]  '
+                          f'[实际: {res_str}]')
             if args.write:
                 evaluate_tournament_model(conn, args.tid, write=True, print_report=True)
         else:
