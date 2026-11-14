@@ -71,7 +71,6 @@ tbody tr.shade td{background:var(--mint2)}
       <div class="hd-sub">
         <span id="grp">公开组</span>
         <span class="rd" id="rnd">第 1 轮</span>
-        <span id="meta"></span>
         <a class="mlink" id="mlink" href="2026-shanhai-r1.html">对阵表 ↗</a>
         <nav class="rd-nav" id="rdnav"></nav>
       </div>
@@ -87,11 +86,11 @@ tbody tr.shade td{background:var(--mint2)}
             <th>积分</th>
             <th>对手分</th>
             <th>中间<br>对手分</th>
-            <th>胜局</th>
+            <th>胜局数</th>
           </tr>
         </thead>
         <tbody id="rows">
-          <tr><td colspan="7" class="empty">正在读取…</td></tr>
+          <tr><td colspan="7" class="empty">正在读取</td></tr>
         </tbody>
       </table>
     </div>
@@ -147,14 +146,12 @@ tbody tr.shade td{background:var(--mint2)}
     document.getElementById('mlink').href = '2026-shanhai-r' + ROUND + '.html?r=' + ROUND;
 
     return getJSON(SAPI + 'r' + ROUND + '.json').then(render);
-  }).catch(function (e) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">' + esc(e.message) + '</td></tr>';
+  }).catch(function () {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">正在读取</td></tr>';
   });
 
   function render(d) {
     document.getElementById('rnd').textContent = '第 ' + d.round + ' 轮';
-    document.getElementById('meta').textContent =
-      (d.played != null) ? ('已出结果 ' + d.played + ' 台') : '';
 
     var html = (d.ranking || []).map(function (p, i) {
       return '<tr' + (i % 2 ? ' class="shade"' : '') + '>' +
