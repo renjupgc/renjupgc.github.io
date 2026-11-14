@@ -514,7 +514,7 @@ def compute_standings(conn, tid, upto=None):
         if len(opp_vals) >= 3:
             p['med'] = round(sum(sorted(opp_vals)[1:-1]), 4)
         else:
-            p['med'] = p['buch']
+            p['med'] = 0.0
         p['played'] = len(st['rounds_played'])
 
     ordered = sorted(
@@ -625,6 +625,7 @@ def export_api(conn):
                 (t['id'], r['round']),
             ).fetchall()
             played, predicted = _round_stats(rows)
+            is_finished = (len(rows) > 0 and all(bool(g['result']) for g in rows))
             rmeta.append({
                 'round': r['round'],
                 'games': len(rows),
@@ -633,10 +634,15 @@ def export_api(conn):
                 'model': r['model'],
                 'predicted_at': r['predicted_at'],
                 'updated_at': r['updated_at'],
-                'standings': 'api/duiju/%s/standings/r%d.json' % (t['slug'], r['round']),
+                'standings': ('api/duiju/%s/standings/r%d.json' % (t['slug'], r['round'])) if is_finished else None,
             })
             write_round(t, r, rows, all_rounds, dict(points))
-            write_standings(conn, t, r['round'])
+            if is_finished:
+                write_standings(conn, t, r['round'])
+            else:
+                stale_path = os.path.join(API_ROOT, t['slug'], 'standings', 'r%d.json' % r['round'])
+                if os.path.exists(stale_path):
+                    os.remove(stale_path)
             for g in rows:
                 if g['result'] in ('B', 'WF'):
                     points[g['black_name']] = points.get(g['black_name'], 0) + 1
