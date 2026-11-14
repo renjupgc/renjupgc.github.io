@@ -743,11 +743,11 @@ def write_round(tour, rmeta, rows, round_list, points):
             'table': g['table_no'],
             'black': {
                 'no': g['black_no'], 'name': g['black_name'],
-                'score': points.get(g['black_name'], 0),
+                'score': None if g['black_name'] == '轮空' else points.get(g['black_name'], 0),
             },
             'white': {
                 'no': g['white_no'], 'name': g['white_name'],
-                'score': points.get(g['white_name'], 0),
+                'score': None if g['white_name'] == '轮空' else points.get(g['white_name'], 0),
             },
             'prediction': pred,
             'result': g['result'],

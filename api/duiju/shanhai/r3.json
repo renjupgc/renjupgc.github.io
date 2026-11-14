@@ -467,7 +467,7 @@
       "white": {
         "no": null,
         "name": "轮空",
-        "score": 0
+        "score": null
       },
       "prediction": {
         "black": 100.0,

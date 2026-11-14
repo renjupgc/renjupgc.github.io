@@ -358,8 +358,8 @@ td.c-prob{width:248px;padding:11px 22px}
     if (g.result === 'B') tag = '<div class="m-res"><span class="res-tag res-b">1 : 0</span></div>';
     else if (g.result === 'W') tag = '<div class="m-res"><span class="res-tag res-w">0 : 1</span></div>';
     else if (g.result === 'D') tag = '<div class="m-res"><span class="res-tag res-d">0.5 : 0.5</span></div>';
-    else if (g.result === 'BF') tag = '<div class="m-res"><span class="res-tag res-w" title="黑方弃权">0 : 1 (黑弃)</span></div>';
-    else if (g.result === 'WF') tag = '<div class="m-res"><span class="res-tag res-b" title="白方弃权">1 : 0 (白弃)</span></div>';
+    else if (g.result === 'BF') tag = '<div class="m-res"><span class="res-tag res-w" title="黑方弃权">- : +</span></div>';
+    else if (g.result === 'WF') tag = '<div class="m-res"><span class="res-tag res-b" title="白方弃权">+ : -</span></div>';
     return '<td class="c-prob">' + tag +
       '<span class="bar" title="假先 ' + pct(pb) + '% · 和 ' + pct(pd) + '% · 假后 ' + pct(pw) + '%">' +
       '<i class="s-b" style="width:' + (pb / total * 100).toFixed(2) + '%"></i>' +
@@ -386,13 +386,16 @@ td.c-prob{width:248px;padding:11px 22px}
         mark = '<span class="pred-mark wrong">✘</span>';
       }
     }
+    var bScoreHtml = (b.name === '轮空' || b.score == null) ? '' : '<span class="pscore">' + score(b.score) + '</span>';
+    var wScoreHtml = (w.name === '轮空' || w.score == null) ? '' : '<span class="pscore">' + score(w.score) + '</span>';
     return '<tr>' +
       '<td class="c-no">' + mark + '<span class="t-no-val">' + (g.table == null ? '' : g.table) + '</span></td>' +
       '<td class="c-bn"><span class="pid">' + (b.no == null ? '' : b.no) + '</span>' +
         '<span class="pn" title="' + esc(b.name) + '">' + esc(b.name) + '</span>' +
-        '<span class="pscore">' + score(b.score) + '</span></td>' +
+        bScoreHtml + '</td>' +
       probCell(g) +
-      '<td class="c-wn"><span class="pscore">' + score(w.score) + '</span>' +
+      '<td class="c-wn">' +
+        wScoreHtml +
         '<span class="pn" title="' + esc(w.name) + '">' + esc(w.name) + '</span>' +
         '<span class="pid">' + (w.no == null ? '' : w.no) + '</span></td>' +
       '</tr>';
