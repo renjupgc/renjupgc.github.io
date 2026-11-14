@@ -226,6 +226,14 @@
     color: var(--faint);
 }
 
+.zx-eh .zx-from a {
+    color: var(--faint);
+}
+
+.zx-eh .zx-from a:hover {
+    color: var(--gold-deep);
+}
+
 /* 原话 */
 
 .zx-raw {
@@ -332,6 +340,54 @@
     vertical-align: 2px;
 }
 
+/* 练习的回答：收起时只占一行，点开看参考答案 */
+
+.zx-rows dd details {
+    margin-top: 8px;
+}
+
+.zx-rows dd summary {
+    cursor: pointer;
+    width: fit-content;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    color: var(--gold-deep);
+    list-style: none;
+    border-bottom: 1px dashed var(--line);
+    padding-bottom: 1px;
+}
+
+.zx-rows dd summary::-webkit-details-marker {
+    display: none;
+}
+
+.zx-rows dd summary::before {
+    content: "▸ ";
+    font-size: 10px;
+    vertical-align: 1px;
+}
+
+.zx-rows dd details[open] summary::before {
+    content: "▾ ";
+}
+
+.zx-rows dd summary:hover {
+    color: var(--ink);
+}
+
+.zx-rows dd details p {
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    border-left: 2px solid var(--line);
+    border-radius: 0 8px 8px 0;
+    background: var(--surface-2);
+    font-family: var(--serif);
+    font-size: 14.5px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
 /* ---------- 附录 ---------- */
 
 .zx-foot {
@@ -393,6 +449,42 @@
     font-family: var(--sans);
     font-size: 12px;
     color: var(--faint);
+}
+
+/* 出处一览 */
+
+.zx-src-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.zx-src-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: baseline;
+    margin: 0;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--line-soft);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.8;
+}
+
+.zx-src-list li a {
+    color: var(--ink-2);
+}
+
+.zx-src-list li a:hover {
+    color: var(--gold-deep);
+}
+
+.zx-src-list span {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+    white-space: nowrap;
 }
 
 /* ---------- 更新记录 ---------- */
