@@ -349,7 +349,11 @@ td.c-prob{width:248px;padding:11px 22px}
     var isBye = (b.name === '轮空' || w.name === '轮空');
     var tag = '';
     if (isBye) {
-      if (g.result) tag = '<div class="m-res"><span class="res-tag res-b">:-</span></div>';
+      if (g.result) {
+        var byeTag = (w.name === '轮空') ? '+ : -' : '- : +';
+        var cls = (w.name === '轮空') ? 'res-b' : 'res-w';
+        tag = '<div class="m-res"><span class="res-tag ' + cls + '">' + byeTag + '</span></div>';
+      }
       return '<td class="c-prob">' + tag + '<span class="nopred">轮空</span></td>';
     }
     var p = g.prediction || {};
