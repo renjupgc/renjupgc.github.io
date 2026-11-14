@@ -240,8 +240,12 @@ def collect(ratings, tournaments, matches):
         for g in gl:
             if g['tid'] not in tids:
                 tids.append(g['tid'])
+        # 「参赛场次」只算真下过棋的场次：整场只弃权、没落子的不算参赛，
+        # 和等级分的口径一致（对局数、胜负同样不含弃权与轮空）。
+        real = {g['tid'] for g in gl if g['cls'] in ('win', 'loss', 'draw')}
         stats[name] = [{'tid': tid, 't': tournaments.get(tid, {}),
-                        'row': per_event.get(tid, {}).get(name)} for tid in tids]
+                        'row': per_event.get(tid, {}).get(name),
+                        'real': tid in real} for tid in tids]
         stats[name].sort(key=lambda x: ((x['t'].get('date') or ''), x['tid']),
                          reverse=True)
         gl.sort(key=lambda g: ((g['t'].get('date') or ''),
@@ -500,17 +504,17 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                  % (rec['wins'] or 0, rec['draws'] or 0, rec['losses'] or 0),
                  '                <span class="ps"><span class="ps-k">参赛</span>'
                  '<span class="ps-v">%d 场</span></span>'
-                 % (len(events) + len(extras)),
+                 % (len([e for e in events if e.get('real', True)]) + len(extras)),
                  '            </div>']
         if rated:
             note = ('等级分截至 %s，在 <a href="../rating.html">河南高校爱好者等级分</a>'
-                    '的 %d 人中列第 %s 位；上方对局数与胜负不含轮空、弃权，'
+                    '的 %d 人中列第 %s 位；上方对局数、胜负与参赛场次都不含轮空与弃权，'
                     '下方的对局记录则全部分局照录。'
                     % (bz.esc(as_of), total_players, rank))
         else:
             note = ('等级分榜只收达到门槛的棋手（河南选手须下满 4 局，外省选手须至少'
-                    '参加 2 场比赛），TA 暂未入榜，故不列等级分与榜上名次；上方对局数'
-                    '与胜负不含轮空、弃权，下方的对局记录则全部分局照录。')
+                    '参加 2 场比赛），TA 暂未入榜，故不列等级分与榜上名次；上方对局数、'
+                    '胜负与参赛场次都不含轮空与弃权，下方的对局记录则全部分局照录。')
         body += ['            <p class="player-note">%s' % note,
                  '            </p>',
                  '',
@@ -544,13 +548,17 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     rows = []
     for e in events:
         t = e['t']
+        # 整场只弃权、没落子的场次照列（那是比赛记录），但标明「未实际对局」，
+        # 免得和「参赛场次」里的数字对不上。
+        tag = ('' if e.get('real', True)
+               else ' <span class="date">未实际对局</span>')
         rows.append(((t.get('date') or ''),
                      '                        <tr>'
                      '<td>%s</td>'
-                     '<td class="c-name"><a href="../../zayu/t%d.html">%s</a></td>'
+                     '<td class="c-name"><a href="../../zayu/t%d.html">%s</a>%s</td>'
                      '<td class="c-rank">%s</td></tr>'
                      % (bz.esc(t.get('date') or ''), e['tid'],
-                        bz.esc(t.get('name') or ''),
+                        bz.esc(t.get('name') or ''), tag,
                         rank_cell(t, e['row'], name, arts))))
     for x in extras:
         rows.append((x['date'], '                        <tr>%s</tr>'
@@ -643,7 +651,8 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     else:
         desc = '%s%s的个人主页：等级分 %s，%s参赛 %d 场。' % (
             name, '（%s）' % sub if sub else '', pt,
-            '第 %s 名，' % rank if rank else '未入榜，', len(events) + len(extras))
+            '第 %s 名，' % rank if rank else '未入榜，',
+            len([e for e in events if e.get('real', True)]) + len(extras))
 
     html = bz.HEAD.format(
         title='%s - 杂豫 - 连珠杂箱' % bz.esc(name),

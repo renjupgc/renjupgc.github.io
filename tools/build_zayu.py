@@ -920,6 +920,11 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
     played = sum(1 for m in ms
                  if m['player1'] != BYE and m['player2'] != BYE
                  and (m['winner'] or '') != '' and (m['result'] or '') != '')
+    # 弃权（f0 / 0f / ff）算是出了结果的一台，但不计「对局」——
+    # 和等级分、个人主页的口径一致：没落子的不算一局棋。
+    real = sum(1 for m in ms
+               if m['player1'] != BYE and m['player2'] != BYE
+               and m['winner'] in ('1', '0', '0.5'))
     roster = roster_rows(t['id']) if (not rows or not played) else []
     # 成绩表只收录了部分对局的赛事，算出来的名次不等于最终成绩；
     # 登记过名次的（报道公布或棋友补录）以登记的为准。
@@ -943,7 +948,9 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
         info.append('棋手：%d 人' % len(rows))
         info.append('轮次：%d 轮' % (declared_rounds(t['id']) or max(rounds)))
         if played:
-            info.append('对局：%d 局' % played)
+            info.append('对局：%d 局' % real)
+            if played > real:
+                info.append('弃权：%d 台' % (played - real))
         else:
             info.append('状态：未开赛')
     elif roster:
@@ -1050,11 +1057,15 @@ def list_page(ts, by_tid, as_of=None):
              '            <h2>杂豫</h2>',
              '            <ul class="tournament-list">']
     for t in ts:
-        n = sum(1 for m in by_tid.get(t['id'], [])
-                if m['player1'] != BYE and m['player2'] != BYE)
+        ms_t = by_tid.get(t['id'], [])
+        # 「局」一律指真正下完的棋：只录了编排表、或整台弃权的都不算。
+        n = sum(1 for m in ms_t
+                if m['player1'] != BYE and m['player2'] != BYE
+                and m['winner'] in ('1', '0', '0.5'))
         body.append('                <li><a href="zayu/t%d.html">%s</a>'
-                    '<span class="date">%s · %d 局</span></li>' %
-                    (t['id'], esc(t['name']), esc(t['date'] or ''), n))
+                    '<span class="date">%s · %s</span></li>' %
+                    (t['id'], esc(t['name']), esc(t['date'] or ''),
+                     ('%d 局' % n) if n else '未开赛'))
     body.append('            </ul>')
     body.append('        </section>')
 
