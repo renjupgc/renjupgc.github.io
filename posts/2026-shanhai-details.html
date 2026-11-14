@@ -163,7 +163,7 @@ tbody tr.shade td{background:var(--mint2)}
     var rList = t.rounds || [];
     // 只有全部出赛果的完赛轮次才有名次表
     var finishedList = rList.filter(function (r) {
-      return r.standings && (r.is_finished !== false) && (r.played >= r.games || r.played == null);
+      return r.standings && (r.is_finished !== false);
     });
     var finishedRounds = finishedList.map(function (r) { return r.round; });
 
