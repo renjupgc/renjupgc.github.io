@@ -69,6 +69,7 @@ tbody tr:last-child td{border-bottom:none}
       </div>
     </div>
     <div class="big" id="kpi">
+      <div class="kpi"><b id="k-n">—</b><span>已评台数</span></div>
       <div class="kpi"><b id="k-hit">—</b><span>命中</span></div>
       <div class="kpi"><b id="k-acc">—</b><span>命中率</span></div>
       <div class="kpi"><b id="k-brier">—</b><span>平均 Brier 值</span></div>
@@ -142,8 +143,8 @@ tbody tr:last-child td{border-bottom:none}
 
   function render(d) {
     var o = d.overall || {};
-    document.getElementById('k-hit').textContent =
-      (o.hit == null || o.n == null) ? '—' : (o.hit + ' / ' + o.n);
+    document.getElementById('k-n').textContent = o.n == null ? '—' : o.n;
+    document.getElementById('k-hit').textContent = o.hit == null ? '—' : o.hit;
     document.getElementById('k-acc').textContent = pct(o.accuracy);
     document.getElementById('k-brier').textContent = fix3(o.brier);
     document.getElementById('k-ll').textContent = fix3(o.logloss);
