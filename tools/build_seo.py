@@ -46,6 +46,9 @@ RE_LASTMOD = re.compile(r'<span class="date">(\d{4}-\d{2}-\d{2})</span>')
 # 也不进搜索（页头另有 noindex）。
 SKIP_SITEMAP = {'404.html', 'zayu/shiguang.html'}
 
+# 暗门页（录入赛果用）：不链在导航上，不进 sitemap，也不做 SEO 注入。
+ADMIN_PAGES = {'admin/duiju.html'}
+
 
 def html_files():
     for dirpath, dirnames, filenames in os.walk(ROOT):
@@ -144,6 +147,8 @@ def inject_meta():
     changed = 0
     skipped = []
     for path in html_files():
+        if rel(path) in ADMIN_PAGES:
+            continue
         text = read(path)
         text = strip_block(text)
 
@@ -176,7 +181,7 @@ def build_sitemap(post_dates):
     rows = []
     for path in sorted(html_files(), key=rel):
         r = rel(path)
-        if r in SKIP_SITEMAP:
+        if r in SKIP_SITEMAP or r in ADMIN_PAGES:
             continue
         loc = url_of(path)
         lastmod = post_dates.get(os.path.basename(r)) if r.startswith('posts/') else None

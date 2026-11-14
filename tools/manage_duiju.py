@@ -12,6 +12,7 @@
     python tools/manage_duiju.py sync
     python tools/manage_duiju.py all data/shanhai/2026-r1.json
     python tools/manage_duiju.py result --tid 2026-shanhai --round 1 --table 3 --value B
+    python tools/manage_duiju.py apply --tid 2026-shanhai --round 1 --results "1=B,2=W,5=-"
     python tools/manage_duiju.py show --tid 2026-shanhai
 
 命令：
@@ -19,8 +20,13 @@
     export  从库导出 API：api/duiju/index.json、api/duiju/<slug>/r<N>.json
     sync    把 data/<赛事>/ 下的所有轮次 JSON 重录一遍再导出
     all     record 之后接着 export
-    result  写入某一台的赛果（B 黑胜 / W 白胜 / D 和棋）
+    result  写入某一台的赛果（B 黑胜 / W 白胜 / D 和棋 / - 清空）
+    apply   一次写入多台赛果，如 "1=B,2=W,5=-"
     show    打印库内赛事与轮次概况
+
+一台对局一旦有了赛果，它的概率就定死：之后再 record / sync，JSON 里的预测不再覆盖它
+（赛果为 null 的台照常更新）。赛果可以用命令行补，也可以在暗门页 admin/duiju.html
+点按钮，页面会触发 update-duiju 工作流把结果写进库。
 
 后端不靠服务器：`sync` 由 .github/workflows/update-duiju.yml 定时（以及手动、推送时）
 在 Actions 里跑，重出 api/duiju/ 并提交；GitHub Pages 直接把这些 JSON 当接口发出去。
@@ -222,7 +228,7 @@ def record_round(conn, payload):
     rnd = payload['round']
 
     existing = _round_rows(conn, t['id'], rnd)
-    old_result = {row[0]: row[5] for row in existing}
+    old_rows = {row[0]: row for row in existing}
     old_meta = conn.execute(
         'SELECT model, predicted_at FROM rounds WHERE tournament_id=? AND round=?',
         (t['id'], rnd),
@@ -233,20 +239,28 @@ def record_round(conn, payload):
     ).fetchone()
 
     rows = []
+    locked = 0
     for g in payload['games']:
         b, w = g['black_norm'], g['white_norm']
         pred = g.get('prediction') or {}
+        prev = old_rows.get(g['table'])
         res = g.get('result') or None
-        if res is None:
-            res = old_result.get(g['table'])      # null = 不改动已有赛果
+        if res is None and prev is not None:
+            res = prev[5]                        # null = 不改动已有赛果
+        if prev is not None and prev[5] is not None:
+            # 这一台已经有赛果：概率就此定死，JSON 里后来的预测不再覆盖
+            pb, pd, pw = prev[6], prev[7], prev[8]
+            locked += 1
+        else:
+            pb = _opt_float(pred.get('black'))
+            pd = _opt_float(pred.get('draw'))
+            pw = _opt_float(pred.get('white'))
         rows.append((
             g['table'],
             b['no'], b['name'],
             w['no'], w['name'],
             res,
-            _opt_float(pred.get('black')),
-            _opt_float(pred.get('draw')),
-            _opt_float(pred.get('white')),
+            pb, pd, pw,
         ))
 
     same_games = [tuple(r[:5]) + (r[5], r[6], r[7], r[8]) for r in existing] == rows
@@ -282,9 +296,9 @@ def record_round(conn, payload):
         [(t['id'], rnd) + r for r in rows],
     )
     conn.commit()
-    print('录入 %s 第 %d 轮：%d 台（预测 %d 台）' % (
+    print('录入 %s 第 %d 轮：%d 台（预测 %d 台，%d 台已出赛果、概率锁定）' % (
         t['name'], rnd, len(rows),
-        sum(1 for r in rows if r[6] is not None),
+        sum(1 for r in rows if r[6] is not None), locked,
     ))
     return True
 
@@ -296,21 +310,52 @@ def _opt_float(value):
 # ---------------------------------------------------------------- result
 
 def set_result(conn, tid, rnd, table, value):
-    if value not in RESULTS:
-        die('result 只能是 B / W / D')
-    cur = conn.execute(
-        'SELECT black_name, white_name FROM games WHERE tournament_id=? AND round=? AND table_no=?',
+    """写一台的赛果；value 为 '-' 表示清掉（回到未出结果）。"""
+    value = (value or '').strip() or '-'
+    if value != '-' and value not in RESULTS:
+        die('result 只能是 B / W / D / -（- 表示清空）')
+    row = conn.execute(
+        'SELECT black_name, white_name, result FROM games'
+        ' WHERE tournament_id=? AND round=? AND table_no=?',
         (tid, rnd, table),
-    )
-    row = cur.fetchone()
+    ).fetchone()
     if not row:
         die('库里没有这一台：%s 第 %d 轮 第 %d 台' % (tid, rnd, table))
+    new_value = None if value == '-' else value
+    if row['result'] == new_value:
+        print('第 %d 台 %s — %s：%s（未变化）' % (
+            table, row['black_name'], row['white_name'], new_value or '未出结果'))
+        return False
     conn.execute(
         'UPDATE games SET result=? WHERE tournament_id=? AND round=? AND table_no=?',
-        (value, tid, rnd, table),
+        (new_value, tid, rnd, table),
     )
     conn.commit()
-    print('第 %d 台 %s — %s：%s' % (table, row['black_name'], row['white_name'], value))
+    print('第 %d 台 %s — %s：%s' % (
+        table, row['black_name'], row['white_name'], new_value or '清空'))
+    return True
+
+
+def apply_results(conn, tid, rnd, spec):
+    """批量写赛果：spec 形如 "1=B,2=W,5=D,7=-"（- 清空）。"""
+    items = [s.strip() for s in (spec or '').split(',') if s.strip()]
+    if not items:
+        die('没有可写的赛果：--results "1=B,2=W"')
+    changed = 0
+    for item in items:
+        for sep in ('=', ':'):
+            if sep in item:
+                table_s, value_s = item.split(sep, 1)
+                break
+        else:
+            die('看不懂这一项：%r（应为 台次=B/W/D/-）' % item)
+        try:
+            table = int(table_s.strip())
+        except ValueError:
+            die('台次不是数字：%r' % table_s)
+        if set_result(conn, tid, rnd, table, value_s.strip().upper()):
+            changed += 1
+    print('共 %d 项，%d 台有改动' % (len(items), changed))
 
 
 # ---------------------------------------------------------------- export
@@ -507,7 +552,12 @@ def main(argv=None):
     p_res.add_argument('--tid', required=True)
     p_res.add_argument('--round', type=int, required=True)
     p_res.add_argument('--table', type=int, required=True)
-    p_res.add_argument('--value', required=True, choices=RESULTS)
+    p_res.add_argument('--value', required=True, choices=RESULTS + ('-',))
+
+    p_apply = sub.add_parser('apply', help='一次写入多台赛果，如 1=B,2=W,5=-')
+    p_apply.add_argument('--tid', required=True)
+    p_apply.add_argument('--round', type=int, required=True)
+    p_apply.add_argument('--results', required=True)
 
     p_show = sub.add_parser('show', help='概况')
     p_show.add_argument('--tid')
@@ -530,6 +580,8 @@ def main(argv=None):
             sync_sources(conn)
         elif args.cmd == 'result':
             set_result(conn, args.tid, args.round, args.table, args.value)
+        elif args.cmd == 'apply':
+            apply_results(conn, args.tid, args.round, args.results)
         elif args.cmd == 'show':
             show(conn, args.tid)
     finally:

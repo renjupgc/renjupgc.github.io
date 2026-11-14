@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>赛果录入</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --fg: #23211d; --muted: #77726a; --card: #fff;
+    --line: #e2ded6; --win: #2f6f4f; --draw: #8a6d24; --lose: #a03a2e;
+    --accent: #3a5a78; --chip: #f1eee7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181a; --fg: #e8e6e1; --muted: #9a958c; --card: #1e2124;
+      --line: #2f3337; --win: #6fbf8f; --draw: #d9b45f; --lose: #e08a7a;
+      --accent: #8fb6d6; --chip: #262a2e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 18px 64px;
+    background: var(--bg); color: var(--fg);
+    font: 15px/1.6 "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: .02em; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .bar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 14px;
+  }
+  label { font-size: 13px; color: var(--muted); }
+  input[type=password], input[type=number], select {
+    font: inherit; font-size: 13px; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; max-width: 100%;
+  }
+  input[type=password] { flex: 1 1 240px; min-width: 180px; }
+  .tk { flex: 1 1 100%; display: flex; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card);
+          border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; background: var(--chip); }
+  td.no { width: 46px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  td.res { width: 84px; }
+  td.ops { width: 250px; white-space: nowrap; }
+  .player b { font-weight: 600; }
+  .player small { color: var(--muted); margin-left: 4px; }
+  .btn {
+    font: inherit; font-size: 13px; line-height: 1.2; cursor: pointer;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; margin-right: 4px;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.on[data-v=B] { border-color: var(--win); color: var(--win); background: transparent; font-weight: 600; }
+  .btn.on[data-v=D] { border-color: var(--draw); color: var(--draw); background: transparent; font-weight: 600; }
+  .btn.on[data-v=W] { border-color: var(--lose); color: var(--lose); background: transparent; font-weight: 600; }
+  .btn.clear { color: var(--muted); }
+  .btn.clear.on { border-color: var(--muted); color: var(--fg); font-weight: 600; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 12px;
+          background: var(--chip); color: var(--muted); }
+  .chip.B { color: var(--win); } .chip.D { color: var(--draw); } .chip.W { color: var(--lose); }
+  .foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+  .submit {
+    font: inherit; font-size: 14px; cursor: pointer; padding: 7px 16px;
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+  }
+  .submit:disabled { opacity: .5; cursor: default; }
+  .ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  .msg { font-size: 13px; color: var(--muted); }
+  .msg.err { color: var(--lose); }
+  .msg.ok { color: var(--win); }
+  .tip { font-size: 12px; color: var(--muted); margin-top: 22px; line-height: 1.8; }
+  .tip code { background: var(--chip); padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>赛果录入</h1>
+  <div class="sub">改完点提交，页面触发 <code>update-duiju</code> 工作流把结果写进 duiju.db 并重出接口。</div>
+
+  <div class="bar">
+    <div class="tk">
+      <input type="password" id="token" placeholder="GitHub token（只需 Actions: write）" autocomplete="off" spellcheck="false">
+      <button class="btn" id="save-token" type="button">记住</button>
+    </div>
+    <label>轮次</label>
+    <select id="round"></select>
+    <span class="chip" id="meta"></span>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th class="no">台</th><th>黑方</th><th>白方</th><th class="res">赛果</th><th class="ops">设定</th></tr>
+    </thead>
+    <tbody id="rows"><tr><td colspan="5" style="color:var(--muted)">载入中…</td></tr></tbody>
+  </table>
+
+  <div class="foot">
+    <button class="submit" id="submit" type="button" disabled>提交赛果</button>
+    <button class="btn ghost" id="reload" type="button">重载数据</button>
+    <span class="msg" id="msg"></span>
+  </div>
+
+  <p class="tip">
+    token 只存在本机浏览器。fine-grained token 只需对本仓库开 <code>Actions: Read and write</code>；
+    classic token 需要 <code>repo</code> + <code>workflow</code>。<br>
+    已出赛果的对局，概率在库里就此定死，后续 JSON 里的预测不会再覆盖它；<code>×</code> 可把一台退回未出结果。
+  </p>
+</div>
+
+<script>
+(function () {
+  var REPO = 'renjupgc/renjupgc.github.io';
+  var WORKFLOW = 'update-duiju.yml';
+  var API = '../api/duiju/';
+  var GH = 'https://api.github.com/repos/' + REPO;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { tid: '', slug: '', round: 0, rounds: [], games: [], pending: {}, token: '' };
+
+  function loadToken() {
+    try { state.token = localStorage.getItem('duiju_token') || ''; } catch (e) { state.token = ''; }
+    $('token').value = state.token;
+  }
+  function setMsg(text, cls) {
+    var el = $('msg');
+    el.textContent = text || '';
+    el.className = 'msg' + (cls ? ' ' + cls : '');
+  }
+
+  function fetchJson(url) {
+    return fetch(url, { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + url);
+      return r.json();
+    });
+  }
+
+  function loadIndex() {
+    return fetchJson(API + 'index.json').then(function (idx) {
+      var t = (idx.tournaments || [])[0];
+      if (!t) throw new Error('接口里没有赛事');
+      state.tid = t.id; state.slug = t.slug;
+      state.rounds = (t.rounds || []).map(function (r) { return r.round; });
+      if (!state.rounds.length) throw new Error('接口里没有轮次');
+      var sel = $('round');
+      sel.innerHTML = '';
+      state.rounds.forEach(function (n) {
+        var o = document.createElement('option');
+        o.value = n; o.textContent = '第 ' + n + ' 轮';
+        sel.appendChild(o);
+      });
+      state.round = state.rounds[state.rounds.length - 1];
+      sel.value = state.round;
+      $('meta').textContent = t.name + ' · ' + (t.group || '');
+    });
+  }
+
+  function loadRound() {
+    $('rows').innerHTML = '<tr><td colspan="5" style="color:var(--muted)">载入中…</td></tr>';
+    return fetchJson(API + state.slug + '/r' + state.round + '.json').then(function (data) {
+      state.games = data.games || [];
+      state.pending = {};
+      render();
+      setMsg('');
+    });
+  }
+
+  function valueOf(game) {
+    var key = String(game.table);
+    return state.pending.hasOwnProperty(key) ? state.pending[key] : (game.result || '');
+  }
+
+  function render() {
+    var tb = $('rows');
+    tb.innerHTML = '';
+    state.games.forEach(function (g) {
+      var v = valueOf(g);
+      var tr = document.createElement('tr');
+
+      var tdNo = document.createElement('td');
+      tdNo.className = 'no'; tdNo.textContent = g.table;
+
+      var tdBlack = document.createElement('td');
+      tdBlack.className = 'player';
+      tdBlack.innerHTML = '<b></b><small></small>';
+      tdBlack.querySelector('b').textContent = g.black.name;
+      tdBlack.querySelector('small').textContent = '#' + g.black.no + ' · ' + fmt(g.black.score);
+
+      var tdWhite = document.createElement('td');
+      tdWhite.className = 'player';
+      tdWhite.innerHTML = '<b></b><small></small>';
+      tdWhite.querySelector('b').textContent = g.white.name;
+      tdWhite.querySelector('small').textContent = '#' + g.white.no + ' · ' + fmt(g.white.score);
+
+      var tdRes = document.createElement('td');
+      tdRes.className = 'res';
+      var chip = document.createElement('span');
+      chip.className = 'chip ' + (v || '');
+      chip.textContent = v ? label(v) : '未出';
+      tdRes.appendChild(chip);
+
+      var tdOps = document.createElement('td');
+      tdOps.className = 'ops';
+      ['B', 'D', 'W'].forEach(function (val) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (v === val ? ' on' : '');
+        b.setAttribute('data-v', val);
+        b.textContent = val === 'B' ? '黑胜' : val === 'D' ? '和' : '白胜';
+        b.onclick = function () { pick(g.table, val); };
+        tdOps.appendChild(b);
+      });
+      var clr = document.createElement('button');
+      clr.type = 'button';
+      clr.className = 'btn clear' + (v === '' ? ' on' : '');
+      clr.textContent = '×';
+      clr.title = '退回未出结果';
+      clr.onclick = function () { pick(g.table, ''); };
+      tdOps.appendChild(clr);
+
+      tr.appendChild(tdNo); tr.appendChild(tdBlack); tr.appendChild(tdWhite);
+      tr.appendChild(tdRes); tr.appendChild(tdOps);
+      tb.appendChild(tr);
+    });
+    $('submit').disabled = !state.token;
+  }
+
+  function label(v) { return v === 'B' ? '黑胜' : v === 'D' ? '和' : '白胜'; }
+  function fmt(n) { return (n === 0 || n) ? (n + ' 分') : '—'; }
+
+  function pick(table, val) {
+    var g = state.games.filter(function (x) { return x.table === table; })[0];
+    var cur = g ? (g.result || '') : '';
+    var key = String(table);
+    if (val === cur) delete state.pending[key]; else state.pending[key] = val;
+    render();
+  }
+
+  function spec() {
+    return Object.keys(state.pending).sort(function (a, b) { return (+a) - (+b); })
+      .map(function (k) { return k + '=' + (state.pending[k] || '-'); }).join(',');
+  }
+
+  function dispatch() {
+    var s = spec();
+    if (!s) { setMsg('没有改动', 'err'); return Promise.resolve(false); }
+    $('submit').disabled = true;
+    setMsg('正在提交…');
+    return fetch(GH + '/actions/workflows/' + WORKFLOW + '/dispatches', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + state.token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ref: 'main',
+        inputs: { tid: state.tid, round: String(state.round), results: s }
+      })
+    }).then(function (r) {
+      if (r.status === 204) {
+        setMsg('已提交 ' + s + '，工作流已触发，稍候自动生效', 'ok');
+        pollRun(0);
+        return true;
+      }
+      return r.text().then(function (t) {
+        var why = r.status === 401 ? 'token 无效或没有 Actions 权限'
+          : r.status === 404 ? '找不到工作流（确认已推送到 main）'
+          : r.status === 422 ? '参数被拒（检查 token 权限）'
+          : 'HTTP ' + r.status + ' ' + t.slice(0, 120);
+        setMsg(why, 'err');
+        return false;
+      });
+    }).catch(function (e) {
+      setMsg('网络错误：' + e.message, 'err');
+      return false;
+    }).then(function (ok) {
+      $('submit').disabled = !state.token;
+      return ok;
+    });
+  }
+
+  function pollRun(tries) {
+    if (tries > 22) { setMsg('工作流还没跑完，稍后点「重载数据」看看', 'err'); return; }
+    fetch(GH + '/actions/workflows/' + WORKFLOW + '/runs?event=workflow_dispatch&per_page=1', {
+      headers: { 'Authorization': 'Bearer ' + state.token, 'Accept': 'application/vnd.github+json' }
+    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+      var run = data && data.workflow_runs && data.workflow_runs[0];
+      if (!run) { setMsg('看不到运行记录（token 可能没有 Actions: read）', 'err'); return; }
+      if (run.status !== 'completed') {
+        setMsg('工作流运行中…（' + run.status + '）');
+        setTimeout(function () { pollRun(tries + 1); }, 4000);
+        return;
+      }
+      if (run.conclusion === 'success') {
+        setMsg('已写入库，正在等 Pages 部署…', 'ok');
+        setTimeout(function () { loadRound().then(function () { setMsg('已生效', 'ok'); }); }, 20000);
+      } else {
+        setMsg('工作流失败：' + run.conclusion + '（' + run.html_url + '）', 'err');
+      }
+    }).catch(function (e) { setMsg('查询运行状态失败：' + e.message, 'err'); });
+  }
+
+  loadToken();
+  $('save-token').onclick = function () {
+    state.token = $('token').value.trim();
+    try { localStorage.setItem('duiju_token', state.token); } catch (e) {}
+    $('submit').disabled = !state.token;
+    setMsg(state.token ? 'token 已记住' : 'token 已清空', state.token ? 'ok' : 'err');
+  };
+  $('token').oninput = function () {
+    state.token = $('token').value.trim();
+    $('submit').disabled = !state.token;
+  };
+  $('round').onchange = function () {
+    state.round = +$('round').value;
+    loadRound().catch(function (e) { setMsg('读不到第 ' + state.round + ' 轮的接口：' + e.message, 'err'); });
+  };
+  $('reload').onclick = function () {
+    loadRound().catch(function (e) { setMsg('重载失败：' + e.message, 'err'); });
+  };
+  $('submit').onclick = dispatch;
+
+  loadIndex()
+    .then(loadRound)
+    .catch(function (e) { setMsg('初始化失败：' + e.message, 'err'); });
+})();
+</script>
+</body>
+</html>

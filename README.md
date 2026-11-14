@@ -115,8 +115,20 @@ python tools/manage_duiju.py all data/shanhai/2026-r1.json   # 录入 + 导出
 python tools/manage_duiju.py sync                            # 重录 data/ 下所有轮次 + 导出
 python tools/manage_duiju.py export                          # 只导出
 python tools/manage_duiju.py result --tid 2026-shanhai --round 1 --table 3 --value B
+python tools/manage_duiju.py apply --tid 2026-shanhai --round 1 --results "1=B,2=W,5=-"
 python tools/manage_duiju.py show                            # 库里有什么
 ```
+
+一台对局一旦记了赛果，它的概率就定死了：`record` / `sync` 再跑时，JSON 里的
+`prediction` 不会覆盖这些台（赛果为 `null` 的台照常更新），所以补录结果不会把已经
+公布的预测改掉。`result ... --value -` 或 `apply ... 5=-` 可以把一台退回未出结果。
+
+**暗门页**：<https://renjupgc.github.io/admin/duiju.html> —— 不在导航、不进 sitemap
+（`tools/build_seo.py` 的 `ADMIN_PAGES` 跳过它），只能直接敲地址。页面上逐台点
+「黑胜 / 和 / 白胜 / ×」，填一次 GitHub token（存浏览器本地），提交即调
+`workflow_dispatch`，把 `tid / round / results` 交给 `update-duiju` 工作流执行
+`manage_duiju.py apply`，随后照常 sync、导出、提交。token 用 fine-grained 的
+`Actions: Read and write` 即可（classic token 要 `repo` + `workflow`）。
 
 **后端就是 Actions，不是服务器。** `.github/workflows/update-duiju.yml` 每 30 分钟
 （另外在推送 `data/shanhai/`、`tools/manage_duiju.py` 或手动触发时）跑一次
