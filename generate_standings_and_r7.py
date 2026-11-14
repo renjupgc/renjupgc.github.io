@@ -1009,18 +1009,14 @@ r7_path = os.path.join(REPO_DIR, "posts", "2026-shiqing-b-r7.html")
 with open(r7_path, "w", encoding="utf-8") as f:
     f.write(full_page_html)
 
-# Also write to standalone standings and details pages
-stand_html = full_page_html.replace('id="view-matches"', 'id="view-matches" style="display:none"')
-stand_html = stand_html.replace('id="view-standings" style="display:none"', 'id="view-standings"')
-stand_html = stand_html.replace('id="btn-match" class="v-btn active"', 'id="btn-match" class="v-btn"')
-stand_html = stand_html.replace('id="btn-stand" class="v-btn"', 'id="btn-stand" class="v-btn active"')
-
-standings_path = os.path.join(REPO_DIR, "posts", "2026-shiqing-b-standings.html")
-with open(standings_path, "w", encoding="utf-8") as f:
-    f.write(stand_html)
+# Also write to standalone details page
+det_html = full_page_html.replace('id="view-matches"', 'id="view-matches" style="display:none"')
+det_html = det_html.replace('id="view-standings" style="display:none"', 'id="view-standings"')
+det_html = det_html.replace('id="btn-match" class="v-btn active"', 'id="btn-match" class="v-btn"')
+det_html = det_html.replace('id="btn-stand" class="v-btn"', 'id="btn-stand" class="v-btn active"')
 
 details_path = os.path.join(REPO_DIR, "posts", "2026-shiqing-b-details.html")
 with open(details_path, "w", encoding="utf-8") as f:
-    f.write(stand_html)
+    f.write(det_html)
 
-print("Successfully generated 2026-shiqing-b-r7.html, 2026-shiqing-b-details.html and 2026-shiqing-b-standings.html!")
+print("Successfully generated 2026-shiqing-b-r7.html and 2026-shiqing-b-details.html!")
