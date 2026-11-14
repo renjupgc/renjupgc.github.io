@@ -1,0 +1,47 @@
+name: Update Duiju API
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "data/shanhai/**"
+      - "data/duiju.db"
+      - "tools/manage_duiju.py"
+      - ".github/workflows/update-duiju.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-duiju-api
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Sync duiju.db from round JSON and export api/duiju
+        run: python tools/manage_duiju.py sync
+
+      - name: Commit updated DB and API if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/duiju.db api/duiju
+          if git diff --cached --quiet; then
+            echo "No changes in duiju.db or api/duiju."
+          else
+            git commit -m "chore(duiju): sync DB and export api/duiju"
+            git push
+          fi

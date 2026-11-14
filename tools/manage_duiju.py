@@ -9,6 +9,7 @@
 
     python tools/manage_duiju.py record data/shanhai/2026-r1.json
     python tools/manage_duiju.py export
+    python tools/manage_duiju.py sync
     python tools/manage_duiju.py all data/shanhai/2026-r1.json
     python tools/manage_duiju.py result --tid 2026-shanhai --round 1 --table 3 --value B
     python tools/manage_duiju.py show --tid 2026-shanhai
@@ -16,9 +17,13 @@
 命令：
     record  读一轮对局 JSON（见下），整轮覆盖写库，可反复执行（幂等）
     export  从库导出 API：api/duiju/index.json、api/duiju/<slug>/r<N>.json
+    sync    把 data/<赛事>/ 下的所有轮次 JSON 重录一遍再导出
     all     record 之后接着 export
     result  写入某一台的赛果（B 黑胜 / W 白胜 / D 和棋）
     show    打印库内赛事与轮次概况
+
+后端不靠服务器：`sync` 由 .github/workflows/update-duiju.yml 定时（以及手动、推送时）
+在 Actions 里跑，重出 api/duiju/ 并提交；GitHub Pages 直接把这些 JSON 当接口发出去。
 
 一轮对局 JSON 的结构：
 
@@ -199,11 +204,60 @@ def load_round_file(path):
     }
 
 
+def _round_rows(conn, tid, rnd):
+    """库里这一轮的现状，用来判断重录是否真的带来变化。"""
+    rows = conn.execute(
+        'SELECT table_no, black_no, black_name, white_no, white_name, result,'
+        ' p_black, p_draw, p_white FROM games'
+        ' WHERE tournament_id=? AND round=? ORDER BY table_no',
+        (tid, rnd),
+    ).fetchall()
+    return [tuple(r) for r in rows]
+
+
 def record_round(conn, payload):
+    """把一轮写进库。同一份数据反复录不会产生任何改动（Actions 定时跑也不会出空提交）；
+    JSON 里 result 为 null 时不覆盖库里已经记下的赛果。"""
     t = payload['tournament']
     rnd = payload['round']
-    stamp = now_str()
 
+    existing = _round_rows(conn, t['id'], rnd)
+    old_result = {row[0]: row[5] for row in existing}
+    old_meta = conn.execute(
+        'SELECT model, predicted_at FROM rounds WHERE tournament_id=? AND round=?',
+        (t['id'], rnd),
+    ).fetchone()
+    old_tour = conn.execute(
+        'SELECT name, year, group_name, rule, slug FROM tournaments WHERE id=?',
+        (t['id'],),
+    ).fetchone()
+
+    rows = []
+    for g in payload['games']:
+        b, w = g['black_norm'], g['white_norm']
+        pred = g.get('prediction') or {}
+        res = g.get('result') or None
+        if res is None:
+            res = old_result.get(g['table'])      # null = 不改动已有赛果
+        rows.append((
+            g['table'],
+            b['no'], b['name'],
+            w['no'], w['name'],
+            res,
+            _opt_float(pred.get('black')),
+            _opt_float(pred.get('draw')),
+            _opt_float(pred.get('white')),
+        ))
+
+    same_games = [tuple(r[:5]) + (r[5], r[6], r[7], r[8]) for r in existing] == rows
+    same_meta = bool(old_meta) and tuple(old_meta) == (payload['model'], payload['predicted_at'])
+    same_tour = bool(old_tour) and tuple(old_tour) == (
+        t['name'], t['year'], t['group'], t['rule'], t['slug'])
+    if same_games and same_meta and same_tour:
+        print('%s 第 %d 轮：库里已是最新，未写入' % (t['name'], rnd))
+        return False
+
+    stamp = now_str()
     conn.execute(
         'INSERT INTO tournaments (id, name, year, group_name, rule, slug, updated_at)'
         ' VALUES (?,?,?,?,?,?,?)'
@@ -221,32 +275,18 @@ def record_round(conn, payload):
     )
     # 整轮覆盖：先删后插，后面的轮次重复执行也不会叠数据
     conn.execute('DELETE FROM games WHERE tournament_id=? AND round=?', (t['id'], rnd))
-
-    rows = []
-    for g in payload['games']:
-        b, w = g['black_norm'], g['white_norm']
-        pred = g.get('prediction') or {}
-        res = g.get('result') or None
-        rows.append((
-            t['id'], rnd, g['table'],
-            b['no'], b['name'],
-            w['no'], w['name'],
-            res,
-            _opt_float(pred.get('black')),
-            _opt_float(pred.get('draw')),
-            _opt_float(pred.get('white')),
-        ))
     conn.executemany(
         'INSERT INTO games (tournament_id, round, table_no, black_no, black_name,'
         ' white_no, white_name, result, p_black, p_draw, p_white)'
         ' VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-        rows,
+        [(t['id'], rnd) + r for r in rows],
     )
     conn.commit()
     print('录入 %s 第 %d 轮：%d 台（预测 %d 台）' % (
         t['name'], rnd, len(rows),
-        sum(1 for g in payload['games'] if g.get('prediction')),
+        sum(1 for r in rows if r[6] is not None),
     ))
+    return True
 
 
 def _opt_float(value):
@@ -282,7 +322,10 @@ def _round_stats(rows):
 
 
 def export_api(conn):
-    """把库里的东西摊成静态 JSON，挂在站点 /api/duiju/ 下。"""
+    """把库里的东西摊成静态 JSON，挂在站点 /api/duiju/ 下。
+
+    导出的内容只由库决定，不带导出时间：同一份库跑两次，产物逐字节相同，
+    这样 GitHub Actions 定时跑不会因为时间戳而空提交。"""
     tours = conn.execute(
         'SELECT * FROM tournaments ORDER BY year DESC, id'
     ).fetchall()
@@ -291,7 +334,6 @@ def export_api(conn):
 
     os.makedirs(API_ROOT, exist_ok=True)
     index = {
-        'generated_at': datetime.now(TZ).strftime('%Y-%m-%dT%H:%M:%S%z'),
         'source': 'data/duiju.db',
         'tournaments': [],
     }
@@ -348,7 +390,6 @@ def export_api(conn):
 
 def write_round(tour, rmeta, rows, round_list, points):
     payload = {
-        'generated_at': datetime.now(TZ).strftime('%Y-%m-%dT%H:%M:%S%z'),
         'tournament': {
             'id': tour['id'],
             'slug': tour['slug'],
@@ -392,6 +433,34 @@ def dump_json(path, obj):
         f.write('\n')
 
 
+# ---------------------------------------------------------------- sync
+
+def sync_sources(conn):
+    """把 data/<赛事>/ 下的每一轮 JSON 重录一遍，再重出接口。
+
+    这是 GitHub Actions 走的那条路：仓库里的 JSON 是录入底稿，库与 api/duiju/
+    都由它长出来。没有变化时不会写库，也不会改动 api/ 里的文件。
+    """
+    base = os.path.join(ROOT, 'data')
+    files = []
+    for sub in sorted(os.listdir(base)):
+        folder = os.path.join(base, sub)
+        if not os.path.isdir(folder):
+            continue
+        for name in sorted(os.listdir(folder)):
+            if name.endswith('.json'):
+                files.append(os.path.join(folder, name))
+    if not files:
+        die('data/ 下没有可录的对局 JSON')
+
+    changed = 0
+    for path in files:
+        if record_round(conn, load_round_file(path)):
+            changed += 1
+    print('同步 %d 个文件，%d 个有变化' % (len(files), changed))
+    export_api(conn)
+
+
 # ---------------------------------------------------------------- show
 
 def show(conn, tid=None):
@@ -432,6 +501,8 @@ def main(argv=None):
     p_all = sub.add_parser('all', help='record 之后接着 export')
     p_all.add_argument('file')
 
+    sub.add_parser('sync', help='重录 data/ 下所有轮次 JSON 并重出接口（Actions 用）')
+
     p_res = sub.add_parser('result', help='写入某一台的赛果')
     p_res.add_argument('--tid', required=True)
     p_res.add_argument('--round', type=int, required=True)
@@ -455,6 +526,8 @@ def main(argv=None):
         elif args.cmd == 'all':
             record_round(conn, load_round_file(args.file))
             export_api(conn)
+        elif args.cmd == 'sync':
+            sync_sources(conn)
         elif args.cmd == 'result':
             set_result(conn, args.tid, args.round, args.table, args.value)
         elif args.cmd == 'show':

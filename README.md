@@ -31,7 +31,7 @@ zaji/                 杂技：工具页
   jinzhao.html        禁手找茬
   vcf.html            VCF 做题
 bisai/index.html      单届选拔赛成绩表，浏览器里用 sql.js 读 bisai.db
-api/duiju/            只读 JSON 接口（GitHub Pages 本身就是「服务器」，没有后端）
+api/duiju/            只读 JSON 接口（Actions 定时生成并提交，Pages 直接发）
   index.json          赛事与轮次索引
   shanhai/r1.json     山海杯第 1 轮：逐台对局与预测概率
 
@@ -93,8 +93,8 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 
 山海杯这类「逐台预测」的页面不再把数据写进 HTML。库里只放对局（台次、双方编号与姓名、
 赛果）和预测概率；等级分只留在录入源文件里，分数按前几轮赛果现算，两者都不入库。
-`tools/manage_duiju.py` 负责把一轮对局录进去、再摊成站点上的 JSON。GitHub Pages 没有
-后端，这份静态 JSON 就是接口，挂在站点自己的域名下。
+`tools/manage_duiju.py` 负责把一轮对局录进去、再摊成站点上的 JSON。页面读的
+`api/duiju/` 由 GitHub Actions 定时从库里重出并提交，仓库里没有服务器进程。
 
 ```
 data/shanhai/2026-r1.json   一轮的录入源文件：台号、黑白双方、等级分、预测概率
@@ -112,10 +112,22 @@ posts/2026-shanhai-r1.html 照接口画表格；同一页用 ?r=N 换轮，不�
 
 ```bash
 python tools/manage_duiju.py all data/shanhai/2026-r1.json   # 录入 + 导出
+python tools/manage_duiju.py sync                            # 重录 data/ 下所有轮次 + 导出
 python tools/manage_duiju.py export                          # 只导出
 python tools/manage_duiju.py result --tid 2026-shanhai --round 1 --table 3 --value B
 python tools/manage_duiju.py show                            # 库里有什么
 ```
+
+**后端就是 Actions，不是服务器。** `.github/workflows/update-duiju.yml` 每 30 分钟
+（另外在推送 `data/shanhai/`、`tools/manage_duiju.py` 或手动触发时）跑一次
+`python tools/manage_duiju.py sync`，把仓库里的轮次 JSON 重录进 `duiju.db`、重出
+`api/duiju/`，有变化就由 `github-actions[bot]` 提交回 main；Pages 随即把新的 JSON 发出去。
+做法照搬 renju4433.github.io 的 `update-bisai.yml`：定时 + 手动 + 路径触发，`contents: write`，
+同一个 concurrency 组防并发。
+
+`record` / `sync` / `export` 都是幂等的：数据没变时库和 `api/` 下的文件一个字节都不动
+（导出不写时间戳），定时任务不会刷空提交；JSON 里 `result` 为 `null` 时不覆盖库里已经
+记下的赛果，所以赛果既可以写在 JSON 里，也可以事后用 `result` 命令补。
 
 `record` 整轮覆盖写库，可反复执行；一轮的 JSON（`rating` 只是给源文件留个底，
 不入库、不进接口）：
