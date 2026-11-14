@@ -1,0 +1,48 @@
+name: Snapshot Visits
+
+# 页面上的埋点把访问记录暂存在 ntfy 通道（保留 12 小时），
+# 本工作流定时搬进 data/visits.ndjson 长期保存，admin 面板读这个文件。
+
+on:
+  schedule:
+    - cron: "11 */3 * * *"
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "tools/snapshot_visits.py"
+      - ".github/workflows/snapshot-visits.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: snapshot-visits
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Pull visits from channel into data/visits.ndjson
+        run: python tools/snapshot_visits.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f data/visits.ndjson ] && ! git diff --quiet -- data/visits.ndjson; then
+            git add data/visits.ndjson
+            git commit -m "chore(visits): 归档访问记录 $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          else
+            echo "no change"
+          fi

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>访问统计 · 连珠杂箱</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --fg: #23211d; --muted: #77726a; --card: #fff;
+    --line: #e2ded6; --accent: #3a5a78; --chip: #f1eee7;
+    --bar: #b9c8d6; --bar2: #6f8fa8; --warm: #c9a86f; --ok: #2f6f4f; --warn: #a03a2e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181a; --fg: #e8e6e1; --muted: #9a958c; --card: #1e2124;
+      --line: #2f3337; --accent: #8fb6d6; --chip: #262a2e;
+      --bar: #35414c; --bar2: #6f97b8; --warm: #c9a86f; --ok: #6fbf8f; --warn: #e08a7a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 26px 16px 70px;
+    background: var(--bg); color: var(--fg);
+    font: 15px/1.6 "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 3px; letter-spacing: .02em; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 12px; color: var(--muted); letter-spacing: .04em; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .sub a { color: var(--accent); }
+
+  /* 密码门 */
+  #gate { max-width: 340px; margin: 12vh auto 0; background: var(--card); border: 1px solid var(--line);
+          border-radius: 12px; padding: 22px; }
+  #gate h1 { font-size: 17px; margin-bottom: 6px; }
+  #gate p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  #gate input {
+    width: 100%; font: inherit; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; margin-bottom: 12px;
+  }
+  #gate button {
+    width: 100%; font: inherit; cursor: pointer; padding: 9px; border: 0; border-radius: 8px;
+    background: var(--accent); color: #fff;
+  }
+  #gmsg { font-size: 13px; color: var(--warn); min-height: 20px; margin-top: 8px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; }
+  .kpi .k { font-size: 12px; color: var(--muted); }
+  .kpi .v { font-size: 25px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.25; margin-top: 2px; }
+  .kpi .n { font-size: 12px; color: var(--muted); }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; min-width: 0; }
+  .row2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .row2 { grid-template-columns: 1fr; } }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: -4px 0 8px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: 1px; }
+  canvas { display: block; width: 100%; }
+
+  .bars { display: flex; flex-direction: column; gap: 9px; }
+  .bar-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 13px; align-items: center; min-width: 0; }
+  .bar-row .lab { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-row .lab span { color: var(--muted); font-size: 12px; }
+  .bar-row .num { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
+  .bar-track { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; margin-top: -3px; }
+  .bar-fill { height: 100%; border-radius: 3px; background: var(--bar2); }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  select, input[type=text], input[type=date] {
+    font: inherit; font-size: 13px; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px;
+  }
+  input[type=text] { flex: 1 1 180px; min-width: 140px; }
+  .btn { font: inherit; font-size: 13px; cursor: pointer; background: var(--bg); color: var(--fg);
+         border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.ghost { background: transparent; }
+
+  table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 500; }
+  td.t { white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
+  td.ip { white-space: nowrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  td.vid { white-space: nowrap; color: var(--muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  td.page a { color: var(--fg); text-decoration: none; border-bottom: 1px dotted var(--line); }
+  td.page small { display: block; color: var(--muted); font-size: 12px; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 5px; background: var(--chip);
+          color: var(--muted); font-size: 12px; margin: 0 4px 4px 0; }
+  .chip.act { color: var(--accent); }
+  .chip.go { color: var(--warm); }
+  .empty { color: var(--muted); font-size: 13px; padding: 18px 2px; }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.9; margin-top: 20px; }
+  .note code { background: var(--chip); padding: 1px 4px; border-radius: 4px; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status.err { color: var(--warn); }
+  .status.ok { color: var(--ok); }
+  .tip { position: fixed; pointer-events: none; background: var(--card); border: 1px solid var(--line);
+         border-radius: 8px; padding: 7px 10px; font-size: 12px; line-height: 1.7; display: none;
+         box-shadow: 0 6px 20px rgba(0,0,0,.12); z-index: 9; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>访问统计</h1>
+  <p>需要密码才能查看。</p>
+  <form id="gform">
+    <input type="password" id="gpw" placeholder="密码" autocomplete="current-password" autofocus>
+    <button type="submit">进入</button>
+    <div id="gmsg"></div>
+  </form>
+</div>
+
+<div class="wrap" id="panel" hidden>
+  <h1>站点访问统计</h1>
+  <div class="sub">
+    每日访客、IP 与交互明细。数据来自全站埋点，每 3 小时归档一次；
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section class="card">
+    <h2>每日访客与浏览（近 30 天）</h2>
+    <div class="legend">
+      <span><i style="background:var(--bar)"></i>浏览数（左轴）</span>
+      <span><i style="background:var(--bar2)"></i>访客数（右轴）</span>
+      <span><i style="background:var(--warm)"></i>独立 IP（右轴）</span>
+    </div>
+    <canvas id="trend" height="250"></canvas>
+  </section>
+
+  <div class="row2">
+    <section class="card">
+      <h2>时段分布（0–23 时 · 全部记录）</h2>
+      <canvas id="hours" height="180"></canvas>
+    </section>
+    <section class="card">
+      <h2>热门页面</h2>
+      <div class="bars" id="pages"></div>
+    </section>
+  </div>
+
+  <div class="row2">
+    <section class="card">
+      <h2>访客来源</h2>
+      <div class="bars" id="refs"></div>
+    </section>
+    <section class="card">
+      <h2>终端与浏览器</h2>
+      <div class="bars" id="agents"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>访问明细 · 谁、用什么 IP、看了什么、点了什么</h2>
+    <div class="toolbar">
+      <select id="range">
+        <option value="today">今天</option>
+        <option value="7">近 7 天</option>
+        <option value="30" selected>近 30 天</option>
+        <option value="all">全部</option>
+      </select>
+      <input type="text" id="kw" placeholder="按 IP、访客号、页面、点过的文字筛选">
+      <button class="btn" id="csv" type="button">导出 CSV</button>
+      <button class="btn ghost" id="reload" type="button">刷新</button>
+      <span class="status" id="count"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th style="width:92px">时间</th><th style="width:120px">IP</th><th style="width:74px">访客</th>
+              <th>页面</th><th style="width:70px">停留</th><th>交互</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="noRows" hidden>没有符合条件的记录。</div>
+  </section>
+
+  <p class="note">
+    统计口径：一次「浏览」= 打开一个页面（含站内无刷新跳转）；「访客」按浏览器里的匿名编号去重，
+    不是账号；「独立 IP」按 IP 去重。<code>admin</code> 页自身不统计，勾选 Do Not Track 或
+    在控制台执行 <code>localStorage['zbx.notrack']='1'</code> 可退出统计。<br>
+    说明：本站是 GitHub Pages 静态站点，没有服务端，所以密码只挡界面（页面源码可见）、
+    IP 与明细保存在仓库的 <code>data/visits.ndjson</code> 里。若要真正保密，需要换成带服务端的统计。
+  </p>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var PASS = 'renju2026';
+  var TOPIC = 'zbx_stats_9c4k2m7q';
+  var DATA = '../data/visits.ndjson';
+  var TZ = 8 * 3600 * 1000;            /* 统计按北京时间（UTC+8）切日 */
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { events: [], views: [], live: false, err: '' };
+
+  /* ---------------- 时间助手 ---------------- */
+  function dayKey(ms) { return new Date(ms + TZ).toISOString().slice(0, 10); }
+  function hourOf(ms) { return new Date(ms + TZ).getUTCHours(); }
+  function stamp(ms) {
+    var d = new Date(ms + TZ).toISOString();
+    return d.slice(5, 10) + ' ' + d.slice(11, 16);
+  }
+  function todayKey() { return dayKey(Date.now()); }
+
+  /* ---------------- 密码门 ---------------- */
+  try {
+    if (sessionStorage.getItem('zbx.admin') === '1') { open(); }
+  } catch (e) { /* 忽略 */ }
+
+  $('gform').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = $('gpw').value;
+    if (v === PASS) {
+      try { sessionStorage.setItem('zbx.admin', '1'); } catch (e2) { /* 忽略 */ }
+      open();
+    } else {
+      $('gmsg').textContent = '密码不对。';
+      $('gpw').value = '';
+      $('gpw').focus();
+    }
+  });
+
+  function open() {
+    $('gate').hidden = true;
+    $('panel').hidden = false;
+    if (!state.events.length) { boot(); }
+  }
+
+  /* ---------------- 数据 ---------------- */
+  function status(text, cls) {
+    var el = $('status');
+    el.textContent = text || '';
+    el.className = 'status' + (cls ? ' ' + cls : '');
+  }
+
+  function boot() {
+    status('读取数据…');
+    var jobs = [
+      fetch(DATA + '?v=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.text(); })
+        .then(function (t) { return parseNdjson(t); })
+        .catch(function () { return []; }),
+      fetch('https://ntfy.sh/' + TOPIC + '/json?poll=1&since=12h', { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.text(); })
+        .then(function (t) { return parseLive(t); })
+        .catch(function () { return []; })
+    ];
+    Promise.all(jobs).then(function (res) {
+      var archived = res[0], live = res[1];
+      var seen = {};
+      var all = [];
+      archived.forEach(function (e) { seen[e.n || ('a' + e.t + e.p)] = 1; all.push(e); });
+      live.forEach(function (e) { if (!seen[e.n]) { all.push(e); seen[e.n] = 1; } });
+      all.sort(function (a, b) { return (a.t || 0) - (b.t || 0); });
+      state.events = all;
+      state.live = live.length > 0;
+      state.err = archived.length ? '' : '归档文件还空着，显示的是通道里的实时记录';
+      render();
+    });
+  }
+
+  function parseNdjson(text) {
+    var out = [];
+    (text || '').split('\n').forEach(function (line) {
+      line = line.trim();
+      if (!line) { return; }
+      try {
+        var o = JSON.parse(line);
+        if (o && o.k && o.p) { out.push(o); }
+      } catch (e) { /* 跳过坏行 */ }
+    });
+    return out;
+  }
+
+  function parseLive(text) {
+    var out = [];
+    (text || '').split('\n').forEach(function (line) {
+      line = line.trim();
+      if (!line) { return; }
+      var m;
+      try { m = JSON.parse(line); } catch (e) { return; }
+      if (!m || m.event !== 'message' || !m.message) { return; }
+      var ev;
+      try { ev = JSON.parse(m.message); } catch (e2) { return; }
+      if (!ev || !ev.k || !ev.p) { return; }
+      ev.n = m.id;
+      if (!ev.t) { ev.t = (m.time || 0) * 1000; }
+      ev.__live = 1;
+      out.push(ev);
+    });
+    return out;
+  }
+
+  /* ---------------- 汇总 ---------------- */
+  function buildViews(events) {
+    var views = [];
+    var open = {};
+    function key(e) { return (e.v || '') + '|' + (e.s || '') + '|' + e.p; }
+    function lastOpen(k) {
+      var arr = open[k];
+      if (!arr || !arr.length) { return null; }
+      for (var i = arr.length - 1; i >= 0; i--) {
+        if (!arr[i].__closed) { return arr[i]; }
+      }
+      return arr[arr.length - 1];
+    }
+    events.forEach(function (e) {
+      var k = key(e);
+      if (e.k === 'pv') {
+        var v = {
+          t: e.t, v: e.v || '', i: e.i || '', p: e.p, ti: e.ti || '',
+          r: e.r || '', ua: e.ua || '', d: null, sc: 0, c: [], q: [], live: e.__live
+        };
+        views.push(v);
+        (open[k] = open[k] || []).push(v);
+        return;
+      }
+      if (e.k === 'clk' || e.k === 'bye') {
+        var target = lastOpen(k);
+        if (!target) { return; }
+        target.c = (target.c || []).concat(e.c || []).slice(-14);
+        target.q = (target.q || []).concat(e.q || []).slice(-8);
+        if (!target.i && e.i) { target.i = e.i; }
+        if (e.k === 'bye') {
+          target.d = (target.d || 0) + (typeof e.d === 'number' ? e.d : 0);
+          target.sc = Math.max(target.sc || 0, e.sc || 0);
+          target.__closed = true;
+        }
+      }
+    });
+    return views;
+  }
+
+  function unique(list, fn) {
+    var s = {};
+    list.forEach(function (x) { var k = fn(x); if (k) { s[k] = 1; } });
+    return Object.keys(s).length;
+  }
+
+  function daySeries(days) {
+    var out = [];
+    for (var i = days - 1; i >= 0; i--) {
+      var key = dayKey(Date.now() - i * 86400000);
+      out.push({ key: key, pv: 0, uv: 0, ip: 0 });
+    }
+    var idx = {};
+    out.forEach(function (d) { idx[d.key] = d; });
+    var uvSet = {}, ipSet = {};
+    state.views.forEach(function (v) {
+      var key = dayKey(v.t);
+      var d = idx[key];
+      if (!d) { return; }
+      d.pv++;
+      (uvSet[key] = uvSet[key] || {})[v.v || v.i] = 1;
+      if (v.i) { (ipSet[key] = ipSet[key] || {})[v.i] = 1; }
+    });
+    out.forEach(function (d) {
+      d.uv = Object.keys(uvSet[d.key] || {}).length;
+      d.ip = Object.keys(ipSet[d.key] || {}).length;
+    });
+    return out;
+  }
+
+  function rankMap(list, fn) {
+    var m = {};
+    list.forEach(function (x) {
+      var k = fn(x);
+      if (!k) { return; }
+      m[k] = (m[k] || 0) + 1;
+    });
+    return Object.keys(m).map(function (k) { return [k, m[k]]; })
+      .sort(function (a, b) { return b[1] - a[1]; });
+  }
+
+  /* ---------------- 渲染 ---------------- */
+  function render() {
+    var views = buildViews(state.events);
+    state.views = views;
+
+    var today = todayKey();
+    var todayViews = views.filter(function (v) { return dayKey(v.t) === today; });
+    var week = views.filter(function (v) { return Date.now() - v.t < 7 * 86400000; });
+    var kpis = [
+      ['今日访客', unique(todayViews, function (v) { return v.v || v.i; }), '去重后的浏览器数'],
+      ['今日浏览', todayViews.length, unique(todayViews, function (v) { return v.i; }) + ' 个 IP'],
+      ['近 7 日访客', unique(week, function (v) { return v.v || v.i; }), week.length + ' 次浏览'],
+      ['累计浏览', views.length, '共 ' + state.events.length + ' 条埋点'],
+      ['独立 IP', unique(views, function (v) { return v.i; }), '全时段']
+    ];
+    $('kpis').innerHTML = kpis.map(function (k) {
+      return '<div class="kpi"><div class="k">' + k[0] + '</div><div class="v">' +
+        fmtNum(k[1]) + '</div><div class="n">' + k[2] + '</div></div>';
+    }).join('');
+
+    drawTrend(daySeries(30));
+    drawHours();
+    var titles = {};
+    views.forEach(function (v) { if (v.ti) { titles[v.p] = v.ti; } });
+    bars($('pages'), rankMap(views, function (v) { return v.p; }).slice(0, 8),
+      function (p) { return (titles[p] || p).replace(/\s*[·|]\s*连珠杂箱$/, ''); },
+      function (p) { try { return decodeURIComponent(p); } catch (e) { return p; } });
+    bars($('refs'), rankMap(views, function (v) { return v.r || '（直接访问）'; }).slice(0, 6), null);
+    bars($('agents'), rankMap(views, function (v) { return agentOf(v.ua); }).slice(0, 6), null);
+
+    renderRows();
+
+    var last = state.events.length ? state.events[state.events.length - 1].t : 0;
+    var bits = [];
+    bits.push(state.events.length + ' 条记录');
+    if (last) { bits.push('最近一条 ' + stamp(last)); }
+    if (state.live) { bits.push('已并入通道里尚未归档的实时记录'); }
+    status(bits.join(' · '), state.err ? '' : 'ok');
+  }
+
+  function fmtNum(n) {
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function agentOf(ua) {
+    if (!ua) { return '未知'; }
+    var dev = /Mobile|Android|iPhone|iPad|iPod/i.test(ua) ? '手机' : '桌面';
+    var br = '其它';
+    if (/MicroMessenger/i.test(ua)) { br = '微信'; }
+    else if (/Edg\//i.test(ua)) { br = 'Edge'; }
+    else if (/Firefox\//i.test(ua)) { br = 'Firefox'; }
+    else if (/Chrome\//i.test(ua)) { br = 'Chrome'; }
+    else if (/Safari\//i.test(ua)) { br = 'Safari'; }
+    return dev + ' · ' + br;
+  }
+
+  function bars(host, items, label, sub) {
+    if (!items.length) {
+      host.innerHTML = '<div class="empty">暂无数据</div>';
+      return;
+    }
+    var max = items[0][1] || 1;
+    host.innerHTML = items.map(function (it) {
+      var name = label ? label(it[0]) : it[0];
+      var small = sub ? sub(it[0]) : '';
+      return '<div class="bar-row"><div class="lab">' + esc(name) +
+        (small ? ' <span>' + esc(small) + '</span>' : '') +
+        '</div><div class="num">' + fmtNum(it[1]) + '</div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' +
+        Math.max(3, Math.round(it[1] / max * 100)) + '%"></div></div></div>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* ---------------- 图表 ---------------- */
+  function prepare(canvas, height) {
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.parentNode.clientWidth - 0;
+    if (!w) { w = 320; }
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.height = height + 'px';
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, height);
+    var css = getComputedStyle(document.documentElement);
+    return {
+      ctx: ctx, w: w, h: height,
+      line: css.getPropertyValue('--line').trim() || '#e2ded6',
+      muted: css.getPropertyValue('--muted').trim() || '#77726a',
+      bar: css.getPropertyValue('--bar').trim() || '#b9c8d6',
+      bar2: css.getPropertyValue('--bar2').trim() || '#6f8fa8',
+      warm: css.getPropertyValue('--warm').trim() || '#c9a86f'
+    };
+  }
+
+  function niceMax(v) {
+    if (v <= 5) { return 5; }
+    var p = Math.pow(10, Math.floor(Math.log10(v)));
+    var n = v / p;
+    var m = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return m * p;
+  }
+
+  var trendData = null;
+
+  function drawTrend(days) {
+    trendData = days;
+    var c = prepare($('trend'), 250);
+    var ctx = c.ctx;
+    var padL = 32, padR = 34, padT = 10, padB = 24;
+    var plotW = c.w - padL - padR, plotH = c.h - padT - padB;
+    var pvMax = niceMax(Math.max.apply(null, days.map(function (d) { return d.pv; }).concat([1])));
+    var uvMax = niceMax(Math.max.apply(null, days.map(function (d) { return Math.max(d.uv, d.ip); }).concat([1])));
+    var step = plotW / days.length;
+
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    for (var g = 0; g <= 3; g++) {
+      var y = padT + plotH * g / 3;
+      ctx.strokeStyle = c.line;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(c.w - padR, y); ctx.stroke();
+      ctx.fillStyle = c.muted;
+      ctx.textAlign = 'right';
+      ctx.fillText(String(Math.round(pvMax * (1 - g / 3))), padL - 6, y);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = c.bar2;
+      ctx.fillText(String(Math.round(uvMax * (1 - g / 3))), c.w - padR + 6, y);
+    }
+
+    days.forEach(function (d, i) {
+      var x = padL + step * i + step * 0.18;
+      var bw = Math.max(2, step * 0.64);
+      var h = d.pv / pvMax * plotH;
+      ctx.fillStyle = c.bar;
+      ctx.fillRect(x, padT + plotH - h, bw, h);
+      d.__x = x + bw / 2;
+      d.__yPv = padT + plotH - h;
+    });
+
+    /* 独立 IP：虚线；访客：实线 */
+    [[  'ip', c.warm, [5, 4]], ['uv', c.bar2, null]].forEach(function (ser) {
+      ctx.strokeStyle = ser[1];
+      ctx.lineWidth = 1.8;
+      if (ser[2]) { ctx.setLineDash(ser[2]); } else { ctx.setLineDash([]); }
+      ctx.beginPath();
+      days.forEach(function (d, i) {
+        var y = padT + plotH - (d[ser[0]] / uvMax * plotH);
+        d['__y' + ser[0]] = y;
+        if (i === 0) { ctx.moveTo(d.__x, y); } else { ctx.lineTo(d.__x, y); }
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (ser[0] === 'uv') {
+        ctx.fillStyle = c.bar2;
+        days.forEach(function (d) { ctx.beginPath(); ctx.arc(d.__x, d.__yuv, 2, 0, 7); ctx.fill(); });
+      }
+    });
+
+    ctx.fillStyle = c.muted;
+    ctx.textAlign = 'center';
+    var every = Math.ceil(days.length / 7);
+    days.forEach(function (d, i) {
+      if (i % every === 0 || i === days.length - 1) {
+        ctx.fillText(d.key.slice(5), d.__x, c.h - padB + 12);
+      }
+    });
+  }
+
+  function drawHours() {
+    var c = prepare($('hours'), 180);
+    var ctx = c.ctx;
+    var counts = new Array(24).fill(0);
+    state.views.forEach(function (v) { counts[hourOf(v.t)]++; });
+    var padL = 26, padR = 6, padT = 8, padB = 20;
+    var plotW = c.w - padL - padR, plotH = c.h - padT - padB;
+    var max = niceMax(Math.max.apply(null, counts.concat([1])));
+    var step = plotW / 24;
+
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = c.line;
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + plotH);
+    ctx.lineTo(c.w - padR, padT + plotH); ctx.stroke();
+    ctx.fillStyle = c.muted;
+    ctx.textAlign = 'right';
+    ctx.fillText(String(max), padL - 5, padT + 4);
+    ctx.fillText('0', padL - 5, padT + plotH);
+
+    counts.forEach(function (n, i) {
+      var h = n / max * plotH;
+      var bw = Math.max(2, step * 0.62);
+      ctx.fillStyle = n ? c.bar2 : c.line;
+      ctx.fillRect(padL + step * i + (step - bw) / 2, padT + plotH - h, bw, Math.max(h, n ? 2 : 1));
+    });
+    ctx.fillStyle = c.muted;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    [0, 6, 12, 18, 23].forEach(function (i) {
+      ctx.fillText(i + '时', padL + step * i + step / 2, padT + plotH + 5);
+    });
+  }
+
+  /* ---------------- 明细表 ---------------- */
+  function inRange(v) {
+    var r = $('range').value;
+    if (r === 'today') { return dayKey(v.t) === todayKey(); }
+    if (r === 'all') { return true; }
+    return Date.now() - v.t < Number(r) * 86400000;
+  }
+
+  function matches(v, kw) {
+    if (!kw) { return true; }
+    var hay = [v.i, v.v, v.p, v.ti, v.r].join(' ');
+    v.c.forEach(function (x) { hay += ' ' + (x.x || '') + ' ' + (x.h || ''); });
+    v.q.forEach(function (q) { hay += ' ' + q; });
+    return hay.toLowerCase().indexOf(kw) >= 0;
+  }
+
+  function renderRows() {
+    var kw = ($('kw').value || '').trim().toLowerCase();
+    var list = state.views.filter(function (v) { return inRange(v) && matches(v, kw); })
+      .sort(function (a, b) { return b.t - a.t; });
+    $('count').textContent = list.length + ' 条';
+    $('noRows').hidden = list.length > 0;
+
+    var LIMIT = 300;
+    $('rows').innerHTML = list.slice(0, LIMIT).map(function (v) {
+      var act = [];
+      (v.q || []).forEach(function (q) { act.push('<span class="chip go">搜 ' + esc(q) + '</span>'); });
+      (v.c || []).slice(0, 8).forEach(function (x) {
+        var t = (x.x || '').slice(0, 40) || '（无文字）';
+        act.push('<span class="chip act">点 ' + esc(t) +
+          (x.h ? ' → ' + esc(x.h) : '') + '</span>');
+      });
+      if (v.sc && v.sc >= 20) { act.push('<span class="chip">读至 ' + v.sc + '%</span>'); }
+      if (!act.length) { act.push('<span class="chip">仅浏览</span>'); }
+      if (v.c && v.c.length > 8) { act.push('<span class="chip">+' + (v.c.length - 8) + '</span>'); }
+
+      var dur = v.d == null ? '—' : (v.d >= 60 ? Math.floor(v.d / 60) + ' 分 ' + (v.d % 60) + ' 秒' : v.d + ' 秒');
+      var href = v.p + (v.p.indexOf('.') < 0 && v.p.slice(-1) !== '/' ? '/' : '');
+      var shown = v.p;
+      try { shown = decodeURIComponent(v.p); } catch (e) { shown = v.p; }
+      return '<tr><td class="t">' + stamp(v.t) + (v.live ? ' <span class="chip go">实时</span>' : '') + '</td>' +
+        '<td class="ip">' + esc(v.i || '未取到') + '</td>' +
+        '<td class="vid" title="' + esc(v.v) + '">' + esc((v.v || '').slice(0, 6) || '—') + '</td>' +
+        '<td class="page"><a href="..' + esc(href) + '" target="_blank" rel="noopener">' +
+        esc((v.ti || v.p).slice(0, 42)) + '</a><small>' + esc(shown) +
+        (v.r ? ' · 来自 ' + esc(v.r) : '') + '</small></td>' +
+        '<td class="t">' + dur + '</td>' +
+        '<td>' + act.join('') + '</td></tr>';
+    }).join('');
+
+    if (list.length > LIMIT) {
+      $('noRows').hidden = false;
+      $('noRows').textContent = '共 ' + list.length + ' 条，仅显示最近 ' + LIMIT + ' 条；可用筛选或导出 CSV 查看全部。';
+    }
+  }
+
+  /* ---------------- 交互 ---------------- */
+  $('range').addEventListener('change', renderRows);
+  var kwTimer = null;
+  $('kw').addEventListener('input', function () {
+    clearTimeout(kwTimer);
+    kwTimer = setTimeout(renderRows, 160);
+  });
+  $('reload').addEventListener('click', function () {
+    state.events = [];
+    boot();
+  });
+  $('csv').addEventListener('click', function () {
+    var kw = ($('kw').value || '').trim().toLowerCase();
+    var list = state.views.filter(function (v) { return inRange(v) && matches(v, kw); })
+      .sort(function (a, b) { return b.t - a.t; });
+    var lines = ['时间,IP,访客号,页面,标题,停留秒,滚动%,搜索,点击'];
+    list.forEach(function (v) {
+      var cell = function (s) { return '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"'; };
+      lines.push([
+        cell(new Date(v.t + TZ).toISOString().slice(0, 19).replace('T', ' ')),
+        cell(v.i), cell(v.v), cell(v.p), cell(v.ti),
+        cell(v.d == null ? '' : v.d), cell(v.sc || ''),
+        cell((v.q || []).join(' | ')),
+        cell((v.c || []).map(function (x) { return x.x + (x.h ? ' → ' + x.h : ''); }).join(' | '))
+      ].join(','));
+    });
+    var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'visits-' + todayKey() + '.csv';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  });
+
+  /* 趋势图悬停提示 */
+  var tip = $('tip');
+  $('trend').addEventListener('mousemove', function (e) {
+    if (!trendData) { return; }
+    var rect = this.getBoundingClientRect();
+    var x = e.clientX - rect.left;
+    var best = null;
+    trendData.forEach(function (d) {
+      if (d.__x == null) { return; }
+      if (!best || Math.abs(d.__x - x) < Math.abs(best.__x - x)) { best = d; }
+    });
+    if (!best || Math.abs(best.__x - x) > 26) { tip.style.display = 'none'; return; }
+    tip.style.display = 'block';
+    tip.style.left = Math.min(window.innerWidth - 170, e.clientX + 14) + 'px';
+    tip.style.top = (e.clientY + 16) + 'px';
+    tip.innerHTML = '<b>' + best.key + '</b><br>浏览 ' + best.pv +
+      ' · 访客 ' + best.uv + ' · IP ' + best.ip;
+  });
+  $('trend').addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+
+  var rzTimer = null;
+  window.addEventListener('resize', function () {
+    if ($('panel').hidden) { return; }
+    clearTimeout(rzTimer);
+    rzTimer = setTimeout(function () {
+      if (trendData) { drawTrend(trendData.map(function (d) { return d; })); }
+      drawHours();
+    }, 180);
+  });
+})();
+</script>
+</body>
+</html>

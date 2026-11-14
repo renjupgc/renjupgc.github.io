@@ -35,9 +35,11 @@ api/duiju/            只读 JSON 接口（Actions 定时生成并提交，Pages
   index.json          赛事与轮次索引
   shanhai/r1.json     山海杯第 1 轮：逐台对局与预测概率
 
+admin/index.html      访问统计面板（暗门，需密码）
 assets/
   style.css           全站样式（唯一一份）
-  layout.js           页头/页脚/音乐盒/无刷新跳转
+  layout.js           页头/页脚/音乐盒/无刷新跳转，顺带注入访问统计
+  visit-log.js        访问统计埋点：浏览 / 点击 / 搜索 / 停留，发到 ntfy 通道
   board.js            棋盘渲染与交互
   players.js          棋手搜索索引（脚本生成）
   rating-history.js   等级分时序，时光机与棋手曲线共用（脚本生成）
@@ -58,6 +60,7 @@ data/
   rating_excluded.txt 不计等级分的赛事（非公开进行）：公示表与时光机都按它排除
   duiju.db            对局库：逐台对局 + 预测概率（山海杯等），api/duiju/ 由它导出
   shanhai/2026-r1.json  山海杯第 1 轮的录入源文件（一轮一份）
+  visits.ndjson       访问日志：一行一个事件，Actions 定时从通道归档
 
 tools/                构建脚本（见下）
 docs/ROADMAP.md       改进建议与创意清单
@@ -242,6 +245,23 @@ python tools/build_zayu.py --rebuild  # 重出赛事页（沿用库内快照，�
   - 页面专属样式要写在 `<head>` 的 `<style>` 里（会被带过去），不要写在 `<main>` 内联。
   - 页面自己的 `<script>` 会被补跑一次，代码要能重复执行而不出错。
 - 文章页的日期只写在栏目页的列表里（`<span class="date">`），`build_seo.py` 从那里反查，无需在文章页另立字段。
+
+## 访问统计（admin）
+
+站点是纯静态，没有服务端，所以分成三段：
+
+1. `assets/visit-log.js`（由 `layout.js` 全站注入）记录每次浏览、点击的文字与去向、
+   搜索词、停留秒数与滚动深度，连同访客号（localStorage 随机串）、IP（`api.ipify.org`
+   回显）一起 POST 到 ntfy 公共通道，通道只保留 12 小时。
+2. `.github/workflows/snapshot-visits.yml` 每 3 小时跑 `tools/snapshot_visits.py`，
+   把通道里的消息搬进 `data/visits.ndjson`（按消息 id 去重，留 400 天）。
+3. `admin/index.html`（`/admin` 或 `/admin/`）输密码后读这个文件，出每日访客 / IP /
+   交互明细，并把通道里尚未归档的实时记录一并算上。
+
+- 密码只挡界面：页面源码里能看到密码与通道名，静态站无法做到真正鉴权。
+- 不想被统计：设 `localStorage['zbx.notrack']='1'`，或浏览器开启 Do Not Track。
+- 统计按北京时间（UTC+8）切日；`admin` 页自身不统计（`robots.txt` 也已屏蔽）。
+- 补抓历史：`python tools/snapshot_visits.py --all`（只能取到通道里现存的 12 小时）。
 
 ## 部署
 

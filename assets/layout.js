@@ -801,6 +801,7 @@
                     history.pushState({ zbx: 1, scrollY: 0 }, '', url);
                 }
 
+                var prevPath = location.pathname + location.search;
                 current.innerHTML = incoming.innerHTML;
                 runStyles(doc);
                 document.title = doc.title;
@@ -816,6 +817,14 @@
 
                 runScripts(doc, url);
                 currentPath = location.pathname + location.search;
+                /* 通知统计脚本：站内换页了（assets/visit-log.js 监听） */
+                try {
+                    if (window.CustomEvent) {
+                        document.dispatchEvent(new CustomEvent('zbx:navigate', {
+                            detail: { from: prevPath, to: currentPath }
+                        }));
+                    }
+                } catch (err) { /* 统计失败不影响正文 */ }
                 var hashTarget = location.hash ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
                 if (hashTarget && typeof opts.scrollY !== 'number') {
                     hashTarget.scrollIntoView();
@@ -884,4 +893,19 @@
         }
         load(location.href, { push: false, scrollY: (e.state && e.state.scrollY) || 0 });
     });
+})();
+
+/*
+ * 访问统计：所有引用本文件的页面自动带上，无需逐页加 <script>。
+ * 统计脚本自身会在 admin 页、本地预览与 DNT 环境下自行退出。
+ */
+(function () {
+    'use strict';
+    if (window.__zbxVisitLoaded) { return; }
+    window.__zbxVisitLoaded = true;
+    var base = (document.body && document.body.getAttribute('data-base')) || '';
+    var s = document.createElement('script');
+    s.src = base + 'assets/visit-log.js';
+    s.async = true;
+    document.head.appendChild(s);
 })();

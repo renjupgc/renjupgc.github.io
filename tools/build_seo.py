@@ -46,8 +46,8 @@ RE_LASTMOD = re.compile(r'<span class="date">(\d{4}-\d{2}-\d{2})</span>')
 # 也不进搜索（页头另有 noindex）。
 SKIP_SITEMAP = {'404.html', 'zayu/shiguang.html'}
 
-# 暗门页（录入赛果用）：不链在导航上，不进 sitemap，也不做 SEO 注入。
-ADMIN_PAGES = {'admin/duiju.html'}
+# 暗门页（录入赛果、看访问统计用）：不链在导航上，不进 sitemap，也不做 SEO 注入。
+ADMIN_PAGES = {'admin/duiju.html', 'admin/index.html'}
 
 
 def html_files():
