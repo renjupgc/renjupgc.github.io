@@ -31,8 +31,7 @@
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
   .sub a { color: var(--accent); }
 
-  /* 密码门 */
-  #gate { max-width: 340px; margin: 12vh auto 0; background: var(--card); border: 1px solid var(--line);
+  /* 密码门 */  #gate { max-width: 340px; margin: 12vh auto 0; background: var(--card); border: 1px solid var(--line);
           border-radius: 12px; padding: 22px; }
   #gate h1 { font-size: 17px; margin-bottom: 6px; }
   #gate p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
@@ -78,11 +77,13 @@
   .btn:hover { border-color: var(--accent); }
   .btn.ghost { background: transparent; }
 
-  table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 13px; }
+  table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px; }
   th, td { padding: 8px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
   th { font-size: 12px; color: var(--muted); font-weight: 500; }
   td.t { white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
   td.ip { white-space: nowrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  td.geo { white-space: nowrap; }
+  td.geo small { display: block; color: var(--muted); font-size: 11px; }
   td.vid { white-space: nowrap; color: var(--muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
   td.page a { color: var(--fg); text-decoration: none; border-bottom: 1px dotted var(--line); }
   td.page small { display: block; color: var(--muted); font-size: 12px; }
@@ -116,7 +117,7 @@
 <div class="wrap" id="panel" hidden>
   <h1>站点访问统计</h1>
   <div class="sub">
-    每日访客、IP 与交互明细。数据来自全站埋点，每 3 小时归档一次；
+    每日访客、IP、地区与交互明细。数据来自全站埋点，每 3 小时归档一次；
     <span class="status" id="status"></span>
   </div>
 
@@ -143,6 +144,14 @@
     </section>
   </div>
 
+  <section class="card">
+    <h2>访客地区 · 按 IP 归属省份，境外到国家</h2>
+    <div class="legend">
+      <span>条长 = 该地区的独立 IP 数</span>
+    </div>
+    <div class="bars" id="regions"></div>
+  </section>
+
   <div class="row2">
     <section class="card">
       <h2>访客来源</h2>
@@ -155,7 +164,7 @@
   </div>
 
   <section class="card">
-    <h2>访问明细 · 谁、用什么 IP、看了什么、点了什么</h2>
+    <h2>访问明细 · 谁、在哪个省份、用什么 IP、看了什么、点了什么</h2>
     <div class="toolbar">
       <select id="range">
         <option value="today">今天</option>
@@ -163,7 +172,7 @@
         <option value="30" selected>近 30 天</option>
         <option value="all">全部</option>
       </select>
-      <input type="text" id="kw" placeholder="按 IP、访客号、页面、点过的文字筛选">
+      <input type="text" id="kw" placeholder="按 IP、地区、访客号、页面、点过的文字筛选">
       <button class="btn" id="csv" type="button">导出 CSV</button>
       <button class="btn ghost" id="reload" type="button">刷新</button>
       <span class="status" id="count"></span>
@@ -171,7 +180,8 @@
     <div style="overflow-x:auto">
       <table>
         <thead>
-          <tr><th style="width:92px">时间</th><th style="width:120px">IP</th><th style="width:74px">访客</th>
+          <tr><th style="width:92px">时间</th><th style="width:120px">IP</th><th style="width:92px">地区</th>
+              <th style="width:74px">访客</th>
               <th>页面</th><th style="width:70px">停留</th><th>交互</th></tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -182,10 +192,15 @@
 
   <p class="note">
     统计口径：一次「浏览」= 打开一个页面（含站内无刷新跳转）；「访客」按浏览器里的匿名编号去重，
-    不是账号；「独立 IP」按 IP 去重。<code>admin</code> 页自身不统计，勾选 Do Not Track 或
+    不是账号；「独立 IP」按 IP 去重；「地区」由 IP 归属地解析，国内精确到省份、境外只到国家。<br>
+    「地区」的解析结果缓存在 <code>data/ip_geo.json</code>（来源 ip-api.com，免费非商用接口），
+    由 Actions 归档时按需补查，也可手动跑 <code>python tools/geoip.py --backfill</code>；
+    同一 IP 的归属地会随运营商调度、代理出口变化，这里保留首次解析的结果。<br>
+    <code>admin</code> 页自身不统计，勾选 Do Not Track 或
     在控制台执行 <code>localStorage['zbx.notrack']='1'</code> 可退出统计。<br>
     说明：本站是 GitHub Pages 静态站点，没有服务端，所以密码只挡界面（页面源码可见）、
-    IP 与明细保存在仓库的 <code>data/visits.ndjson</code> 里。若要真正保密，需要换成带服务端的统计。
+    IP、地区与明细保存在仓库的 <code>data/visits.ndjson</code> 与 <code>data/ip_geo.json</code> 里。
+    若要真正保密，需要换成带服务端的统计。
   </p>
 </div>
 
@@ -198,10 +213,11 @@
   var PASS = 'renju2026';
   var TOPIC = 'zbx_stats_9c4k2m7q';
   var DATA = '../data/visits.ndjson';
+  var GEO = '../data/ip_geo.json';            /* IP → 省份/国家 的缓存 */
   var TZ = 8 * 3600 * 1000;            /* 统计按北京时间（UTC+8）切日 */
 
   var $ = function (id) { return document.getElementById(id); };
-  var state = { events: [], views: [], live: false, err: '' };
+  var state = { events: [], views: [], geo: {}, live: false, err: '' };
 
   /* ---------------- 时间助手 ---------------- */
   function dayKey(ms) { return new Date(ms + TZ).toISOString().slice(0, 10); }
@@ -253,10 +269,14 @@
       fetch('https://ntfy.sh/' + TOPIC + '/json?poll=1&since=12h', { cache: 'no-store' })
         .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.text(); })
         .then(function (t) { return parseLive(t); })
-        .catch(function () { return []; })
+        .catch(function () { return []; }),
+      fetch(GEO + '?v=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+        .catch(function () { return {}; })
     ];
     Promise.all(jobs).then(function (res) {
       var archived = res[0], live = res[1];
+      state.geo = (res[2] && typeof res[2] === 'object') ? res[2] : {};
       var seen = {};
       var all = [];
       var addedLive = 0;
@@ -307,6 +327,23 @@
   }
 
   /* ---------------- 汇总 ---------------- */
+  /* 地区一律由 IP 归属地缓存得出：国内是省份，境外是国家 */
+  function geoName(ip) {
+    if (!ip) { return '未取到 IP'; }
+    var rec = state.geo[ip];
+    return (rec && rec.g) ? rec.g : '未解析';
+  }
+
+  function geoDetail(ip) {
+    var rec = state.geo[ip];
+    if (!rec) { return ''; }
+    var bits = [];
+    [rec.c, rec.r, rec.city].forEach(function (x) {
+      if (x && x !== rec.g && bits.indexOf(x) < 0) { bits.push(x); }
+    });
+    return bits.join(' · ');
+  }
+
   function buildViews(events) {
     var views = [];
     var open = {};
@@ -324,7 +361,8 @@
       if (e.k === 'pv') {
         var v = {
           t: e.t, v: e.v || '', i: e.i || '', p: e.p, ti: e.ti || '',
-          r: e.r || '', ua: e.ua || '', d: null, sc: 0, c: [], q: [], live: e.__live
+          r: e.r || '', ua: e.ua || '', d: null, sc: 0, c: [], q: [], live: e.__live,
+          g: geoName(e.i)
         };
         views.push(v);
         (open[k] = open[k] || []).push(v);
@@ -400,7 +438,9 @@
       ['今日浏览', todayViews.length, unique(todayViews, function (v) { return v.i; }) + ' 个 IP'],
       ['近 7 日访客', unique(week, function (v) { return v.v || v.i; }), week.length + ' 次浏览'],
       ['累计浏览', views.length, '共 ' + state.events.length + ' 条埋点'],
-      ['独立 IP', unique(views, function (v) { return v.i; }), '全时段']
+      ['独立 IP', unique(views, function (v) { return v.i; }), '全时段'],
+      ['覆盖地区', unique(views, function (v) { return knownGeo(v.g) ? v.g : ''; }),
+        '国内到省份，境外到国家']
     ];
     $('kpis').innerHTML = kpis.map(function (k) {
       return '<div class="kpi"><div class="k">' + k[0] + '</div><div class="v">' +
@@ -416,6 +456,7 @@
       function (p) { try { return decodeURIComponent(p); } catch (e) { return p; } });
     bars($('refs'), rankMap(views, function (v) { return v.r || '（直接访问）'; }).slice(0, 6), null);
     bars($('agents'), rankMap(views, function (v) { return agentOf(v.ua); }).slice(0, 6), null);
+    drawRegions(views);
 
     renderRows();
 
@@ -441,6 +482,29 @@
     else if (/Chrome\//i.test(ua)) { br = 'Chrome'; }
     else if (/Safari\//i.test(ua)) { br = 'Safari'; }
     return dev + ' · ' + br;
+  }
+
+  function knownGeo(g) { return !!g && g !== '未解析' && g !== '未取到 IP'; }
+
+  /* 地区分布：条长按独立 IP 数排，副标题给该地区的浏览量 */
+  function drawRegions(views) {
+    var ips = {}, browse = {};
+    views.forEach(function (v) {
+      if (!knownGeo(v.g)) { return; }
+      (ips[v.g] = ips[v.g] || {})[v.i || '?'] = 1;
+      browse[v.g] = (browse[v.g] || 0) + 1;
+    });
+    var items = Object.keys(ips).map(function (k) {
+      return [k, Object.keys(ips[k]).length];
+    }).sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0]); });
+    if (!items.length) {
+      $('regions').innerHTML = '<div class="empty">暂无地区数据：等 Actions 把 IP 归属地补进 ' +
+        '<code>data/ip_geo.json</code>，或手动跑 <code>python tools/geoip.py --backfill</code>。</div>';
+      return;
+    }
+    bars($('regions'), items, null, function (name) {
+      return (browse[name] || 0) + ' 次浏览';
+    });
   }
 
   function bars(host, items, label, sub) {
@@ -605,7 +669,7 @@
 
   function matches(v, kw) {
     if (!kw) { return true; }
-    var hay = [v.i, v.v, v.p, v.ti, v.r].join(' ');
+    var hay = [v.i, v.g, geoDetail(v.i), v.v, v.p, v.ti, v.r].join(' ');
     v.c.forEach(function (x) { hay += ' ' + (x.x || '') + ' ' + (x.h || ''); });
     v.q.forEach(function (q) { hay += ' ' + q; });
     return hay.toLowerCase().indexOf(kw) >= 0;
@@ -637,6 +701,8 @@
       try { shown = decodeURIComponent(v.p); } catch (e) { shown = v.p; }
       return '<tr><td class="t">' + stamp(v.t) + (v.live ? ' <span class="chip go">实时</span>' : '') + '</td>' +
         '<td class="ip">' + esc(v.i || '未取到') + '</td>' +
+        '<td class="geo">' + esc(v.g || '—') +
+        (geoDetail(v.i) ? '<small>' + esc(geoDetail(v.i)) + '</small>' : '') + '</td>' +
         '<td class="vid" title="' + esc(v.v) + '">' + esc((v.v || '').slice(0, 6) || '—') + '</td>' +
         '<td class="page"><a href="..' + esc(href) + '" target="_blank" rel="noopener">' +
         esc((v.ti || v.p).slice(0, 42)) + '</a><small>' + esc(shown) +
@@ -666,12 +732,12 @@
     var kw = ($('kw').value || '').trim().toLowerCase();
     var list = state.views.filter(function (v) { return inRange(v) && matches(v, kw); })
       .sort(function (a, b) { return b.t - a.t; });
-    var lines = ['时间,IP,访客号,页面,标题,停留秒,滚动%,搜索,点击'];
+    var lines = ['时间,IP,地区,国家/城市,访客号,页面,标题,停留秒,滚动%,搜索,点击'];
     list.forEach(function (v) {
       var cell = function (s) { return '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"'; };
       lines.push([
         cell(new Date(v.t + TZ).toISOString().slice(0, 19).replace('T', ' ')),
-        cell(v.i), cell(v.v), cell(v.p), cell(v.ti),
+        cell(v.i), cell(v.g), cell(geoDetail(v.i)), cell(v.v), cell(v.p), cell(v.ti),
         cell(v.d == null ? '' : v.d), cell(v.sc || ''),
         cell((v.q || []).join(' | ')),
         cell((v.c || []).map(function (x) { return x.x + (x.h ? ' → ' + x.h : ''); }).join(' | '))

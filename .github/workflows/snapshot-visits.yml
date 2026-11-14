@@ -11,6 +11,7 @@ on:
     branches: ["main"]
     paths:
       - "tools/snapshot_visits.py"
+      - "tools/geoip.py"
       - ".github/workflows/snapshot-visits.yml"
 
 permissions:
@@ -39,9 +40,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -f data/visits.ndjson ] && ! git diff --quiet -- data/visits.ndjson; then
-            git add data/visits.ndjson
-            git commit -m "chore(visits): 归档访问记录 $(date -u +%Y-%m-%dT%H:%MZ)"
+          touched=""
+          for f in data/visits.ndjson data/ip_geo.json; do
+            if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
+              touched="$touched $f"
+            fi
+          done
+          if [ -n "$touched" ]; then
+            git add $touched
+            git commit -m "chore(visits): 归档访问记录与 IP 归属地 $(date -u +%Y-%m-%dT%H:%MZ)"
             git push
           else
             echo "no change"

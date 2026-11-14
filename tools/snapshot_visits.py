@@ -18,6 +18,9 @@ import time
 import urllib.error
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import geoip  # noqa: E402  IP 归属地解析
+
 TOPIC = os.environ.get('ZBX_TOPIC', 'zbx_stats_9c4k2m7q')
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE = os.environ.get('ZBX_STORE') or os.path.join(ROOT, 'data', 'visits.ndjson')
@@ -121,6 +124,12 @@ def main():
         os.replace(tmp, STORE)
 
     print('通道新增 %d 条，文件共 %d 条（%s）' % (added, len(fresh), '已写入' if changed else '无变化'))
+
+    # 归档后顺带把 IP 归属地补进 data/ip_geo.json，admin 面板据此按省份统计
+    geo, added_geo = geoip.ensure([r.get('i') for r in fresh])
+    if added_geo:
+        geoip.save(geo)
+    print('IP 归属地新增解析 %d 个（缓存共 %d 条）' % (added_geo, len(geo)))
     return 0
 
 
