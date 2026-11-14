@@ -182,9 +182,9 @@ table.table-standings thead th{
 .c-pn-std{text-align:left;white-space:nowrap;padding-left:18px}
 .c-pn-std .pid{margin-left:0;margin-right:8px}
 .c-pct-std{text-align:center;white-space:nowrap}
-table.table-standings .v{background:transparent!important;padding:4px 0}
-table.table-standings .v.top.pos{color:var(--green);font-weight:600;background:transparent!important}
-table.table-standings .v.bold{color:var(--ink);font-weight:600;background:transparent!important}
+table.table-standings .v{background:transparent;padding:3px 6px;border-radius:6px;transition:background .15s}
+table.table-standings .v.is-100{background:var(--pos-bg)!important;color:var(--green)!important;font-weight:700}
+table.table-standings .v.bold{color:var(--ink);font-weight:600}
 .c-exp-std{text-align:center;white-space:nowrap}
 .exp-badge{
   display:inline-block;font:600 14px/1 var(--num);padding:0;
@@ -343,8 +343,9 @@ td.detail-cell{padding:10px 18px 16px}
   td.m-stat:nth-of-type(2){grid-area:t1}
   td.m-stat:nth-of-type(3){grid-area:t3}
   td.m-stat:nth-of-type(4){grid-area:t8}
-  td.m-stat .v{font-size:14px;padding:2px 4px;background:transparent!important}
-  td.m-stat .v.top.pos{color:var(--green);font-weight:700}
+  td.m-stat .v{font-size:14px;padding:2px 5px;background:transparent}
+  td.m-stat .v.is-100{background:var(--pos-bg)!important;color:var(--green)!important;font-weight:700;border-radius:4px}
+  td.m-stat .v.bold{color:var(--ink);font-weight:600}
   
   td.c-dist-std{
     grid-area:bar;padding:0!important;width:100%;
@@ -411,8 +412,8 @@ td.detail-cell{padding:10px 18px 16px}
   td.c-no{color:#7f8d85}
   .pscore{background:#232d28;color:#85928a}
   .exp-badge{background:transparent!important;color:#eef4ef}
-  table.table-standings .v.top.pos{color:#93d3b6;background:transparent!important}
-  table.table-standings .v.bold{color:#eef4ef;background:transparent!important}
+  table.table-standings .v.is-100, td.m-stat .v.is-100{background:rgba(143,199,174,.18)!important;color:#93d3b6!important}
+  table.table-standings .v.bold, td.m-stat .v.bold{color:#eef4ef}
   td.m-stat{background:#151b18}
   td.m-stat::before{color:#7f8d85}
   .mini-hm-bar{border-color:#2b3a32}
@@ -641,9 +642,9 @@ window.addEventListener('DOMContentLoaded', function() {
         <td class="c-pn-std">
           <span class="pid">4</span><span class="pn" title="钟煜阳">钟煜阳</span>
         </td>
-        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v top pos">99.99%</span></td>
-        <td class="c-pct-std m-stat" data-label="前三率"><span class="v top pos">100.00%</span></td>
-        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v bold">99.99%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v is-100">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v is-100">100.00%</span></td>
         <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>1.00</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
@@ -672,8 +673,8 @@ window.addEventListener('DOMContentLoaded', function() {
           <span class="pid">12</span><span class="pn" title="陈浩源">陈浩源</span>
         </td>
         <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v bold">0.01%</span></td>
-        <td class="c-pct-std m-stat" data-label="前三率"><span class="v top pos">100.00%</span></td>
-        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v is-100">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v is-100">100.00%</span></td>
         <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>2.17</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
@@ -702,8 +703,8 @@ window.addEventListener('DOMContentLoaded', function() {
           <span class="pid">8</span><span class="pn" title="康庭瑞">康庭瑞</span>
         </td>
         <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
-        <td class="c-pct-std m-stat" data-label="前三率"><span class="v top pos">87.92%</span></td>
-        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前三率"><span class="v bold">87.92%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v is-100">100.00%</span></td>
         <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>2.95</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
@@ -733,7 +734,7 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
         <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
         <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
-        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v is-100">100.00%</span></td>
         <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>4.54</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
@@ -763,7 +764,7 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
         <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
         <td class="c-pct-std m-stat" data-label="前三率"><span class="v bold">12.08%</span></td>
-        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">100.00%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v is-100">100.00%</span></td>
         <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>5.24</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
@@ -793,7 +794,7 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
         <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
         <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
-        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">96.43%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v bold">96.43%</span></td>
         <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>5.58</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
@@ -823,7 +824,7 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
         <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
         <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
-        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">81.61%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v bold">81.61%</span></td>
         <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>7.29</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">
@@ -883,7 +884,7 @@ window.addEventListener('DOMContentLoaded', function() {
         </td>
         <td class="c-pct-std m-stat" data-label="夺冠率"><span class="v">0.00%</span></td>
         <td class="c-pct-std m-stat" data-label="前三率"><span class="v">0.00%</span></td>
-        <td class="c-pct-std m-stat" data-label="前八率"><span class="v top pos">65.79%</span></td>
+        <td class="c-pct-std m-stat" data-label="前八率"><span class="v bold">65.79%</span></td>
         <td class="c-exp-std"><span class="exp-badge"><i class="exp-lbl">期望 </i>9.05</span></td>
         <td class="c-dist-std">
           <div class="dist-preview-wrap">

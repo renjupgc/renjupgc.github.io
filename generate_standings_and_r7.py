@@ -365,9 +365,9 @@ for p_rank_order, p_idx in enumerate(sorted_player_indices):
     str_top3 = format_pct_str(p_top3)
     str_top8 = format_pct_str(p_top8)
     
-    cls_top1 = " top pos" if p_top1 >= 50.0 else (" bold" if p_top1 > 0 else "")
-    cls_top3 = " top pos" if p_top3 >= 50.0 else (" bold" if p_top3 > 0 else "")
-    cls_top8 = " top pos" if p_top8 >= 50.0 else (" bold" if p_top8 > 0 else "")
+    cls_top1 = " is-100" if str_top1 == "100.00%" else (" bold" if p_top1 > 0 else "")
+    cls_top3 = " is-100" if str_top3 == "100.00%" else (" bold" if p_top3 > 0 else "")
+    cls_top8 = " is-100" if str_top8 == "100.00%" else (" bold" if p_top8 > 0 else "")
 
     # Build 16 connected heatmap cells
     hm_cells = []
@@ -616,9 +616,9 @@ table.table-standings thead th{{
 .c-pn-std{{text-align:left;white-space:nowrap;padding-left:18px}}
 .c-pn-std .pid{{margin-left:0;margin-right:8px}}
 .c-pct-std{{text-align:center;white-space:nowrap}}
-table.table-standings .v{{background:transparent!important;padding:4px 0}}
-table.table-standings .v.top.pos{{color:var(--green);font-weight:600;background:transparent!important}}
-table.table-standings .v.bold{{color:var(--ink);font-weight:600;background:transparent!important}}
+table.table-standings .v{{background:transparent;padding:3px 6px;border-radius:6px;transition:background .15s}}
+table.table-standings .v.is-100{{background:var(--pos-bg)!important;color:var(--green)!important;font-weight:700}}
+table.table-standings .v.bold{{color:var(--ink);font-weight:600}}
 .c-exp-std{{text-align:center;white-space:nowrap}}
 .exp-badge{{
   display:inline-block;font:600 14px/1 var(--num);padding:0;
@@ -777,8 +777,9 @@ td.detail-cell{{padding:10px 18px 16px}}
   td.m-stat:nth-of-type(2){{grid-area:t1}}
   td.m-stat:nth-of-type(3){{grid-area:t3}}
   td.m-stat:nth-of-type(4){{grid-area:t8}}
-  td.m-stat .v{{font-size:14px;padding:2px 4px;background:transparent!important}}
-  td.m-stat .v.top.pos{{color:var(--green);font-weight:700}}
+  td.m-stat .v{{font-size:14px;padding:2px 5px;background:transparent}}
+  td.m-stat .v.is-100{{background:var(--pos-bg)!important;color:var(--green)!important;font-weight:700;border-radius:4px}}
+  td.m-stat .v.bold{{color:var(--ink);font-weight:600}}
   
   td.c-dist-std{{
     grid-area:bar;padding:0!important;width:100%;
@@ -845,8 +846,8 @@ td.detail-cell{{padding:10px 18px 16px}}
   td.c-no{{color:#7f8d85}}
   .pscore{{background:#232d28;color:#85928a}}
   .exp-badge{{background:transparent!important;color:#eef4ef}}
-  table.table-standings .v.top.pos{{color:#93d3b6;background:transparent!important}}
-  table.table-standings .v.bold{{color:#eef4ef;background:transparent!important}}
+  table.table-standings .v.is-100, td.m-stat .v.is-100{{background:rgba(143,199,174,.18)!important;color:#93d3b6!important}}
+  table.table-standings .v.bold, td.m-stat .v.bold{{color:#eef4ef}}
   td.m-stat{{background:#151b18}}
   td.m-stat::before{{color:#7f8d85}}
   .mini-hm-bar{{border-color:#2b3a32}}
