@@ -49,6 +49,20 @@ tbody tr:last-child td{border-bottom:none}
 .kpi{flex:1 1 120px;min-width:120px}
 .kpi b{display:block;font-size:26px;line-height:1.2;color:var(--green);font-weight:700}
 .kpi span{font-size:12.5px;color:var(--ink3)}
+@media (max-width:700px){
+  body{padding:12px 10px 26px}
+  .hd{padding:15px 14px 13px}
+  .hd h1{font-size:18px;line-height:1.42}
+  .hd-sub{margin-top:7px;font-size:12.5px;gap:6px}
+  .mlink{font-size:12.5px}
+  .big{gap:12px 10px;padding:14px 14px}
+  .kpi{flex:1 1 30%;min-width:88px}
+  .kpi b{font-size:22px}
+  .kpi span{font-size:11.5px}
+  thead th{font-size:10.5px;padding:8px 3px 7px;letter-spacing:-.01em}
+  tbody td{padding:8px 3px;font-size:12.5px}
+  tbody td.c-rk{width:62px;font-size:12.5px}
+}
 @media (prefers-color-scheme:dark){
   :root{--paper:#121614;--card:#171c1a;--ink:#e8ece7;--ink3:#9aa79f;--line:#2a322e;
     --line2:#222925;--green:#7fd0ae;--mint:#1d2a25;--mint2:#1a211e}
