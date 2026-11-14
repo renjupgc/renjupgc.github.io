@@ -338,6 +338,8 @@ td.c-prob{width:248px;padding:11px 22px}
     var pb = p.black, pd = p.draw, pw = p.white;
     var total = pb + pd + pw || 1;
     var top = Math.max(pb, pd, pw);
+    // 最高的一项没到 50%：这盘没有明显优势，底色改用灰的，不再用绿色强调
+    var muted = top < 50;
     var tag = '';
     if (g.result === 'B') tag = '<div class="m-res"><span class="res-tag res-b">1 : 0</span></div>';
     else if (g.result === 'W') tag = '<div class="m-res"><span class="res-tag res-w">0 : 1</span></div>';
@@ -348,9 +350,9 @@ td.c-prob{width:248px;padding:11px 22px}
       '<i class="s-d" style="width:' + (pd / total * 100).toFixed(2) + '%"></i>' +
       '<i class="s-w" style="width:' + (pw / total * 100).toFixed(2) + '%"></i></span>' +
       '<span class="nums">' +
-      navCell('假先', pb, pb === top ? ' top pos' : '') +
-      navCell('和棋', pd, pd === top ? ' top' : '') +
-      navCell('假后', pw, pw === top ? ' top pos' : '') +
+      navCell('假先', pb, pb === top ? (muted ? ' top neg' : ' top pos') : '') +
+      navCell('和棋', pd, pd === top ? (muted ? ' top neg' : ' top') : '') +
+      navCell('假后', pw, pw === top ? (muted ? ' top neg' : ' top pos') : '') +
       '</span></td>';
   }
 
