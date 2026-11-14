@@ -306,6 +306,8 @@ td.c-prob{width:248px;padding:11px 22px}
   var fromQuery = new URLSearchParams(location.search).get('r');
   var ROUND = parseInt(fromQuery || fromPath || '1', 10);
   if (!(ROUND > 0)) ROUND = 1;
+  var dlink = document.querySelector('a[href="2026-shanhai-details.html"]');
+  if (dlink) dlink.href = '2026-shanhai-details.html?r=' + ROUND;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
