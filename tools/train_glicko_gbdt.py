@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""基于 data/duiju.db 使用 Glicko-1 与 7 特征（含时限与末轮最高分领先者一维状态）训练 LightGBM GBDT 模型并导出 JSON。
+"""基于 data/duiju.db 使用 Glicko-1 与 6 特征（含时限）训练 LightGBM GBDT 模型并导出 JSON。
 
-特征 (7 维):
-  [rule, rating_tb, rating_tw, rating_diff, base_time, increment, final_state]
+特征 (6 维):
+  [rule, rating_tb, rating_tw, rating_diff, base_time, increment]
 类别映射 (与 predict_api.py 一致):
   0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
 """
@@ -202,7 +202,7 @@ def build_glicko_features(games):
         rw, rdw = get_pre_win(w_id, day)
         # 类别映射：0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
         label = 2 if res == "B" else (1 if res == "D" else 0)
-        rows.append((g["rule"], rb, rw, rb - rw, g["base_time"], g["increment"], g["final_state"], label))
+        rows.append((g["rule"], rb, rw, rb - rw, g["base_time"], g["increment"], label))
 
         gb, gw = g_func(rdb), g_func(rdw)
         eb = 1.0 / (1.0 + 10.0 ** (-gw * (rb - rw) / 400.0))
@@ -218,16 +218,15 @@ def build_glicko_features(games):
         rd_map[w_id] = max(MIN_RD, math.sqrt(1.0 / dw))
         last_day[w_id] = day
 
-    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff", "base_time", "increment", "final_state"]
+    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff", "base_time", "increment"]
     return pd.DataFrame(rows, columns=feature_cols + ["label"]), feature_cols
 
 
 def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
-    cat_cols = ["rule", "final_state"]
-    cat_indices = [0, 6]
+    cat_cols = ["rule"]
+    cat_indices = [0]
     all_rules = sorted(list(df["rule"].unique()))
     df["rule"] = df["rule"].astype(pd.CategoricalDtype(categories=all_rules))
-    df["final_state"] = df["final_state"].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3, 4, 5, 6, 7]))
 
     n_train = int(len(df) * 0.8)
     train_df = df.iloc[:n_train].copy()
