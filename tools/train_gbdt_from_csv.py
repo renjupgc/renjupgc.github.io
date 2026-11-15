@@ -184,7 +184,7 @@ def build_features_from_csv(games):
     return df
 
 
-def train_and_export(df, out_name="model_20261115.json"):
+def train_and_export(df, out_name="model_20261113.json"):
     """训练 LightGBM 三分类 GBDT 模型并导出 JSON。"""
     feature_cols = [
         "rule",
@@ -288,7 +288,7 @@ def train_and_export(df, out_name="model_20261115.json"):
 def main():
     ap = argparse.ArgumentParser(description="基于 data/all_games.csv 重新训练 LightGBM GBDT 模型")
     ap.add_argument("--csv", default=DEFAULT_CSV_PATH, help="统一 CSV 路径")
-    ap.add_argument("--out-name", default="model_20261115.json", help="输出模型文件名")
+    ap.add_argument("--out-name", default="model_20261113.json", help="输出模型文件名")
     ap.add_argument("--include-shanhai", action="store_true", help="是否把山海杯也纳入训练集（默认保留样本外）")
     args = ap.parse_args()
 
