@@ -1,0 +1,495 @@
+{
+  "tournament": {
+    "id": "2026-shanhai",
+    "slug": "shanhai",
+    "name": "“山海杯”2026年全国五子棋业余棋王争霸赛",
+    "year": 2026,
+    "group": "公开组",
+    "rule": "塔拉山口-10"
+  },
+  "round": 9,
+  "is_finished": false,
+  "rounds": [
+    {
+      "round": 1,
+      "is_finished": true
+    },
+    {
+      "round": 2,
+      "is_finished": true
+    },
+    {
+      "round": 3,
+      "is_finished": true
+    },
+    {
+      "round": 4,
+      "is_finished": true
+    },
+    {
+      "round": 5,
+      "is_finished": true
+    },
+    {
+      "round": 6,
+      "is_finished": true
+    },
+    {
+      "round": 7,
+      "is_finished": true
+    },
+    {
+      "round": 8,
+      "is_finished": false
+    },
+    {
+      "round": 9,
+      "is_finished": false
+    }
+  ],
+  "model": null,
+  "predicted_at": null,
+  "updated_at": "2026-11-15 21:18:01",
+  "games": [
+    {
+      "table": 1,
+      "black": {
+        "no": 19,
+        "name": "赵云",
+        "score": 6
+      },
+      "white": {
+        "no": 35,
+        "name": "万俊宏",
+        "score": 5.5
+      },
+      "prediction": {
+        "black": 52.5,
+        "draw": 14.9,
+        "white": 32.6
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 2,
+      "black": {
+        "no": 27,
+        "name": "梁中",
+        "score": 5
+      },
+      "white": {
+        "no": 40,
+        "name": "何舒军",
+        "score": 5.5
+      },
+      "prediction": {
+        "black": 18.1,
+        "draw": 10.3,
+        "white": 71.6
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 3,
+      "black": {
+        "no": 2,
+        "name": "钟煜阳",
+        "score": 5
+      },
+      "white": {
+        "no": 43,
+        "name": "陈浩源",
+        "score": 6.0
+      },
+      "prediction": {
+        "black": 35.1,
+        "draw": 15.5,
+        "white": 49.4
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 4,
+      "black": {
+        "no": 3,
+        "name": "韦振强",
+        "score": 4.5
+      },
+      "white": {
+        "no": 8,
+        "name": "徐嘉琦",
+        "score": 5.0
+      },
+      "prediction": {
+        "black": 52.2,
+        "draw": 13.4,
+        "white": 34.4
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 5,
+      "black": {
+        "no": 6,
+        "name": "章小剑",
+        "score": 4.5
+      },
+      "white": {
+        "no": 24,
+        "name": "马子轩",
+        "score": 4
+      },
+      "prediction": {
+        "black": 73.0,
+        "draw": 8.2,
+        "white": 18.8
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 6,
+      "black": {
+        "no": 13,
+        "name": "康哲铭",
+        "score": 4.0
+      },
+      "white": {
+        "no": 9,
+        "name": "康庭瑞",
+        "score": 4.0
+      },
+      "prediction": {
+        "black": 43.9,
+        "draw": 12.1,
+        "white": 44.0
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 7,
+      "black": {
+        "no": 30,
+        "name": "黄大兴",
+        "score": 4
+      },
+      "white": {
+        "no": 14,
+        "name": "张欣怡",
+        "score": 5
+      },
+      "prediction": {
+        "black": 44.6,
+        "draw": 12.0,
+        "white": 43.4
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 8,
+      "black": {
+        "no": 1,
+        "name": "王俊锴",
+        "score": 3.5
+      },
+      "white": {
+        "no": 46,
+        "name": "鲁益",
+        "score": 4.5
+      },
+      "prediction": {
+        "black": 20.0,
+        "draw": 10.1,
+        "white": 69.9
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 9,
+      "black": {
+        "no": 26,
+        "name": "蔡子扬",
+        "score": 4.5
+      },
+      "white": {
+        "no": 23,
+        "name": "蒙杰焕",
+        "score": 4.5
+      },
+      "prediction": {
+        "black": 58.1,
+        "draw": 11.6,
+        "white": 30.3
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 10,
+      "black": {
+        "no": 38,
+        "name": "黄健光",
+        "score": 3.5
+      },
+      "white": {
+        "no": 32,
+        "name": "夏建晋",
+        "score": 3.5
+      },
+      "prediction": {
+        "black": 46.4,
+        "draw": 11.6,
+        "white": 42.0
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 11,
+      "black": {
+        "no": 5,
+        "name": "彭维刚",
+        "score": 3
+      },
+      "white": {
+        "no": 39,
+        "name": "潘为",
+        "score": 4
+      },
+      "prediction": {
+        "black": 57.3,
+        "draw": 9.8,
+        "white": 32.9
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 12,
+      "black": {
+        "no": 33,
+        "name": "李嘉骏",
+        "score": 4.0
+      },
+      "white": {
+        "no": 41,
+        "name": "许业鹏",
+        "score": 4
+      },
+      "prediction": {
+        "black": 57.4,
+        "draw": 10.7,
+        "white": 31.9
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 13,
+      "black": {
+        "no": 37,
+        "name": "周楠",
+        "score": 3.0
+      },
+      "white": {
+        "no": 45,
+        "name": "朱佳颐",
+        "score": 3
+      },
+      "prediction": {
+        "black": 77.1,
+        "draw": 5.9,
+        "white": 17.0
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 14,
+      "black": {
+        "no": 42,
+        "name": "钟保贵",
+        "score": 2.5
+      },
+      "white": {
+        "no": 10,
+        "name": "文英",
+        "score": 3
+      },
+      "prediction": {
+        "black": 52.3,
+        "draw": 8.7,
+        "white": 39.0
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 15,
+      "black": {
+        "no": 29,
+        "name": "庄义翔",
+        "score": 3
+      },
+      "white": {
+        "no": 18,
+        "name": "焦政瑞",
+        "score": 3.5
+      },
+      "prediction": {
+        "black": 19.6,
+        "draw": 9.8,
+        "white": 70.6
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 16,
+      "black": {
+        "no": 44,
+        "name": "崔展铭",
+        "score": 3.5
+      },
+      "white": {
+        "no": 22,
+        "name": "刘沁",
+        "score": 3.0
+      },
+      "prediction": {
+        "black": 26.6,
+        "draw": 9.5,
+        "white": 63.9
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 17,
+      "black": {
+        "no": 28,
+        "name": "肖伊康",
+        "score": 3.0
+      },
+      "white": {
+        "no": 36,
+        "name": "王嘉欣",
+        "score": 3.5
+      },
+      "prediction": {
+        "black": 27.1,
+        "draw": 9.5,
+        "white": 63.4
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 18,
+      "black": {
+        "no": 11,
+        "name": "童晨",
+        "score": 2
+      },
+      "white": {
+        "no": 4,
+        "name": "廖俊豪",
+        "score": 2
+      },
+      "prediction": {
+        "black": 30.8,
+        "draw": 6.1,
+        "white": 63.1
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 19,
+      "black": {
+        "no": 7,
+        "name": "张硕",
+        "score": 2
+      },
+      "white": {
+        "no": 31,
+        "name": "陈超",
+        "score": 3
+      },
+      "prediction": {
+        "black": 11.5,
+        "draw": 4.4,
+        "white": 84.1
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 20,
+      "black": {
+        "no": 12,
+        "name": "邢家辉",
+        "score": 2.5
+      },
+      "white": {
+        "no": 21,
+        "name": "王思淼",
+        "score": 3
+      },
+      "prediction": {
+        "black": 37.3,
+        "draw": 7.8,
+        "white": 54.9
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 21,
+      "black": {
+        "no": 34,
+        "name": "袁攀峰",
+        "score": 2
+      },
+      "white": {
+        "no": 17,
+        "name": "王端国",
+        "score": 2.5
+      },
+      "prediction": {
+        "black": 16.2,
+        "draw": 4.3,
+        "white": 79.5
+      },
+      "result": null,
+      "prediction_correct": null
+    },
+    {
+      "table": 22,
+      "black": {
+        "no": 20,
+        "name": "周鹏",
+        "score": 2
+      },
+      "white": {
+        "no": 16,
+        "name": "于宁",
+        "score": 1
+      },
+      "prediction": {
+        "black": 71.9,
+        "draw": 7.4,
+        "white": 20.7
+      },
+      "result": null,
+      "prediction_correct": null
+    }
+  ]
+}

@@ -41,6 +41,10 @@
     {
       "round": 8,
       "is_finished": false
+    },
+    {
+      "round": 9,
+      "is_finished": false
     }
   ],
   "model": "model_glicko_20261113",
