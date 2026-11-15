@@ -284,14 +284,14 @@ def extract_duiju_games(db_path, name_to_pid, name_to_country):
 
         bn = r["black_name"]
         wn = r["white_name"]
-        b_id = name_to_pid.get(bn, bn)
-        w_id = name_to_pid.get(wn, wn)
+        b_id = name_to_pid.get(bn, "")
+        w_id = name_to_pid.get(wn, "")
         b_country = name_to_country.get(bn, 5)
         w_country = name_to_country.get(wn, 5)
 
         rows.append({
             "game_id": f"duiju_{r['id']}",
-            "source": "duiju_db",
+            "source": "ljrenju",
             "tournament_id": tid,
             "tournament_name": r["tour_name"],
             "round": r["round"],
@@ -361,7 +361,6 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
     rows = []
     added_tours = 0
     for tid, glist in sorted(by_tid.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999999):
-        # 山海杯已有 duiju.db 完整数据，跳过
         if tid == "2":
             continue
         valid = [
@@ -376,7 +375,6 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
             1 for g in valid
             if (g.get("moves") or "").strip() and " ".join((g.get("moves") or "").split()) in existing_moves
         )
-        # 若该赛事已有 >30% 对局存在于 RIF XML，说明赛事已收录，跳过
         if matched > len(valid) * 0.3:
             continue
 
@@ -406,8 +404,8 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
                 elif res == "W":
                     res = "B"
 
-            b_id = name_to_pid.get(bn, bn)
-            w_id = name_to_pid.get(wn, wn)
+            b_id = name_to_pid.get(bn, "")
+            w_id = name_to_pid.get(wn, "")
             b_country = name_to_country.get(bn, 5)
             w_country = name_to_country.get(wn, 5)
 
@@ -417,7 +415,7 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
 
             rows.append({
                 "game_id": f"r4433_{g['id']}",
-                "source": "renju4433",
+                "source": "ljrenju",
                 "tournament_id": f"r4433_{tid}",
                 "tournament_name": tour_title,
                 "round": (g.get("round_num") or "").strip(),
@@ -443,7 +441,7 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
 
 def export_all_games_csv(rif_path=DEFAULT_RIF_PATH, db_path=DEFAULT_DB_PATH,
                          renju4433_dir=DEFAULT_RENJU4433_DIR, out_path=DEFAULT_OUT_PATH):
-    """合并导出 RIF XML、duiju.db 与 renju4433 缺失赛事至统一 CSV。"""
+    """合并导出 RIF XML、renju4433 与 duiju.db 已完赛对局至统一 CSV。"""
     if not os.path.exists(rif_path):
         raise FileNotFoundError(f"未找到 RIF XML 文件: {rif_path}")
 
@@ -461,6 +459,19 @@ def export_all_games_csv(rif_path=DEFAULT_RIF_PATH, db_path=DEFAULT_DB_PATH,
     existing_moves = {r["moves"] for r in rif_rows if r.get("moves")}
     r4433_rows = extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_country)
     duiju_rows = extract_duiju_games(db_path, name_to_pid, name_to_country)
+
+    # 为没有 RIF 编号的新选手分配独立数字编号 ID（从 1000001 起）
+    next_new_pid = 1000001
+    new_player_ids = {}
+    for row in r4433_rows + duiju_rows:
+        for id_key, name_key in (("black_id", "black_name"), ("white_id", "white_name")):
+            if not row[id_key]:
+                nm = row[name_key]
+                if nm not in new_player_ids:
+                    new_player_ids[nm] = str(next_new_pid)
+                    next_new_pid += 1
+                row[id_key] = new_player_ids[nm]
+
     all_rows = rif_rows + r4433_rows + duiju_rows
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
@@ -473,6 +484,7 @@ def export_all_games_csv(rif_path=DEFAULT_RIF_PATH, db_path=DEFAULT_DB_PATH,
     print(f"  RIF XML 对局: {len(rif_rows)}")
     print(f"  renju4433 补充对局: {len(r4433_rows)}")
     print(f"  duiju.db 已完赛对局: {len(duiju_rows)}")
+    print(f"  新选手独立编号数: {len(new_player_ids)}")
     print(f"  合计总对局: {len(all_rows)}")
     return len(rif_rows), len(r4433_rows), len(duiju_rows), len(all_rows)
 
