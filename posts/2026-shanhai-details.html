@@ -139,8 +139,7 @@ tbody tr.shade td{background:var(--mint2)}
   </div>
   <div class="card dist-card" id="dist-card" style="display:none">
     <div class="dist-hd">
-      <h2>名次分布二维表（第 1 名 – 第 <span id="dist-max">44</span> 名）</h2>
-      <span id="dist-sub">模拟 10,000,000 次 · 完全并列均分</span>
+      <h2>名次分布表</h2>
     </div>
     <div class="tb-wrap">
       <table class="dist-tb" id="dist-tbl">
@@ -272,7 +271,6 @@ tbody tr.shade td{background:var(--mint2)}
     if (distCard) distCard.style.display = hasDist ? '' : 'none';
     if (hasDist) {
       var m = list[0].rank_probs.length;
-      document.getElementById('dist-max').textContent = m;
       var hdr = '<tr><th class="st-rk">现名</th><th class="st-nm">棋手</th><th>期望</th>';
       for (var r = 1; r <= m; r++) hdr += '<th>' + r + '</th>';
       hdr += '</tr>';
