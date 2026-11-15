@@ -63,14 +63,6 @@ RULE_MAP = {
     'RIF': 1,
 }
 
-TOURNAMENT_TIME_CONTROLS = {
-    '2026-shanhai': (2700, 30),
-}
-
-TOURNAMENT_TOTAL_ROUNDS = {
-    '2026-shanhai': 9,
-}
-
 _MODEL_CACHE = None
 _CSV_GAMES_CACHE = {}
 _CONTEXT_CACHE = {}
@@ -410,9 +402,21 @@ def get_player_rating(ctx, name):
 
 # ---------------------------------------------------------------- 对局预测 API
 
-def compute_draw_clinch_map(conn, tid, rnd, games_rows):
+def get_tournament_meta(conn, tid):
+    """从 duiju.db tournaments 表读取赛事规则、总轮数与时限。"""
+    row = conn.execute('SELECT * FROM tournaments WHERE id=?', (tid,)).fetchone()
+    if not row:
+        return '塔拉山口-10', None, None, None
+    keys = row.keys()
+    rule_name = row['rule'] or '塔拉山口-10'
+    total_rounds = row['total_rounds'] if 'total_rounds' in keys else None
+    base_time = row['base_time'] if 'base_time' in keys else None
+    increment = row['increment'] if 'increment' in keys else None
+    return rule_name, total_rounds, base_time, increment
+
+
+def compute_draw_clinch_map(conn, tid, rnd, games_rows, total_rounds=None):
     """若当前为赛事最后一轮，计算每台是否满足“赛前未锁定夺冠、和棋即可锁定冠军”(1/0)。"""
-    total_rounds = TOURNAMENT_TOTAL_ROUNDS.get(tid)
     if not total_rounds or rnd != total_rounds:
         return {}
 
@@ -683,8 +687,7 @@ def evaluate_tournament_model(conn, tid, write=True, print_report=True):
 def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
     """预测指定赛事的某一轮对局。"""
     model = load_gbdt_model()
-    tour = conn.execute('SELECT rule FROM tournaments WHERE id=?', (tid,)).fetchone()
-    rule_name = (tour['rule'] if tour else None) or '塔拉山口-10'
+    rule_name, total_rounds, base_time, increment = get_tournament_meta(conn, tid)
 
     ctx = compute_context_from_csv(tid=tid, upto_round=rnd, csv_path=csv_path)
 
@@ -697,8 +700,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
         return []
 
     todo = games if overwrite else [g for g in games if g['result'] not in ('B', 'W', 'D')]
-    base_time, increment = TOURNAMENT_TIME_CONTROLS.get(tid, (None, None))
-    draw_clinch_map = compute_draw_clinch_map(conn, tid, rnd, games)
+    draw_clinch_map = compute_draw_clinch_map(conn, tid, rnd, games, total_rounds=total_rounds)
     preds = predict_games_list(todo, ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment, draw_clinch_map=draw_clinch_map)
 
     if write and preds:
@@ -724,8 +726,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
 def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=None):
     """按 (赛事, 轮次, 台次) 预测单台对局的 API 接口。"""
     model = load_gbdt_model()
-    tour = conn.execute('SELECT rule FROM tournaments WHERE id=?', (tid,)).fetchone()
-    rule_name = (tour['rule'] if tour else None) or '塔拉山口-10'
+    rule_name, total_rounds, base_time, increment = get_tournament_meta(conn, tid)
 
     row = conn.execute(
         'SELECT round, table_no, black_no, black_name, white_no, white_name, result'
@@ -736,8 +737,7 @@ def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=N
         return None
 
     ctx = compute_context_from_csv(tid=tid, upto_round=rnd, csv_path=csv_path)
-    base_time, increment = TOURNAMENT_TIME_CONTROLS.get(tid, (None, None))
-    draw_clinch_map = compute_draw_clinch_map(conn, tid, rnd, [row])
+    draw_clinch_map = compute_draw_clinch_map(conn, tid, rnd, [row], total_rounds=total_rounds)
     preds = predict_games_list([row], ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment, draw_clinch_map=draw_clinch_map)
     p = preds[0] if preds else None
 

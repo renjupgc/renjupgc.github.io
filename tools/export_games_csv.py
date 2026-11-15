@@ -47,10 +47,6 @@ TOURNAMENT_DATES = {
     "2026-shanhai": "2026-11-14",
 }
 
-TOURNAMENT_TIME_CONTROLS = {
-    "2026-shanhai": (2700, 30),
-}
-
 CSV_COLUMNS = [
     "game_id",
     "source",
@@ -334,10 +330,12 @@ def extract_duiju_games(db_path, name_to_pid, name_to_country):
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    sql = """
+    t_cols = {r[1] for r in conn.execute("PRAGMA table_info(tournaments)")}
+    tc_select = ", t.base_time, t.increment" if ("base_time" in t_cols and "increment" in t_cols) else ""
+    sql = f"""
         SELECT g.id, g.tournament_id, g.round, g.table_no,
                g.black_name, g.white_name, g.result,
-               t.name AS tour_name, t.year AS tour_year, t.rule AS tour_rule
+               t.name AS tour_name, t.year AS tour_year, t.rule AS tour_rule{tc_select}
         FROM games g
         JOIN tournaments t ON t.id = g.tournament_id
         WHERE g.result IN ('B', 'W', 'D')
@@ -359,7 +357,8 @@ def extract_duiju_games(db_path, name_to_pid, name_to_country):
         b_country = name_to_country.get(bn, 5)
         w_country = name_to_country.get(wn, 5)
 
-        base_time, increment = TOURNAMENT_TIME_CONTROLS.get(tid, ("", ""))
+        base_time = r["base_time"] if ("base_time" in r.keys() and r["base_time"] is not None) else ""
+        increment = r["increment"] if ("increment" in r.keys() and r["increment"] is not None) else ""
 
         rows.append({
             "game_id": f"duiju_{r['id']}",

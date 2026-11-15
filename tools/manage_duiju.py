@@ -70,13 +70,16 @@ TZ = timezone(timedelta(hours=8))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS tournaments (
-    id          TEXT PRIMARY KEY,
-    name        TEXT NOT NULL,
-    year        INTEGER,
-    group_name  TEXT,
-    rule        TEXT,
-    slug        TEXT NOT NULL,
-    updated_at  TEXT
+    id           TEXT PRIMARY KEY,
+    name         TEXT NOT NULL,
+    year         INTEGER,
+    group_name   TEXT,
+    rule         TEXT,
+    slug         TEXT NOT NULL,
+    total_rounds INTEGER,
+    base_time    INTEGER,
+    increment    INTEGER,
+    updated_at   TEXT
 );
 CREATE TABLE IF NOT EXISTS rounds (
     tournament_id TEXT NOT NULL REFERENCES tournaments(id),
