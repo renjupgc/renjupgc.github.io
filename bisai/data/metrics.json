@@ -7,16 +7,16 @@
     "group": "公开组",
     "rule": "塔拉山口-10"
   },
-  "model": "model_20261113",
-  "evaluated_at": "2026-11-15 11:43:56",
+  "model": "model_20261115",
+  "evaluated_at": "2026-11-15 14:40:22",
   "rounds": [
     {
       "n": 23,
       "hit": 16,
       "accuracy": 0.6957,
-      "brier": 0.3435,
-      "logloss": 0.5851,
-      "confidence": 0.7669,
+      "brier": 0.3434,
+      "logloss": 0.5848,
+      "confidence": 0.7672,
       "results": {
         "B": 8,
         "D": 1,
@@ -38,9 +38,9 @@
       "n": 23,
       "hit": 14,
       "accuracy": 0.6087,
-      "brier": 0.4663,
-      "logloss": 0.7775,
-      "confidence": 0.7444,
+      "brier": 0.4651,
+      "logloss": 0.7761,
+      "confidence": 0.7439,
       "results": {
         "B": 10,
         "D": 2,
@@ -135,9 +135,9 @@
     "n": 112,
     "hit": 74,
     "accuracy": 0.6607,
-    "brier": 0.4636,
-    "logloss": 0.8014,
-    "confidence": 0.7288,
+    "brier": 0.4633,
+    "logloss": 0.801,
+    "confidence": 0.7287,
     "results": {
       "B": 44,
       "D": 12,

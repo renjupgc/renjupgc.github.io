@@ -12,6 +12,7 @@ import csv
 import gzip
 import json
 import os
+import re
 import sqlite3
 import sys
 import xml.etree.ElementTree as ET
@@ -20,6 +21,7 @@ from datetime import date, datetime
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_RIF_PATH = r"C:\Users\yaolz\Downloads\renjunet_v10_20261113.rif"
 DEFAULT_DB_PATH = os.path.join(BASE_DIR, "data", "duiju.db")
+DEFAULT_RENJU4433_DIR = r"C:\Users\yaolz\.gemini\antigravity\scratch\renju4433.github.io\data"
 DEFAULT_OUT_PATH = os.path.join(BASE_DIR, "data", "all_games.csv")
 PLAYERS_JSON_PATH = os.path.join(BASE_DIR, "bisai", "data", "players.json")
 WHR_GAMES_PATH = os.path.join(BASE_DIR, "data", "whr_games.json.gz")
@@ -88,6 +90,21 @@ def parse_date_to_day(date_str):
         return (date(y, max(1, min(12, m)), max(1, min(28, d))) - EPOCH).days
     except (IndexError, ValueError):
         return None
+
+
+def parse_cn_date_text(date_text):
+    """解析中文日期文本（如 '2026年10月3日-6日'、'2026年7月'）为 (YYYY-MM-DD, day)。"""
+    if not date_text:
+        return "", 0
+    s = str(date_text).strip()
+    m = re.search(r"(\d{4})年(\d{1,2})月(?:(\d{1,2})日)?", s)
+    if m:
+        y = int(m.group(1))
+        mo = max(1, min(12, int(m.group(2))))
+        d = max(1, min(28, int(m.group(3)))) if m.group(3) else 1
+        ds = f"{y:04d}-{mo:02d}-{d:02d}"
+        return ds, (date(y, mo, d) - EPOCH).days
+    return "", 0
 
 
 def load_name_mappings():
@@ -297,8 +314,136 @@ def extract_duiju_games(db_path, name_to_pid, name_to_country):
     return rows
 
 
-def export_all_games_csv(rif_path=DEFAULT_RIF_PATH, db_path=DEFAULT_DB_PATH, out_path=DEFAULT_OUT_PATH):
-    """合并导出 RIF XML 与 duiju.db 已完赛对局至 CSV。"""
+def infer_rule_id(rule_text, opening_code=""):
+    """从规则说明与开局代码推断规则 ID（默认 25 = 塔拉山口-10）。"""
+    rt = str(rule_text or "")
+    if "塔拉山口" in rt or "Taraguchi" in rt:
+        return 25
+    if "索索夫" in rt or "Soosyrv" in rt:
+        return 24
+    if "五手两打" in rt or "五手二打" in rt:
+        return 2
+    if "山口" in rt or "Yamaguchi" in rt:
+        return 1
+    oc = str(opening_code or "").strip()
+    if oc.startswith("R:") and len(oc) >= 7:
+        return 25
+    return 25
+
+
+def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_country):
+    """从 renju4433.github.io/data 补充 RIF XML 与 duiju.db 中没有的赛事对局。"""
+    if not renju4433_dir or not os.path.isdir(renju4433_dir):
+        return []
+
+    g_path = os.path.join(renju4433_dir, "games.csv")
+    t_path = os.path.join(renju4433_dir, "tournaments.csv")
+    gr_path = os.path.join(renju4433_dir, "groups.csv")
+    if not os.path.exists(g_path) or not os.path.exists(t_path):
+        return []
+
+    tours = {}
+    with open(t_path, "r", encoding="utf-8-sig", newline="") as f:
+        for r in csv.DictReader(f):
+            tours[r["id"]] = r
+
+    groups = {}
+    if os.path.exists(gr_path):
+        with open(gr_path, "r", encoding="utf-8-sig", newline="") as f:
+            for r in csv.DictReader(f):
+                groups[(r["tournament_id"], r["group_name"])] = r.get("rule", "")
+
+    by_tid = {}
+    with open(g_path, "r", encoding="utf-8-sig", newline="") as f:
+        for g in csv.DictReader(f):
+            by_tid.setdefault(g["tournament_id"], []).append(g)
+
+    rows = []
+    added_tours = 0
+    for tid, glist in sorted(by_tid.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999999):
+        # 山海杯已有 duiju.db 完整数据，跳过
+        if tid == "2":
+            continue
+        valid = [
+            g for g in glist
+            if g.get("result") in ("black_win", "white_win", "draw")
+            and g.get("walkover") == "0"
+            and g.get("unplayed") == "0"
+        ]
+        if not valid:
+            continue
+        matched = sum(
+            1 for g in valid
+            if (g.get("moves") or "").strip() and " ".join((g.get("moves") or "").split()) in existing_moves
+        )
+        # 若该赛事已有 >30% 对局存在于 RIF XML，说明赛事已收录，跳过
+        if matched > len(valid) * 0.3:
+            continue
+
+        tinfo = tours.get(tid, {})
+        date_str, day = parse_cn_date_text(tinfo.get("date_text", ""))
+        tour_title = (tinfo.get("title") or "").strip()
+        added_tours += 1
+
+        for g in valid:
+            bn = (g.get("black_player") or "").strip()
+            wn = (g.get("white_player") or "").strip()
+            if not bn or not wn:
+                continue
+
+            res_raw = g["result"]
+            res = "B" if res_raw == "black_win" else ("W" if res_raw == "white_win" else "D")
+
+            oc = (g.get("opening_code") or "").strip()
+            swap_str = ""
+            if ":" in oc:
+                tail = oc.split(":", 1)[1]
+                swap_str = "".join("R" if ch == "+" else "-" for ch in tail)
+            if oc.count("+") % 2 == 1:
+                bn, wn = wn, bn
+                if res == "B":
+                    res = "W"
+                elif res == "W":
+                    res = "B"
+
+            b_id = name_to_pid.get(bn, bn)
+            w_id = name_to_pid.get(wn, wn)
+            b_country = name_to_country.get(bn, 5)
+            w_country = name_to_country.get(wn, 5)
+
+            rule_text = groups.get((tid, g.get("group_name") or ""), "")
+            rule_id = infer_rule_id(rule_text, oc)
+            moves = " ".join((g.get("moves") or "").split())
+
+            rows.append({
+                "game_id": f"r4433_{g['id']}",
+                "source": "renju4433",
+                "tournament_id": f"r4433_{tid}",
+                "tournament_name": tour_title,
+                "round": (g.get("round_num") or "").strip(),
+                "date": date_str,
+                "day": day,
+                "rule": rule_id,
+                "rated": 1,
+                "black_id": b_id,
+                "black_name": bn,
+                "black_country": b_country,
+                "white_id": w_id,
+                "white_name": wn,
+                "white_country": w_country,
+                "result": res,
+                "swap": swap_str,
+                "opening": (g.get("opening_name") or "").strip(),
+                "moves": moves,
+            })
+
+    print(f"  renju4433 补充新赛事: {added_tours} 场, {len(rows)} 局")
+    return rows
+
+
+def export_all_games_csv(rif_path=DEFAULT_RIF_PATH, db_path=DEFAULT_DB_PATH,
+                         renju4433_dir=DEFAULT_RENJU4433_DIR, out_path=DEFAULT_OUT_PATH):
+    """合并导出 RIF XML、duiju.db 与 renju4433 缺失赛事至统一 CSV。"""
     if not os.path.exists(rif_path):
         raise FileNotFoundError(f"未找到 RIF XML 文件: {rif_path}")
 
@@ -313,8 +458,10 @@ def export_all_games_csv(rif_path=DEFAULT_RIF_PATH, db_path=DEFAULT_DB_PATH, out
         if nm and nm not in name_to_country:
             name_to_country[nm] = p["country"]
 
+    existing_moves = {r["moves"] for r in rif_rows if r.get("moves")}
+    r4433_rows = extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_country)
     duiju_rows = extract_duiju_games(db_path, name_to_pid, name_to_country)
-    all_rows = rif_rows + duiju_rows
+    all_rows = rif_rows + r4433_rows + duiju_rows
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w", encoding="utf-8", newline="") as f:
@@ -324,18 +471,20 @@ def export_all_games_csv(rif_path=DEFAULT_RIF_PATH, db_path=DEFAULT_DB_PATH, out
 
     print(f"导出完成: {out_path}")
     print(f"  RIF XML 对局: {len(rif_rows)}")
+    print(f"  renju4433 补充对局: {len(r4433_rows)}")
     print(f"  duiju.db 已完赛对局: {len(duiju_rows)}")
     print(f"  合计总对局: {len(all_rows)}")
-    return len(rif_rows), len(duiju_rows), len(all_rows)
+    return len(rif_rows), len(r4433_rows), len(duiju_rows), len(all_rows)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="导出 RIF XML 与 duiju.db 已完赛对局至统一 CSV")
+    parser = argparse.ArgumentParser(description="导出 RIF XML、renju4433 与 duiju.db 已完赛对局至统一 CSV")
     parser.add_argument("--rif", default=DEFAULT_RIF_PATH, help="RIF XML 文件路径")
     parser.add_argument("--db", default=DEFAULT_DB_PATH, help="duiju.db 路径")
+    parser.add_argument("--renju4433", default=DEFAULT_RENJU4433_DIR, help="renju4433 data 目录")
     parser.add_argument("--out", default=DEFAULT_OUT_PATH, help="输出 CSV 路径")
     args = parser.parse_args()
-    export_all_games_csv(args.rif, args.db, args.out)
+    export_all_games_csv(args.rif, args.db, args.renju4433, args.out)
 
 
 if __name__ == "__main__":
