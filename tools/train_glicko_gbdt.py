@@ -152,8 +152,7 @@ def annotate_draw_clinch_final(games):
                 b, w = g["b_id"], g["w_id"]
                 for p, opp in ((b, w), (w, b)):
                     other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
-                    max_if_lose = max(other_max, pts[opp] + 1.0)
-                    if pts[p] <= max_if_lose and pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
+                    if pts[p] <= other_max and pts[p] > pts[opp] + 1.0 and pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
                         g["draw_clinch_final"] = 1
                         break
 

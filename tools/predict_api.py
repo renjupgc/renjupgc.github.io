@@ -486,8 +486,7 @@ def compute_draw_clinch_map(conn, tid, rnd, games_rows, total_rounds=None):
         flag = 0
         for p, opp in ((b, w), (w, b)):
             other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
-            max_if_lose = max(other_max, pts[opp] + 1.0)
-            if pts[p] <= max_if_lose and pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
+            if pts[p] <= other_max and pts[p] > pts[opp] + 1.0 and pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
                 flag = 1
                 break
         out[g['table_no']] = flag
