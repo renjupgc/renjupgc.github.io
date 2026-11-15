@@ -331,6 +331,48 @@ def infer_rule_id(rule_text, opening_code=""):
     return 25
 
 
+def infer_country_from_slug(slug):
+    """根据赛事 slug 前缀推断新选手的默认国家/地区 ID（RIF 标准编号）。"""
+    s = str(slug or "").lower()
+    if s.startswith(("chn", "cn", "cmsg")):
+        return 5   # CHN
+    if s.startswith("kor"):
+        return 6   # KOR
+    if s.startswith("jp"):
+        return 4   # JPN
+    if s.startswith("est"):
+        return 1   # EST
+    if s.startswith(("ru", "su", "ussr")):
+        if s.startswith("suukr"):
+            return 14  # UKR
+        if s.startswith("sublr"):
+            return 19  # BLR
+        return 2   # RRA / RUS
+    if s.startswith("fin"):
+        return 3   # FIN
+    if s.startswith("swe"):
+        return 7   # SWE
+    if s.startswith(("tai", "tpe")):
+        return 8   # TPE
+    if s.startswith("pol"):
+        return 9   # POL
+    if s.startswith("hun"):
+        return 10  # HUN
+    if s.startswith("usa"):
+        return 11  # USA
+    if s.startswith("arm"):
+        return 12  # ARM
+    if s.startswith("ukr"):
+        return 14  # UKR
+    if s.startswith("cze"):
+        return 16  # CZE
+    if s.startswith("lva"):
+        return 17  # LAT
+    if s.startswith("hkg"):
+        return 47  # HKG
+    return 40      # UNK
+
+
 def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_country):
     """从 renju4433.github.io/data 补充 RIF XML 与 duiju.db 中没有的赛事对局。"""
     if not renju4433_dir or not os.path.isdir(renju4433_dir):
@@ -381,6 +423,7 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
         tinfo = tours.get(tid, {})
         date_str, day = parse_cn_date_text(tinfo.get("date_text", ""))
         tour_title = (tinfo.get("title") or "").strip()
+        default_country = infer_country_from_slug(tinfo.get("slug", ""))
         added_tours += 1
 
         for g in valid:
@@ -406,8 +449,8 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
 
             b_id = name_to_pid.get(bn, "")
             w_id = name_to_pid.get(wn, "")
-            b_country = name_to_country.get(bn, 5)
-            w_country = name_to_country.get(wn, 5)
+            b_country = name_to_country.get(bn, default_country)
+            w_country = name_to_country.get(wn, default_country)
 
             rule_text = groups.get((tid, g.get("group_name") or ""), "")
             rule_id = infer_rule_id(rule_text, oc)

@@ -2,21 +2,21 @@
   "tournament": {
     "id": "2026-shanhai",
     "slug": "shanhai",
-    "name": "「山海杯」2026 年全国五子棋业余棋王争霸赛线下总决赛",
+    "name": "“山海杯”2026年全国五子棋业余棋王争霸赛",
     "year": 2026,
     "group": "公开组",
     "rule": "塔拉山口-10"
   },
   "model": "model_20261115",
-  "evaluated_at": "2026-11-15 14:40:22",
+  "evaluated_at": "2026-11-15 15:02:37",
   "rounds": [
     {
       "n": 23,
-      "hit": 16,
-      "accuracy": 0.6957,
-      "brier": 0.3434,
-      "logloss": 0.5848,
-      "confidence": 0.7672,
+      "hit": 18,
+      "accuracy": 0.7826,
+      "brier": 0.3345,
+      "logloss": 0.5633,
+      "confidence": 0.8002,
       "results": {
         "B": 8,
         "D": 1,
@@ -25,12 +25,12 @@
       "hit_by_result": {
         "B": 8,
         "D": 0,
-        "W": 8
+        "W": 10
       },
       "fav_distribution": {
-        "B": 15,
+        "B": 13,
         "D": 0,
-        "W": 8
+        "W": 10
       },
       "round": 1
     },
@@ -38,33 +38,33 @@
       "n": 23,
       "hit": 14,
       "accuracy": 0.6087,
-      "brier": 0.4651,
-      "logloss": 0.7761,
-      "confidence": 0.7439,
+      "brier": 0.5046,
+      "logloss": 0.8617,
+      "confidence": 0.785,
       "results": {
         "B": 10,
         "D": 2,
         "W": 11
       },
       "hit_by_result": {
-        "B": 9,
-        "D": 0,
-        "W": 5
-      },
-      "fav_distribution": {
-        "B": 17,
+        "B": 8,
         "D": 0,
         "W": 6
+      },
+      "fav_distribution": {
+        "B": 15,
+        "D": 0,
+        "W": 8
       },
       "round": 2
     },
     {
       "n": 22,
-      "hit": 17,
-      "accuracy": 0.7727,
-      "brier": 0.4499,
-      "logloss": 0.8169,
-      "confidence": 0.7134,
+      "hit": 15,
+      "accuracy": 0.6818,
+      "brier": 0.415,
+      "logloss": 0.7967,
+      "confidence": 0.78,
       "results": {
         "B": 4,
         "D": 3,
@@ -73,53 +73,53 @@
       "hit_by_result": {
         "B": 4,
         "D": 0,
-        "W": 13
+        "W": 11
       },
       "fav_distribution": {
-        "B": 6,
+        "B": 8,
         "D": 0,
-        "W": 16
+        "W": 14
       },
       "round": 3
     },
     {
       "n": 22,
-      "hit": 10,
-      "accuracy": 0.4545,
-      "brier": 0.7333,
-      "logloss": 1.2412,
-      "confidence": 0.7019,
+      "hit": 11,
+      "accuracy": 0.5,
+      "brier": 0.7067,
+      "logloss": 1.2347,
+      "confidence": 0.7246,
       "results": {
         "B": 10,
         "D": 5,
         "W": 7
       },
       "hit_by_result": {
-        "B": 6,
+        "B": 7,
         "D": 0,
         "W": 4
       },
       "fav_distribution": {
-        "B": 11,
+        "B": 12,
         "D": 0,
-        "W": 11
+        "W": 10
       },
       "round": 4
     },
     {
       "n": 22,
-      "hit": 17,
-      "accuracy": 0.7727,
-      "brier": 0.3302,
-      "logloss": 0.5972,
-      "confidence": 0.7148,
+      "hit": 16,
+      "accuracy": 0.7273,
+      "brier": 0.2855,
+      "logloss": 0.5308,
+      "confidence": 0.7536,
       "results": {
         "B": 12,
         "D": 1,
         "W": 9
       },
       "hit_by_result": {
-        "B": 12,
+        "B": 11,
         "D": 0,
         "W": 5
       },
@@ -135,23 +135,23 @@
     "n": 112,
     "hit": 74,
     "accuracy": 0.6607,
-    "brier": 0.4633,
-    "logloss": 0.801,
-    "confidence": 0.7287,
+    "brier": 0.4487,
+    "logloss": 0.7959,
+    "confidence": 0.7691,
     "results": {
       "B": 44,
       "D": 12,
       "W": 56
     },
     "hit_by_result": {
-      "B": 39,
+      "B": 38,
       "D": 0,
-      "W": 35
+      "W": 36
     },
     "fav_distribution": {
-      "B": 65,
+      "B": 64,
       "D": 0,
-      "W": 47
+      "W": 48
     }
   }
 }

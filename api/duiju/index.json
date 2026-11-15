@@ -4,11 +4,11 @@
     {
       "id": "2026-shanhai",
       "slug": "shanhai",
-      "name": "「山海杯」2026 年全国五子棋业余棋王争霸赛线下总决赛",
+      "name": "“山海杯”2026年全国五子棋业余棋王争霸赛",
       "year": 2026,
       "group": "公开组",
       "rule": "塔拉山口-10",
-      "updated_at": "2026-11-15 14:49:20",
+      "updated_at": "2026-11-15 13:43:51",
       "api": "api/duiju/shanhai/",
       "metrics": "api/duiju/shanhai/metrics.json",
       "rounds": [
@@ -19,8 +19,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_20261115",
-          "predicted_at": "2026-11-15 14:49:44",
-          "updated_at": "2026-11-15 14:49:44",
+          "predicted_at": "2026-11-15 15:00:48",
+          "updated_at": "2026-11-15 15:00:48",
           "standings": "api/duiju/shanhai/standings/r1.json"
         },
         {
@@ -30,8 +30,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_20261115",
-          "predicted_at": "2026-11-15 14:50:05",
-          "updated_at": "2026-11-15 14:50:05",
+          "predicted_at": "2026-11-15 15:01:12",
+          "updated_at": "2026-11-15 15:01:12",
           "standings": "api/duiju/shanhai/standings/r2.json"
         },
         {
@@ -40,9 +40,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
-          "updated_at": "2026-11-15 11:47:39",
+          "model": "model_20261115",
+          "predicted_at": "2026-11-15 15:01:36",
+          "updated_at": "2026-11-15 15:01:36",
           "standings": "api/duiju/shanhai/standings/r3.json"
         },
         {
@@ -51,9 +51,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
-          "updated_at": "2026-11-15 11:47:39",
+          "model": "model_20261115",
+          "predicted_at": "2026-11-15 15:01:57",
+          "updated_at": "2026-11-15 15:01:57",
           "standings": "api/duiju/shanhai/standings/r4.json"
         },
         {
@@ -62,9 +62,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
-          "updated_at": "2026-11-15 11:47:39",
+          "model": "model_20261115",
+          "predicted_at": "2026-11-15 15:02:18",
+          "updated_at": "2026-11-15 15:02:18",
           "standings": "api/duiju/shanhai/standings/r5.json"
         },
         {
@@ -74,8 +74,8 @@
           "played": 0,
           "is_finished": false,
           "model": "model_20261115",
-          "predicted_at": "2026-11-15 14:51:32",
-          "updated_at": "2026-11-15 14:51:32",
+          "predicted_at": "2026-11-15 15:02:37",
+          "updated_at": "2026-11-15 15:02:37",
           "standings": null
         }
       ]

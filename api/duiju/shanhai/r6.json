@@ -2,7 +2,7 @@
   "tournament": {
     "id": "2026-shanhai",
     "slug": "shanhai",
-    "name": "「山海杯」2026 年全国五子棋业余棋王争霸赛线下总决赛",
+    "name": "“山海杯”2026年全国五子棋业余棋王争霸赛",
     "year": 2026,
     "group": "公开组",
     "rule": "塔拉山口-10"
@@ -36,8 +36,8 @@
     }
   ],
   "model": "model_20261115",
-  "predicted_at": "2026-11-15 14:51:32",
-  "updated_at": "2026-11-15 14:51:32",
+  "predicted_at": "2026-11-15 15:02:37",
+  "updated_at": "2026-11-15 15:02:37",
   "games": [
     {
       "table": 1,
@@ -52,9 +52,9 @@
         "score": 4.5
       },
       "prediction": {
-        "black": 61.7,
-        "draw": 18.9,
-        "white": 19.4
+        "black": 60.5,
+        "draw": 18.0,
+        "white": 21.5
       },
       "result": null,
       "prediction_correct": null
@@ -72,9 +72,9 @@
         "score": 4
       },
       "prediction": {
-        "black": 29.2,
-        "draw": 16.0,
-        "white": 54.8
+        "black": 26.9,
+        "draw": 17.1,
+        "white": 56.0
       },
       "result": null,
       "prediction_correct": null
@@ -92,9 +92,9 @@
         "score": 4
       },
       "prediction": {
-        "black": 64.3,
-        "draw": 14.7,
-        "white": 21.0
+        "black": 64.8,
+        "draw": 14.4,
+        "white": 20.8
       },
       "result": null,
       "prediction_correct": null
@@ -112,9 +112,9 @@
         "score": 4.0
       },
       "prediction": {
-        "black": 61.9,
-        "draw": 14.2,
-        "white": 23.9
+        "black": 60.0,
+        "draw": 14.7,
+        "white": 25.3
       },
       "result": null,
       "prediction_correct": null
@@ -132,9 +132,9 @@
         "score": 3.5
       },
       "prediction": {
-        "black": 32.0,
-        "draw": 21.1,
-        "white": 46.9
+        "black": 32.3,
+        "draw": 22.0,
+        "white": 45.7
       },
       "result": null,
       "prediction_correct": null
@@ -152,9 +152,9 @@
         "score": 3.5
       },
       "prediction": {
-        "black": 39.8,
-        "draw": 17.2,
-        "white": 43.0
+        "black": 37.9,
+        "draw": 15.4,
+        "white": 46.7
       },
       "result": null,
       "prediction_correct": null
@@ -172,9 +172,9 @@
         "score": 3.0
       },
       "prediction": {
-        "black": 3.7,
-        "draw": 3.6,
-        "white": 92.7
+        "black": 3.8,
+        "draw": 2.8,
+        "white": 93.4
       },
       "result": null,
       "prediction_correct": null
@@ -192,9 +192,9 @@
         "score": 3
       },
       "prediction": {
-        "black": 79.6,
-        "draw": 8.3,
-        "white": 12.1
+        "black": 79.1,
+        "draw": 7.9,
+        "white": 13.0
       },
       "result": null,
       "prediction_correct": null
@@ -212,9 +212,9 @@
         "score": 3
       },
       "prediction": {
-        "black": 10.5,
-        "draw": 6.1,
-        "white": 83.4
+        "black": 11.5,
+        "draw": 6.4,
+        "white": 82.1
       },
       "result": null,
       "prediction_correct": null
@@ -232,9 +232,9 @@
         "score": 3
       },
       "prediction": {
-        "black": 14.9,
-        "draw": 8.6,
-        "white": 76.5
+        "black": 15.9,
+        "draw": 9.4,
+        "white": 74.7
       },
       "result": null,
       "prediction_correct": null
@@ -252,9 +252,9 @@
         "score": 2.5
       },
       "prediction": {
-        "black": 48.1,
-        "draw": 14.5,
-        "white": 37.4
+        "black": 51.6,
+        "draw": 13.7,
+        "white": 34.7
       },
       "result": null,
       "prediction_correct": null
@@ -272,8 +272,8 @@
         "score": 2.5
       },
       "prediction": {
-        "black": 31.1,
-        "draw": 14.0,
+        "black": 29.8,
+        "draw": 15.3,
         "white": 54.9
       },
       "result": null,
@@ -292,9 +292,9 @@
         "score": 2.5
       },
       "prediction": {
-        "black": 58.7,
-        "draw": 15.3,
-        "white": 26.0
+        "black": 60.8,
+        "draw": 15.6,
+        "white": 23.6
       },
       "result": null,
       "prediction_correct": null
@@ -312,9 +312,9 @@
         "score": 2.5
       },
       "prediction": {
-        "black": 4.6,
-        "draw": 4.0,
-        "white": 91.4
+        "black": 5.1,
+        "draw": 3.9,
+        "white": 91.0
       },
       "result": null,
       "prediction_correct": null
@@ -332,9 +332,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 23.8,
-        "draw": 11.7,
-        "white": 64.5
+        "black": 22.5,
+        "draw": 10.4,
+        "white": 67.1
       },
       "result": null,
       "prediction_correct": null
@@ -352,9 +352,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 46.9,
-        "draw": 11.2,
-        "white": 41.9
+        "black": 45.0,
+        "draw": 11.9,
+        "white": 43.1
       },
       "result": null,
       "prediction_correct": null
@@ -372,9 +372,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 80.5,
-        "draw": 7.4,
-        "white": 12.1
+        "black": 81.3,
+        "draw": 8.2,
+        "white": 10.5
       },
       "result": null,
       "prediction_correct": null
@@ -392,9 +392,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 9.4,
-        "draw": 9.3,
-        "white": 81.3
+        "black": 9.1,
+        "draw": 8.6,
+        "white": 82.3
       },
       "result": null,
       "prediction_correct": null
@@ -412,9 +412,9 @@
         "score": 1.5
       },
       "prediction": {
-        "black": 27.5,
-        "draw": 14.5,
-        "white": 58.0
+        "black": 34.5,
+        "draw": 13.9,
+        "white": 51.6
       },
       "result": null,
       "prediction_correct": null
@@ -432,9 +432,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 61.7,
-        "draw": 11.7,
-        "white": 26.6
+        "black": 64.6,
+        "draw": 10.4,
+        "white": 25.0
       },
       "result": null,
       "prediction_correct": null
@@ -452,9 +452,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 88.0,
-        "draw": 5.4,
-        "white": 6.6
+        "black": 87.3,
+        "draw": 5.2,
+        "white": 7.5
       },
       "result": null,
       "prediction_correct": null
@@ -472,9 +472,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 66.7,
+        "black": 71.6,
         "draw": 6.1,
-        "white": 27.2
+        "white": 22.3
       },
       "result": null,
       "prediction_correct": null
