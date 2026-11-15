@@ -218,6 +218,8 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
     h2h_acc = {}  # (p1, p2) -> [w_sum, s_first_sum]
 
     for g_tid, g_rnd, b_id, w_id, res, g_day, _, _ in csv_games:
+        if g_day > t_day:
+            continue
         if upto_round is not None and g_tid == tid and g_rnd is not None and g_rnd >= upto_round:
             continue
         whr_input.append([b_id, w_id, res, g_day])
