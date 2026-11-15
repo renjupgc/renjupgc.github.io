@@ -482,7 +482,7 @@ def compute_final_states_map(conn, tid, rnd, games_rows, total_rounds=None):
     out = {}
     for g in games_rows:
         b, w = g['black_name'], g['white_name']
-        if b == '轮空' or w == '轮空' or (pts[b] != cur_leader and pts[w] != cur_leader):
+        if b == '轮空' or w == '轮空' or (pts[b] < cur_leader - 1.0 and pts[w] < cur_leader - 1.0):
             out[g['table_no']] = (0, 0)
             continue
         states = []

@@ -157,7 +157,7 @@ def annotate_final_states(games):
             cur_leader = max((pts[q] for q in in_final), default=0.0)
             for g in finals:
                 b, w = g["b_id"], g["w_id"]
-                if pts[b] != cur_leader and pts[w] != cur_leader:
+                if pts[b] < cur_leader - 1.0 and pts[w] < cur_leader - 1.0:
                     continue
                 states = []
                 for p, opp in ((b, w), (w, b)):
