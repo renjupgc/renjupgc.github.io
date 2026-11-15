@@ -98,7 +98,12 @@ def load_training_games(source_path=DEFAULT_DB_PATH, max_day_exclusive=SHANHAI_D
 
 
 def annotate_draw_clinch_final(games):
-    """标注每局是否为“最后一轮、赛前未锁定夺冠、和棋即可锁定冠军”(1/0)。"""
+    """标注每局的末轮争冠状态:
+    0: 非最后一轮
+    1: 最后一轮，和棋不能锁定冠军
+    2: 最后一轮，输棋会丢掉冠军且和棋锁定冠军
+    3: 最后一轮，输棋不会丢掉冠军且和棋锁定冠军
+    """
     from collections import defaultdict
     tours = defaultdict(list)
     for g in games:
@@ -150,11 +155,14 @@ def annotate_draw_clinch_final(games):
                 continue
             for g in finals:
                 b, w = g["b_id"], g["w_id"]
+                cat = 1
                 for p, opp in ((b, w), (w, b)):
                     other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
-                    if pts[p] <= other_max and pts[p] > pts[opp] + 1.0 and pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
-                        g["draw_clinch_final"] = 1
+                    max_if_lose = max(other_max, pts[opp] + 1.0)
+                    if pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
+                        cat = 3 if pts[p] > max_if_lose else 2
                         break
+                g["draw_clinch_final"] = cat
 
 
 def build_glicko_features(games):
@@ -199,10 +207,11 @@ def build_glicko_features(games):
 
 
 def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
-    cat_cols = ["rule"]
-    cat_indices = [0]
+    cat_cols = ["rule", "draw_clinch_final"]
+    cat_indices = [0, 6]
     all_rules = sorted(list(df["rule"].unique()))
     df["rule"] = df["rule"].astype(pd.CategoricalDtype(categories=all_rules))
+    df["draw_clinch_final"] = df["draw_clinch_final"].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3]))
 
     n_train = int(len(df) * 0.8)
     train_df = df.iloc[:n_train].copy()

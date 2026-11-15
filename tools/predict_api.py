@@ -444,7 +444,7 @@ def get_tournament_meta(conn, tid):
 
 
 def compute_draw_clinch_map(conn, tid, rnd, games_rows, total_rounds=None):
-    """若当前为赛事最后一轮，计算每台是否满足“赛前未锁定夺冠、和棋即可锁定冠军”(1/0)。"""
+    """计算每台的末轮争冠状态 (0:非末轮, 1:末轮和棋不能锁冠, 2:末轮输棋丢冠且和棋锁冠, 3:末轮输棋不丢冠且和棋锁冠)。"""
     if not total_rounds or rnd != total_rounds:
         return {}
 
@@ -481,15 +481,16 @@ def compute_draw_clinch_map(conn, tid, rnd, games_rows, total_rounds=None):
     for g in games_rows:
         b, w = g['black_name'], g['white_name']
         if b == '轮空' or w == '轮空':
-            out[g['table_no']] = 0
+            out[g['table_no']] = 1
             continue
-        flag = 0
+        cat = 1
         for p, opp in ((b, w), (w, b)):
             other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
-            if pts[p] <= other_max and pts[p] > pts[opp] + 1.0 and pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
-                flag = 1
+            max_if_lose = max(other_max, pts[opp] + 1.0)
+            if pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
+                cat = 3 if pts[p] > max_if_lose else 2
                 break
-        out[g['table_no']] = flag
+        out[g['table_no']] = cat
     return out
 
 
