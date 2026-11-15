@@ -341,6 +341,8 @@
         if (prompt.indexOf(answer) >= 0) {
             prompt = '他写过：「' + title + '」——这句话落到哪个两三个字的术语上？';
         }
+        /* 题面里已经写着的词，不能再当作「同一条路上的答案」白送分 */
+        acc = acc.filter(function (a) { return prompt.indexOf(a.w) < 0; });
 
         var chName = String(e.chName || '').split('：')[0];
         return {
@@ -409,6 +411,7 @@
                 var a = o.accept[i];
                 var w = clean(typeof a === 'string' ? a : a && a.w).replace(/[「」“”"'\s]/g, '');
                 if (!w || w === t || w.length > 6) { continue; }
+                if (clean(o.prompt).indexOf(w) >= 0) { continue; }
                 acc.push({ w: w, note: clean(a && a.note) || '同一条路上的另一种说法。' });
             }
         }
