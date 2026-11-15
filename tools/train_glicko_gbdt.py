@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""基于 data/all_games.csv 使用 Glicko-1 与 4 特征训练 LightGBM GBDT 模型并导出 JSON。
+"""基于 data/all_games.csv 使用 Glicko-1 与 6 特征（含时限）训练 LightGBM GBDT 模型并导出 JSON。
 
-特征 (4 维):
-  [rule, rating_tb, rating_tw, rating_diff]
+特征 (6 维):
+  [rule, rating_tb, rating_tw, rating_diff, base_time, increment]
 类别映射 (与 predict_api.py 一致):
   0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
 """
@@ -51,8 +51,13 @@ def load_training_games(csv_path, max_day_exclusive=SHANHAI_DAY):
                 continue
             rule = int(float(row.get("rule") or 0))
             rnd = int(row["round"]) if (row.get("round") or "").isdigit() else 0
+            bt_str = (row.get("base_time") or "").strip()
+            inc_str = (row.get("increment") or "").strip()
+            base_time = float(bt_str) if bt_str != "" else np.nan
+            increment = float(inc_str) if inc_str != "" else np.nan
             games.append({
                 "idx": idx, "rnd": rnd, "day": day, "rule": rule,
+                "base_time": base_time, "increment": increment,
                 "b_id": b_id, "w_id": w_id, "res": res,
             })
     games.sort(key=lambda g: (g["day"], g["rnd"], g["idx"]))
@@ -80,7 +85,7 @@ def build_glicko_features(games):
         rw, rdw = get_pre_win(w_id, day)
         # 类别映射：0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
         label = 2 if res == "B" else (1 if res == "D" else 0)
-        rows.append((g["rule"], rb, rw, rb - rw, label))
+        rows.append((g["rule"], rb, rw, rb - rw, g["base_time"], g["increment"], label))
 
         gb, gw = g_func(rdb), g_func(rdw)
         eb = 1.0 / (1.0 + 10.0 ** (-gw * (rb - rw) / 400.0))
@@ -96,7 +101,7 @@ def build_glicko_features(games):
         rd_map[w_id] = max(MIN_RD, math.sqrt(1.0 / dw))
         last_day[w_id] = day
 
-    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff"]
+    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff", "base_time", "increment"]
     return pd.DataFrame(rows, columns=feature_cols + ["label"]), feature_cols
 
 
@@ -138,7 +143,9 @@ def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
     y_true = test_df["label"].values
     acc = accuracy_score(y_true, np.argmax(preds, axis=1))
     loss = log_loss(y_true, preds)
-    print(f"Glicko-GBDT (4特征) 训练完成: best_iter={model.best_iteration}, Valid Acc={acc*100:.2f}%, LogLoss={loss:.4f}")
+    print(f"Glicko-GBDT ({len(feature_cols)}特征) 训练完成: best_iter={model.best_iteration}, Valid Acc={acc*100:.2f}%, LogLoss={loss:.4f}")
+    imp = dict(zip(feature_cols, model.feature_importance(importance_type="gain").round(1).tolist()))
+    print(f"特征增益重要性 (gain): {imp}")
 
     model_dump = model.dump_model()
     pandas_cat = model_dump.get("pandas_categorical", [])

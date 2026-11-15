@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""赛事对局胜率预测 API（基于统一 CSV 与 4 特征 Glicko-GBDT 模型）。
+"""赛事对局胜率预测 API（基于统一 CSV 与 6 特征 Glicko-GBDT 模型，含时限特征）。
 
 核心逻辑：
 1. 数据源：基于 data/all_games.csv（含 RIF XML 历史库与已完赛赛事对局），
    仅使用当前赛事开始时间之前的其他赛事对局，以及本赛事轮数更小的对局。
-2. 特征计算：按时间顺序单遍递推 Glicko-1 等级分（共 4 维）：
-   [rule, rating_tb, rating_tw, rating_diff]
+2. 特征计算：按时间顺序单遍递推 Glicko-1 等级分（共 6 维）：
+   [rule, rating_tb, rating_tw, rating_diff, base_time, increment]
 3. 预测接口：支持按 (赛事, 轮次, 台次) 或整轮预测，模型为 bisai/data/model_glicko_20261113.json。
 
 用法：
@@ -61,6 +61,10 @@ RULE_MAP = {
     '索索夫-8': 22,
     'Soosyrv-8': 22,
     'RIF': 1,
+}
+
+TOURNAMENT_TIME_CONTROLS = {
+    '2026-shanhai': (2700, 30),
 }
 
 _MODEL_CACHE = None
@@ -402,7 +406,7 @@ def get_player_rating(ctx, name):
 
 # ---------------------------------------------------------------- 对局预测 API
 
-def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None):
+def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None, base_time=None, increment=None):
     """基于 6 特征 Glicko-GBDT 模型推断一组对局的胜率。"""
     model = model or load_gbdt_model()
     rule_id = RULE_MAP.get(rule_name, 25)
@@ -449,7 +453,7 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None)
         gdr_b = glicko_dr_map.get(p1_id, GLICKO_BASE_DRAW_P)
         gdr_w = glicko_dr_map.get(p2_id, GLICKO_BASE_DRAW_P)
 
-        feat = [rule_id, rb, rw, rb - rw]
+        feat = [rule_id, rb, rw, rb - rw, base_time, increment]
         pb, pd, pw = predict_gbdt(feat, model)
 
         top_prob = max(pb, pd, pw)
@@ -636,7 +640,8 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
         return []
 
     todo = games if overwrite else [g for g in games if g['result'] not in ('B', 'W', 'D')]
-    preds = predict_games_list(todo, ctx, rule_name=rule_name, model=model)
+    base_time, increment = TOURNAMENT_TIME_CONTROLS.get(tid, (None, None))
+    preds = predict_games_list(todo, ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment)
 
     if write and preds:
         for p in preds:
@@ -655,7 +660,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
         conn.commit()
         evaluate_tournament_model(conn, tid, write=True, print_report=False)
 
-    return predict_games_list(games, ctx, rule_name=rule_name, model=model)
+    return predict_games_list(games, ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment)
 
 
 def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=None):
@@ -673,7 +678,8 @@ def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=N
         return None
 
     ctx = compute_context_from_csv(tid=tid, upto_round=rnd, csv_path=csv_path)
-    preds = predict_games_list([row], ctx, rule_name=rule_name, model=model)
+    base_time, increment = TOURNAMENT_TIME_CONTROLS.get(tid, (None, None))
+    preds = predict_games_list([row], ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment)
     p = preds[0] if preds else None
 
     if write and p and (overwrite or row['result'] not in ('B', 'W', 'D')):
