@@ -99,10 +99,11 @@ def load_training_games(source_path=DEFAULT_DB_PATH, max_day_exclusive=SHANHAI_D
 
 def annotate_final_states(games):
     """标注每局的末轮双方状态 (final_state_b, final_state_w):
-    0: 非最后一轮，或该选手赛前已无争冠可能 (pts < cur_leader - 1.0)
+    0: 非最后一轮
     1: 争胜（仍有争冠希望且和棋不能锁定冠军）
     2: 保和（尚未稳夺冠且和棋即可锁定冠军）
-    3: 无利害（赛前已一定拿到唯一冠军，即使输棋仍严格领先全场）
+    3: 稳冠（赛前已一定拿到唯一冠军，即使输棋仍严格领先全场）
+    4: 无冠（赛前已彻底无缘冠军，pts < cur_leader - 1.0）
     """
     from collections import defaultdict
     tours = defaultdict(list)
@@ -160,7 +161,7 @@ def annotate_final_states(games):
                 states = []
                 for p, opp in ((b, w), (w, b)):
                     if pts[p] < cur_leader - 1.0:
-                        states.append(0)
+                        states.append(4)
                         continue
                     other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
                     max_if_lose = max(other_max, pts[opp] + 1.0)
@@ -221,7 +222,7 @@ def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
     all_rules = sorted(list(df["rule"].unique()))
     df["rule"] = df["rule"].astype(pd.CategoricalDtype(categories=all_rules))
     for col in ("final_state_b", "final_state_w"):
-        df[col] = df[col].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3]))
+        df[col] = df[col].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3, 4]))
 
     n_train = int(len(df) * 0.8)
     train_df = df.iloc[:n_train].copy()
