@@ -8,7 +8,7 @@
       "year": 2026,
       "group": "公开组",
       "rule": "塔拉山口-10",
-      "updated_at": "2026-11-15 17:59:39",
+      "updated_at": "2026-11-15 18:34:45",
       "api": "api/duiju/shanhai/",
       "metrics": "api/duiju/shanhai/metrics.json",
       "rounds": [
@@ -19,8 +19,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_20261113",
-          "predicted_at": "2026-11-15 18:00:08",
-          "updated_at": "2026-11-15 18:00:08",
+          "predicted_at": "2026-11-15 18:35:17",
+          "updated_at": "2026-11-15 18:35:17",
           "standings": "api/duiju/shanhai/standings/r1.json"
         },
         {
@@ -30,8 +30,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_20261113",
-          "predicted_at": "2026-11-15 18:00:34",
-          "updated_at": "2026-11-15 18:00:34",
+          "predicted_at": "2026-11-15 18:35:35",
+          "updated_at": "2026-11-15 18:35:35",
           "standings": "api/duiju/shanhai/standings/r2.json"
         },
         {
@@ -96,8 +96,8 @@
           "played": 0,
           "is_finished": false,
           "model": "model_20261113",
-          "predicted_at": "2026-11-15 18:03:08",
-          "updated_at": "2026-11-15 18:03:08",
+          "predicted_at": "2026-11-15 18:37:16",
+          "updated_at": "2026-11-15 18:37:16",
           "standings": null
         }
       ]
