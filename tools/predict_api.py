@@ -147,7 +147,7 @@ def predict_gbdt(sample, model=None):
 
 def _csv_lite_cache_path(path):
     key = hashlib.md5(os.path.abspath(path).encode('utf-8')).hexdigest()[:12]
-    return os.path.join(tempfile.gettempdir(), f'renjupgc_all_games_lite_v2_{key}.pkl')
+    return os.path.join(tempfile.gettempdir(), f'renjupgc_all_games_lite_v3_{key}.pkl')
 
 
 def load_all_games_csv(csv_path=None):
@@ -185,6 +185,7 @@ def load_all_games_csv(csv_path=None):
             return result
         col_idx = {name: i for i, name in enumerate(header)}
         i_tid = col_idx['tournament_id']
+        i_tname = col_idx.get('tournament_name')
         i_rnd = col_idx['round']
         i_bid = col_idx['black_id']
         i_bn = col_idx['black_name']
@@ -215,7 +216,8 @@ def load_all_games_csv(csv_path=None):
             r_raw = row[i_rnd]
             rnd = int(r_raw) if r_raw.isdigit() else None
             tid = row[i_tid]
-            indexed_games.append((day, rnd or 0, row_idx, (tid, rnd, b_id, w_id, res, day, b_name, w_name)))
+            tname = row[i_tname] if i_tname is not None else ''
+            indexed_games.append((day, rnd or 0, row_idx, (tid, rnd, b_id, w_id, res, day, b_name, w_name, tname)))
             if b_name and b_id and b_name not in name_to_pid:
                 name_to_pid[b_name] = b_id
             if w_name and w_id and w_name not in name_to_pid:
@@ -286,8 +288,24 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
 
     csv_games, name_to_pid, pid_to_country = load_all_games_csv(resolved_csv)
 
+    tour_name = None
+    if tid and os.path.exists(DB_PATH):
+        try:
+            _conn = sqlite3.connect(DB_PATH)
+            _row = _conn.execute('SELECT name FROM tournaments WHERE id=?', (tid,)).fetchone()
+            if _row:
+                tour_name = _row[0]
+            _conn.close()
+        except Exception:
+            pass
+
+    def _is_same_tour(g_tid, g_tname):
+        if not tid:
+            return False
+        return g_tid == tid or (bool(tour_name) and g_tname == tour_name)
+
     # 基准日期取 CSV 中该赛事开始日期（min）；若赛事尚未入库则取全库最新日期 + 1
-    tid_days = [g[5] for g in csv_games if tid and g[0] == tid and g[5] > 0]
+    tid_days = [g[5] for g in csv_games if tid and _is_same_tour(g[0], g[8]) and g[5] > 0]
     if tid_days:
         t_day = min(tid_days)
     elif csv_games:
@@ -300,9 +318,9 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
     dr_acc = {}   # pid -> [w_sum, d_sum]
     h2h_acc = {}  # (p1, p2) -> [w_sum, s_first_sum]
 
-    for g_tid, g_rnd, b_id, w_id, res, g_day, _, _ in csv_games:
+    for g_tid, g_rnd, b_id, w_id, res, g_day, _, _, g_tname in csv_games:
         if tid:
-            if g_tid == tid:
+            if _is_same_tour(g_tid, g_tname):
                 if upto_round is not None and (g_rnd is None or g_rnd >= upto_round):
                     continue
             else:
@@ -351,8 +369,8 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
         and upto_round > inc_state[0]
     ):
         last_rnd, rating, rd_map, last_day = inc_state
-        for g_tid, g_rnd, b_id, w_id, res, g_day, _, _ in csv_games:
-            if g_tid == tid and g_rnd is not None and last_rnd <= g_rnd < upto_round:
+        for g_tid, g_rnd, b_id, w_id, res, g_day, _, _, g_tname in csv_games:
+            if _is_same_tour(g_tid, g_tname) and g_rnd is not None and last_rnd <= g_rnd < upto_round:
                 _glicko_step(rating, rd_map, last_day, g_day, b_id, w_id, res)
         _INCREMENTAL_GLICKO_STATE[inc_key] = (upto_round, rating, rd_map, last_day)
     else:

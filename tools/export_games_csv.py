@@ -503,6 +503,25 @@ def export_all_games_csv(rif_path=DEFAULT_RIF_PATH, db_path=DEFAULT_DB_PATH,
     r4433_rows = extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_country)
     duiju_rows = extract_duiju_games(db_path, name_to_pid, name_to_country)
 
+    # 将 duiju.db 赛事的 game_id / tournament_id 统一编号为与其他 ljrenju 一致的 r4433_* 格式
+    max_r4433_gid = max(
+        (int(r["game_id"][6:]) for r in r4433_rows if r["game_id"].startswith("r4433_") and r["game_id"][6:].isdigit()),
+        default=0,
+    )
+    max_r4433_tid = max(
+        (int(r["tournament_id"][6:]) for r in r4433_rows if r["tournament_id"].startswith("r4433_") and r["tournament_id"][6:].isdigit()),
+        default=0,
+    )
+    duiju_tid_map = {}
+    for row in duiju_rows:
+        orig_tid = row["tournament_id"]
+        if orig_tid not in duiju_tid_map:
+            max_r4433_tid += 1
+            duiju_tid_map[orig_tid] = f"r4433_{max_r4433_tid}"
+        max_r4433_gid += 1
+        row["game_id"] = f"r4433_{max_r4433_gid}"
+        row["tournament_id"] = duiju_tid_map[orig_tid]
+
     # 为没有 RIF 编号的新选手分配独立数字编号 ID（从 1000001 起）
     next_new_pid = 1000001
     new_player_ids = {}
