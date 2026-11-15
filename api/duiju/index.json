@@ -71,12 +71,12 @@
           "round": 6,
           "games": 23,
           "predicted": 22,
-          "played": 0,
-          "is_finished": false,
+          "played": 22,
+          "is_finished": true,
           "model": "model_20261113",
           "predicted_at": "2026-11-15 15:50:22",
           "updated_at": "2026-11-15 15:50:22",
-          "standings": null
+          "standings": "api/duiju/shanhai/standings/r6.json"
         },
         {
           "round": 7,
@@ -85,8 +85,8 @@
           "played": 0,
           "is_finished": false,
           "model": "model_20261113",
-          "predicted_at": "2026-11-15 15:50:58",
-          "updated_at": "2026-11-15 15:50:58",
+          "predicted_at": "2026-11-15 15:54:52",
+          "updated_at": "2026-11-15 15:54:52",
           "standings": null
         }
       ]

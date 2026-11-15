@@ -32,7 +32,7 @@
     },
     {
       "round": 6,
-      "is_finished": false
+      "is_finished": true
     },
     {
       "round": 7,
@@ -40,24 +40,24 @@
     }
   ],
   "model": "model_20261113",
-  "predicted_at": "2026-11-15 15:50:58",
-  "updated_at": "2026-11-15 15:50:58",
+  "predicted_at": "2026-11-15 15:54:52",
+  "updated_at": "2026-11-15 15:54:52",
   "games": [
     {
       "table": 1,
       "black": {
         "no": 19,
         "name": "赵云",
-        "score": 4
+        "score": 5
       },
       "white": {
         "no": 40,
         "name": "何舒军",
-        "score": 4.5
+        "score": 5.5
       },
       "prediction": {
-        "black": 34.9,
-        "draw": 22.4,
+        "black": 34.7,
+        "draw": 22.6,
         "white": 42.7
       },
       "result": null,
@@ -68,17 +68,17 @@
       "black": {
         "no": 43,
         "name": "陈浩源",
-        "score": 4.0
+        "score": 5.0
       },
       "white": {
         "no": 8,
         "name": "徐嘉琦",
-        "score": 4.0
+        "score": 5.0
       },
       "prediction": {
-        "black": 46.6,
-        "draw": 18.3,
-        "white": 35.1
+        "black": 47.8,
+        "draw": 17.8,
+        "white": 34.4
       },
       "result": null,
       "prediction_correct": null
@@ -93,12 +93,12 @@
       "white": {
         "no": 26,
         "name": "蔡子扬",
-        "score": 3.5
+        "score": 4.5
       },
       "prediction": {
-        "black": 38.1,
-        "draw": 21.4,
-        "white": 40.5
+        "black": 34.0,
+        "draw": 22.2,
+        "white": 43.8
       },
       "result": null,
       "prediction_correct": null
@@ -116,9 +116,9 @@
         "score": 4
       },
       "prediction": {
-        "black": 26.8,
-        "draw": 16.1,
-        "white": 57.1
+        "black": 22.0,
+        "draw": 15.8,
+        "white": 62.2
       },
       "result": null,
       "prediction_correct": null
@@ -128,17 +128,17 @@
       "black": {
         "no": 46,
         "name": "鲁益",
-        "score": 3
+        "score": 4
       },
       "white": {
         "no": 6,
         "name": "章小剑",
-        "score": 3
+        "score": 4
       },
       "prediction": {
-        "black": 24.4,
-        "draw": 18.9,
-        "white": 56.7
+        "black": 21.1,
+        "draw": 19.1,
+        "white": 59.8
       },
       "result": null,
       "prediction_correct": null
@@ -148,17 +148,17 @@
       "black": {
         "no": 13,
         "name": "康哲铭",
-        "score": 3.0
+        "score": 4.0
       },
       "white": {
         "no": 14,
         "name": "张欣怡",
-        "score": 3
+        "score": 4
       },
       "prediction": {
-        "black": 65.6,
-        "draw": 19.6,
-        "white": 14.8
+        "black": 61.1,
+        "draw": 21.2,
+        "white": 17.7
       },
       "result": null,
       "prediction_correct": null
@@ -168,7 +168,7 @@
       "black": {
         "no": 27,
         "name": "梁中",
-        "score": 3
+        "score": 4
       },
       "white": {
         "no": 18,
@@ -176,9 +176,9 @@
         "score": 3.5
       },
       "prediction": {
-        "black": 5.1,
-        "draw": 10.1,
-        "white": 84.8
+        "black": 7.2,
+        "draw": 11.0,
+        "white": 81.8
       },
       "result": null,
       "prediction_correct": null
@@ -188,7 +188,7 @@
       "black": {
         "no": 36,
         "name": "王嘉欣",
-        "score": 2.5
+        "score": 3.5
       },
       "white": {
         "no": 3,
@@ -196,9 +196,9 @@
         "score": 3.5
       },
       "prediction": {
-        "black": 5.1,
-        "draw": 6.4,
-        "white": 88.5
+        "black": 5.6,
+        "draw": 8.0,
+        "white": 86.4
       },
       "result": null,
       "prediction_correct": null
@@ -213,12 +213,12 @@
       "white": {
         "no": 23,
         "name": "蒙杰焕",
-        "score": 2.5
+        "score": 3.5
       },
       "prediction": {
-        "black": 66.0,
-        "draw": 18.4,
-        "white": 15.6
+        "black": 63.9,
+        "draw": 18.9,
+        "white": 17.2
       },
       "result": null,
       "prediction_correct": null
@@ -228,17 +228,17 @@
       "black": {
         "no": 37,
         "name": "周楠",
-        "score": 2.5
+        "score": 3.0
       },
       "white": {
         "no": 9,
         "name": "康庭瑞",
-        "score": 2.5
+        "score": 3.0
       },
       "prediction": {
-        "black": 63.9,
-        "draw": 17.3,
-        "white": 18.8
+        "black": 61.4,
+        "draw": 18.8,
+        "white": 19.8
       },
       "result": null,
       "prediction_correct": null
@@ -248,7 +248,7 @@
       "black": {
         "no": 10,
         "name": "文英",
-        "score": 2
+        "score": 3
       },
       "white": {
         "no": 39,
@@ -256,9 +256,9 @@
         "score": 3
       },
       "prediction": {
-        "black": 49.5,
-        "draw": 13.0,
-        "white": 37.5
+        "black": 72.9,
+        "draw": 10.6,
+        "white": 16.5
       },
       "result": null,
       "prediction_correct": null
@@ -268,17 +268,17 @@
       "black": {
         "no": 33,
         "name": "李嘉骏",
-        "score": 2.5
+        "score": 3.0
       },
       "white": {
         "no": 21,
         "name": "王思淼",
-        "score": 2
+        "score": 3
       },
       "prediction": {
-        "black": 77.8,
-        "draw": 12.3,
-        "white": 9.9
+        "black": 76.6,
+        "draw": 13.0,
+        "white": 10.4
       },
       "result": null,
       "prediction_correct": null
@@ -293,12 +293,12 @@
       "white": {
         "no": 22,
         "name": "刘沁",
-        "score": 2.5
+        "score": 3.0
       },
       "prediction": {
-        "black": 6.9,
-        "draw": 6.8,
-        "white": 86.3
+        "black": 7.5,
+        "draw": 6.6,
+        "white": 85.9
       },
       "result": null,
       "prediction_correct": null
@@ -308,7 +308,7 @@
       "black": {
         "no": 29,
         "name": "庄义翔",
-        "score": 2
+        "score": 3
       },
       "white": {
         "no": 24,
@@ -316,9 +316,9 @@
         "score": 3
       },
       "prediction": {
-        "black": 29.5,
-        "draw": 15.0,
-        "white": 55.5
+        "black": 33.1,
+        "draw": 12.5,
+        "white": 54.4
       },
       "result": null,
       "prediction_correct": null
@@ -328,7 +328,7 @@
       "black": {
         "no": 28,
         "name": "肖伊康",
-        "score": 2
+        "score": 2.5
       },
       "white": {
         "no": 44,
@@ -336,9 +336,9 @@
         "score": 3
       },
       "prediction": {
-        "black": 46.5,
-        "draw": 16.9,
-        "white": 36.6
+        "black": 48.2,
+        "draw": 17.3,
+        "white": 34.5
       },
       "result": null,
       "prediction_correct": null
@@ -348,17 +348,17 @@
       "black": {
         "no": 1,
         "name": "王俊锴",
-        "score": 2
+        "score": 2.5
       },
       "white": {
         "no": 42,
         "name": "钟保贵",
-        "score": 1.5
+        "score": 2.5
       },
       "prediction": {
-        "black": 56.6,
-        "draw": 18.5,
-        "white": 24.9
+        "black": 56.3,
+        "draw": 19.0,
+        "white": 24.7
       },
       "result": null,
       "prediction_correct": null
@@ -368,7 +368,7 @@
       "black": {
         "no": 17,
         "name": "王端国",
-        "score": 1.5
+        "score": 2.5
       },
       "white": {
         "no": 32,
@@ -376,9 +376,9 @@
         "score": 2.5
       },
       "prediction": {
-        "black": 3.7,
-        "draw": 3.6,
-        "white": 92.7
+        "black": 4.6,
+        "draw": 6.2,
+        "white": 89.2
       },
       "result": null,
       "prediction_correct": null
@@ -393,12 +393,12 @@
       "white": {
         "no": 4,
         "name": "廖俊豪",
-        "score": 1
+        "score": 2
       },
       "prediction": {
-        "black": 59.3,
-        "draw": 9.7,
-        "white": 31.0
+        "black": 52.9,
+        "draw": 10.1,
+        "white": 37.0
       },
       "result": null,
       "prediction_correct": null
@@ -413,12 +413,12 @@
       "white": {
         "no": 7,
         "name": "张硕",
-        "score": 1
+        "score": 2
       },
       "prediction": {
-        "black": 98.6,
-        "draw": 1.0,
-        "white": 0.4
+        "black": 96.8,
+        "draw": 2.2,
+        "white": 1.0
       },
       "result": null,
       "prediction_correct": null
@@ -436,9 +436,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 4.5,
-        "draw": 3.7,
-        "white": 91.8
+        "black": 5.0,
+        "draw": 3.6,
+        "white": 91.4
       },
       "result": null,
       "prediction_correct": null
@@ -456,9 +456,9 @@
         "score": 1.5
       },
       "prediction": {
-        "black": 6.2,
-        "draw": 10.0,
-        "white": 83.8
+        "black": 19.0,
+        "draw": 16.9,
+        "white": 64.1
       },
       "result": null,
       "prediction_correct": null
@@ -476,9 +476,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 1.2,
-        "draw": 1.3,
-        "white": 97.5
+        "black": 0.8,
+        "draw": 0.7,
+        "white": 98.5
       },
       "result": null,
       "prediction_correct": null
