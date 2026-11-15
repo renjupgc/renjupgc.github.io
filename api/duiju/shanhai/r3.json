@@ -44,8 +44,8 @@
     }
   ],
   "model": "model_glicko_20261113",
-  "predicted_at": "2026-11-15 20:04:01",
-  "updated_at": "2026-11-15 20:04:01",
+  "predicted_at": "2026-11-15 20:05:39",
+  "updated_at": "2026-11-15 20:05:39",
   "games": [
     {
       "table": 1,
@@ -60,9 +60,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 40.2,
+        "black": 40.3,
         "draw": 11.9,
-        "white": 47.9
+        "white": 47.8
       },
       "result": "W",
       "prediction_correct": true
@@ -80,9 +80,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 53.1,
-        "draw": 14.7,
-        "white": 32.2
+        "black": 54.3,
+        "draw": 13.7,
+        "white": 32.0
       },
       "result": "W",
       "prediction_correct": false
@@ -100,9 +100,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 13.9,
-        "draw": 6.7,
-        "white": 79.4
+        "black": 13.6,
+        "draw": 8.2,
+        "white": 78.2
       },
       "result": "W",
       "prediction_correct": true
@@ -120,9 +120,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 11.1,
-        "draw": 5.4,
-        "white": 83.5
+        "black": 10.9,
+        "draw": 6.5,
+        "white": 82.6
       },
       "result": "W",
       "prediction_correct": true
@@ -140,9 +140,9 @@
         "score": 2
       },
       "prediction": {
-        "black": 28.6,
-        "draw": 14.6,
-        "white": 56.8
+        "black": 28.0,
+        "draw": 15.0,
+        "white": 57.0
       },
       "result": "W",
       "prediction_correct": true
@@ -160,9 +160,9 @@
         "score": 1.5
       },
       "prediction": {
-        "black": 30.8,
-        "draw": 9.4,
-        "white": 59.8
+        "black": 29.4,
+        "draw": 11.3,
+        "white": 59.3
       },
       "result": "D",
       "prediction_correct": false
@@ -180,9 +180,9 @@
         "score": 1.5
       },
       "prediction": {
-        "black": 62.7,
-        "draw": 11.1,
-        "white": 26.2
+        "black": 61.5,
+        "draw": 12.9,
+        "white": 25.6
       },
       "result": "B",
       "prediction_correct": true
@@ -200,9 +200,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 50.6,
-        "draw": 11.8,
-        "white": 37.6
+        "black": 50.7,
+        "draw": 11.5,
+        "white": 37.8
       },
       "result": "W",
       "prediction_correct": false
@@ -220,9 +220,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 14.8,
-        "draw": 6.6,
-        "white": 78.6
+        "black": 13.7,
+        "draw": 7.8,
+        "white": 78.5
       },
       "result": "W",
       "prediction_correct": true
@@ -240,9 +240,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 15.5,
-        "draw": 6.4,
-        "white": 78.1
+        "black": 16.3,
+        "draw": 5.8,
+        "white": 77.9
       },
       "result": "W",
       "prediction_correct": true
@@ -260,9 +260,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 24.1,
+        "black": 23.8,
         "draw": 7.4,
-        "white": 68.5
+        "white": 68.8
       },
       "result": "W",
       "prediction_correct": true
@@ -280,9 +280,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 35.2,
-        "draw": 11.3,
-        "white": 53.5
+        "black": 34.5,
+        "draw": 10.5,
+        "white": 55.0
       },
       "result": "W",
       "prediction_correct": true
@@ -300,9 +300,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 80.5,
-        "draw": 4.3,
-        "white": 15.2
+        "black": 80.2,
+        "draw": 5.0,
+        "white": 14.8
       },
       "result": "B",
       "prediction_correct": true
@@ -320,9 +320,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 30.8,
+        "black": 30.6,
         "draw": 7.7,
-        "white": 61.5
+        "white": 61.7
       },
       "result": "D",
       "prediction_correct": false
@@ -340,9 +340,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 79.7,
-        "draw": 6.0,
-        "white": 14.3
+        "black": 80.7,
+        "draw": 6.4,
+        "white": 12.9
       },
       "result": "B",
       "prediction_correct": true
@@ -360,9 +360,9 @@
         "score": 1
       },
       "prediction": {
-        "black": 48.4,
+        "black": 48.0,
         "draw": 11.2,
-        "white": 40.4
+        "white": 40.8
       },
       "result": "D",
       "prediction_correct": false
@@ -380,9 +380,9 @@
         "score": 0.5
       },
       "prediction": {
-        "black": 56.4,
-        "draw": 11.1,
-        "white": 32.5
+        "black": 55.3,
+        "draw": 10.6,
+        "white": 34.1
       },
       "result": "B",
       "prediction_correct": true
@@ -400,9 +400,9 @@
         "score": 0.5
       },
       "prediction": {
-        "black": 10.6,
-        "draw": 3.3,
-        "white": 86.1
+        "black": 10.3,
+        "draw": 4.7,
+        "white": 85.0
       },
       "result": "W",
       "prediction_correct": true
@@ -420,9 +420,9 @@
         "score": 0
       },
       "prediction": {
-        "black": 19.6,
-        "draw": 8.2,
-        "white": 72.2
+        "black": 19.1,
+        "draw": 7.9,
+        "white": 73.0
       },
       "result": "W",
       "prediction_correct": true
@@ -440,9 +440,9 @@
         "score": 0
       },
       "prediction": {
-        "black": 80.6,
-        "draw": 4.0,
-        "white": 15.4
+        "black": 80.4,
+        "draw": 4.5,
+        "white": 15.1
       },
       "result": "W",
       "prediction_correct": false
@@ -460,9 +460,9 @@
         "score": 0
       },
       "prediction": {
-        "black": 40.9,
-        "draw": 5.5,
-        "white": 53.6
+        "black": 40.6,
+        "draw": 4.8,
+        "white": 54.6
       },
       "result": "W",
       "prediction_correct": true
@@ -481,8 +481,8 @@
       },
       "prediction": {
         "black": 10.6,
-        "draw": 3.8,
-        "white": 85.6
+        "draw": 4.5,
+        "white": 84.9
       },
       "result": "W",
       "prediction_correct": true
