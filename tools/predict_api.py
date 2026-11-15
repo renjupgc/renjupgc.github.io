@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""赛事对局胜率预测 API（基于统一 CSV 与 6 特征 Glicko-GBDT 模型）。
+"""赛事对局胜率预测 API（基于统一 CSV 与 4 特征 Glicko-GBDT 模型）。
 
 核心逻辑：
 1. 数据源：基于 data/all_games.csv（含 RIF XML 历史库与已完赛赛事对局），
    仅使用当前赛事开始时间之前的其他赛事对局，以及本赛事轮数更小的对局。
-2. 特征计算：按时间顺序单遍递推 Glicko-1 等级分与 Glicko 式双方和棋倾向（共 6 维）：
-   [rule, rating_tb, rating_tw, rating_diff, glicko_dr_tb, glicko_dr_tw]
+2. 特征计算：按时间顺序单遍递推 Glicko-1 等级分（共 4 维）：
+   [rule, rating_tb, rating_tw, rating_diff]
 3. 预测接口：支持按 (赛事, 轮次, 台次) 或整轮预测，模型为 bisai/data/model_glicko_20261113.json。
 
 用法：
@@ -449,7 +449,7 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None)
         gdr_b = glicko_dr_map.get(p1_id, GLICKO_BASE_DRAW_P)
         gdr_w = glicko_dr_map.get(p2_id, GLICKO_BASE_DRAW_P)
 
-        feat = [rule_id, rb, rw, rb - rw, gdr_b, gdr_w]
+        feat = [rule_id, rb, rw, rb - rw]
         pb, pd, pw = predict_gbdt(feat, model)
 
         top_prob = max(pb, pd, pw)
