@@ -47,6 +47,10 @@ TOURNAMENT_DATES = {
     "2026-shanhai": "2026-11-14",
 }
 
+TOURNAMENT_TIME_CONTROLS = {
+    "2026-shanhai": (2700, 30),
+}
+
 CSV_COLUMNS = [
     "game_id",
     "source",
@@ -67,7 +71,56 @@ CSV_COLUMNS = [
     "swap",
     "opening",
     "moves",
+    "base_time",
+    "increment",
 ]
+
+
+def parse_time_control(text):
+    """解析中文时限描述，返回 (base_time_sec, increment_sec)；无法解析返回 ('', '')。"""
+    if not text:
+        return "", ""
+    s = str(text).strip().replace("＋", "+")
+    shared = "共用时" in s
+
+    inc = None
+    inc_span = None
+    m_inc = re.search(r"\+\s*(\d+)\s*分(?:钟)?\s*/\s*(\d+)\s*手", s)
+    if m_inc:
+        mins, moves_cnt = int(m_inc.group(1)), int(m_inc.group(2))
+        if moves_cnt > 0:
+            inc = int(round(mins * 60 / moves_cnt))
+            inc_span = m_inc.span()
+    if inc is None:
+        m_inc = re.search(r"(?:每走?一步加|每手加|\+)\s*(\d+)\s*秒(?:\s*/\s*手)?", s)
+        if m_inc:
+            inc = int(m_inc.group(1))
+            inc_span = m_inc.span()
+    if inc is None:
+        m_inc = re.search(r"(\d+)\s*秒\s*/\s*手", s)
+        if m_inc:
+            inc = int(m_inc.group(1))
+            inc_span = m_inc.span()
+
+    head = s[:inc_span[0]] if inc_span else s
+    base = None
+    m_hm = re.search(r"(\d+(?:\.\d+)?)\s*(?:小时|h)\s*(?:(\d+)\s*分)?", head, re.IGNORECASE)
+    if m_hm:
+        base = int(round(float(m_hm.group(1)) * 3600)) + int(m_hm.group(2) or 0) * 60
+    else:
+        m_min = re.search(r"(\d+(?:\.\d+)?)\s*(?:分钟|分|min)", head, re.IGNORECASE)
+        if m_min:
+            base = int(round(float(m_min.group(1)) * 60))
+        else:
+            m_sec = re.search(r"(\d+)\s*秒", head)
+            if m_sec:
+                base = int(m_sec.group(1))
+
+    if base is None:
+        return "", ""
+    if shared:
+        base //= 2
+    return base, (inc if inc is not None else 0)
 
 
 def parse_date_to_day(date_str):
@@ -251,6 +304,8 @@ def parse_rif_xml(rif_path):
                 "swap": swap,
                 "opening": opening,
                 "moves": moves,
+                "base_time": "",
+                "increment": "",
             })
             elem.clear()
 
@@ -289,6 +344,8 @@ def extract_duiju_games(db_path, name_to_pid, name_to_country):
         b_country = name_to_country.get(bn, 5)
         w_country = name_to_country.get(wn, 5)
 
+        base_time, increment = TOURNAMENT_TIME_CONTROLS.get(tid, ("", ""))
+
         rows.append({
             "game_id": f"duiju_{r['id']}",
             "source": "ljrenju",
@@ -309,6 +366,8 @@ def extract_duiju_games(db_path, name_to_pid, name_to_country):
             "swap": "",
             "opening": "",
             "moves": "",
+            "base_time": base_time,
+            "increment": increment,
         })
     conn.close()
     return rows
@@ -390,10 +449,19 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
             tours[r["id"]] = r
 
     groups = {}
+    group_tc = {}
+    tour_tc = {}
     if os.path.exists(gr_path):
         with open(gr_path, "r", encoding="utf-8-sig", newline="") as f:
             for r in csv.DictReader(f):
-                groups[(r["tournament_id"], r["group_name"])] = r.get("rule", "")
+                key = (r["tournament_id"], r["group_name"])
+                groups[key] = r.get("rule", "")
+                tl = (r.get("time_limit") or "").strip()
+                if tl:
+                    tc = parse_time_control(tl)
+                    if tc[0] != "":
+                        group_tc[key] = tc
+                        tour_tc.setdefault(r["tournament_id"], tc)
 
     by_tid = {}
     with open(g_path, "r", encoding="utf-8-sig", newline="") as f:
@@ -452,8 +520,10 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
             b_country = name_to_country.get(bn, default_country)
             w_country = name_to_country.get(wn, default_country)
 
-            rule_text = groups.get((tid, g.get("group_name") or ""), "")
+            gname = g.get("group_name") or ""
+            rule_text = groups.get((tid, gname), "")
             rule_id = infer_rule_id(rule_text, oc)
+            base_time, increment = group_tc.get((tid, gname)) or tour_tc.get(tid) or ("", "")
             moves = " ".join((g.get("moves") or "").split())
 
             rows.append({
@@ -476,6 +546,8 @@ def extract_renju4433_games(renju4433_dir, existing_moves, name_to_pid, name_to_
                 "swap": swap_str,
                 "opening": (g.get("opening_name") or "").strip(),
                 "moves": moves,
+                "base_time": base_time,
+                "increment": increment,
             })
 
     print(f"  renju4433 补充新赛事: {added_tours} 场, {len(rows)} 局")
