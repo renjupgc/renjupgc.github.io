@@ -28,6 +28,10 @@
     },
     {
       "round": 5,
+      "is_finished": true
+    },
+    {
+      "round": 6,
       "is_finished": false
     }
   ],

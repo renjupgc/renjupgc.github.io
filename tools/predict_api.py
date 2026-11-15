@@ -25,6 +25,7 @@
 """
 
 import argparse
+import csv
 from datetime import datetime, timezone, timedelta
 import glob
 import gzip
@@ -54,6 +55,7 @@ def get_effective_result(res):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
 DATA_DIR = os.path.join(ROOT, 'data')
+ALL_GAMES_CSV_PATH = os.path.join(ROOT, 'data', 'all_games.csv')
 WHR_GAMES_PATH = os.path.join(ROOT, 'data', 'whr_games.json.gz')
 MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261113.json')
 if not os.path.exists(MODEL_PATH):
@@ -69,6 +71,7 @@ W2 = 19.3
 VIRTUAL_GAMES = 2
 BIAS = 1900.0
 BASE_DAY = 20771  # 比赛日期 2026-11-14
+TAU = 730.0  # 衰减半衰尺度（天）
 
 # 规则 ID 映射
 RULE_MAP = {
@@ -84,6 +87,8 @@ _MODEL_CACHE = None
 _PLAYERS_CACHE = None
 _H2H_CACHE = None
 _WHR_BASE_GAMES_CACHE = None
+_CSV_GAMES_CACHE = {}
+_CONTEXT_CACHE = {}
 
 
 def connect(path=None):
@@ -486,30 +491,206 @@ def _run_whr(conn, tid, tour_games):
     return ratings
 
 
-def compute_rolling_context(conn, tid, upto_round=None):
-    """动态滚动计算指定轮次开赛前的全量特征上下文：
-    1. ratings: 每位选手的 WHR 等级分与标准差（结合前序轮次对局收敛拟合）。
-    2. p_stats: 选手本赛事前序轮次出战局数与和局统计（用于衰减和棋率增量更新）。
-    3. pair_stats: 选手间前序轮次直接交手记录（用于交锋胜率增量更新）。
+def load_all_games_csv(csv_path=None):
+    """加载统一对局 CSV（含 RIF XML 历史库 + duiju.db 已完赛对局）。"""
+    path = csv_path or ALL_GAMES_CSV_PATH
+    if path in _CSV_GAMES_CACHE:
+        return _CSV_GAMES_CACHE[path]
+
+    if not os.path.exists(path):
+        raise FileNotFoundError(f'未找到统一对局 CSV 文件: {path}，请先运行 tools/export_games_csv.py')
+
+    games = []
+    name_to_pid = {}
+    pid_to_country = {}
+    with open(path, 'r', encoding='utf-8', newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            res = row.get('result', '')
+            if res not in ('B', 'W', 'D'):
+                continue
+            b_id = row.get('black_id') or row.get('black_name') or ''
+            w_id = row.get('white_id') or row.get('white_name') or ''
+            b_name = row.get('black_name') or ''
+            w_name = row.get('white_name') or ''
+            if not b_id or not w_id:
+                continue
+            try:
+                day = int(float(row.get('day') or 0))
+            except ValueError:
+                day = 0
+            r_raw = row.get('round') or ''
+            try:
+                rnd = int(r_raw) if r_raw.isdigit() else None
+            except ValueError:
+                rnd = None
+            tid = row.get('tournament_id') or ''
+            games.append((tid, rnd, b_id, w_id, res, day, b_name, w_name))
+            if b_name and b_id and b_name not in name_to_pid:
+                name_to_pid[b_name] = b_id
+            if w_name and w_id and w_name not in name_to_pid:
+                name_to_pid[w_name] = w_id
+            for pid, c_raw in ((b_id, row.get('black_country')), (w_id, row.get('white_country'))):
+                if pid and c_raw:
+                    try:
+                        pid_to_country[pid] = int(c_raw)
+                    except ValueError:
+                        pass
+
+    result = (games, name_to_pid, pid_to_country)
+    _CSV_GAMES_CACHE[path] = result
+    return result
+
+
+def compute_context_from_csv(conn, tid, upto_round=None, csv_path=None):
+    """直接从统一 CSV 计算 WHR 等级分/RD、衰减和棋率、衰减 H2H 与国籍映射。
+
+    因为已完赛对局（如山海杯前序轮次）已写入 CSV，不再额外查询 duiju.db 的前序轮次对局。
+    若指定了 upto_round，则仅过滤掉 CSV 中同赛事 round >= upto_round 的记录。
     """
-    tour_games, p_stats, pair_stats = get_tournament_prior_history(conn, tid, upto_round)
-    ratings = _run_whr(conn, tid, tour_games)
-    return ratings, p_stats, pair_stats
+    resolved_csv = csv_path or ALL_GAMES_CSV_PATH
+    cache_key = (resolved_csv, tid, upto_round)
+    if cache_key in _CONTEXT_CACHE:
+        return _CONTEXT_CACHE[cache_key]
+
+    try:
+        import whr
+    except ImportError:
+        print('！ 提示：未安装 whr 库 (pip install whr)', file=sys.stderr)
+        whr = None
+
+    csv_games, csv_name_to_pid, pid_to_country = load_all_games_csv(resolved_csv)
+    p_meta = load_players_meta()
+    init_ratings_name, _ = load_initial_ratings(tid)
+    t_day = get_tournament_day(conn, tid)
+
+    # 合并 name -> pid 映射（优先 players.json 精确绑定，其次 CSV）
+    name_to_pid = dict(csv_name_to_pid)
+    for nm, meta in p_meta.items():
+        if meta and meta.get('id'):
+            name_to_pid[nm] = str(meta['id'])
+
+    whr_input = []
+    dr_acc = {}   # pid -> [w_sum, d_sum]
+    h2h_acc = {}  # (p1, p2) -> [w_sum, s_first_sum]
+
+    for g_tid, g_rnd, b_id, w_id, res, g_day, _, _ in csv_games:
+        if upto_round is not None and g_tid == tid and g_rnd is not None and g_rnd >= upto_round:
+            continue
+        whr_input.append([b_id, w_id, res, g_day])
+
+        # 时间衰减权重
+        w = math.exp(-max(0, t_day - g_day) / TAU)
+
+        # 衰减和棋率累计
+        d_val = w if res == 'D' else 0.0
+        for pid in (b_id, w_id):
+            acc = dr_acc.get(pid)
+            if acc is None:
+                dr_acc[pid] = [w, d_val]
+            else:
+                acc[0] += w
+                acc[1] += d_val
+
+        # 衰减 H2H 累计（按字典序较小者视角）
+        if b_id <= w_id:
+            pair = (b_id, w_id)
+            s_first = w if res == 'B' else (0.5 * w if res == 'D' else 0.0)
+        else:
+            pair = (w_id, b_id)
+            s_first = w if res == 'W' else (0.5 * w if res == 'D' else 0.0)
+        p_acc = h2h_acc.get(pair)
+        if p_acc is None:
+            h2h_acc[pair] = [w, s_first]
+        else:
+            p_acc[0] += w
+            p_acc[1] += s_first
+
+    # 计算 WHR 等级分与 RD
+    ratings = {}
+    players_rows = conn.execute(
+        'SELECT DISTINCT black_name, white_name FROM games WHERE tournament_id=?',
+        (tid,)
+    ).fetchall()
+    pnames = set()
+    for r in players_rows:
+        pnames.add(r['black_name'])
+        pnames.add(r['white_name'])
+
+    if whr is not None and whr_input:
+        whr_base = whr.Base(config={'w2': W2, 'virtual_games': VIRTUAL_GAMES})
+        whr_base.create_games(whr_input)
+        whr_base.iterate_until_converge(verbose=False)
+
+        for name in pnames:
+            pid = name_to_pid.get(name, name)
+            meta = p_meta.get(name) or {}
+            r_init = init_ratings_name.get(name, meta.get('rating', BIAS))
+            rd_init = meta.get('std', 80.0)
+
+            hist = whr_base.ratings_for_player(pid)
+            if hist:
+                latest = hist[-1]
+                if pid != name or meta.get('id'):
+                    ratings[name] = {
+                        'rating': round(latest[1] + BIAS, 1),
+                        'rd': round(latest[2], 1),
+                    }
+                else:
+                    delta = latest[1] * (40.0 / max(latest[2], 40.0))
+                    ratings[name] = {
+                        'rating': round(r_init + delta, 1),
+                        'rd': round(latest[2], 1),
+                    }
+            else:
+                ratings[name] = {'rating': r_init, 'rd': rd_init}
+    else:
+        for name in pnames:
+            meta = p_meta.get(name) or {}
+            r_init = init_ratings_name.get(name, meta.get('rating', BIAS))
+            ratings[name] = {'rating': r_init, 'rd': meta.get('std', 80.0)}
+
+    # 汇总衰减和棋率映射
+    dr_map = {}
+    for pid, (w_sum, d_sum) in dr_acc.items():
+        dr_map[pid] = (d_sum / w_sum) if w_sum > 2.0 else 0.12
+
+    # 汇总衰减 H2H 映射
+    h2h_map = {}
+    for pair, (w_sum, s_sum) in h2h_acc.items():
+        h2h_map[pair] = (0.5 + s_sum) / (1.0 + w_sum)
+
+    ctx = {
+        'ratings': ratings,
+        'dr_map': dr_map,
+        'h2h_map': h2h_map,
+        'name_to_pid': name_to_pid,
+        'pid_to_country': pid_to_country,
+    }
+    _CONTEXT_CACHE[cache_key] = ctx
+    return ctx
+
+
+def compute_rolling_context(conn, tid, upto_round=None, csv_path=None):
+    """兼容旧接口：直接从统一 CSV 计算指定轮次开赛前的特征上下文。"""
+    return compute_context_from_csv(conn, tid, upto_round=upto_round, csv_path=csv_path)
 
 
 # ---------------------------------------------------------------- 对局预测 API
 
 def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None,
-                       rule_name='塔拉山口-10', model=None):
-    """根据最新 20261112 GBDT 模型推断一组对局的胜率，并判断正误标记。
-    
-    动态融入前序轮次的 WHR 等级分、标准差、衰减和棋率及 H2H 交锋更新。
-    """
+                       rule_name='塔拉山口-10', model=None, ctx=None):
+    """根据最新 20261113 GBDT 模型推断一组对局的胜率，并判断正误标记。"""
     model = model or load_gbdt_model()
     p_meta = load_players_meta()
     p_stats = p_stats or {}
     pair_stats = pair_stats or {}
     rule_id = RULE_MAP.get(rule_name, 25)  # 默认塔拉山口-10 (25)
+
+    dr_map = (ctx or {}).get('dr_map')
+    h2h_map = (ctx or {}).get('h2h_map')
+    name_to_pid = (ctx or {}).get('name_to_pid') or {}
+    pid_to_country = (ctx or {}).get('pid_to_country') or {}
 
     out = []
     for g in games_rows:
@@ -548,23 +729,36 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
 
         mb = p_meta.get(bn) or {}
         mw = p_meta.get(wn) or {}
-        p1_id = mb.get('id', 'unrated')
-        p2_id = mw.get('id', 'unrated')
+        p1_id = name_to_pid.get(bn) or mb.get('id', 'unrated')
+        p2_id = name_to_pid.get(wn) or mw.get('id', 'unrated')
 
         diff = rb - rw
         mean_r = (rb + rw) / 2.0
         j_std = math.sqrt(stdb**2 + stdw**2)
 
-        # 动态衰减和棋率（融合前序轮次实战战绩）
-        dr_b = get_dynamic_draw_rate(bn, p_meta, p_stats)
-        dr_w = get_dynamic_draw_rate(wn, p_meta, p_stats)
-        comb_dr = (dr_b + dr_w) / 2.0
+        if ctx is not None:
+            dr_b = dr_map.get(p1_id, mb.get('decayed_draw_rate', 0.12))
+            dr_w = dr_map.get(p2_id, mw.get('decayed_draw_rate', 0.12))
+            comb_dr = (dr_b + dr_w) / 2.0
 
-        # 动态衰减交手胜率（融合前序轮次直接对阵赛果）
-        h2h_rate = get_dynamic_h2h_rate(p1_id, p2_id, bn, wn, pair_stats)
+            if p1_id <= p2_id:
+                h2h_rate = h2h_map.get((p1_id, p2_id), 0.5)
+            else:
+                h2h_rate = 1.0 - h2h_map.get((p2_id, p1_id), 0.5)
 
-        c_b = mb.get('country_id', 5)
-        c_w = mw.get('country_id', 5)
+            c_b = pid_to_country.get(p1_id, mb.get('country_id', 5))
+            c_w = pid_to_country.get(p2_id, mw.get('country_id', 5))
+        else:
+            # 动态衰减和棋率（融合前序轮次实战战绩）
+            dr_b = get_dynamic_draw_rate(bn, p_meta, p_stats)
+            dr_w = get_dynamic_draw_rate(wn, p_meta, p_stats)
+            comb_dr = (dr_b + dr_w) / 2.0
+
+            # 动态衰减交手胜率（融合前序轮次直接对阵赛果）
+            h2h_rate = get_dynamic_h2h_rate(p1_id, p2_id, bn, wn, pair_stats)
+
+            c_b = mb.get('country_id', 5)
+            c_w = mw.get('country_id', 5)
 
         # 14 维特征向量
         feat = [
@@ -744,21 +938,20 @@ def evaluate_tournament_model(conn, tid, write=True, print_report=True):
     return payload
 
 
-def predict_round(conn, tid, rnd, write=False, overwrite=False):
+def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
     """预测指定赛事的某一轮对局。
-    
-    自动利用第 1 ~ rnd-1 轮的已出赛果滚动 WHR 与其他全部动态特征（和棋率、H2H等），
+
+    直接从统一 CSV（含 RIF XML 历史对局与已完赛的本赛事前序对局）计算 WHR、衰减和棋率与 H2H，
     再使用 20261113 GBDT 模型推断概率。
     write=True 时写回 duiju.db。
     overwrite=True 时强制覆盖已有概率（即使已有赛果或旧概率）。
     """
     model = load_gbdt_model()
-    # 获取赛事规则
     tour = conn.execute('SELECT rule FROM tournaments WHERE id=?', (tid,)).fetchone()
     rule_name = (tour['rule'] if tour else None) or '塔拉山口-10'
 
-    # 动态滚动截至第 rnd 轮开赛前的所有特征上下文
-    ratings, p_stats, pair_stats = compute_rolling_context(conn, tid, upto_round=rnd)
+    ctx = compute_context_from_csv(conn, tid, upto_round=rnd, csv_path=csv_path)
+    ratings = ctx['ratings']
 
     games = conn.execute(
         'SELECT round, table_no, black_no, black_name, white_no, white_name, result'
@@ -768,14 +961,12 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False):
     if not games:
         return []
 
-    # 判定待预测的对局列表
     if overwrite:
         todo = games
     else:
         todo = [g for g in games if g['result'] not in ('B', 'W', 'D')]
 
-    preds = predict_games_list(todo, ratings, p_stats=p_stats, pair_stats=pair_stats,
-                               rule_name=rule_name, model=model)
+    preds = predict_games_list(todo, ratings, rule_name=rule_name, model=model, ctx=ctx)
 
     if write and preds:
         for p in preds:
@@ -792,19 +983,52 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False):
             (model_name, now, now, tid, rnd)
         )
         conn.commit()
-        # 预测写回后自动触发当前模型评估与 metrics.json 更新
         evaluate_tournament_model(conn, tid, write=True, print_report=False)
 
-    all_preds = predict_games_list(games, ratings, p_stats=p_stats, pair_stats=pair_stats,
-                                   rule_name=rule_name, model=model)
+    all_preds = predict_games_list(games, ratings, rule_name=rule_name, model=model, ctx=ctx)
     return all_preds
 
 
-def predict_tournament(conn, tid, write=True, overwrite=False):
-    """预测一个赛事一系列对局的完整 API。
-    
-    按轮次逐轮递增滚动计算前置轮次的赛果（WHR 等级分/RD、衰减和棋率、H2H），完成所有未预测对局的概率赋值。
-    """
+def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=None):
+    """按 (赛事, 轮次, 台次) 预测单台对局的 API 接口。"""
+    model = load_gbdt_model()
+    tour = conn.execute('SELECT rule FROM tournaments WHERE id=?', (tid,)).fetchone()
+    rule_name = (tour['rule'] if tour else None) or '塔拉山口-10'
+
+    row = conn.execute(
+        'SELECT round, table_no, black_no, black_name, white_no, white_name, result'
+        ' FROM games WHERE tournament_id=? AND round=? AND table_no=?',
+        (tid, rnd, table)
+    ).fetchone()
+    if not row:
+        return None
+
+    ctx = compute_context_from_csv(conn, tid, upto_round=rnd, csv_path=csv_path)
+    preds = predict_games_list([row], ctx['ratings'], rule_name=rule_name, model=model, ctx=ctx)
+    p = preds[0] if preds else None
+
+    if write and p and (overwrite or row['result'] not in ('B', 'W', 'D')):
+        conn.execute(
+            'UPDATE games SET p_black=?, p_draw=?, p_white=?'
+            ' WHERE tournament_id=? AND round=? AND table_no=?',
+            (p['p_black'], p['p_draw'], p['p_white'], tid, rnd, p['table'])
+        )
+        conn.commit()
+
+    return p
+
+
+def predict_by_table(tid, rnd, table, write=False, overwrite=False, db_path=None, csv_path=None):
+    """独立预测 API：输入 (赛事 id, 轮次, 台次)，返回单台预测结果字典。"""
+    conn = connect(db_path)
+    try:
+        return predict_game(conn, tid, rnd, table, write=write, overwrite=overwrite, csv_path=csv_path)
+    finally:
+        conn.close()
+
+
+def predict_tournament(conn, tid, write=True, overwrite=False, csv_path=None):
+    """预测一个赛事一系列对局的完整 API。"""
     rounds = [r['round'] for r in conn.execute(
         'SELECT DISTINCT round FROM games WHERE tournament_id=? ORDER BY round', (tid,)
     )]
@@ -815,21 +1039,20 @@ def predict_tournament(conn, tid, write=True, overwrite=False):
     total_predicted = 0
     for rnd in rounds:
         if overwrite:
-            preds = predict_round(conn, tid, rnd, write=write, overwrite=True)
+            preds = predict_round(conn, tid, rnd, write=write, overwrite=True, csv_path=csv_path)
             total_predicted += len(preds)
         else:
             unpredicted = conn.execute(
                 'SELECT COUNT(*) c FROM games WHERE tournament_id=? AND round=? AND p_black IS NULL',
                 (tid, rnd)
             ).fetchone()['c']
-            preds = predict_round(conn, tid, rnd, write=write, overwrite=False)
+            preds = predict_round(conn, tid, rnd, write=write, overwrite=False, csv_path=csv_path)
             if unpredicted > 0:
                 total_predicted += len([p for p in preds if p['result'] not in ('B', 'W', 'D')])
 
     if write:
         if total_predicted:
-            print(f'已完成赛事 {tid} 全特征动态滚动预测（WHR/和棋率/H2H）：共更新 {total_predicted} 台概率')
-        # 每次有了新预测后，自动评估新模型实战表现并刷新指标看板
+            print(f'已完成赛事 {tid} 全特征预测（基于统一 CSV）：共更新 {total_predicted} 台概率')
         evaluate_tournament_model(conn, tid, write=True, print_report=True)
 
     return total_predicted
@@ -838,14 +1061,19 @@ def predict_tournament(conn, tid, write=True, overwrite=False):
 # ---------------------------------------------------------------- CLI 命令行入口
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='按官方 WHR 与全特征动态滚动最新 20261113 GBDT 预测并自动评估')
+    ap = argparse.ArgumentParser(description='基于统一 CSV 与 20261113 GBDT 模型的赛事/轮次/台次预测 API')
     ap.add_argument('--tid', required=True, help='赛事 id，如 2026-shanhai')
-    ap.add_argument('--round', type=int, help='只算指定轮次（默认全赛事所有轮次）')
+    ap.add_argument('--round', type=int, help='指定轮次（默认全赛事所有轮次）')
+    ap.add_argument('--table', type=int, help='指定台次（需同时指定 --round）')
+    ap.add_argument('--csv', help='统一对局 CSV 路径，默认 data/all_games.csv')
     ap.add_argument('--write', action='store_true', help='把预测概率写回 data/duiju.db')
     ap.add_argument('--overwrite', action='store_true', help='强制覆盖已有预测概率（即使已有赛果或旧概率）')
     ap.add_argument('--eval', '--evaluate', action='store_true', dest='evaluate', help='自动评估当前模型在指定赛事的实战表现')
     ap.add_argument('--db', help='数据库路径，默认 data/duiju.db')
     args = ap.parse_args(argv)
+
+    if args.table is not None and not args.round:
+        ap.error('指定 --table 时必须同时指定 --round')
 
     conn = connect(args.db)
     try:
@@ -853,8 +1081,16 @@ def main(argv=None):
             evaluate_tournament_model(conn, args.tid, write=args.write, print_report=True)
             return 0
 
-        if args.round:
-            rows = predict_round(conn, args.tid, args.round, write=args.write, overwrite=args.overwrite)
+        if args.round and args.table is not None:
+            p = predict_game(conn, args.tid, args.round, args.table,
+                             write=args.write, overwrite=args.overwrite, csv_path=args.csv)
+            if not p:
+                print(f'未找到 {args.tid} 第 {args.round} 轮第 {args.table} 台', file=sys.stderr)
+                return 1
+            print(json.dumps(p, ensure_ascii=False, indent=2))
+        elif args.round:
+            rows = predict_round(conn, args.tid, args.round,
+                                 write=args.write, overwrite=args.overwrite, csv_path=args.csv)
             print(f'=== {args.tid} 第 {args.round} 轮预测结果 (基于最新模型，共 {len(rows)} 台) ===')
             for p in rows:
                 mark = '✔' if p['is_correct'] is True else ('✘' if p['is_correct'] is False else '·')
@@ -869,7 +1105,7 @@ def main(argv=None):
             if args.write:
                 evaluate_tournament_model(conn, args.tid, write=True, print_report=True)
         else:
-            n = predict_tournament(conn, args.tid, write=args.write, overwrite=args.overwrite)
+            n = predict_tournament(conn, args.tid, write=args.write, overwrite=args.overwrite, csv_path=args.csv)
             print(f'赛事 {args.tid} 处理完成，更新 {n} 台未预测对局')
     finally:
         conn.close()
