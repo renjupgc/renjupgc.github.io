@@ -8,7 +8,7 @@
       "year": 2026,
       "group": "公开组",
       "rule": "塔拉山口-10",
-      "updated_at": "2026-11-15 19:22:47",
+      "updated_at": "2026-11-15 19:28:32",
       "api": "api/duiju/shanhai/",
       "metrics": "api/duiju/shanhai/metrics.json",
       "rounds": [
@@ -19,8 +19,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_glicko_20261113",
-          "predicted_at": "2026-11-15 19:22:49",
-          "updated_at": "2026-11-15 19:22:49",
+          "predicted_at": "2026-11-15 19:28:33",
+          "updated_at": "2026-11-15 19:28:33",
           "standings": "api/duiju/shanhai/standings/r1.json"
         },
         {
@@ -30,8 +30,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_glicko_20261113",
-          "predicted_at": "2026-11-15 19:22:49",
-          "updated_at": "2026-11-15 19:22:49",
+          "predicted_at": "2026-11-15 19:28:33",
+          "updated_at": "2026-11-15 19:28:33",
           "standings": "api/duiju/shanhai/standings/r2.json"
         },
         {
@@ -42,7 +42,7 @@
           "is_finished": true,
           "model": null,
           "predicted_at": null,
-          "updated_at": "2026-11-15 19:22:47",
+          "updated_at": "2026-11-15 19:28:32",
           "standings": "api/duiju/shanhai/standings/r3.json"
         },
         {
@@ -53,7 +53,7 @@
           "is_finished": true,
           "model": null,
           "predicted_at": null,
-          "updated_at": "2026-11-15 19:22:47",
+          "updated_at": "2026-11-15 19:28:32",
           "standings": "api/duiju/shanhai/standings/r4.json"
         },
         {
@@ -64,7 +64,7 @@
           "is_finished": true,
           "model": null,
           "predicted_at": null,
-          "updated_at": "2026-11-15 19:22:47",
+          "updated_at": "2026-11-15 19:28:32",
           "standings": "api/duiju/shanhai/standings/r5.json"
         },
         {
@@ -75,7 +75,7 @@
           "is_finished": true,
           "model": null,
           "predicted_at": null,
-          "updated_at": "2026-11-15 19:22:47",
+          "updated_at": "2026-11-15 19:28:32",
           "standings": "api/duiju/shanhai/standings/r6.json"
         },
         {
@@ -86,7 +86,7 @@
           "is_finished": true,
           "model": null,
           "predicted_at": null,
-          "updated_at": "2026-11-15 19:22:47",
+          "updated_at": "2026-11-15 19:28:32",
           "standings": "api/duiju/shanhai/standings/r7.json"
         },
         {
@@ -96,8 +96,8 @@
           "played": 0,
           "is_finished": false,
           "model": "model_glicko_20261113",
-          "predicted_at": "2026-11-15 19:22:50",
-          "updated_at": "2026-11-15 19:22:50",
+          "predicted_at": "2026-11-15 19:28:34",
+          "updated_at": "2026-11-15 19:28:34",
           "standings": null
         }
       ]
