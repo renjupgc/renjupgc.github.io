@@ -99,11 +99,11 @@ def load_training_games(source_path=DEFAULT_DB_PATH, max_day_exclusive=SHANHAI_D
 
 def annotate_final_states(games):
     """标注每局的末轮双方状态 (final_state_b, final_state_w):
-    0: 非最后一轮
-    1: 争胜（赢棋仍有争冠希望，且和棋不足以锁定唯一冠军）
-    2: 保和（非稳冠，且和棋即可锁定唯一冠军）
-    3: 稳冠（即使输棋仍严格领先全场，一定拿到唯一冠军）
-    4: 无冠（即使赢棋仍严格落后于他人，彻底无缘冠军）
+    仅在最后一轮对当时最高分领先者（pts[p] == cur_leader）判定状态，其余无关选手及非末轮均设为 0：
+    0: 非末轮或非当前最高分（无关状态）
+    1: 争胜（不满足 稳冠 与 保和）
+    2: 保和（非稳冠，且和棋即可严格领先所有人）
+    3: 稳冠（即使输棋仍严格领先所有人，一定拿到唯一冠军）
     """
     from collections import defaultdict
     tours = defaultdict(list)
@@ -155,31 +155,21 @@ def annotate_final_states(games):
                     finals.append(g)
             if len(finals) < 2:
                 continue
+            cur_leader = max((pts[q] for q in in_final), default=0.0)
             for g in finals:
                 b, w = g["b_id"], g["w_id"]
                 states = []
                 for p, opp in ((b, w), (w, b)):
+                    if pts[p] != cur_leader:
+                        states.append(0)
+                        continue
                     other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
                     max_if_lose = max(other_max, pts[opp] + 1.0)
                     max_if_draw = max(other_max, pts[opp] + 0.5)
-                    min_other_if_win = pts[opp]
-                    for og in finals:
-                        if og is g:
-                            continue
-                        u, v = og["b_id"], og["w_id"]
-                        pair_min_max = min(
-                            max(pts[u] + 1.0, pts[v]),
-                            max(pts[u], pts[v] + 1.0),
-                            max(pts[u], pts[v]) + 0.5,
-                        )
-                        if pair_min_max > min_other_if_win:
-                            min_other_if_win = pair_min_max
                     if pts[p] > max_if_lose:
                         states.append(3)
                     elif pts[p] + 0.5 > max_if_draw:
                         states.append(2)
-                    elif pts[p] + 1.0 < min_other_if_win:
-                        states.append(4)
                     else:
                         states.append(1)
                 g["final_state_b"], g["final_state_w"] = states[0], states[1]
@@ -232,7 +222,7 @@ def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
     all_rules = sorted(list(df["rule"].unique()))
     df["rule"] = df["rule"].astype(pd.CategoricalDtype(categories=all_rules))
     for col in ("final_state_b", "final_state_w"):
-        df[col] = df[col].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3, 4]))
+        df[col] = df[col].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3]))
 
     n_train = int(len(df) * 0.8)
     train_df = df.iloc[:n_train].copy()

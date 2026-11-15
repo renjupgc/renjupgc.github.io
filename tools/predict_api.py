@@ -445,7 +445,7 @@ def get_tournament_meta(conn, tid):
 
 def compute_final_states_map(conn, tid, rnd, games_rows, total_rounds=None):
     """计算每台的末轮双方状态 (final_state_b, final_state_w):
-    0: 非最后一轮, 1: 争胜, 2: 保和, 3: 稳冠, 4: 无冠。"""
+    仅末轮当时最高分领先者判定 1: 争胜, 2: 保和, 3: 稳冠；其余无关选手及非末轮均为 0。"""
     if not total_rounds or rnd != total_rounds:
         return {}
 
@@ -477,41 +477,26 @@ def compute_final_states_map(conn, tid, rnd, games_rows, total_rounds=None):
     in_final = {
         nm for r in final_rows for nm in (r['black_name'], r['white_name']) if nm and nm != '轮空'
     }
+    cur_leader = max((pts[q] for q in in_final), default=0.0)
 
     out = {}
     for g in games_rows:
         b, w = g['black_name'], g['white_name']
         if b == '轮空' or w == '轮空':
-            out[g['table_no']] = (4, 4)
+            out[g['table_no']] = (0, 0)
             continue
         states = []
         for p, opp in ((b, w), (w, b)):
+            if pts[p] != cur_leader:
+                states.append(0)
+                continue
             other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
             max_if_lose = max(other_max, pts[opp] + 1.0)
             max_if_draw = max(other_max, pts[opp] + 0.5)
-            min_other_if_win = pts[opp]
-            for fr in final_rows:
-                u, v = fr['black_name'], fr['white_name']
-                if (u == b and v == w) or (u == w and v == b):
-                    continue
-                if u == '轮空' or v == '轮空':
-                    solo = v if u == '轮空' else u
-                    if solo and pts[solo] > min_other_if_win:
-                        min_other_if_win = pts[solo]
-                    continue
-                pair_min_max = min(
-                    max(pts[u] + 1.0, pts[v]),
-                    max(pts[u], pts[v] + 1.0),
-                    max(pts[u], pts[v]) + 0.5,
-                )
-                if pair_min_max > min_other_if_win:
-                    min_other_if_win = pair_min_max
             if pts[p] > max_if_lose:
                 states.append(3)
             elif pts[p] + 0.5 > max_if_draw:
                 states.append(2)
-            elif pts[p] + 1.0 < min_other_if_win:
-                states.append(4)
             else:
                 states.append(1)
         out[g['table_no']] = (states[0], states[1])
