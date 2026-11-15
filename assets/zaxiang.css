@@ -1762,3 +1762,307 @@
         height: 7px;
     }
 }
+
+/* ---------- 小游戏：接入模型 · 七版 ---------- */
+
+.zx-ai-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 18px 0 0;
+    padding: 10px 14px;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    background: var(--surface-2);
+}
+
+.zx-ai-dot {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--line);
+}
+
+.zx-ai-dot.is-on {
+    background: #3f7a5a;
+    box-shadow: 0 0 0 3px rgba(63, 122, 90, 0.14);
+}
+
+.zx-ai-txt {
+    flex: 1 1 auto;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+}
+
+.zx-ai-btn {
+    flex: 0 0 auto;
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.zx-ai-btn:hover {
+    border-color: var(--gold);
+    background: var(--gold-tint);
+    color: var(--gold-deep);
+}
+
+.zx-ai-form {
+    margin: 14px 0 0;
+    padding: 18px 20px 16px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+
+.zx-ai-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 12px;
+}
+
+.zx-ai-f {
+    display: flex;
+    flex: 1 1 200px;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.zx-ai-f--wide {
+    flex: 2 1 320px;
+}
+
+.zx-ai-f > span {
+    font-family: var(--sans);
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    color: var(--faint);
+}
+
+.zx-ai-f input,
+.zx-ai-f select {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.zx-ai-f select {
+    font-family: var(--sans);
+    font-size: 13.5px;
+}
+
+.zx-ai-f input:focus,
+.zx-ai-f select:focus {
+    outline: none;
+    border-color: var(--gold);
+    background: var(--surface);
+    box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.1);
+}
+
+.zx-ai-acts {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.zx-ai-acts .zg-btn {
+    height: 38px;
+    padding: 0 18px;
+}
+
+.zx-ai-msg {
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--muted);
+}
+
+.zx-ai-msg.is-ok {
+    color: #3f7a5a;
+}
+
+.zx-ai-msg.is-bad {
+    color: #a6483a;
+}
+
+.zx-ai-note {
+    margin: 12px 0 0;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.9;
+    color: var(--faint);
+}
+
+.zx-ai-note code {
+    padding: 1px 4px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+}
+
+/* 出题来源 */
+.zg-src {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--faint);
+    background: var(--surface-2);
+}
+
+.zg-src.is-ai {
+    color: #3f7a5a;
+    background: rgba(63, 122, 90, 0.08);
+}
+
+.zg-src.is-local {
+    color: var(--muted);
+}
+
+/* 出题中的题面 */
+.zg-q.is-loading {
+    color: var(--faint);
+    font-style: normal;
+}
+
+.zg-q.is-loading::after {
+    content: "";
+    display: inline-block;
+    width: 1.1em;
+    height: 2px;
+    margin-left: 6px;
+    vertical-align: middle;
+    background: linear-gradient(90deg, var(--gold), transparent);
+    animation: zg-wait 1s linear infinite;
+}
+
+@keyframes zg-wait {
+    0% { opacity: 0.25; }
+    50% { opacity: 1; }
+    100% { opacity: 0.25; }
+}
+
+.zg-btn.is-busy {
+    opacity: 0.65;
+    cursor: progress;
+}
+
+/* 结果区补充 */
+.zg-tag {
+    align-self: center;
+    margin-left: 12px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-family: var(--sans);
+    font-style: normal;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--faint);
+}
+
+.zg-gap {
+    margin: 12px 0 0;
+    font-family: var(--serif);
+    font-size: 15px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
+.zg-warn {
+    margin: 12px 0 0;
+    padding: 10px 14px;
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.85;
+    color: var(--muted);
+}
+
+.zg-err {
+    margin: 0;
+    padding: 10px 14px;
+    border-left: 2px solid #a6483a;
+    background: rgba(166, 72, 58, 0.06);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #8d3d31;
+}
+
+.zg-ansi {
+    display: block;
+    margin: 18px 0 0;
+    padding: 14px 16px;
+    border: 1px solid var(--gold-tint);
+    border-radius: 10px;
+    background: #fbf7ee;
+    font-family: var(--serif);
+    letter-spacing: 0;
+}
+
+.zg-ansi-w {
+    margin: 0;
+    font-size: 19px;
+    letter-spacing: 0.08em;
+    color: var(--gold-deep);
+}
+
+.zg-ansi-n {
+    margin: 8px 0 0;
+    font-size: 14.5px;
+    line-height: 1.95;
+    color: var(--ink-3);
+}
+
+@media (max-width: 720px) {
+    .zx-ai-form {
+        padding: 14px 14px 12px;
+    }
+
+    .zx-ai-f,
+    .zx-ai-f--wide {
+        flex: 1 1 100%;
+    }
+
+    .zx-ai-bar {
+        padding: 9px 12px;
+    }
+
+    .zx-ai-txt {
+        flex: 1 1 60%;
+    }
+
+    .zx-ai-btn {
+        margin-left: auto;
+    }
+
+    .zg-pct b {
+        font-size: 36px;
+    }
+}
