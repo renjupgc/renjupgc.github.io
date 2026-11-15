@@ -58,6 +58,14 @@ GLICKO_MIN_RD = 30.0
 GLICKO_MAX_RD = 350.0
 GLICKO_C2_PER_DAY = 100.0
 
+# Glicko 式和棋倾向常数（基准和棋率 0.12）
+GLICKO_BASE_DRAW_P = 0.12
+GLICKO_D_BASE = 400.0 * math.log10(GLICKO_BASE_DRAW_P / (1.0 - GLICKO_BASE_DRAW_P))
+GLICKO_D_INIT_RD = 250.0
+GLICKO_D_MIN_RD = 35.0
+GLICKO_D_MAX_RD = 250.0
+GLICKO_D_C2_PER_DAY = 50.0
+
 BASE_DAY = 20771  # 比赛日期 2026-11-14
 TAU = 730.0  # 衰减半衰尺度（天）
 
@@ -274,6 +282,37 @@ def _glicko_step(rating, rd_map, last_day, day, b_id, w_id, res):
     last_day[w_id] = day
 
 
+def _glicko_draw_pre(d_rating, d_rd_map, d_last_day, pid, day):
+    d = d_rating.get(pid, 0.0)
+    rd = d_rd_map.get(pid, GLICKO_D_INIT_RD)
+    ld = d_last_day.get(pid)
+    if ld is not None and day > ld:
+        rd = min(GLICKO_D_MAX_RD, math.sqrt(rd * rd + GLICKO_D_C2_PER_DAY * (day - ld)))
+    return d, rd
+
+
+def _glicko_draw_to_prob(d):
+    return 1.0 / (1.0 + 10.0 ** (-(GLICKO_D_BASE + d) / 400.0))
+
+
+def _glicko_draw_step(d_rating, d_rd_map, d_last_day, day, b_id, w_id, res):
+    db_r, db_rd = _glicko_draw_pre(d_rating, d_rd_map, d_last_day, b_id, day)
+    dw_r, dw_rd = _glicko_draw_pre(d_rating, d_rd_map, d_last_day, w_id, day)
+    g_db = _glicko_g(db_rd)
+    g_dw = _glicko_g(dw_rd)
+    ed_b = 1.0 / (1.0 + 10.0 ** (-g_dw * (GLICKO_D_BASE + db_r + dw_r) / 400.0))
+    ed_w = 1.0 / (1.0 + 10.0 ** (-g_db * (GLICKO_D_BASE + db_r + dw_r) / 400.0))
+    sd = 1.0 if res == 'D' else 0.0
+    den_b = 1.0 / (db_rd * db_rd) + GLICKO_Q2 * g_dw * g_dw * ed_b * (1.0 - ed_b)
+    den_w = 1.0 / (dw_rd * dw_rd) + GLICKO_Q2 * g_db * g_db * ed_w * (1.0 - ed_w)
+    d_rating[b_id] = db_r + (GLICKO_Q / den_b) * g_dw * (sd - ed_b)
+    d_rd_map[b_id] = max(GLICKO_D_MIN_RD, math.sqrt(1.0 / den_b))
+    d_last_day[b_id] = day
+    d_rating[w_id] = dw_r + (GLICKO_Q / den_w) * g_db * (sd - ed_w)
+    d_rd_map[w_id] = max(GLICKO_D_MIN_RD, math.sqrt(1.0 / den_w))
+    d_last_day[w_id] = day
+
+
 def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
     """完全基于统一 CSV 计算 Glicko-1 等级分/RD、衰减和棋率、衰减 H2H 与国籍映射。
 
@@ -368,24 +407,32 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
         and inc_state[0] is not None
         and upto_round > inc_state[0]
     ):
-        last_rnd, rating, rd_map, last_day = inc_state
+        last_rnd, rating, rd_map, last_day, d_rating, d_rd_map, d_last_day = inc_state
         for g_tid, g_rnd, b_id, w_id, res, g_day, _, _, g_tname in csv_games:
             if _is_same_tour(g_tid, g_tname) and g_rnd is not None and last_rnd <= g_rnd < upto_round:
                 _glicko_step(rating, rd_map, last_day, g_day, b_id, w_id, res)
-        _INCREMENTAL_GLICKO_STATE[inc_key] = (upto_round, rating, rd_map, last_day)
+                _glicko_draw_step(d_rating, d_rd_map, d_last_day, g_day, b_id, w_id, res)
+        _INCREMENTAL_GLICKO_STATE[inc_key] = (upto_round, rating, rd_map, last_day, d_rating, d_rd_map, d_last_day)
     else:
         rating, rd_map, last_day = {}, {}, {}
+        d_rating, d_rd_map, d_last_day = {}, {}, {}
         for b_id, w_id, res, g_day in glicko_input:
             _glicko_step(rating, rd_map, last_day, g_day, b_id, w_id, res)
+            _glicko_draw_step(d_rating, d_rd_map, d_last_day, g_day, b_id, w_id, res)
         if tid is not None and upto_round is not None:
-            _INCREMENTAL_GLICKO_STATE[inc_key] = (upto_round, rating, rd_map, last_day)
+            _INCREMENTAL_GLICKO_STATE[inc_key] = (upto_round, rating, rd_map, last_day, d_rating, d_rd_map, d_last_day)
 
-    # 汇总当前时间点（t_day）各棋手 Glicko 等级分与时间膨胀 RD
+    # 汇总当前时间点（t_day）各棋手 Glicko 等级分与时间膨胀 RD，以及 Glicko 和棋倾向
     pred_day = t_day + (max(0, (upto_round - 1) // 2) if upto_round else 0)
     glicko_snapshot = {}
     for pid in set(rating.keys()) | set(rd_map.keys()):
         r_val, rd_val = _glicko_pre(rating, rd_map, last_day, pid, pred_day)
         glicko_snapshot[pid] = (r_val, rd_val)
+
+    glicko_dr_snapshot = {
+        pid: _glicko_draw_to_prob(d_val)
+        for pid, d_val in d_rating.items()
+    }
 
     # 汇总衰减和棋率映射
     dr_map = {
@@ -401,6 +448,7 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
 
     ctx = {
         'glicko_snapshot': glicko_snapshot,
+        'glicko_dr_snapshot': glicko_dr_snapshot,
         'dr_map': dr_map,
         'h2h_map': h2h_map,
         'name_to_pid': name_to_pid,
@@ -490,6 +538,10 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None)
         c_b = pid_to_country.get(p1_id, 5)
         c_w = pid_to_country.get(p2_id, 5)
 
+        glicko_dr_map = ctx.get('glicko_dr_snapshot') or {}
+        gdr_b = glicko_dr_map.get(p1_id, GLICKO_BASE_DRAW_P)
+        gdr_w = glicko_dr_map.get(p2_id, GLICKO_BASE_DRAW_P)
+
         n_feats = len(model.get('features', []))
         if n_feats == 4:
             # Glicko 4 维特征向量: [rule, rating_tb, rating_tw, rating_diff]
@@ -497,6 +549,9 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None)
         elif n_feats == 5:
             # Glicko 5 维特征向量
             feat = [rule_id, rb, rw, diff, mean_r]
+        elif n_feats == 6:
+            # Glicko 6 维特征向量: [rule, rating_tb, rating_tw, rating_diff, glicko_dr_tb, glicko_dr_tw]
+            feat = [rule_id, rb, rw, diff, gdr_b, gdr_w]
         else:
             # 兼容旧 14 维特征向量
             feat = [

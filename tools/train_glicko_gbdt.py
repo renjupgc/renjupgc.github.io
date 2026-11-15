@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""基于 data/all_games.csv 使用 Glicko-1 与 4 特征训练 LightGBM GBDT 模型并导出 JSON。
+"""基于 data/all_games.csv 使用 Glicko-1 与 6 特征训练 LightGBM GBDT 模型并导出 JSON。
 
-特征 (4 维):
-  [rule, rating_tb, rating_tw, rating_diff]
+特征 (6 维):
+  [rule, rating_tb, rating_tw, rating_diff, glicko_dr_tb, glicko_dr_tw]
 类别映射 (与 predict_api.py 一致):
   0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
 """
@@ -31,6 +31,14 @@ INIT_RD = 350.0
 MIN_RD = 30.0
 MAX_RD = 350.0
 C2_PER_DAY = 100.0
+
+# Glicko 式和棋倾向常数（基准和棋率 0.12）
+BASE_DRAW_P = 0.12
+D_BASE = 400.0 * math.log10(BASE_DRAW_P / (1.0 - BASE_DRAW_P))
+D_INIT_RD = 250.0
+D_MIN_RD = 35.0
+D_MAX_RD = 250.0
+D_C2_PER_DAY = 50.0
 
 
 def load_training_games(csv_path, max_day_exclusive=SHANHAI_DAY):
@@ -61,8 +69,9 @@ def load_training_games(csv_path, max_day_exclusive=SHANHAI_DAY):
 
 def build_glicko_features(games):
     rating, rd_map, last_day = {}, {}, {}
+    d_rating, d_rd_map, d_last_day = {}, {}, {}
 
-    def get_pre(pid, day):
+    def get_pre_win(pid, day):
         r = rating.get(pid, INIT_RATING)
         rd = rd_map.get(pid, INIT_RD)
         ld = last_day.get(pid)
@@ -70,17 +79,32 @@ def build_glicko_features(games):
             rd = min(MAX_RD, math.sqrt(rd * rd + C2_PER_DAY * (day - ld)))
         return r, rd
 
+    def get_pre_draw(pid, day):
+        d = d_rating.get(pid, 0.0)
+        rd = d_rd_map.get(pid, D_INIT_RD)
+        ld = d_last_day.get(pid)
+        if ld is not None and day > ld:
+            rd = min(D_MAX_RD, math.sqrt(rd * rd + D_C2_PER_DAY * (day - ld)))
+        return d, rd
+
+    def d_to_prob(d):
+        return 1.0 / (1.0 + 10.0 ** (-(D_BASE + d) / 400.0))
+
     def g_func(rd):
         return 1.0 / math.sqrt(1.0 + THREE_Q2_OVER_PI2 * rd * rd)
 
     rows = []
     for g in games:
         day, b_id, w_id, res = g["day"], g["b_id"], g["w_id"], g["res"]
-        rb, rdb = get_pre(b_id, day)
-        rw, rdw = get_pre(w_id, day)
+        rb, rdb = get_pre_win(b_id, day)
+        rw, rdw = get_pre_win(w_id, day)
+        db_r, db_rd = get_pre_draw(b_id, day)
+        dw_r, dw_rd = get_pre_draw(w_id, day)
+        dr_b = d_to_prob(db_r)
+        dr_w = d_to_prob(dw_r)
         # 类别映射：0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
         label = 2 if res == "B" else (1 if res == "D" else 0)
-        rows.append((g["rule"], rb, rw, rb - rw, label))
+        rows.append((g["rule"], rb, rw, rb - rw, dr_b, dr_w, label))
 
         gb, gw = g_func(rdb), g_func(rdw)
         eb = 1.0 / (1.0 + 10.0 ** (-gw * (rb - rw) / 400.0))
@@ -96,7 +120,20 @@ def build_glicko_features(games):
         rd_map[w_id] = max(MIN_RD, math.sqrt(1.0 / dw))
         last_day[w_id] = day
 
-    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff"]
+        g_db, g_dw = g_func(db_rd), g_func(dw_rd)
+        ed_b = 1.0 / (1.0 + 10.0 ** (-g_dw * (D_BASE + db_r + dw_r) / 400.0))
+        ed_w = 1.0 / (1.0 + 10.0 ** (-g_db * (D_BASE + db_r + dw_r) / 400.0))
+        sd = 1.0 if res == "D" else 0.0
+        den_b = 1.0 / (db_rd * db_rd) + Q2 * g_dw * g_dw * ed_b * (1.0 - ed_b)
+        den_w = 1.0 / (dw_rd * dw_rd) + Q2 * g_db * g_db * ed_w * (1.0 - ed_w)
+        d_rating[b_id] = db_r + (Q / den_b) * g_dw * (sd - ed_b)
+        d_rd_map[b_id] = max(D_MIN_RD, math.sqrt(1.0 / den_b))
+        d_last_day[b_id] = day
+        d_rating[w_id] = dw_r + (Q / den_w) * g_db * (sd - ed_w)
+        d_rd_map[w_id] = max(D_MIN_RD, math.sqrt(1.0 / den_w))
+        d_last_day[w_id] = day
+
+    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff", "glicko_dr_tb", "glicko_dr_tw"]
     return pd.DataFrame(rows, columns=feature_cols + ["label"]), feature_cols
 
 
@@ -138,7 +175,7 @@ def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
     y_true = test_df["label"].values
     acc = accuracy_score(y_true, np.argmax(preds, axis=1))
     loss = log_loss(y_true, preds)
-    print(f"Glicko-GBDT (4特征) 训练完成: best_iter={model.best_iteration}, Valid Acc={acc*100:.2f}%, LogLoss={loss:.4f}")
+    print(f"Glicko-GBDT (6特征) 训练完成: best_iter={model.best_iteration}, Valid Acc={acc*100:.2f}%, LogLoss={loss:.4f}")
 
     model_dump = model.dump_model()
     pandas_cat = model_dump.get("pandas_categorical", [])

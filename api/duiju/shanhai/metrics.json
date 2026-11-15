@@ -8,15 +8,15 @@
     "rule": "塔拉山口-10"
   },
   "model": "model_glicko_20261113",
-  "evaluated_at": "2026-11-15 18:52:15",
+  "evaluated_at": "2026-11-15 19:05:09",
   "rounds": [
     {
       "n": 23,
       "hit": 17,
       "accuracy": 0.7391,
-      "brier": 0.336,
-      "logloss": 0.5709,
-      "confidence": 0.7229,
+      "brier": 0.3218,
+      "logloss": 0.5599,
+      "confidence": 0.6986,
       "results": {
         "B": 8,
         "D": 1,
@@ -36,25 +36,25 @@
     },
     {
       "n": 23,
-      "hit": 16,
-      "accuracy": 0.6957,
-      "brier": 0.4632,
-      "logloss": 0.7783,
-      "confidence": 0.6927,
+      "hit": 14,
+      "accuracy": 0.6087,
+      "brier": 0.4507,
+      "logloss": 0.7501,
+      "confidence": 0.6713,
       "results": {
         "B": 10,
         "D": 2,
         "W": 11
       },
       "hit_by_result": {
-        "B": 9,
+        "B": 8,
         "D": 0,
-        "W": 7
+        "W": 6
       },
       "fav_distribution": {
-        "B": 14,
+        "B": 15,
         "D": 0,
-        "W": 9
+        "W": 8
       },
       "round": 2
     },
@@ -62,9 +62,9 @@
       "n": 22,
       "hit": 16,
       "accuracy": 0.7273,
-      "brier": 0.4207,
-      "logloss": 0.7589,
-      "confidence": 0.6882,
+      "brier": 0.4296,
+      "logloss": 0.7669,
+      "confidence": 0.6734,
       "results": {
         "B": 4,
         "D": 3,
@@ -86,9 +86,9 @@
       "n": 22,
       "hit": 11,
       "accuracy": 0.5,
-      "brier": 0.6481,
-      "logloss": 1.1065,
-      "confidence": 0.6413,
+      "brier": 0.6442,
+      "logloss": 1.1012,
+      "confidence": 0.6237,
       "results": {
         "B": 10,
         "D": 5,
@@ -108,11 +108,11 @@
     },
     {
       "n": 22,
-      "hit": 16,
-      "accuracy": 0.7273,
-      "brier": 0.3587,
-      "logloss": 0.6281,
-      "confidence": 0.6512,
+      "hit": 17,
+      "accuracy": 0.7727,
+      "brier": 0.372,
+      "logloss": 0.6523,
+      "confidence": 0.6364,
       "results": {
         "B": 12,
         "D": 1,
@@ -121,22 +121,22 @@
       "hit_by_result": {
         "B": 10,
         "D": 0,
-        "W": 6
+        "W": 7
       },
       "fav_distribution": {
-        "B": 14,
+        "B": 13,
         "D": 0,
-        "W": 8
+        "W": 9
       },
       "round": 5
     },
     {
       "n": 22,
-      "hit": 12,
-      "accuracy": 0.5455,
-      "brier": 0.5398,
-      "logloss": 0.9072,
-      "confidence": 0.6026,
+      "hit": 11,
+      "accuracy": 0.5,
+      "brier": 0.5518,
+      "logloss": 0.9184,
+      "confidence": 0.6017,
       "results": {
         "B": 10,
         "D": 3,
@@ -145,6 +145,30 @@
       "hit_by_result": {
         "B": 7,
         "D": 0,
+        "W": 4
+      },
+      "fav_distribution": {
+        "B": 13,
+        "D": 0,
+        "W": 9
+      },
+      "round": 6
+    },
+    {
+      "n": 22,
+      "hit": 11,
+      "accuracy": 0.5,
+      "brier": 0.5859,
+      "logloss": 0.9466,
+      "confidence": 0.5971,
+      "results": {
+        "B": 10,
+        "D": 2,
+        "W": 10
+      },
+      "hit_by_result": {
+        "B": 6,
+        "D": 0,
         "W": 5
       },
       "fav_distribution": {
@@ -152,49 +176,25 @@
         "D": 0,
         "W": 10
       },
-      "round": 6
-    },
-    {
-      "n": 22,
-      "hit": 12,
-      "accuracy": 0.5455,
-      "brier": 0.5632,
-      "logloss": 0.9141,
-      "confidence": 0.6081,
-      "results": {
-        "B": 10,
-        "D": 2,
-        "W": 10
-      },
-      "hit_by_result": {
-        "B": 7,
-        "D": 0,
-        "W": 5
-      },
-      "fav_distribution": {
-        "B": 13,
-        "D": 0,
-        "W": 9
-      },
       "round": 7
     }
   ],
   "overall": {
     "n": 156,
-    "hit": 100,
-    "accuracy": 0.641,
-    "brier": 0.4747,
-    "logloss": 0.8074,
-    "confidence": 0.6588,
+    "hit": 97,
+    "accuracy": 0.6218,
+    "brier": 0.4782,
+    "logloss": 0.8116,
+    "confidence": 0.6437,
     "results": {
       "B": 64,
       "D": 17,
       "W": 75
     },
     "hit_by_result": {
-      "B": 51,
+      "B": 49,
       "D": 0,
-      "W": 49
+      "W": 48
     },
     "fav_distribution": {
       "B": 85,
