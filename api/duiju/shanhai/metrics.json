@@ -8,15 +8,15 @@
     "rule": "塔拉山口-10"
   },
   "model": "model_glicko_20261113",
-  "evaluated_at": "2026-11-15 19:42:17",
+  "evaluated_at": "2026-11-15 19:46:47",
   "rounds": [
     {
       "n": 23,
       "hit": 17,
       "accuracy": 0.7391,
-      "brier": 0.3344,
-      "logloss": 0.5794,
-      "confidence": 0.7037,
+      "brier": 0.3379,
+      "logloss": 0.5832,
+      "confidence": 0.6982,
       "results": {
         "B": 8,
         "D": 1,
@@ -38,9 +38,9 @@
       "n": 23,
       "hit": 16,
       "accuracy": 0.6957,
-      "brier": 0.4634,
-      "logloss": 0.7827,
-      "confidence": 0.6766,
+      "brier": 0.4611,
+      "logloss": 0.7764,
+      "confidence": 0.6687,
       "results": {
         "B": 10,
         "D": 2,
@@ -62,9 +62,9 @@
       "n": 22,
       "hit": 16,
       "accuracy": 0.7273,
-      "brier": 0.4208,
-      "logloss": 0.767,
-      "confidence": 0.6721,
+      "brier": 0.4182,
+      "logloss": 0.7649,
+      "confidence": 0.6682,
       "results": {
         "B": 4,
         "D": 3,
@@ -84,25 +84,25 @@
     },
     {
       "n": 22,
-      "hit": 12,
-      "accuracy": 0.5455,
-      "brier": 0.64,
-      "logloss": 1.0846,
-      "confidence": 0.6285,
+      "hit": 11,
+      "accuracy": 0.5,
+      "brier": 0.6398,
+      "logloss": 1.0891,
+      "confidence": 0.6235,
       "results": {
         "B": 10,
         "D": 5,
         "W": 7
       },
       "hit_by_result": {
-        "B": 8,
+        "B": 7,
         "D": 0,
         "W": 4
       },
       "fav_distribution": {
-        "B": 13,
+        "B": 11,
         "D": 0,
-        "W": 9
+        "W": 11
       },
       "round": 4
     },
@@ -110,9 +110,9 @@
       "n": 22,
       "hit": 17,
       "accuracy": 0.7727,
-      "brier": 0.3572,
-      "logloss": 0.6275,
-      "confidence": 0.6377,
+      "brier": 0.3655,
+      "logloss": 0.6401,
+      "confidence": 0.6304,
       "results": {
         "B": 12,
         "D": 1,
@@ -134,9 +134,9 @@
       "n": 22,
       "hit": 12,
       "accuracy": 0.5455,
-      "brier": 0.5372,
-      "logloss": 0.9062,
-      "confidence": 0.5896,
+      "brier": 0.5414,
+      "logloss": 0.9149,
+      "confidence": 0.5851,
       "results": {
         "B": 10,
         "D": 3,
@@ -158,9 +158,9 @@
       "n": 22,
       "hit": 11,
       "accuracy": 0.5,
-      "brier": 0.5766,
-      "logloss": 0.9347,
-      "confidence": 0.5936,
+      "brier": 0.5804,
+      "logloss": 0.9405,
+      "confidence": 0.5916,
       "results": {
         "B": 10,
         "D": 2,
@@ -181,25 +181,25 @@
   ],
   "overall": {
     "n": 156,
-    "hit": 101,
-    "accuracy": 0.6474,
-    "brier": 0.4747,
-    "logloss": 0.81,
-    "confidence": 0.6437,
+    "hit": 100,
+    "accuracy": 0.641,
+    "brier": 0.4768,
+    "logloss": 0.8138,
+    "confidence": 0.6386,
     "results": {
       "B": 64,
       "D": 17,
       "W": 75
     },
     "hit_by_result": {
-      "B": 51,
+      "B": 50,
       "D": 0,
       "W": 50
     },
     "fav_distribution": {
-      "B": 84,
+      "B": 82,
       "D": 0,
-      "W": 72
+      "W": 74
     }
   }
 }

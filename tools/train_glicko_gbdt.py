@@ -19,6 +19,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, log_loss
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_DB_PATH = os.path.join(ROOT, "data", "duiju.db")
 DEFAULT_CSV_PATH = os.path.join(ROOT, "data", "all_games.csv")
 BISAI_DATA_DIR = os.path.join(ROOT, "bisai", "data")
 SHANHAI_DAY = 20771
@@ -33,34 +34,64 @@ MAX_RD = 350.0
 C2_PER_DAY = 100.0
 
 
-def load_training_games(csv_path, max_day_exclusive=SHANHAI_DAY):
+def load_training_games(source_path=DEFAULT_DB_PATH, max_day_exclusive=SHANHAI_DAY):
     games = []
-    with open(csv_path, "r", encoding="utf-8", newline="") as f:
-        for idx, row in enumerate(csv.DictReader(f)):
-            res = row.get("result", "")
-            if res not in ("B", "W", "D"):
-                continue
-            b_id = row.get("black_id") or row.get("black_name") or ""
-            w_id = row.get("white_id") or row.get("white_name") or ""
+    if str(source_path).endswith(".db"):
+        import sqlite3
+        conn = sqlite3.connect(source_path)
+        sql = """
+            SELECT id, tournament_id, round, day, rule, base_time, increment,
+                   black_id, black_name, white_id, white_name, result
+            FROM games
+            WHERE result IN ('B', 'W', 'D') AND day > 0
+        """
+        params = []
+        if max_day_exclusive is not None:
+            sql += " AND day < ?"
+            params.append(max_day_exclusive)
+        for idx, b_id_raw, bn, w_id_raw, wn, tid, rnd, day, rule, bt, inc, res in [
+            (r[0], r[7], r[8], r[9], r[10], r[1], r[2], r[3], r[4], r[5], r[6], r[11])
+            for r in conn.execute(sql, params)
+        ]:
+            b_id = b_id_raw or bn or ""
+            w_id = w_id_raw or wn or ""
             if not b_id or not w_id or b_id == w_id:
                 continue
-            day = int(float(row.get("day") or 0))
-            if day <= 0:
-                continue
-            if max_day_exclusive is not None and day >= max_day_exclusive:
-                continue
-            rule = int(float(row.get("rule") or 0))
-            rnd = int(row["round"]) if (row.get("round") or "").isdigit() else 0
-            bt_str = (row.get("base_time") or "").strip()
-            inc_str = (row.get("increment") or "").strip()
-            base_time = float(bt_str) if bt_str != "" else np.nan
-            increment = float(inc_str) if inc_str != "" else np.nan
             games.append({
-                "idx": idx, "tid": row.get("tournament_id") or "",
-                "rnd": rnd, "day": day, "rule": rule,
-                "base_time": base_time, "increment": increment,
+                "idx": idx, "tid": tid or "",
+                "rnd": int(rnd or 0), "day": int(day), "rule": int(rule or 0),
+                "base_time": float(bt) if bt is not None else np.nan,
+                "increment": float(inc) if inc is not None else np.nan,
                 "b_id": b_id, "w_id": w_id, "res": res,
             })
+        conn.close()
+    else:
+        with open(source_path, "r", encoding="utf-8", newline="") as f:
+            for idx, row in enumerate(csv.DictReader(f)):
+                res = row.get("result", "")
+                if res not in ("B", "W", "D"):
+                    continue
+                b_id = row.get("black_id") or row.get("black_name") or ""
+                w_id = row.get("white_id") or row.get("white_name") or ""
+                if not b_id or not w_id or b_id == w_id:
+                    continue
+                day = int(float(row.get("day") or 0))
+                if day <= 0:
+                    continue
+                if max_day_exclusive is not None and day >= max_day_exclusive:
+                    continue
+                rule = int(float(row.get("rule") or 0))
+                rnd = int(row["round"]) if (row.get("round") or "").isdigit() else 0
+                bt_str = (row.get("base_time") or "").strip()
+                inc_str = (row.get("increment") or "").strip()
+                base_time = float(bt_str) if bt_str != "" else np.nan
+                increment = float(inc_str) if inc_str != "" else np.nan
+                games.append({
+                    "idx": idx, "tid": row.get("tournament_id") or "",
+                    "rnd": rnd, "day": day, "rule": rule,
+                    "base_time": base_time, "increment": increment,
+                    "b_id": b_id, "w_id": w_id, "res": res,
+                })
     games.sort(key=lambda g: (g["day"], g["rnd"], g["idx"]))
     annotate_draw_clinch_final(games)
     return games
@@ -256,15 +287,15 @@ def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="基于 data/all_games.csv 训练 5 特征 Glicko-GBDT 模型")
-    ap.add_argument("--csv", default=DEFAULT_CSV_PATH, help="统一 CSV 路径")
+    ap = argparse.ArgumentParser(description="基于 data/duiju.db 训练 7 特征 Glicko-GBDT 模型")
+    ap.add_argument("--source", "--csv", dest="source", default=DEFAULT_DB_PATH, help="数据源路径（默认 data/duiju.db，也可传 CSV）")
     ap.add_argument("--out-name", default="model_glicko_20261113.json", help="输出模型文件名")
     ap.add_argument("--include-shanhai", action="store_true", help="是否把山海杯纳入训练集")
     args = ap.parse_args()
 
     t0 = time.time()
     max_day = None if args.include_shanhai else SHANHAI_DAY
-    games = load_training_games(args.csv, max_day_exclusive=max_day)
+    games = load_training_games(args.source, max_day_exclusive=max_day)
     df, cols = build_glicko_features(games)
     train_and_export(df, cols, out_name=args.out_name)
     print(f"总耗时: {time.time() - t0:.2f}s")

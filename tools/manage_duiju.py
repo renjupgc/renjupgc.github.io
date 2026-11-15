@@ -69,13 +69,23 @@ API_ROOT = os.path.join(ROOT, 'api', 'duiju')
 TZ = timezone(timedelta(hours=8))
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS players (
+    id      TEXT PRIMARY KEY,
+    name    TEXT NOT NULL,
+    country INTEGER
+);
 CREATE TABLE IF NOT EXISTS tournaments (
     id           TEXT PRIMARY KEY,
+    source       TEXT,
     name         TEXT NOT NULL,
     year         INTEGER,
+    date         TEXT,
+    day          INTEGER,
     group_name   TEXT,
     rule         TEXT,
-    slug         TEXT NOT NULL,
+    rule_id      INTEGER,
+    rated        INTEGER,
+    slug         TEXT,
     total_rounds INTEGER,
     base_time    INTEGER,
     increment    INTEGER,
@@ -91,18 +101,32 @@ CREATE TABLE IF NOT EXISTS rounds (
 );
 CREATE TABLE IF NOT EXISTS games (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_id       TEXT UNIQUE,
+    source        TEXT,
     tournament_id TEXT NOT NULL REFERENCES tournaments(id),
     round         INTEGER NOT NULL,
-    table_no      INTEGER NOT NULL,
+    table_no      INTEGER,
+    date          TEXT,
+    day           INTEGER,
+    rule          INTEGER,
+    rated         INTEGER,
+    black_id      TEXT,
     black_no      INTEGER,
     black_name    TEXT NOT NULL,
+    black_country INTEGER,
+    white_id      TEXT,
     white_no      INTEGER,
     white_name    TEXT NOT NULL,
+    white_country INTEGER,
     result        TEXT,
+    swap          TEXT,
+    opening       TEXT,
+    moves         TEXT,
+    base_time     INTEGER,
+    increment     INTEGER,
     p_black       REAL,
     p_draw        REAL,
-    p_white       REAL,
-    UNIQUE (tournament_id, round, table_no)
+    p_white       REAL
 );
 """
 
@@ -603,7 +627,7 @@ def export_api(conn):
     导出的内容只由库决定，不带导出时间：同一份库跑两次，产物逐字节相同，
     这样 GitHub Actions 定时跑不会因为时间戳而空提交。"""
     tours = conn.execute(
-        'SELECT * FROM tournaments ORDER BY year DESC, id'
+        "SELECT * FROM tournaments WHERE slug IS NOT NULL AND slug != '' ORDER BY year DESC, id"
     ).fetchall()
     if not tours:
         die('库里还没有赛事，先 record 一轮')
@@ -821,9 +845,10 @@ def sync_sources(conn):
 # ---------------------------------------------------------------- show
 
 def show(conn, tid=None):
-    tours = conn.execute('SELECT * FROM tournaments ORDER BY year DESC, id').fetchall()
     if tid:
-        tours = [t for t in tours if t['id'] == tid]
+        tours = conn.execute('SELECT * FROM tournaments WHERE id=?', (tid,)).fetchall()
+    else:
+        tours = conn.execute("SELECT * FROM tournaments WHERE slug IS NOT NULL AND slug != '' ORDER BY year DESC, id").fetchall()
     if not tours:
         print('（库里没有赛事）')
         return
@@ -832,7 +857,7 @@ def show(conn, tid=None):
         for r in conn.execute(
                 'SELECT * FROM rounds WHERE tournament_id=? ORDER BY round', (t['id'],)):
             rows = conn.execute(
-                'SELECT result, p_black FROM games WHERE tournament_id=? AND round=?',
+                'SELECT result, p_black, black_name, white_name FROM games WHERE tournament_id=? AND round=?',
                 (t['id'], r['round']),
             ).fetchall()
             played, predicted = _round_stats(rows)

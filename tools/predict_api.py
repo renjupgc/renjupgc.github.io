@@ -153,8 +153,36 @@ def _csv_lite_cache_path(path):
 
 
 def load_all_games_csv(csv_path=None):
-    """加载统一对局 CSV（跳过 moves 列并启用轻量缓存，按时间排序）。"""
-    path = csv_path or ALL_GAMES_CSV_PATH
+    """加载统一对局数据（默认从 data/duiju.db 读取，也可指定 CSV 路径）。"""
+    path = csv_path or DB_PATH
+    if str(path).endswith('.db'):
+        if not os.path.exists(path):
+            raise FileNotFoundError(f'未找到数据库文件: {path}')
+        conn = sqlite3.connect(path)
+        name_to_pid = {}
+        games = []
+        sql = """
+            SELECT g.tournament_id, t.name, g.round, g.black_id, g.black_name,
+                   g.white_id, g.white_name, g.result, g.day
+            FROM games g
+            LEFT JOIN tournaments t ON t.id = g.tournament_id
+            WHERE g.result IN ('B', 'W', 'D') AND g.day > 0
+            ORDER BY g.day, g.round, g.id
+        """
+        for tid, tname, rnd_raw, bid_raw, bn, wid_raw, wn, res, day in conn.execute(sql):
+            b_id = bid_raw or bn
+            w_id = wid_raw or wn
+            if not b_id or not w_id or b_id == w_id:
+                continue
+            rnd = int(rnd_raw) if rnd_raw and int(rnd_raw) > 0 else None
+            games.append((tid, rnd, b_id, w_id, res, int(day), tname or ''))
+            if bn and b_id and bn not in name_to_pid:
+                name_to_pid[bn] = b_id
+            if wn and w_id and wn not in name_to_pid:
+                name_to_pid[wn] = w_id
+        conn.close()
+        return games, name_to_pid
+
     if not os.path.exists(path):
         raise FileNotFoundError(f'未找到统一对局 CSV 文件: {path}，请先运行 tools/export_games_csv.py')
 
