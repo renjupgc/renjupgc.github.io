@@ -445,7 +445,7 @@ def get_tournament_meta(conn, tid):
 
 def compute_final_states_map(conn, tid, rnd, games_rows, total_rounds=None):
     """计算每台的末轮双方状态 (final_state_b, final_state_w):
-    0: 非最后一轮, 1: 争胜, 2: 保和, 3: 无利害。"""
+    0: 非最后一轮或已无争冠可能, 1: 争胜, 2: 保和, 3: 无利害（已稳夺唯一冠军）。"""
     if not total_rounds or rnd != total_rounds:
         return {}
 
@@ -482,15 +482,18 @@ def compute_final_states_map(conn, tid, rnd, games_rows, total_rounds=None):
     out = {}
     for g in games_rows:
         b, w = g['black_name'], g['white_name']
-        if b == '轮空' or w == '轮空' or (pts[b] < cur_leader - 1.0 and pts[w] < cur_leader - 1.0):
+        if b == '轮空' or w == '轮空':
             out[g['table_no']] = (0, 0)
             continue
         states = []
         for p, opp in ((b, w), (w, b)):
+            if pts[p] < cur_leader - 1.0:
+                states.append(0)
+                continue
             other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
             max_if_lose = max(other_max, pts[opp] + 1.0)
             max_if_draw = max(other_max, pts[opp] + 0.5)
-            if pts[p] > max_if_lose or pts[p] + 1.0 < cur_leader:
+            if pts[p] > max_if_lose:
                 states.append(3)
             elif pts[p] + 0.5 > max_if_draw:
                 states.append(2)
