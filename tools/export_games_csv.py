@@ -323,7 +323,7 @@ def infer_rule_id(rule_text, opening_code=""):
         return 24
     if "五手两打" in rt or "五手二打" in rt:
         return 2
-    if "山口" in rt or "Yamaguchi" in rt:
+    if "山口规则" in rt or "山口开局" in rt or "连珠山口" in rt or "Yamaguchi" in rt:
         return 1
     oc = str(opening_code or "").strip()
     if oc.startswith("R:") and len(oc) >= 7:
