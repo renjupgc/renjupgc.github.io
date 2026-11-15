@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""赛事对局胜率预测 API（基于统一 CSV 与 6 特征 Glicko-GBDT 模型，含时限特征）。
+"""赛事对局胜率预测 API（基于统一 CSV 与 7 特征 Glicko-GBDT 模型）。
 
 核心逻辑：
 1. 数据源：基于 data/all_games.csv（含 RIF XML 历史库与已完赛赛事对局），
    仅使用当前赛事开始时间之前的其他赛事对局，以及本赛事轮数更小的对局。
-2. 特征计算：按时间顺序单遍递推 Glicko-1 等级分（共 6 维）：
-   [rule, rating_tb, rating_tw, rating_diff, base_time, increment]
+2. 特征计算：按时间顺序单遍递推 Glicko-1 等级分（共 7 维）：
+   [rule, rating_tb, rating_tw, rating_diff, base_time, increment, draw_clinch_final]
 3. 预测接口：支持按 (赛事, 轮次, 台次) 或整轮预测，模型为 bisai/data/model_glicko_20261113.json。
 
 用法：
@@ -65,6 +65,10 @@ RULE_MAP = {
 
 TOURNAMENT_TIME_CONTROLS = {
     '2026-shanhai': (2700, 30),
+}
+
+TOURNAMENT_TOTAL_ROUNDS = {
+    '2026-shanhai': 9,
 }
 
 _MODEL_CACHE = None
@@ -406,8 +410,60 @@ def get_player_rating(ctx, name):
 
 # ---------------------------------------------------------------- 对局预测 API
 
-def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None, base_time=None, increment=None):
-    """基于 6 特征 Glicko-GBDT 模型推断一组对局的胜率。"""
+def compute_draw_clinch_map(conn, tid, rnd, games_rows):
+    """若当前为赛事最后一轮，计算每台是否满足“赛前未锁定夺冠、和棋即可锁定冠军”(1/0)。"""
+    total_rounds = TOURNAMENT_TOTAL_ROUNDS.get(tid)
+    if not total_rounds or rnd != total_rounds:
+        return {}
+
+    from collections import defaultdict
+    pts = defaultdict(float)
+    prev_rows = conn.execute(
+        'SELECT black_name, white_name, result FROM games WHERE tournament_id=? AND round < ?',
+        (tid, rnd)
+    ).fetchall()
+    for r in prev_rows:
+        eff = get_effective_result(r['result'])
+        bn, wn = r['black_name'], r['white_name']
+        if eff == 'B':
+            if bn != '轮空':
+                pts[bn] += 1.0
+        elif eff == 'W':
+            if wn != '轮空':
+                pts[wn] += 1.0
+        elif eff == 'D':
+            if bn != '轮空':
+                pts[bn] += 0.5
+            if wn != '轮空':
+                pts[wn] += 0.5
+
+    final_rows = conn.execute(
+        'SELECT black_name, white_name FROM games WHERE tournament_id=? AND round=?',
+        (tid, rnd)
+    ).fetchall()
+    in_final = {
+        nm for r in final_rows for nm in (r['black_name'], r['white_name']) if nm and nm != '轮空'
+    }
+
+    out = {}
+    for g in games_rows:
+        b, w = g['black_name'], g['white_name']
+        if b == '轮空' or w == '轮空':
+            out[g['table_no']] = 0
+            continue
+        flag = 0
+        for p, opp in ((b, w), (w, b)):
+            other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
+            max_if_lose = max(other_max, pts[opp] + 1.0)
+            if pts[p] <= max_if_lose and pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
+                flag = 1
+                break
+        out[g['table_no']] = flag
+    return out
+
+
+def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None, base_time=None, increment=None, draw_clinch_map=None):
+    """基于 7 特征 Glicko-GBDT 模型推断一组对局的胜率。"""
     model = model or load_gbdt_model()
     rule_id = RULE_MAP.get(rule_name, 25)
     glicko_dr_map = ctx.get('glicko_dr_snapshot') or {}
@@ -453,7 +509,8 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None,
         gdr_b = glicko_dr_map.get(p1_id, GLICKO_BASE_DRAW_P)
         gdr_w = glicko_dr_map.get(p2_id, GLICKO_BASE_DRAW_P)
 
-        feat = [rule_id, rb, rw, rb - rw, base_time, increment]
+        clinch = (draw_clinch_map or {}).get(g['table_no'], 0)
+        feat = [rule_id, rb, rw, rb - rw, base_time, increment, clinch]
         pb, pd, pw = predict_gbdt(feat, model)
 
         top_prob = max(pb, pd, pw)
@@ -641,7 +698,8 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
 
     todo = games if overwrite else [g for g in games if g['result'] not in ('B', 'W', 'D')]
     base_time, increment = TOURNAMENT_TIME_CONTROLS.get(tid, (None, None))
-    preds = predict_games_list(todo, ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment)
+    draw_clinch_map = compute_draw_clinch_map(conn, tid, rnd, games)
+    preds = predict_games_list(todo, ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment, draw_clinch_map=draw_clinch_map)
 
     if write and preds:
         for p in preds:
@@ -660,7 +718,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
         conn.commit()
         evaluate_tournament_model(conn, tid, write=True, print_report=False)
 
-    return predict_games_list(games, ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment)
+    return predict_games_list(games, ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment, draw_clinch_map=draw_clinch_map)
 
 
 def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=None):
@@ -679,7 +737,8 @@ def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=N
 
     ctx = compute_context_from_csv(tid=tid, upto_round=rnd, csv_path=csv_path)
     base_time, increment = TOURNAMENT_TIME_CONTROLS.get(tid, (None, None))
-    preds = predict_games_list([row], ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment)
+    draw_clinch_map = compute_draw_clinch_map(conn, tid, rnd, [row])
+    preds = predict_games_list([row], ctx, rule_name=rule_name, model=model, base_time=base_time, increment=increment, draw_clinch_map=draw_clinch_map)
     p = preds[0] if preds else None
 
     if write and p and (overwrite or row['result'] not in ('B', 'W', 'D')):

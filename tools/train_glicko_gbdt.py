@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""基于 data/all_games.csv 使用 Glicko-1 与 6 特征（含时限）训练 LightGBM GBDT 模型并导出 JSON。
+"""基于 data/all_games.csv 使用 Glicko-1 与 7 特征（含时限与末轮和棋锁定冠军）训练 LightGBM GBDT 模型并导出 JSON。
 
-特征 (6 维):
-  [rule, rating_tb, rating_tw, rating_diff, base_time, increment]
+特征 (7 维):
+  [rule, rating_tb, rating_tw, rating_diff, base_time, increment, draw_clinch_final]
 类别映射 (与 predict_api.py 一致):
   0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
 """
@@ -56,12 +56,75 @@ def load_training_games(csv_path, max_day_exclusive=SHANHAI_DAY):
             base_time = float(bt_str) if bt_str != "" else np.nan
             increment = float(inc_str) if inc_str != "" else np.nan
             games.append({
-                "idx": idx, "rnd": rnd, "day": day, "rule": rule,
+                "idx": idx, "tid": row.get("tournament_id") or "",
+                "rnd": rnd, "day": day, "rule": rule,
                 "base_time": base_time, "increment": increment,
                 "b_id": b_id, "w_id": w_id, "res": res,
             })
     games.sort(key=lambda g: (g["day"], g["rnd"], g["idx"]))
+    annotate_draw_clinch_final(games)
     return games
+
+
+def annotate_draw_clinch_final(games):
+    """标注每局是否为“最后一轮、赛前未锁定夺冠、和棋即可锁定冠军”(1/0)。"""
+    from collections import defaultdict
+    tours = defaultdict(list)
+    for g in games:
+        g["draw_clinch_final"] = 0
+        if g["tid"] and g["rnd"] > 0:
+            tours[g["tid"]].append(g)
+
+    for glist in tours.values():
+        if max(g["rnd"] for g in glist) < 3:
+            continue
+        parent = {}
+
+        def find(x):
+            while parent.setdefault(x, x) != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        for g in glist:
+            rb, rw = find(g["b_id"]), find(g["w_id"])
+            if rb != rw:
+                parent[rb] = rw
+
+        comps = defaultdict(list)
+        for g in glist:
+            comps[find(g["b_id"])].append(g)
+
+        for cg in comps.values():
+            max_r = max(g["rnd"] for g in cg)
+            if max_r < 3:
+                continue
+            pts = defaultdict(float)
+            in_final = set()
+            finals = []
+            for g in cg:
+                if g["rnd"] < max_r:
+                    if g["res"] == "B":
+                        pts[g["b_id"]] += 1.0
+                    elif g["res"] == "W":
+                        pts[g["w_id"]] += 1.0
+                    else:
+                        pts[g["b_id"]] += 0.5
+                        pts[g["w_id"]] += 0.5
+                else:
+                    in_final.add(g["b_id"])
+                    in_final.add(g["w_id"])
+                    finals.append(g)
+            if len(finals) < 2:
+                continue
+            for g in finals:
+                b, w = g["b_id"], g["w_id"]
+                for p, opp in ((b, w), (w, b)):
+                    other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
+                    max_if_lose = max(other_max, pts[opp] + 1.0)
+                    if pts[p] <= max_if_lose and pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
+                        g["draw_clinch_final"] = 1
+                        break
 
 
 def build_glicko_features(games):
@@ -85,7 +148,7 @@ def build_glicko_features(games):
         rw, rdw = get_pre_win(w_id, day)
         # 类别映射：0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
         label = 2 if res == "B" else (1 if res == "D" else 0)
-        rows.append((g["rule"], rb, rw, rb - rw, g["base_time"], g["increment"], label))
+        rows.append((g["rule"], rb, rw, rb - rw, g["base_time"], g["increment"], g["draw_clinch_final"], label))
 
         gb, gw = g_func(rdb), g_func(rdw)
         eb = 1.0 / (1.0 + 10.0 ** (-gw * (rb - rw) / 400.0))
@@ -101,7 +164,7 @@ def build_glicko_features(games):
         rd_map[w_id] = max(MIN_RD, math.sqrt(1.0 / dw))
         last_day[w_id] = day
 
-    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff", "base_time", "increment"]
+    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff", "base_time", "increment", "draw_clinch_final"]
     return pd.DataFrame(rows, columns=feature_cols + ["label"]), feature_cols
 
 
