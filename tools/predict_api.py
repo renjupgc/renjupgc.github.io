@@ -44,14 +44,20 @@ def get_effective_result(res):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
 ALL_GAMES_CSV_PATH = os.path.join(ROOT, 'data', 'all_games.csv')
-MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261113.json')
+MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_glicko_20261115.json')
 if not os.path.exists(MODEL_PATH):
     MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model.json')
 
-# WHR 官方基准常数：比赛日期 2026-11-14，对应的天数为 (date(2026, 11, 14) - date(1970, 1, 1)).days = 20771
-W2 = 19.3
-VIRTUAL_GAMES = 2
-BIAS = 1900.0
+# Glicko-1 基准常数与时间衰减常数
+GLICKO_Q = math.log(10.0) / 400.0
+GLICKO_Q2 = GLICKO_Q * GLICKO_Q
+GLICKO_THREE_Q2_OVER_PI2 = 3.0 * GLICKO_Q2 / (math.pi * math.pi)
+GLICKO_INIT_RATING = 2000.0
+GLICKO_INIT_RD = 350.0
+GLICKO_MIN_RD = 30.0
+GLICKO_MAX_RD = 350.0
+GLICKO_C2_PER_DAY = 100.0
+
 BASE_DAY = 20771  # 比赛日期 2026-11-14
 TAU = 730.0  # 衰减半衰尺度（天）
 
@@ -68,7 +74,7 @@ RULE_MAP = {
 _MODEL_CACHE = None
 _CSV_GAMES_CACHE = {}
 _CONTEXT_CACHE = {}
-_INCREMENTAL_WHR_STATE = {}  # (csv_path, tid) -> (last_upto_round, whr_base)
+_INCREMENTAL_GLICKO_STATE = {}  # (csv_path, csv_sig, tid) -> (last_upto_round, rating, rd_map, last_day)
 
 
 def connect(path=None):
@@ -141,7 +147,7 @@ def predict_gbdt(sample, model=None):
 
 def _csv_lite_cache_path(path):
     key = hashlib.md5(os.path.abspath(path).encode('utf-8')).hexdigest()[:12]
-    return os.path.join(tempfile.gettempdir(), f'renjupgc_all_games_lite_{key}.pkl')
+    return os.path.join(tempfile.gettempdir(), f'renjupgc_all_games_lite_v2_{key}.pkl')
 
 
 def load_all_games_csv(csv_path=None):
@@ -189,7 +195,8 @@ def load_all_games_csv(csv_path=None):
         i_res = col_idx['result']
         i_day = col_idx['day']
 
-        for row in reader:
+        indexed_games = []
+        for row_idx, row in enumerate(reader):
             res = row[i_res]
             if res not in ('B', 'W', 'D'):
                 continue
@@ -197,16 +204,18 @@ def load_all_games_csv(csv_path=None):
             w_name = row[i_wn]
             b_id = row[i_bid] or b_name
             w_id = row[i_wid] or w_name
-            if not b_id or not w_id:
+            if not b_id or not w_id or b_id == w_id:
                 continue
             try:
                 day = int(float(row[i_day] or 0))
             except ValueError:
                 day = 0
+            if day <= 0:
+                continue
             r_raw = row[i_rnd]
             rnd = int(r_raw) if r_raw.isdigit() else None
             tid = row[i_tid]
-            games.append((tid, rnd, b_id, w_id, res, day, b_name, w_name))
+            indexed_games.append((day, rnd or 0, row_idx, (tid, rnd, b_id, w_id, res, day, b_name, w_name)))
             if b_name and b_id and b_name not in name_to_pid:
                 name_to_pid[b_name] = b_id
             if w_name and w_id and w_name not in name_to_pid:
@@ -218,6 +227,9 @@ def load_all_games_csv(csv_path=None):
                     except ValueError:
                         pass
 
+        indexed_games.sort(key=lambda x: (x[0], x[1], x[2]))
+        games = [x[3] for x in indexed_games]
+
     result = (games, name_to_pid, pid_to_country)
     _CSV_GAMES_CACHE[path] = (sig, result)
     try:
@@ -228,43 +240,78 @@ def load_all_games_csv(csv_path=None):
     return result
 
 
+def _glicko_g(rd):
+    return 1.0 / math.sqrt(1.0 + GLICKO_THREE_Q2_OVER_PI2 * rd * rd)
+
+
+def _glicko_pre(rating, rd_map, last_day, pid, day):
+    r = rating.get(pid, GLICKO_INIT_RATING)
+    rd = rd_map.get(pid, GLICKO_INIT_RD)
+    ld = last_day.get(pid)
+    if ld is not None and day > ld:
+        rd = min(GLICKO_MAX_RD, math.sqrt(rd * rd + GLICKO_C2_PER_DAY * (day - ld)))
+    return r, rd
+
+
+def _glicko_step(rating, rd_map, last_day, day, b_id, w_id, res):
+    rb, rdb = _glicko_pre(rating, rd_map, last_day, b_id, day)
+    rw, rdw = _glicko_pre(rating, rd_map, last_day, w_id, day)
+    gb = _glicko_g(rdb)
+    gw = _glicko_g(rdw)
+    eb = 1.0 / (1.0 + 10.0 ** (-gw * (rb - rw) / 400.0))
+    ew = 1.0 / (1.0 + 10.0 ** (-gb * (rw - rb) / 400.0))
+    sb = 1.0 if res == 'B' else (0.5 if res == 'D' else 0.0)
+    sw = 1.0 - sb
+    db = 1.0 / (rdb * rdb) + GLICKO_Q2 * gw * gw * eb * (1.0 - eb)
+    dw = 1.0 / (rdw * rdw) + GLICKO_Q2 * gb * gb * ew * (1.0 - ew)
+    rating[b_id] = rb + (GLICKO_Q / db) * gw * (sb - eb)
+    rd_map[b_id] = max(GLICKO_MIN_RD, math.sqrt(1.0 / db))
+    last_day[b_id] = day
+    rating[w_id] = rw + (GLICKO_Q / dw) * gb * (sw - ew)
+    rd_map[w_id] = max(GLICKO_MIN_RD, math.sqrt(1.0 / dw))
+    last_day[w_id] = day
+
+
 def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
-    """完全基于统一 CSV 计算 WHR 等级分/RD、衰减和棋率、衰减 H2H 与国籍映射。
+    """完全基于统一 CSV 计算 Glicko-1 等级分/RD、衰减和棋率、衰减 H2H 与国籍映射。
 
     不读取 duiju.db，不做额外姓名重映射。
-    若指定了 upto_round，则过滤掉 CSV 中同赛事 round >= upto_round 的记录。
+    若指定了 tid：仅使用本次赛事开始时间之前（g_day < t_start_day）的历史对局，
+    以及本次赛事轮数更小（g_tid == tid 且 g_rnd < upto_round）的对局。
     """
     resolved_csv = csv_path or ALL_GAMES_CSV_PATH
     cache_key = (resolved_csv, tid, upto_round)
     if cache_key in _CONTEXT_CACHE:
         return _CONTEXT_CACHE[cache_key]
 
-    try:
-        import whr
-    except ImportError:
-        print('！ 提示：未安装 whr 库 (pip install whr)', file=sys.stderr)
-        whr = None
-
     csv_games, name_to_pid, pid_to_country = load_all_games_csv(resolved_csv)
 
-    # 基准日期取 CSV 中该赛事日期或全局最新日期（默认 BASE_DAY）
-    t_day = BASE_DAY
+    # 基准日期取 CSV 中该赛事开始日期（min）；若赛事尚未入库则取全库最新日期 + 1
     tid_days = [g[5] for g in csv_games if tid and g[0] == tid and g[5] > 0]
     if tid_days:
-        t_day = max(tid_days)
+        t_day = min(tid_days)
     elif csv_games:
-        t_day = max((g[5] for g in csv_games if g[5] > 0), default=BASE_DAY)
+        max_csv_day = max((g[5] for g in csv_games if g[5] > 0), default=BASE_DAY)
+        t_day = (max_csv_day + 1) if tid else max_csv_day
+    else:
+        t_day = BASE_DAY
 
-    whr_input = []
+    glicko_input = []
     dr_acc = {}   # pid -> [w_sum, d_sum]
     h2h_acc = {}  # (p1, p2) -> [w_sum, s_first_sum]
 
     for g_tid, g_rnd, b_id, w_id, res, g_day, _, _ in csv_games:
-        if g_day > t_day:
-            continue
-        if upto_round is not None and g_tid == tid and g_rnd is not None and g_rnd >= upto_round:
-            continue
-        whr_input.append([b_id, w_id, res, g_day])
+        if tid:
+            if g_tid == tid:
+                if upto_round is not None and (g_rnd is None or g_rnd >= upto_round):
+                    continue
+            else:
+                if g_day >= t_day:
+                    continue
+        else:
+            if g_day > t_day:
+                continue
+        glicko_input.append((b_id, w_id, res, g_day))
 
         # 时间衰减权重
         w = math.exp(-max(0, t_day - g_day) / TAU)
@@ -293,37 +340,34 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
             p_acc[0] += w
             p_acc[1] += s_first
 
-    whr_base = None
-    if whr is not None and whr_input:
-        st = os.stat(resolved_csv)
-        csv_sig = (st.st_mtime_ns, st.st_size)
-        inc_key = (resolved_csv, csv_sig, tid)
-        inc_state = _INCREMENTAL_WHR_STATE.get(inc_key)
-        if (
-            inc_state is not None
-            and upto_round is not None
-            and inc_state[0] is not None
-            and upto_round > inc_state[0]
-        ):
-            last_rnd, whr_base = inc_state
-            delta_games = [
-                [b_id, w_id, res, g_day]
-                for g_tid, g_rnd, b_id, w_id, res, g_day, _, _ in csv_games
-                if g_day <= t_day and g_tid == tid and g_rnd is not None and last_rnd <= g_rnd < upto_round
-            ]
-            if delta_games:
-                whr_base.create_games(delta_games)
-                whr_base.iterate_until_converge(verbose=False)
-            # 清除旧轮次缓存，避免外部拿到已被就地增量更新的 whr_base
-            for k in [k for k in _CONTEXT_CACHE if k[0] == resolved_csv and k[1] == tid and k[2] != upto_round]:
-                _CONTEXT_CACHE.pop(k, None)
-            _INCREMENTAL_WHR_STATE[inc_key] = (upto_round, whr_base)
-        else:
-            whr_base = whr.Base(config={'w2': W2, 'virtual_games': VIRTUAL_GAMES})
-            whr_base.create_games(whr_input)
-            whr_base.iterate_until_converge(verbose=False)
-            if tid is not None and upto_round is not None:
-                _INCREMENTAL_WHR_STATE[inc_key] = (upto_round, whr_base)
+    st = os.stat(resolved_csv)
+    csv_sig = (st.st_mtime_ns, st.st_size)
+    inc_key = (resolved_csv, csv_sig, tid)
+    inc_state = _INCREMENTAL_GLICKO_STATE.get(inc_key)
+    if (
+        inc_state is not None
+        and upto_round is not None
+        and inc_state[0] is not None
+        and upto_round > inc_state[0]
+    ):
+        last_rnd, rating, rd_map, last_day = inc_state
+        for g_tid, g_rnd, b_id, w_id, res, g_day, _, _ in csv_games:
+            if g_tid == tid and g_rnd is not None and last_rnd <= g_rnd < upto_round:
+                _glicko_step(rating, rd_map, last_day, g_day, b_id, w_id, res)
+        _INCREMENTAL_GLICKO_STATE[inc_key] = (upto_round, rating, rd_map, last_day)
+    else:
+        rating, rd_map, last_day = {}, {}, {}
+        for b_id, w_id, res, g_day in glicko_input:
+            _glicko_step(rating, rd_map, last_day, g_day, b_id, w_id, res)
+        if tid is not None and upto_round is not None:
+            _INCREMENTAL_GLICKO_STATE[inc_key] = (upto_round, rating, rd_map, last_day)
+
+    # 汇总当前时间点（t_day）各棋手 Glicko 等级分与时间膨胀 RD
+    pred_day = t_day + (max(0, (upto_round - 1) // 2) if upto_round else 0)
+    glicko_snapshot = {}
+    for pid in set(rating.keys()) | set(rd_map.keys()):
+        r_val, rd_val = _glicko_pre(rating, rd_map, last_day, pid, pred_day)
+        glicko_snapshot[pid] = (r_val, rd_val)
 
     # 汇总衰减和棋率映射
     dr_map = {
@@ -338,7 +382,7 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
     }
 
     ctx = {
-        'whr_base': whr_base,
+        'glicko_snapshot': glicko_snapshot,
         'dr_map': dr_map,
         'h2h_map': h2h_map,
         'name_to_pid': name_to_pid,
@@ -349,16 +393,15 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
 
 
 def get_player_rating(ctx, name):
-    """直接从 WHR 模型中查询棋手最新等级分与标准差。"""
-    whr_base = ctx.get('whr_base')
-    if whr_base is None or not name or name == '轮空':
-        return {'rating': BIAS, 'rd': 100.0}
+    """直接从 Glicko 快照中查询棋手最新等级分与标准差 (RD)。"""
+    snap = ctx.get('glicko_snapshot')
+    if not snap or not name or name == '轮空':
+        return {'rating': GLICKO_INIT_RATING, 'rd': GLICKO_INIT_RD}
     pid = ctx['name_to_pid'].get(name, name)
-    hist = whr_base.ratings_for_player(pid)
-    if hist:
-        latest = hist[-1]
-        return {'rating': round(latest[1] + BIAS, 1), 'rd': round(latest[2], 1)}
-    return {'rating': BIAS, 'rd': 100.0}
+    pair = snap.get(pid)
+    if pair is not None:
+        return {'rating': round(pair[0], 1), 'rd': round(pair[1], 1)}
+    return {'rating': GLICKO_INIT_RATING, 'rd': GLICKO_INIT_RD}
 
 
 # ---------------------------------------------------------------- 对局预测 API
@@ -429,13 +472,21 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None)
         c_b = pid_to_country.get(p1_id, 5)
         c_w = pid_to_country.get(p2_id, 5)
 
-        # 14 维特征向量
-        feat = [
-            rule_id, rb, rw, diff, mean_r,
-            stdb, stdw, j_std,
-            dr_b, dr_w, comb_dr,
-            h2h_rate, c_b, c_w
-        ]
+        n_feats = len(model.get('features', []))
+        if n_feats == 4:
+            # Glicko 4 维特征向量: [rule, rating_tb, rating_tw, rating_diff]
+            feat = [rule_id, rb, rw, diff]
+        elif n_feats == 5:
+            # Glicko 5 维特征向量
+            feat = [rule_id, rb, rw, diff, mean_r]
+        else:
+            # 兼容旧 14 维特征向量
+            feat = [
+                rule_id, rb, rw, diff, mean_r,
+                stdb, stdw, j_std,
+                dr_b, dr_w, comb_dr,
+                h2h_rate, c_b, c_w
+            ]
         pb, pd, pw = predict_gbdt(feat, model)
 
         # 预测最高项判定
