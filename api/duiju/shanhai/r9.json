@@ -40,28 +40,28 @@
     },
     {
       "round": 8,
-      "is_finished": false
+      "is_finished": true
     },
     {
       "round": 9,
       "is_finished": false
     }
   ],
-  "model": null,
-  "predicted_at": null,
-  "updated_at": "2026-11-15 21:18:01",
+  "model": "model_glicko_20261113",
+  "predicted_at": "2026-11-15 21:22:01",
+  "updated_at": "2026-11-15 21:22:01",
   "games": [
     {
       "table": 1,
       "black": {
         "no": 19,
         "name": "赵云",
-        "score": 6
+        "score": 7
       },
       "white": {
         "no": 35,
         "name": "万俊宏",
-        "score": 5.5
+        "score": 6.5
       },
       "prediction": {
         "black": 52.5,
@@ -76,12 +76,12 @@
       "black": {
         "no": 27,
         "name": "梁中",
-        "score": 5
+        "score": 5.5
       },
       "white": {
         "no": 40,
         "name": "何舒军",
-        "score": 5.5
+        "score": 6.0
       },
       "prediction": {
         "black": 18.1,
@@ -96,7 +96,7 @@
       "black": {
         "no": 2,
         "name": "钟煜阳",
-        "score": 5
+        "score": 5.5
       },
       "white": {
         "no": 43,
@@ -116,12 +116,12 @@
       "black": {
         "no": 3,
         "name": "韦振强",
-        "score": 4.5
+        "score": 5.5
       },
       "white": {
         "no": 8,
         "name": "徐嘉琦",
-        "score": 5.0
+        "score": 5.5
       },
       "prediction": {
         "black": 52.2,
@@ -136,12 +136,12 @@
       "black": {
         "no": 6,
         "name": "章小剑",
-        "score": 4.5
+        "score": 5.5
       },
       "white": {
         "no": 24,
         "name": "马子轩",
-        "score": 4
+        "score": 5
       },
       "prediction": {
         "black": 73.0,
@@ -156,12 +156,12 @@
       "black": {
         "no": 13,
         "name": "康哲铭",
-        "score": 4.0
+        "score": 5.0
       },
       "white": {
         "no": 9,
         "name": "康庭瑞",
-        "score": 4.0
+        "score": 5.0
       },
       "prediction": {
         "black": 43.9,
@@ -176,7 +176,7 @@
       "black": {
         "no": 30,
         "name": "黄大兴",
-        "score": 4
+        "score": 5
       },
       "white": {
         "no": 14,
@@ -196,7 +196,7 @@
       "black": {
         "no": 1,
         "name": "王俊锴",
-        "score": 3.5
+        "score": 4.5
       },
       "white": {
         "no": 46,
@@ -236,12 +236,12 @@
       "black": {
         "no": 38,
         "name": "黄健光",
-        "score": 3.5
+        "score": 4.5
       },
       "white": {
         "no": 32,
         "name": "夏建晋",
-        "score": 3.5
+        "score": 4.5
       },
       "prediction": {
         "black": 46.4,
@@ -256,7 +256,7 @@
       "black": {
         "no": 5,
         "name": "彭维刚",
-        "score": 3
+        "score": 4
       },
       "white": {
         "no": 39,
@@ -296,12 +296,12 @@
       "black": {
         "no": 37,
         "name": "周楠",
-        "score": 3.0
+        "score": 4.0
       },
       "white": {
         "no": 45,
         "name": "朱佳颐",
-        "score": 3
+        "score": 4
       },
       "prediction": {
         "black": 77.1,
@@ -316,12 +316,12 @@
       "black": {
         "no": 42,
         "name": "钟保贵",
-        "score": 2.5
+        "score": 3.5
       },
       "white": {
         "no": 10,
         "name": "文英",
-        "score": 3
+        "score": 3.5
       },
       "prediction": {
         "black": 52.3,
@@ -336,7 +336,7 @@
       "black": {
         "no": 29,
         "name": "庄义翔",
-        "score": 3
+        "score": 3.5
       },
       "white": {
         "no": 18,
@@ -361,7 +361,7 @@
       "white": {
         "no": 22,
         "name": "刘沁",
-        "score": 3.0
+        "score": 3.5
       },
       "prediction": {
         "black": 26.6,
@@ -376,7 +376,7 @@
       "black": {
         "no": 28,
         "name": "肖伊康",
-        "score": 3.0
+        "score": 3.5
       },
       "white": {
         "no": 36,
@@ -396,12 +396,12 @@
       "black": {
         "no": 11,
         "name": "童晨",
-        "score": 2
+        "score": 3
       },
       "white": {
         "no": 4,
         "name": "廖俊豪",
-        "score": 2
+        "score": 3
       },
       "prediction": {
         "black": 30.8,
@@ -416,7 +416,7 @@
       "black": {
         "no": 7,
         "name": "张硕",
-        "score": 2
+        "score": 3
       },
       "white": {
         "no": 31,
