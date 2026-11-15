@@ -15,11 +15,14 @@
 import argparse
 import csv
 from datetime import datetime, timezone, timedelta
+import hashlib
 import json
 import math
 import os
+import pickle
 import sqlite3
 import sys
+import tempfile
 
 TZ = timezone(timedelta(hours=8))
 
@@ -65,6 +68,7 @@ RULE_MAP = {
 _MODEL_CACHE = None
 _CSV_GAMES_CACHE = {}
 _CONTEXT_CACHE = {}
+_INCREMENTAL_WHR_STATE = {}  # (csv_path, tid) -> (last_upto_round, whr_base)
 
 
 def connect(path=None):
@@ -135,46 +139,79 @@ def predict_gbdt(sample, model=None):
     return pb, pd, pw
 
 
-def load_all_games_csv(csv_path=None):
-    """加载统一对局 CSV（含 RIF XML 历史库 + duiju.db 已完赛对局）。"""
-    path = csv_path or ALL_GAMES_CSV_PATH
-    if path in _CSV_GAMES_CACHE:
-        return _CSV_GAMES_CACHE[path]
+def _csv_lite_cache_path(path):
+    key = hashlib.md5(os.path.abspath(path).encode('utf-8')).hexdigest()[:12]
+    return os.path.join(tempfile.gettempdir(), f'renjupgc_all_games_lite_{key}.pkl')
 
+
+def load_all_games_csv(csv_path=None):
+    """加载统一对局 CSV（跳过 moves 列并启用轻量缓存）。"""
+    path = csv_path or ALL_GAMES_CSV_PATH
     if not os.path.exists(path):
         raise FileNotFoundError(f'未找到统一对局 CSV 文件: {path}，请先运行 tools/export_games_csv.py')
+
+    st = os.stat(path)
+    sig = (st.st_mtime_ns, st.st_size)
+    cached = _CSV_GAMES_CACHE.get(path)
+    if cached is not None and cached[0] == sig:
+        return cached[1]
+
+    pkl_path = _csv_lite_cache_path(path)
+    if os.path.exists(pkl_path):
+        try:
+            with open(pkl_path, 'rb') as pf:
+                pkl_sig, result = pickle.load(pf)
+            if pkl_sig == sig:
+                _CSV_GAMES_CACHE[path] = (sig, result)
+                return result
+        except Exception:
+            pass
 
     games = []
     name_to_pid = {}
     pid_to_country = {}
     with open(path, 'r', encoding='utf-8', newline='') as f:
-        reader = csv.DictReader(f)
+        reader = csv.reader(f)
+        header = next(reader, None)
+        if not header:
+            result = (games, name_to_pid, pid_to_country)
+            _CSV_GAMES_CACHE[path] = (sig, result)
+            return result
+        col_idx = {name: i for i, name in enumerate(header)}
+        i_tid = col_idx['tournament_id']
+        i_rnd = col_idx['round']
+        i_bid = col_idx['black_id']
+        i_bn = col_idx['black_name']
+        i_bc = col_idx['black_country']
+        i_wid = col_idx['white_id']
+        i_wn = col_idx['white_name']
+        i_wc = col_idx['white_country']
+        i_res = col_idx['result']
+        i_day = col_idx['day']
+
         for row in reader:
-            res = row.get('result', '')
+            res = row[i_res]
             if res not in ('B', 'W', 'D'):
                 continue
-            b_id = row.get('black_id') or row.get('black_name') or ''
-            w_id = row.get('white_id') or row.get('white_name') or ''
-            b_name = row.get('black_name') or ''
-            w_name = row.get('white_name') or ''
+            b_name = row[i_bn]
+            w_name = row[i_wn]
+            b_id = row[i_bid] or b_name
+            w_id = row[i_wid] or w_name
             if not b_id or not w_id:
                 continue
             try:
-                day = int(float(row.get('day') or 0))
+                day = int(float(row[i_day] or 0))
             except ValueError:
                 day = 0
-            r_raw = row.get('round') or ''
-            try:
-                rnd = int(r_raw) if r_raw.isdigit() else None
-            except ValueError:
-                rnd = None
-            tid = row.get('tournament_id') or ''
+            r_raw = row[i_rnd]
+            rnd = int(r_raw) if r_raw.isdigit() else None
+            tid = row[i_tid]
             games.append((tid, rnd, b_id, w_id, res, day, b_name, w_name))
             if b_name and b_id and b_name not in name_to_pid:
                 name_to_pid[b_name] = b_id
             if w_name and w_id and w_name not in name_to_pid:
                 name_to_pid[w_name] = w_id
-            for pid, c_raw in ((b_id, row.get('black_country')), (w_id, row.get('white_country'))):
+            for pid, c_raw in ((b_id, row[i_bc]), (w_id, row[i_wc])):
                 if pid and c_raw:
                     try:
                         pid_to_country[pid] = int(c_raw)
@@ -182,7 +219,12 @@ def load_all_games_csv(csv_path=None):
                         pass
 
     result = (games, name_to_pid, pid_to_country)
-    _CSV_GAMES_CACHE[path] = result
+    _CSV_GAMES_CACHE[path] = (sig, result)
+    try:
+        with open(pkl_path, 'wb') as pf:
+            pickle.dump((sig, result), pf, protocol=pickle.HIGHEST_PROTOCOL)
+    except Exception:
+        pass
     return result
 
 
@@ -253,9 +295,35 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
 
     whr_base = None
     if whr is not None and whr_input:
-        whr_base = whr.Base(config={'w2': W2, 'virtual_games': VIRTUAL_GAMES})
-        whr_base.create_games(whr_input)
-        whr_base.iterate_until_converge(verbose=False)
+        st = os.stat(resolved_csv)
+        csv_sig = (st.st_mtime_ns, st.st_size)
+        inc_key = (resolved_csv, csv_sig, tid)
+        inc_state = _INCREMENTAL_WHR_STATE.get(inc_key)
+        if (
+            inc_state is not None
+            and upto_round is not None
+            and inc_state[0] is not None
+            and upto_round > inc_state[0]
+        ):
+            last_rnd, whr_base = inc_state
+            delta_games = [
+                [b_id, w_id, res, g_day]
+                for g_tid, g_rnd, b_id, w_id, res, g_day, _, _ in csv_games
+                if g_day <= t_day and g_tid == tid and g_rnd is not None and last_rnd <= g_rnd < upto_round
+            ]
+            if delta_games:
+                whr_base.create_games(delta_games)
+                whr_base.iterate_until_converge(verbose=False)
+            # 清除旧轮次缓存，避免外部拿到已被就地增量更新的 whr_base
+            for k in [k for k in _CONTEXT_CACHE if k[0] == resolved_csv and k[1] == tid and k[2] != upto_round]:
+                _CONTEXT_CACHE.pop(k, None)
+            _INCREMENTAL_WHR_STATE[inc_key] = (upto_round, whr_base)
+        else:
+            whr_base = whr.Base(config={'w2': W2, 'virtual_games': VIRTUAL_GAMES})
+            whr_base.create_games(whr_input)
+            whr_base.iterate_until_converge(verbose=False)
+            if tid is not None and upto_round is not None:
+                _INCREMENTAL_WHR_STATE[inc_key] = (upto_round, whr_base)
 
     # 汇总衰减和棋率映射
     dr_map = {
