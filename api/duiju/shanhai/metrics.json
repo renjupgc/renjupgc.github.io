@@ -8,15 +8,15 @@
     "rule": "塔拉山口-10"
   },
   "model": "model_20261113",
-  "evaluated_at": "2026-11-15 15:04:41",
+  "evaluated_at": "2026-11-15 15:50:58",
   "rounds": [
     {
       "n": 23,
       "hit": 18,
       "accuracy": 0.7826,
-      "brier": 0.3345,
-      "logloss": 0.5633,
-      "confidence": 0.8002,
+      "brier": 0.3556,
+      "logloss": 0.6083,
+      "confidence": 0.793,
       "results": {
         "B": 8,
         "D": 1,
@@ -38,9 +38,9 @@
       "n": 23,
       "hit": 14,
       "accuracy": 0.6087,
-      "brier": 0.5046,
-      "logloss": 0.8617,
-      "confidence": 0.785,
+      "brier": 0.5159,
+      "logloss": 0.8821,
+      "confidence": 0.7696,
       "results": {
         "B": 10,
         "D": 2,
@@ -60,11 +60,11 @@
     },
     {
       "n": 22,
-      "hit": 15,
-      "accuracy": 0.6818,
-      "brier": 0.415,
-      "logloss": 0.7967,
-      "confidence": 0.78,
+      "hit": 14,
+      "accuracy": 0.6364,
+      "brier": 0.4297,
+      "logloss": 0.8121,
+      "confidence": 0.747,
       "results": {
         "B": 4,
         "D": 3,
@@ -73,12 +73,12 @@
       "hit_by_result": {
         "B": 4,
         "D": 0,
-        "W": 11
+        "W": 10
       },
       "fav_distribution": {
         "B": 8,
-        "D": 0,
-        "W": 14
+        "D": 1,
+        "W": 13
       },
       "round": 3
     },
@@ -86,9 +86,9 @@
       "n": 22,
       "hit": 11,
       "accuracy": 0.5,
-      "brier": 0.7067,
-      "logloss": 1.2347,
-      "confidence": 0.7246,
+      "brier": 0.6674,
+      "logloss": 1.1915,
+      "confidence": 0.6941,
       "results": {
         "B": 10,
         "D": 5,
@@ -110,9 +110,9 @@
       "n": 22,
       "hit": 16,
       "accuracy": 0.7273,
-      "brier": 0.2855,
-      "logloss": 0.5308,
-      "confidence": 0.7536,
+      "brier": 0.2951,
+      "logloss": 0.5504,
+      "confidence": 0.7229,
       "results": {
         "B": 12,
         "D": 1,
@@ -133,11 +133,11 @@
   ],
   "overall": {
     "n": 112,
-    "hit": 74,
-    "accuracy": 0.6607,
-    "brier": 0.4487,
-    "logloss": 0.7959,
-    "confidence": 0.7691,
+    "hit": 73,
+    "accuracy": 0.6518,
+    "brier": 0.4525,
+    "logloss": 0.8077,
+    "confidence": 0.746,
     "results": {
       "B": 44,
       "D": 12,
@@ -146,12 +146,12 @@
     "hit_by_result": {
       "B": 38,
       "D": 0,
-      "W": 36
+      "W": 35
     },
     "fav_distribution": {
       "B": 64,
-      "D": 0,
-      "W": 48
+      "D": 1,
+      "W": 47
     }
   }
 }
