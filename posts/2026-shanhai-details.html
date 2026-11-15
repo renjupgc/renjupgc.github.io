@@ -287,11 +287,11 @@ tbody tr.shade td{background:var(--mint2)}
           '<td class="c-cp">' + (p.expected_rank == null ? '—' : p.expected_rank.toFixed(2)) + '</td>';
         var arr = p.rank_probs || [];
         for (var k = 0; k < m; k++) {
-          var v = arr[k] || 0;
-          if (v > 0) {
+          var v = arr[k];
+          if (v != null) {
             var alpha = Math.min(0.45, v / 100 * 0.55).toFixed(3);
             var txt = v.toFixed(2) + '%';
-            cells += '<td class="c-dp' + (v >= 5 ? ' hi' : '') + '" style="background:rgba(13,71,54,' + alpha + ')">' + txt + '</td>';
+            cells += '<td class="c-dp' + (v >= 5 ? ' hi' : '') + '"' + (v > 0 ? ' style="background:rgba(13,71,54,' + alpha + ')"' : '') + '>' + txt + '</td>';
           } else {
             cells += '<td class="c-dp">·</td>';
           }
@@ -384,12 +384,14 @@ tbody tr.shade td{background:var(--mint2)}
 
         var arr = p.rank_probs || [];
         for (var k = 0; k < m; k++) {
-          var v = arr[k] || 0;
+          var v = arr[k];
           var cx = padX + rkW + noW + nmW + erW + k * colW;
-          if (v > 0) {
-            var alpha = Math.min(0.45, v / 100 * 0.55);
-            ctx.fillStyle = 'rgba(13,71,54,' + alpha.toFixed(3) + ')';
-            ctx.fillRect(cx, ry, colW, rowH);
+          if (v != null) {
+            if (v > 0) {
+              var alpha = Math.min(0.45, v / 100 * 0.55);
+              ctx.fillStyle = 'rgba(13,71,54,' + alpha.toFixed(3) + ')';
+              ctx.fillRect(cx, ry, colW, rowH);
+            }
             ctx.font = (v >= 5 ? '600' : '400') + ' 11px "PingFang SC","Microsoft YaHei",sans-serif';
             ctx.fillStyle = v >= 5 ? '#15201c' : '#556159';
             ctx.fillText(v.toFixed(2) + '%', cx + colW / 2, ry + rowH / 2);
