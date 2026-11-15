@@ -1,8 +1,8 @@
 /* ==========================================================================
-   杂想 · 猜术语（AI 版）—— 界面与流程
+   杂想 · 猜术语 —— 界面与流程
    --------------------------------------------------------------------------
-   题目不预置：每次「新题」都现出一道。接入模型后由模型出题、模型判分；
-   没接入时退到本地组合器与字面估分，页面照样能玩，只是标注为「本地估算」。
+   题目与判分都由 assets/zx-bank.js + assets/zx-ai.js 提供，离线、无密钥。
+   每次「换一题」从没出过的组合里取一道，题目不重样，直到题库走完一轮。
 
    一次猜测返回：
      · 相似百分比（0–100，判的是与「正解 + 同一条路上的其它说法」的相对远近）
@@ -21,8 +21,7 @@
 
     var ui = {};
     ['idx', 'src', 'pass', 'bar', 'ch', 'q', 'input', 'go', 'count', 'hist',
-        'clues', 'cluebox', 'res', 'hint', 'skip', 'next', 'aistate', 'aitxt', 'aibtn',
-        'aipanel', 'preset', 'base', 'key', 'model', 'aisave', 'aiclear', 'aimsg'
+        'clues', 'cluebox', 'res', 'hint', 'skip', 'next', 'aistate', 'aitxt', 'bankinfo'
     ].forEach(function (k) {
         ui[k] = root.querySelector('[data-ui="' + k + '"]');
     });
@@ -106,7 +105,7 @@
         ui.q.textContent = '正在出题…';
         ui.q.classList.add('is-loading');
         ui.ch.textContent = '';
-        ui.src.textContent = AI.isReady() ? 'AI 出题中' : '本地出题';
+        ui.src.textContent = '出题';
         setBusy(true, '出题');
         ui.input.value = '';
 
@@ -120,14 +119,12 @@
             ui.q.classList.remove('is-loading');
             ui.q.textContent = q.prompt;
             ui.ch.textContent = q.chapter || '';
-            ui.src.textContent = (q.src === 'ai' ? 'AI 出题' : '本地出题') + (q.ref ? ' · ' + q.ref : '');
+            ui.src.textContent = '题库出题' + (q.ref ? ' · ' + q.ref : '');
             state.stats.q += 1;
             saveStats();
             renderScore();
-            ui.src.className = 'zg-src ' + (q.src === 'ai' ? 'is-ai' : 'is-local');
-            if (q.fallbackReason) {
-                ui.count.textContent = '这次没走通模型：' + q.fallbackReason + ' 题改由本地组合，仍在同一套语料上。';
-            }
+            ui.src.className = 'zg-src is-local';
+            ui.count.textContent = '题库还剩 ' + q.left + ' 道没出过；走完一轮自动重排。';
             setBusy(false);
             ui.input.disabled = false;
             /* 不要因为聚焦把页面拽到半截去 */
@@ -197,9 +194,9 @@
     function renderResult(r, word) {
         var html = '';
         html += '<p class="zg-pct ' + pctClass(r.similarity) + '"><b>' + r.similarity +
-            '</b><i>%</i><em class="zg-tag">' + (r.engine === 'ai' ? '模型判分' : '本地估算') + '</em></p>';
-        html += '<p class="zg-verdict"><b>' + esc(r.verdict) + '</b>你猜「' + esc(word) + '」' +
-            (r.similarity >= 95 ? '——就是它。' : '。') + '</p>';
+            '</b><i>%</i><em class="zg-tag">题库判分</em></p>';
+        html += '<p class="zg-verdict"><b>' + esc(r.verdict) + '</b>——你猜「' + esc(word) + '」' +
+            (r.similarity >= 95 ? '，就是它。' : '。') + '</p>';
 
         if (r.matched && r.matched.length) {
             html += '<ul class="zg-pts">' + r.matched.map(function (t) {
@@ -209,10 +206,6 @@
         if (r.gap) { html += '<p class="zg-gap">' + esc(r.gap) + '</p>'; }
         if (r.hint && r.similarity < 90) {
             html += '<p class="zg-hint">往这边想：' + esc(r.hint) + '</p>';
-        }
-        if (r.fallbackReason) {
-            html += '<p class="zg-warn">这次没走通模型（' + esc(r.fallbackReason) +
-                '），分数是本地按字面估的，看个方向就行。</p>';
         }
         if (r.similarity >= 95) {
             html += '<div class="zg-ansi">';
@@ -245,8 +238,8 @@
     function makeJson(r, word) {
         var q = state.q || {};
         return {
-            engine: r.engine,
-            model: r.engine === 'ai' ? (AI.loadCfg().model || '') : 'local-estimate',
+            engine: r.engine || 'bank',
+            model: r.model || 'zx-bank-v1',
             at: new Date().toISOString(),
             question: {
                 id: q.id || '',
@@ -271,7 +264,7 @@
                 hits: state.stats.hit,
                 avg: state.stats.n ? Math.round(state.stats.sum / state.stats.n) : 0
             },
-            note: r.fallbackReason ? ('本地兜底：' + r.fallbackReason) : ''
+            note: ''
         };
     }
 
@@ -290,9 +283,6 @@
             return;
         }
         var html = '';
-        if (state.q.hint) {
-            html += '<p class="zg-clues-k">方向：' + esc(state.q.hint) + '</p>';
-        }
         var acc = state.q.accept || [];
         if (acc.length) {
             html += '<p class="zg-clues-k">同一条路上还有这些说法，都算对，只是远近不同；点一下即算一次猜测。</p>';
@@ -307,83 +297,15 @@
         ui.hint.classList.add('is-on');
     }
 
-    /* ---------- 模型配置面板 ---------- */
+    /* ---------- 题库状态 ---------- */
 
-    function renderAiBar() {
-        var c = AI.loadCfg();
-        var on = AI.isReady();
-        ui.aistate.className = 'zx-ai-dot' + (on ? ' is-on' : '');
-        ui.aitxt.textContent = on
-            ? '模型已接入 · ' + c.model
-            : '未接入模型：题目与分数都走本地估算';
-        fillForm(c);
-    }
-
-    function fillForm(c) {
-        ui.preset.innerHTML = AI.PRESETS.map(function (p) {
-            return '<option value="' + p.id + '">' + p.name + '</option>';
-        }).join('');
-        var pid = c.preset || 'deepseek';
-        ui.preset.value = pid;
-        var p = AI.PRESETS.filter(function (x) { return x.id === pid; })[0];
-        ui.base.value = c.base || (p && p.base) || '';
-        ui.key.value = c.key || '';
-        ui.model.value = c.model || (p && p.model) || '';
-    }
-
-    if (ui.preset) {
-        ui.preset.addEventListener('change', function () {
-            var p = AI.PRESETS.filter(function (x) { return x.id === ui.preset.value; })[0];
-            if (p) {
-                ui.base.value = p.base || '';
-                ui.model.value = p.model || '';
-            }
-        });
-    }
-
-    if (ui.aibtn) {
-        ui.aibtn.addEventListener('click', function () {
-            ui.aipanel.hidden = !ui.aipanel.hidden;
-            ui.aibtn.textContent = ui.aipanel.hidden ? '接入 AI' : '收起';
-            if (!ui.aipanel.hidden) { ui.key.focus(); }
-        });
-    }
-
-    if (ui.aisave) {
-        ui.aisave.addEventListener('click', function () {
-            var base = ui.base.value.trim();
-            var key = ui.key.value.trim();
-            var model = ui.model.value.trim();
-            if (!base || !key || !model) {
-                ui.aimsg.className = 'zx-ai-msg is-bad';
-                ui.aimsg.textContent = '三项都要填。';
-                return;
-            }
-            AI.saveCfg({ base: base, key: key, model: model, preset: ui.preset.value });
-            ui.aimsg.className = 'zx-ai-msg';
-            ui.aimsg.textContent = '测试中…';
-            renderAiBar();
-            AI.test().then(function () {
-                ui.aimsg.className = 'zx-ai-msg is-ok';
-                ui.aimsg.textContent = '通了。之后的题由模型出、模型判。';
-                ui.aipanel.hidden = true;
-                ui.aibtn.textContent = '接入 AI';
-                newQuestion();
-            }).catch(function (err) {
-                ui.aimsg.className = 'zx-ai-msg is-bad';
-                ui.aimsg.textContent = '没通：' + (err && err.message ? err.message : '未知原因');
-            });
-        });
-    }
-
-    if (ui.aiclear) {
-        ui.aiclear.addEventListener('click', function () {
-            AI.clearCfg();
-            fillForm({ base: '', key: '', model: '', preset: 'deepseek' });
-            ui.aimsg.className = 'zx-ai-msg';
-            ui.aimsg.textContent = '已清除本机保存的密钥。';
-            renderAiBar();
-        });
+    function renderBankBar() {
+        var n = AI.size();
+        if (ui.aistate) { ui.aistate.className = 'zx-ai-dot is-on'; }
+        if (ui.aitxt) {
+            ui.aitxt.textContent = '题库已就绪 · ' + n + ' 道不重样的题，无需填任何密钥';
+        }
+        if (ui.bankinfo) { ui.bankinfo.textContent = n; }
     }
 
     /* ---------- 事件 ---------- */
@@ -437,7 +359,7 @@
 
     /* ---------- 启动 ---------- */
 
-    renderAiBar();
+    renderBankBar();
     renderScore();
     newQuestion();
 

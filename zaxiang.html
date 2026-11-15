@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>杂想 - 连珠杂箱</title>
-<meta name="description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题，与一个接入模型、无限出题的猜术语小游戏。">
+<meta name="description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题，与一个不用密钥的猜术语小游戏。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/zaxiang.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
 <meta property="og:title" content="杂想">
-<meta property="og:description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题，与一个接入模型、无限出题的猜术语小游戏。">
+<meta property="og:description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题，与一个不用密钥的猜术语小游戏。">
 <meta property="og:url" content="https://renjupgc.github.io/zaxiang.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="杂想">
-<meta name="twitter:description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题，与一个接入模型、无限出题的猜术语小游戏。">
+<meta name="twitter:description" content="潘冠臣谈连珠的片段箴言：取自微信对话与「杂论」文章，逐条释义，配以练习；附全书云图、系统总结、二十题习题，与一个不用密钥的猜术语小游戏。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
@@ -35,49 +35,19 @@
         <header class="page-head">
             <p class="eyebrow">栏目</p>
             <h1 class="page-title">杂想</h1>
-            <p class="page-desc">潘冠臣谈连珠的片段。一句一条，原话照录，其后释义，末附练习；另有全书云图、系统总结、二十题习题，以及一个接入模型、无限出题的猜术语小游戏。</p>
+            <p class="page-desc">潘冠臣谈连珠的片段。一句一条，原话照录，其后释义，末附练习；另有全书云图、系统总结、二十题习题，以及一个不用密钥、打开就能做的猜术语小游戏。</p>
         </header>
 
         <section class="zx-game" id="game">
             <div class="zx-game-hd">
                 <p class="zx-game-kicker">小 游 戏 · 猜 术 语</p>
                 <h2 class="zx-game-title">他说的话，落到哪一个词</h2>
-                <p class="zx-game-lead">题目不预置，出一题算一题：<b>接入模型后，由模型现场出题、现场判分</b>，问法都取自下面二十六条，可以一直做下去。答案没有绝对的对错——你说一个词，页面告诉你<strong>离他多远</strong>：百分比、相似点、差在哪。<b>九十五以上算想到</b>，其余只是远近之别，猜一次近一次。</p>
-                <p class="zx-game-note">每次判定都返回一份 JSON（题面、正解、你的词、相似度、相似点、差在哪），题下可展开；也可以在地址栏加 <code>?w=脱谱</code> 直接取。<b>没接入模型时</b>，题目由本地组合器出、分数按字面估，页面上会标出来。</p>
+                <p class="zx-game-lead">题目、判分与每个同路说法的分值，都已经预先算好写进页面：<b>打开就能做，不用注册、不用填密钥、不用联网</b>。题面都取自下面二十六条，换着问法出题，可以一直做下去。答案没有绝对的对错——你说一个词，页面告诉你<strong>离他多远</strong>：百分比、相似点、差在哪。<b>九十五以上算想到</b>，其余只是远近之别，猜一次近一次。</p>
+                <p class="zx-game-note">每次判定都返回一份 JSON（题面、正解、你的词、相似度、相似点、差在哪），题下可展开；也可以在地址栏加 <code>?w=脱谱</code> 直接取。判分只认两件事：<b>是不是那个术语</b>，以及<b>落在哪一层</b>——同一条路上的说法分值一律不同，位置也不泄露高低。</p>
                 <div class="zx-ai-bar">
-                    <span class="zx-ai-dot" data-ui="aistate"></span>
-                    <span class="zx-ai-txt" data-ui="aitxt">未接入模型：题目与分数都走本地估算</span>
-                    <button type="button" class="zx-ai-btn" data-ui="aibtn">接入 AI</button>
+                    <span class="zx-ai-dot is-on" data-ui="aistate"></span>
+                    <span class="zx-ai-txt" data-ui="aitxt">题库已就绪 · 正在数题</span>
                 </div>
-            </div>
-
-            <div class="zx-ai-form" data-ui="aipanel" hidden>
-                <div class="zx-ai-row">
-                    <label class="zx-ai-f">
-                        <span>服务商</span>
-                        <select data-ui="preset"></select>
-                    </label>
-                    <label class="zx-ai-f zx-ai-f--wide">
-                        <span>Base URL</span>
-                        <input data-ui="base" type="text" autocomplete="off" spellcheck="false" placeholder="https://api.deepseek.com/v1">
-                    </label>
-                </div>
-                <div class="zx-ai-row">
-                    <label class="zx-ai-f">
-                        <span>密钥</span>
-                        <input data-ui="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
-                    </label>
-                    <label class="zx-ai-f">
-                        <span>模型</span>
-                        <input data-ui="model" type="text" autocomplete="off" spellcheck="false" placeholder="deepseek-chat">
-                    </label>
-                </div>
-                <div class="zx-ai-acts">
-                    <button type="button" class="zg-btn zg-btn--go" data-ui="aisave">保存并测试</button>
-                    <button type="button" class="zg-btn zg-btn--ghost" data-ui="aiclear">清除密钥</button>
-                    <span class="zx-ai-msg" data-ui="aimsg"></span>
-                </div>
-                <p class="zx-ai-note">密钥只写进这台浏览器的 localStorage，不上传、不进仓库；公用电脑用完点「清除密钥」。接口一律是 OpenAI 兼容的 <code>/chat/completions</code>：DeepSeek、智谱、Moonshot、通义、OpenAI 或你自己的转发地址都能填。若提示跨域被拦，换一家或填自建代理。</p>
             </div>
 
             <pre class="zx-json-echo" id="zx-json-echo" hidden></pre>
@@ -85,7 +55,7 @@
             <div class="zg-panel" id="zx-play">
                 <div class="zg-top">
                     <span class="zg-idx" data-ui="idx">第 1 题</span>
-                    <span class="zg-src is-local" data-ui="src">本地出题</span>
+                    <span class="zg-src is-local" data-ui="src">题库出题</span>
                     <span class="zg-pass" data-ui="pass">命中 0</span>
                 </div>
                 <div class="zg-bar" aria-hidden="true"><i data-ui="bar"></i></div>
@@ -98,16 +68,16 @@
                 </div>
                 <p class="zg-count" data-ui="count"></p>
                 <ol class="zg-hist" data-ui="hist" hidden></ol>
+                <div class="zg-res" data-ui="res" hidden aria-live="polite"></div>
                 <div class="zg-clues" data-ui="clues" hidden>
                     <div data-ui="cluebox"></div>
                 </div>
-                <div class="zg-res" data-ui="res" hidden aria-live="polite"></div>
                 <div class="zg-btns">
                     <button type="button" class="zg-btn zg-btn--ghost" data-ui="hint">提示</button>
                     <button type="button" class="zg-btn zg-btn--ghost" data-ui="skip">看答案（不计分）</button>
                     <button type="button" class="zg-btn zg-btn--next" data-ui="next">换一题</button>
                 </div>
-                <p class="zg-keys">回车即猜；同一题可以一直猜，猜过的词会记在上面。题目不重复，出到你不想做为止。</p>
+                <p class="zg-keys">回车即猜；同一题可以一直猜，猜过的词会记在上面。题目不重样，走完一轮自动重排。</p>
             </div>
         </section>
 
@@ -303,7 +273,7 @@
                 <li><a href="#ch7"><b>七</b>手筋与规则：看起来好与实际好</a></li>
                 <li><a href="#sum"><b>总</b>总结：三处前后不一与七章主线</a></li>
                 <li><a href="#hw"><b>题</b>习题二十题：判断、辨析、实战</a></li>
-                <li><a href="#game"><b>戏</b>小游戏：无限出题，问的是术语</a></li>
+                <li><a href="#game"><b>戏</b>小游戏：猜术语，不用密钥</a></li>
             </ul>
         </nav>
 
@@ -1381,10 +1351,11 @@
             <p class="zx-small">语音转文字常把「棋」写成「旗」「期」，把「脱谱」写成「脱普」，把「疏星两打」写成「舒性／属性／输星／输成两打」。凡语义可辨的，本页按上下文订正；订正后仍读不通的，保留原样并标〔？〕；整句混乱到无从判断的，用省略号略过，不拿整理者的猜测去替说话人圆场。</p>
 
             <h2>后续 · 练习与延伸</h2>
-            <p>练习分三类：条目里的一句一问，随读随做；<b>二十题</b>成组使用，A 组判断、B 组辨析、C 组实战，用来查记没记住、用没用上；页首的<b>猜术语小游戏</b>把「说得出来」压成两三个字：题目不预置，接入模型后现场出题、现场判分，答案只论远近，不论对错。片段仍在收集，新的原话按主题归入现有七章，实在归不进去的另开一章；编号顺延，不回改旧号。云图与总表随条数变动而改；若某章长到十数条，会拆章，届时旧号仍不改。</p>
+            <p>练习分三类：条目里的一句一问，随读随做；<b>二十题</b>成组使用，A 组判断、B 组辨析、C 组实战，用来查记没记住、用没用上；页首的<b>猜术语小游戏</b>把「说得出来」压成两三个字：题面逐字取自这二十六条，答案只论远近，不论对错。片段仍在收集，新的原话按主题归入现有七章，实在归不进去的另开一章；编号顺延，不回改旧号。云图与总表随条数变动而改；若某章长到十数条，会拆章，届时旧号仍不改。</p>
 
             <h2>更新记录</h2>
             <ul class="zx-log">
+                <li><b>2026-11-15</b>第八版。小游戏改为<b>离线题库</b>：术语、题核、问法三张表预先生成，运行时组合出两百七十道互不相同的题，打开即玩，<b>不用注册、不用填密钥、不用联网</b>。题面逐字取自本页二十六条，原话与释义分开标注，不会把释义冒充成他的话；判分走同一张术语表：正解一百，同一条路上的说法分值题内互不相同，表外词按字面估算且低于表内。第七版的「接入模型」面板撤下。</li>
                 <li><b>2026-11-15</b>第七版。小游戏重做：<b>题目不再预置</b>，每次「换一题」都现场生成——接入模型后由模型出题、模型判分，问法取自本页二十六条；没接入时退到本地组合器，用同一批语料拼题。答案没有绝对对错，只有相对远近：你说一个词，返回相似百分比、相似点、差在哪，并附完整 JSON（题面、正解、同路说法、你的词、分数）。接入方式在页面上填 Base URL / 密钥 / 模型，走 OpenAI 兼容接口，密钥只存本机。</li>
                 <li><b>2026-11-15</b>第六版。小游戏改成猜术语：每题一个连珠术语作正解，猜对 100%，同一条路上的词给四十到九十二之间的不同分值；每题的五六个相关词在「提示」里给出，点一下即可试；每次猜测返回百分比、相似点，并在题下附该题的相似度 JSON，也可用 <code>?q=3&amp;w=做杀</code> 直接取。</li>
                 <li><b>2026-11-15</b>第五版。小游戏改成猜词：每题只答两三个字，返回与本题答案（一组说法）的相似百分比与相似点，可反复猜、逐轮逼近，九十五以上揭示原话，九十以下只给一句模糊方向；面板移到页面最上方。原「答一句」的长答版本撤下。</li>
@@ -1401,6 +1372,7 @@
 </div>
 
 <script src="assets/layout.js"></script>
+<script src="assets/zx-bank.js"></script>
 <script src="assets/zx-ai.js"></script>
 <script src="assets/zaxiang-game.js"></script>
 
