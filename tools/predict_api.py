@@ -477,7 +477,6 @@ def compute_final_states_map(conn, tid, rnd, games_rows, total_rounds=None):
     in_final = {
         nm for r in final_rows for nm in (r['black_name'], r['white_name']) if nm and nm != '轮空'
     }
-    cur_leader = max((pts[q] for q in in_final), default=0.0)
 
     out = {}
     for g in games_rows:
@@ -487,16 +486,32 @@ def compute_final_states_map(conn, tid, rnd, games_rows, total_rounds=None):
             continue
         states = []
         for p, opp in ((b, w), (w, b)):
-            if pts[p] < cur_leader - 1.0:
-                states.append(4)
-                continue
             other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
             max_if_lose = max(other_max, pts[opp] + 1.0)
             max_if_draw = max(other_max, pts[opp] + 0.5)
+            min_other_if_win = pts[opp]
+            for fr in final_rows:
+                u, v = fr['black_name'], fr['white_name']
+                if (u == b and v == w) or (u == w and v == b):
+                    continue
+                if u == '轮空' or v == '轮空':
+                    solo = v if u == '轮空' else u
+                    if solo and pts[solo] > min_other_if_win:
+                        min_other_if_win = pts[solo]
+                    continue
+                pair_min_max = min(
+                    max(pts[u] + 1.0, pts[v]),
+                    max(pts[u], pts[v] + 1.0),
+                    max(pts[u], pts[v]) + 0.5,
+                )
+                if pair_min_max > min_other_if_win:
+                    min_other_if_win = pair_min_max
             if pts[p] > max_if_lose:
                 states.append(3)
             elif pts[p] + 0.5 > max_if_draw:
                 states.append(2)
+            elif pts[p] + 1.0 < min_other_if_win:
+                states.append(4)
             else:
                 states.append(1)
         out[g['table_no']] = (states[0], states[1])
