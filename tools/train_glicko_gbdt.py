@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""基于 data/duiju.db 使用 Glicko-1 与 8 特征（含时限与末轮双方争冠状态）训练 LightGBM GBDT 模型并导出 JSON。
+"""基于 data/duiju.db 使用 Glicko-1 与 7 特征（含时限与末轮最高分领先者一维状态）训练 LightGBM GBDT 模型并导出 JSON。
 
-特征 (8 维):
-  [rule, rating_tb, rating_tw, rating_diff, base_time, increment, final_state_b, final_state_w]
+特征 (7 维):
+  [rule, rating_tb, rating_tw, rating_diff, base_time, increment, final_state]
 类别映射 (与 predict_api.py 一致):
   0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
 """
@@ -98,18 +98,20 @@ def load_training_games(source_path=DEFAULT_DB_PATH, max_day_exclusive=SHANHAI_D
 
 
 def annotate_final_states(games):
-    """标注每局的末轮双方状态 (final_state_b, final_state_w):
-    仅在最后一轮对当时最高分领先者（pts[p] == cur_leader）判定状态，其余无关选手及非末轮均设为 0：
-    0: 非末轮或非当前最高分（无关状态）
-    1: 争胜（不满足 稳冠 与 保和）
-    2: 保和（非稳冠，且和棋即可严格领先所有人）
-    3: 稳冠（即使输棋仍严格领先所有人，一定拿到唯一冠军）
+    """标注每局的一维末轮状态 final_state（仅看当时最高分领先者，不存在最高分或非末轮为 0）:
+    0: 非末轮，或本局不存在当前最高分选手
+    1: 仅黑方为当前最高分，处于 争胜
+    2: 仅黑方为当前最高分，处于 保和
+    3: 仅黑方为当前最高分，处于 稳冠
+    4: 仅白方为当前最高分，处于 争胜
+    5: 仅白方为当前最高分，处于 保和
+    6: 仅白方为当前最高分，处于 稳冠
+    7: 双方同为当前最高分（均处于 争胜）
     """
     from collections import defaultdict
     tours = defaultdict(list)
     for g in games:
-        g["final_state_b"] = 0
-        g["final_state_w"] = 0
+        g["final_state"] = 0
         if g["tid"] and g["rnd"] > 0:
             tours[g["tid"]].append(g)
 
@@ -156,23 +158,27 @@ def annotate_final_states(games):
             if len(finals) < 2:
                 continue
             cur_leader = max((pts[q] for q in in_final), default=0.0)
+
+            def leader_state(p, opp):
+                other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
+                if pts[p] > max(other_max, pts[opp] + 1.0):
+                    return 3
+                if pts[p] + 0.5 > max(other_max, pts[opp] + 0.5):
+                    return 2
+                return 1
+
             for g in finals:
                 b, w = g["b_id"], g["w_id"]
-                states = []
-                for p, opp in ((b, w), (w, b)):
-                    if pts[p] != cur_leader:
-                        states.append(0)
-                        continue
-                    other_max = max((pts[q] + 1.0 for q in in_final if q != p and q != opp), default=-1.0)
-                    max_if_lose = max(other_max, pts[opp] + 1.0)
-                    max_if_draw = max(other_max, pts[opp] + 0.5)
-                    if pts[p] > max_if_lose:
-                        states.append(3)
-                    elif pts[p] + 0.5 > max_if_draw:
-                        states.append(2)
-                    else:
-                        states.append(1)
-                g["final_state_b"], g["final_state_w"] = states[0], states[1]
+                b_lead = pts[b] == cur_leader
+                w_lead = pts[w] == cur_leader
+                if b_lead and w_lead:
+                    g["final_state"] = 7
+                elif b_lead:
+                    g["final_state"] = leader_state(b, w)
+                elif w_lead:
+                    g["final_state"] = 3 + leader_state(w, b)
+                else:
+                    g["final_state"] = 0
 
 
 def build_glicko_features(games):
@@ -196,7 +202,7 @@ def build_glicko_features(games):
         rw, rdw = get_pre_win(w_id, day)
         # 类别映射：0: 白胜 (W), 1: 和棋 (D), 2: 黑胜 (B)
         label = 2 if res == "B" else (1 if res == "D" else 0)
-        rows.append((g["rule"], rb, rw, rb - rw, g["base_time"], g["increment"], g["final_state_b"], g["final_state_w"], label))
+        rows.append((g["rule"], rb, rw, rb - rw, g["base_time"], g["increment"], g["final_state"], label))
 
         gb, gw = g_func(rdb), g_func(rdw)
         eb = 1.0 / (1.0 + 10.0 ** (-gw * (rb - rw) / 400.0))
@@ -212,17 +218,16 @@ def build_glicko_features(games):
         rd_map[w_id] = max(MIN_RD, math.sqrt(1.0 / dw))
         last_day[w_id] = day
 
-    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff", "base_time", "increment", "final_state_b", "final_state_w"]
+    feature_cols = ["rule", "rating_tb", "rating_tw", "rating_diff", "base_time", "increment", "final_state"]
     return pd.DataFrame(rows, columns=feature_cols + ["label"]), feature_cols
 
 
 def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
-    cat_cols = ["rule", "final_state_b", "final_state_w"]
-    cat_indices = [0, 6, 7]
+    cat_cols = ["rule", "final_state"]
+    cat_indices = [0, 6]
     all_rules = sorted(list(df["rule"].unique()))
     df["rule"] = df["rule"].astype(pd.CategoricalDtype(categories=all_rules))
-    for col in ("final_state_b", "final_state_w"):
-        df[col] = df[col].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3]))
+    df["final_state"] = df["final_state"].astype(pd.CategoricalDtype(categories=[0, 1, 2, 3, 4, 5, 6, 7]))
 
     n_train = int(len(df) * 0.8)
     train_df = df.iloc[:n_train].copy()
