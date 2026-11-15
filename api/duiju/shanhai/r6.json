@@ -36,6 +36,10 @@
     },
     {
       "round": 7,
+      "is_finished": true
+    },
+    {
+      "round": 8,
       "is_finished": false
     }
   ],
