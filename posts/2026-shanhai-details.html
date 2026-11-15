@@ -52,6 +52,18 @@ tbody td.c-pt{font-weight:700}
 tbody td.c-bk,tbody td.c-md,tbody td.c-ws{color:var(--ink3)}
 tbody td.c-cp{font-weight:700;color:var(--green)}
 tbody td.c-cp.z{font-weight:400;color:var(--ink3)}
+.dist-card{margin-top:20px}
+.dist-hd{padding:14px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dist-hd h2{margin:0;font-size:17px;font-weight:700}
+.dist-hd span{font-size:12.5px;color:var(--ink3)}
+.dist-tb{table-layout:auto;width:max-content;min-width:100%}
+.dist-tb th,.dist-tb td{padding:7px 6px;font-size:12px;white-space:nowrap}
+.dist-tb .st-rk{position:sticky;left:0;z-index:2;background:var(--card);width:44px;min-width:44px}
+.dist-tb .st-nm{position:sticky;left:44px;z-index:2;background:var(--card);text-align:left;padding-left:10px;min-width:86px;border-right:1px solid var(--line)}
+.dist-tb tr.shade .st-rk,.dist-tb tr.shade .st-nm{background:var(--mint2)}
+.dist-tb thead .st-rk,.dist-tb thead .st-nm{background:var(--card);z-index:3}
+.dist-tb td.c-dp{color:var(--ink3);min-width:46px}
+.dist-tb td.c-dp.hi{color:var(--ink);font-weight:600}
 tbody tr:last-child td{border-bottom:none}
 tbody tr.shade td{background:var(--mint2)}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
@@ -113,6 +125,7 @@ tbody tr.shade td{background:var(--mint2)}
             <th>对手分</th>
             <th>中间<br>对手分</th>
             <th>胜局数</th>
+            <th id="th-er" style="display:none">期望<br>名次</th>
             <th id="th-cp" style="display:none">夺冠<br>概率</th>
             <th id="th-t3" style="display:none">前三<br>概率</th>
             <th id="th-t8" style="display:none">前八<br>概率</th>
@@ -121,6 +134,18 @@ tbody tr.shade td{background:var(--mint2)}
         <tbody id="rows">
           <tr><td colspan="7" class="empty">正在读取</td></tr>
         </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card dist-card" id="dist-card" style="display:none">
+    <div class="dist-hd">
+      <h2>名次分布二维表（第 1 名 – 第 <span id="dist-max">44</span> 名）</h2>
+      <span id="dist-sub">模拟 10,000,000 次 · 完全并列均分</span>
+    </div>
+    <div class="tb-wrap">
+      <table class="dist-tb" id="dist-tbl">
+        <thead id="dist-head"></thead>
+        <tbody id="dist-rows"></tbody>
       </table>
     </div>
   </div>
@@ -210,15 +235,20 @@ tbody tr.shade td{background:var(--mint2)}
 
   function render(d) {
     document.getElementById('rnd').textContent = '第 ' + d.round + ' 轮';
-    var hasCp = (d.ranking || []).some(function (p) { return p.champion_prob != null; });
+    var list = d.ranking || [];
+    var hasCp = list.some(function (p) { return p.champion_prob != null; });
+    var hasEr = list.some(function (p) { return p.expected_rank != null; });
     var tbl = document.getElementById('tbl');
-    if (tbl) tbl.classList.toggle('has-cp', hasCp);
+    if (tbl) tbl.classList.toggle('has-cp', hasCp || hasEr);
+    var thEr = document.getElementById('th-er');
+    if (thEr) thEr.style.display = hasEr ? '' : 'none';
     ['th-cp', 'th-t3', 'th-t8'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.style.display = hasCp ? '' : 'none';
     });
 
-    var html = (d.ranking || []).map(function (p, i) {
+    var html = list.map(function (p, i) {
+      var erCell = hasEr ? ('<td class="c-cp">' + (p.expected_rank == null ? '—' : p.expected_rank.toFixed(2)) + '</td>') : '';
       var probCells = hasCp
         ? (fmtProb(p.champion_prob) + fmtProb(p.top3_prob) + fmtProb(p.top8_prob))
         : '';
@@ -230,10 +260,41 @@ tbody tr.shade td{background:var(--mint2)}
         '<td class="c-bk">' + num(p.buch) + '</td>' +
         '<td class="c-md">' + num(p.med) + '</td>' +
         '<td class="c-ws">' + (p.wins == null ? '—' : p.wins) + '</td>' +
+        erCell +
         probCells +
         '</tr>';
     }).join('');
-    tbody.innerHTML = html || '<tr><td colspan="' + (hasCp ? 10 : 7) + '" class="empty">还没有名次</td></tr>';
+    var cols = 7 + (hasEr ? 1 : 0) + (hasCp ? 3 : 0);
+    tbody.innerHTML = html || '<tr><td colspan="' + cols + '" class="empty">还没有名次</td></tr>';
+
+    var distCard = document.getElementById('dist-card');
+    var hasDist = list.some(function (p) { return Array.isArray(p.rank_probs) && p.rank_probs.length; });
+    if (distCard) distCard.style.display = hasDist ? '' : 'none';
+    if (hasDist) {
+      var m = list[0].rank_probs.length;
+      document.getElementById('dist-max').textContent = m;
+      var hdr = '<tr><th class="st-rk">现名</th><th class="st-nm">棋手</th><th>期望</th>';
+      for (var r = 1; r <= m; r++) hdr += '<th>' + r + '</th>';
+      hdr += '</tr>';
+      document.getElementById('dist-head').innerHTML = hdr;
+      document.getElementById('dist-rows').innerHTML = list.map(function (p, i) {
+        var cells = '<td class="st-rk c-rk">' + p.rank + '</td>' +
+          '<td class="st-nm c-nm">' + esc(p.name) + '</td>' +
+          '<td class="c-cp">' + (p.expected_rank == null ? '—' : p.expected_rank.toFixed(2)) + '</td>';
+        var arr = p.rank_probs || [];
+        for (var k = 0; k < m; k++) {
+          var v = arr[k] || 0;
+          if (v > 0) {
+            var alpha = Math.min(0.45, v / 100 * 0.55).toFixed(3);
+            var txt = v >= 10 ? v.toFixed(1) + '%' : (v >= 0.1 ? v.toFixed(1) + '%' : v.toFixed(2) + '%');
+            cells += '<td class="c-dp' + (v >= 5 ? ' hi' : '') + '" style="background:rgba(13,71,54,' + alpha + ')">' + txt + '</td>';
+          } else {
+            cells += '<td class="c-dp">·</td>';
+          }
+        }
+        return '<tr' + (i % 2 ? ' class="shade"' : '') + '>' + cells + '</tr>';
+      }).join('');
+    }
   }
 })();
 </script>
