@@ -92,12 +92,12 @@ def parse_time_control(text):
             inc = int(round(mins * 60 / moves_cnt))
             inc_span = m_inc.span()
     if inc is None:
-        m_inc = re.search(r"(?:每走?一步加|每手加|\+)\s*(\d+)\s*秒(?:\s*/\s*手)?", s)
+        m_inc = re.search(r"(?:每走?一步加|每手加|\+)\s*(\d+)\s*(?:秒|sec|s)(?:\s*/\s*(?:手|move))?", s, re.IGNORECASE)
         if m_inc:
             inc = int(m_inc.group(1))
             inc_span = m_inc.span()
     if inc is None:
-        m_inc = re.search(r"(\d+)\s*秒\s*/\s*手", s)
+        m_inc = re.search(r"(\d+)\s*(?:秒|sec|s)\s*/\s*(?:手|move)", s, re.IGNORECASE)
         if m_inc:
             inc = int(m_inc.group(1))
             inc_span = m_inc.span()
@@ -214,6 +214,20 @@ def parse_rif_xml(rif_path):
     tournaments = {}
     rows = []
 
+    rif_tc_map = {}
+    rif_tc_path = os.path.join(BASE_DIR, "data", "rif_time_controls.json")
+    if os.path.exists(rif_tc_path):
+        try:
+            with open(rif_tc_path, "r", encoding="utf-8") as f:
+                raw_tc = json.load(f)
+            for k, v in raw_tc.items():
+                if v:
+                    tc = parse_time_control(v)
+                    if tc[0] != "":
+                        rif_tc_map[str(k)] = tc
+        except (OSError, ValueError):
+            pass
+
     for event, elem in ET.iterparse(rif_path, events=("end",)):
         tag = elem.tag
         if tag == "player":
@@ -283,6 +297,7 @@ def parse_rif_xml(rif_path):
             opening = (elem.attrib.get("opening") or "").strip()
             move_el = elem.find("move")
             moves = " ".join((move_el.text or "").split()) if move_el is not None else ""
+            base_time, increment = rif_tc_map.get(tid, ("", ""))
 
             rows.append({
                 "game_id": f"rif_{gid}",
@@ -304,8 +319,8 @@ def parse_rif_xml(rif_path):
                 "swap": swap,
                 "opening": opening,
                 "moves": moves,
-                "base_time": "",
-                "increment": "",
+                "base_time": base_time,
+                "increment": increment,
             })
             elem.clear()
 
