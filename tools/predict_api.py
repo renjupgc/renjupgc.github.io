@@ -43,8 +43,6 @@ DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
 ALL_GAMES_CSV_PATH = os.path.join(ROOT, 'data', 'all_games.csv')
 MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261113.json')
 if not os.path.exists(MODEL_PATH):
-    MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261112.json')
-if not os.path.exists(MODEL_PATH):
     MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model.json')
 
 # WHR 官方基准常数：比赛日期 2026-11-14，对应的天数为 (date(2026, 11, 14) - date(1970, 1, 1)).days = 20771
@@ -75,10 +73,10 @@ def connect(path=None):
     return conn
 
 
-# ---------------------------------------------------------------- 加载 20261112 静态元数据
+# ---------------------------------------------------------------- 加载 20261113 模型
 
 def load_gbdt_model():
-    """加载截止 20261112 的最新 GBDT 决策树模型。"""
+    """加载截止 20261113 的最新 GBDT 决策树模型。"""
     global _MODEL_CACHE
     if _MODEL_CACHE is not None:
         return _MODEL_CACHE
@@ -92,7 +90,7 @@ def load_gbdt_model():
 # ---------------------------------------------------------------- GBDT 概率推断
 
 def predict_gbdt(sample, model=None):
-    """最新 20261112 模型推断三分类概率 (p_black, p_draw, p_white)。
+    """最新 20261113 模型推断三分类概率 (p_black, p_draw, p_white)。
     
     sample 维度为 14:
     [rule, r_tb, r_tw, diff, mean_r, std_tb, std_tw, joint_std,
