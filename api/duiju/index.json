@@ -8,7 +8,7 @@
       "year": 2026,
       "group": "公开组",
       "rule": "塔拉山口-10",
-      "updated_at": "2026-11-15 15:56:49",
+      "updated_at": "2026-11-15 16:55:50",
       "api": "api/duiju/shanhai/",
       "metrics": "api/duiju/shanhai/metrics.json",
       "rounds": [
@@ -19,8 +19,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:52:37",
-          "updated_at": "2026-11-15 16:52:37",
+          "predicted_at": "2026-11-15 16:56:19",
+          "updated_at": "2026-11-15 16:56:19",
           "standings": "api/duiju/shanhai/standings/r1.json"
         },
         {
@@ -30,8 +30,8 @@
           "played": 23,
           "is_finished": true,
           "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:53:02",
-          "updated_at": "2026-11-15 16:53:02",
+          "predicted_at": "2026-11-15 16:56:46",
+          "updated_at": "2026-11-15 16:56:46",
           "standings": "api/duiju/shanhai/standings/r2.json"
         },
         {
@@ -40,9 +40,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:53:25",
-          "updated_at": "2026-11-15 16:53:25",
+          "model": null,
+          "predicted_at": null,
+          "updated_at": "2026-11-15 16:55:50",
           "standings": "api/duiju/shanhai/standings/r3.json"
         },
         {
@@ -51,9 +51,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:53:50",
-          "updated_at": "2026-11-15 16:53:50",
+          "model": null,
+          "predicted_at": null,
+          "updated_at": "2026-11-15 16:55:50",
           "standings": "api/duiju/shanhai/standings/r4.json"
         },
         {
@@ -62,9 +62,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:54:13",
-          "updated_at": "2026-11-15 16:54:13",
+          "model": null,
+          "predicted_at": null,
+          "updated_at": "2026-11-15 16:55:50",
           "standings": "api/duiju/shanhai/standings/r5.json"
         },
         {
@@ -73,9 +73,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:54:38",
-          "updated_at": "2026-11-15 16:54:38",
+          "model": null,
+          "predicted_at": null,
+          "updated_at": "2026-11-15 16:55:50",
           "standings": "api/duiju/shanhai/standings/r6.json"
         },
         {
@@ -85,8 +85,8 @@
           "played": 0,
           "is_finished": false,
           "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:55:04",
-          "updated_at": "2026-11-15 16:55:04",
+          "predicted_at": "2026-11-15 16:58:56",
+          "updated_at": "2026-11-15 16:58:56",
           "standings": null
         }
       ]
