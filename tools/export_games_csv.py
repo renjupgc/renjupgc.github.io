@@ -315,7 +315,7 @@ def extract_duiju_games(db_path, name_to_pid, name_to_country):
 
 
 def infer_rule_id(rule_text, opening_code=""):
-    """从规则说明与开局代码推断规则 ID（默认 25 = 塔拉山口-10）。"""
+    """从规则说明与开局代码推断规则 ID（未标明规则返回 0 = 未知）。"""
     rt = str(rule_text or "")
     if "塔拉山口" in rt or "Taraguchi" in rt:
         return 25
@@ -328,7 +328,7 @@ def infer_rule_id(rule_text, opening_code=""):
     oc = str(opening_code or "").strip()
     if oc.startswith("R:") and len(oc) >= 7:
         return 25
-    return 25
+    return 0
 
 
 def infer_country_from_slug(slug):
