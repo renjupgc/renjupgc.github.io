@@ -43,9 +43,9 @@
       "is_finished": false
     }
   ],
-  "model": "model_glicko_20261115",
-  "predicted_at": "2026-11-15 18:45:18",
-  "updated_at": "2026-11-15 18:45:18",
+  "model": null,
+  "predicted_at": null,
+  "updated_at": "2026-11-15 18:45:54",
   "games": [
     {
       "table": 1,
