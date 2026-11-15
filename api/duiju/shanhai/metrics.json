@@ -8,15 +8,15 @@
     "rule": "塔拉山口-10"
   },
   "model": "model_glicko_20261113",
-  "evaluated_at": "2026-11-15 19:55:03",
+  "evaluated_at": "2026-11-15 20:04:01",
   "rounds": [
     {
       "n": 23,
       "hit": 17,
       "accuracy": 0.7391,
-      "brier": 0.3355,
-      "logloss": 0.5795,
-      "confidence": 0.703,
+      "brier": 0.338,
+      "logloss": 0.5797,
+      "confidence": 0.7067,
       "results": {
         "B": 8,
         "D": 1,
@@ -36,11 +36,11 @@
     },
     {
       "n": 23,
-      "hit": 15,
-      "accuracy": 0.6522,
-      "brier": 0.4609,
-      "logloss": 0.7735,
-      "confidence": 0.6706,
+      "hit": 16,
+      "accuracy": 0.6957,
+      "brier": 0.4595,
+      "logloss": 0.7726,
+      "confidence": 0.6734,
       "results": {
         "B": 10,
         "D": 2,
@@ -49,12 +49,12 @@
       "hit_by_result": {
         "B": 9,
         "D": 0,
-        "W": 6
+        "W": 7
       },
       "fav_distribution": {
-        "B": 15,
+        "B": 14,
         "D": 0,
-        "W": 8
+        "W": 9
       },
       "round": 2
     },
@@ -62,9 +62,9 @@
       "n": 22,
       "hit": 16,
       "accuracy": 0.7273,
-      "brier": 0.4232,
-      "logloss": 0.7696,
-      "confidence": 0.6716,
+      "brier": 0.4233,
+      "logloss": 0.7746,
+      "confidence": 0.6714,
       "results": {
         "B": 4,
         "D": 3,
@@ -86,9 +86,9 @@
       "n": 22,
       "hit": 12,
       "accuracy": 0.5455,
-      "brier": 0.641,
-      "logloss": 1.0926,
-      "confidence": 0.6249,
+      "brier": 0.6359,
+      "logloss": 1.0869,
+      "confidence": 0.6272,
       "results": {
         "B": 10,
         "D": 5,
@@ -100,9 +100,9 @@
         "W": 4
       },
       "fav_distribution": {
-        "B": 13,
+        "B": 12,
         "D": 0,
-        "W": 9
+        "W": 10
       },
       "round": 4
     },
@@ -110,9 +110,9 @@
       "n": 22,
       "hit": 17,
       "accuracy": 0.7727,
-      "brier": 0.3647,
-      "logloss": 0.6395,
-      "confidence": 0.6363,
+      "brier": 0.3601,
+      "logloss": 0.6315,
+      "confidence": 0.6366,
       "results": {
         "B": 12,
         "D": 1,
@@ -134,9 +134,9 @@
       "n": 22,
       "hit": 12,
       "accuracy": 0.5455,
-      "brier": 0.537,
-      "logloss": 0.9085,
-      "confidence": 0.5863,
+      "brier": 0.547,
+      "logloss": 0.9201,
+      "confidence": 0.5911,
       "results": {
         "B": 10,
         "D": 3,
@@ -156,25 +156,25 @@
     },
     {
       "n": 22,
-      "hit": 12,
-      "accuracy": 0.5455,
-      "brier": 0.5705,
-      "logloss": 0.9269,
-      "confidence": 0.5914,
+      "hit": 11,
+      "accuracy": 0.5,
+      "brier": 0.5712,
+      "logloss": 0.9284,
+      "confidence": 0.5958,
       "results": {
         "B": 10,
         "D": 2,
         "W": 10
       },
       "hit_by_result": {
-        "B": 7,
+        "B": 6,
         "D": 0,
         "W": 5
       },
       "fav_distribution": {
-        "B": 14,
+        "B": 12,
         "D": 0,
-        "W": 8
+        "W": 10
       },
       "round": 7
     }
@@ -183,23 +183,23 @@
     "n": 156,
     "hit": 101,
     "accuracy": 0.6474,
-    "brier": 0.4751,
-    "logloss": 0.8111,
-    "confidence": 0.6412,
+    "brier": 0.4754,
+    "logloss": 0.8117,
+    "confidence": 0.6438,
     "results": {
       "B": 64,
       "D": 17,
       "W": 75
     },
     "hit_by_result": {
-      "B": 52,
+      "B": 51,
       "D": 0,
-      "W": 49
+      "W": 50
     },
     "fav_distribution": {
-      "B": 87,
+      "B": 83,
       "D": 0,
-      "W": 69
+      "W": 73
     }
   }
 }
