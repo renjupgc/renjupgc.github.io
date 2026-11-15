@@ -1,34 +1,20 @@
 # -*- coding: utf-8 -*-
-"""赛事对局胜率预测 API（基于截止 20261113 最新模型与数据）。
-
-本模块提供针对一个赛事（如 2026-shanhai）一系列对局的官方 WHR 动态滚动与最新 GBDT 预测接口。
+"""赛事对局胜率预测 API（完全基于统一 CSV 与 20261113 GBDT 模型）。
 
 核心逻辑：
-1. 模型：使用截止 20261113 训练的最新 GBDT 决策树模型（bisai/data/model_20261113.json）。
-2. 特征：包含开局规则（塔拉山口-10 为 25）、双方等级分、等级分差、平均等级分、标准差、联合标准差、
-   衰减和棋率、历史交手胜率（H2H）以及国家属性（共 14 维）。
-3. 全面动态滚动：预测第 R 轮时，自动提取本赛事第 1 ~ R-1 轮已出结果的实际对局（胜/平/负）：
-   a. WHR 评级：将前序对局并入全量世界对局库收敛拟合，动态更新棋手在当轮开赛前的最新 rating 与 rd，
-      由此 rating_diff、rating_mean、joint_std 同步动态更新。
-   b. 衰减和棋率：结合棋手历史先验与本赛事此前轮次的实际战绩（场次、和棋），增量计算当轮开赛前的最新 decayed_dr_tb、decayed_dr_tw 及 combined_decayed_dr。
-   c. 历史交手胜率：结合 h2h.json 历史衰减先验与本赛事此前轮次双方的实际直接对阵新赛果，增量更新 decayed_h2h_score。
-4. 正误判定：对赛果已出的对局自动判定预测正误（最高概率方与实际赛果一致为正确，否则为错误）。
+1. 数据源：完全基于 data/all_games.csv（含 RIF XML 历史库与已完赛赛事对局），
+   不再读取 duiju.db 历史对局，也不做额外姓名重映射。
+2. 特征计算：直接从 CSV 计算全量 WHR 等级分与标准差、时间衰减和棋率、衰减 H2H 与国籍属性（共 14 维）。
+3. 预测接口：支持按 (赛事, 轮次, 台次) 或整轮预测，模型为 bisai/data/model_20261113.json。
 
 用法：
-    python tools/predict_api.py --tid 2026-shanhai
-    python tools/predict_api.py --tid 2026-shanhai --round 2
-    python tools/predict_api.py --tid 2026-shanhai --write
-
-作为库用：
-    import predict_api
-    preds = predict_api.predict_tournament(conn, '2026-shanhai', write=True)
+    python tools/predict_api.py --tid 2026-shanhai --round 6 --table 1
+    python tools/predict_api.py --tid 2026-shanhai --round 6 --write
 """
 
 import argparse
 import csv
 from datetime import datetime, timezone, timedelta
-import glob
-import gzip
 import json
 import math
 import os
@@ -54,17 +40,12 @@ def get_effective_result(res):
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
-DATA_DIR = os.path.join(ROOT, 'data')
 ALL_GAMES_CSV_PATH = os.path.join(ROOT, 'data', 'all_games.csv')
-WHR_GAMES_PATH = os.path.join(ROOT, 'data', 'whr_games.json.gz')
 MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261113.json')
 if not os.path.exists(MODEL_PATH):
     MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_20261112.json')
 if not os.path.exists(MODEL_PATH):
     MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model.json')
-
-PLAYERS_PATH = os.path.join(ROOT, 'bisai', 'data', 'players.json')
-H2H_PATH = os.path.join(ROOT, 'bisai', 'data', 'h2h.json')
 
 # WHR 官方基准常数：比赛日期 2026-11-14，对应的天数为 (date(2026, 11, 14) - date(1970, 1, 1)).days = 20771
 W2 = 19.3
@@ -84,9 +65,6 @@ RULE_MAP = {
 }
 
 _MODEL_CACHE = None
-_PLAYERS_CACHE = None
-_H2H_CACHE = None
-_WHR_BASE_GAMES_CACHE = None
 _CSV_GAMES_CACHE = {}
 _CONTEXT_CACHE = {}
 
@@ -109,105 +87,6 @@ def load_gbdt_model():
     with open(MODEL_PATH, 'r', encoding='utf-8') as f:
         _MODEL_CACHE = json.load(f)
     return _MODEL_CACHE
-
-
-def load_players_meta():
-    """加载 20261112 棋手画像数据（包含官方 ID、衰减和棋率、国籍等）。"""
-    global _PLAYERS_CACHE
-    if _PLAYERS_CACHE is not None:
-        return _PLAYERS_CACHE
-    p_map = {}
-    if os.path.exists(PLAYERS_PATH):
-        with open(PLAYERS_PATH, 'r', encoding='utf-8') as f:
-            players = json.load(f)
-            for p in players:
-                if p.get('native_name'):
-                    p_map[p['native_name']] = p
-                if p.get('name'):
-                    p_map[p['name']] = p
-            p_map['韦振强'] = p_map.get('韋振強')
-            # 常见重名或特定 ID 绑定
-            for p in players:
-                if p.get('id') == '102456':
-                    p_map['陈超'] = p
-                if p.get('id') == '102466':
-                    p_map['王嘉欣'] = p
-    _PLAYERS_CACHE = p_map
-    return _PLAYERS_CACHE
-
-
-def load_h2h_meta():
-    """加载 20261112 棋手两两交手记录。"""
-    global _H2H_CACHE
-    if _H2H_CACHE is not None:
-        return _H2H_CACHE
-    if os.path.exists(H2H_PATH):
-        with open(H2H_PATH, 'r', encoding='utf-8') as f:
-            _H2H_CACHE = json.load(f)
-            return _H2H_CACHE
-    _H2H_CACHE = {}
-    return _H2H_CACHE
-
-
-# ---------------------------------------------------------------- 动态特征计算（和棋率、交锋胜率）
-
-def get_dynamic_draw_rate(player_name, p_meta, player_stats, prior_weight=10.0):
-    """计算棋手在当前轮次开赛前的最新动态衰减和棋率。
-    
-    公式：(base_dr * prior_weight + tour_draws) / (prior_weight + tour_games)
-    前序轮次中若出现和棋，和棋倾向敏锐上升；若均为胜负局，和棋率被温和稀释。
-    """
-    meta = p_meta.get(player_name) or {}
-    base_dr = meta.get('decayed_draw_rate', 0.12)
-    stats = player_stats.get(player_name)
-    if not stats or stats.get('played', 0) == 0:
-        return base_dr
-    n = stats['played']
-    d = stats['draws']
-    return (base_dr * prior_weight + d) / (prior_weight + n)
-
-
-def get_dynamic_h2h_rate(p1_id, p2_id, p1_name, p2_name, pair_stats, prior_weight_cap=10.0):
-    """计算黑方 (p1) 对白方 (p2) 的最新动态交手胜率。
-    
-    结合 h2h.json 中的全量历史衰减先验与本赛事此前轮次双方的实际直接对局增量。
-    """
-    h2h_data = load_h2h_meta()
-
-    # 历史衰减先验
-    item = None
-    if p1_id and p2_id and p1_id != 'unrated' and p2_id != 'unrated':
-        key = f'{p1_id}_{p2_id}' if p1_id < p2_id else f'{p2_id}_{p1_id}'
-        item = h2h_data.get(key)
-
-    if item:
-        tot_hist = item[0]
-        w_hist = min(tot_hist, prior_weight_cap)
-        rate_first_hist = item[4]  # key 是字典序较小的选手视角
-        score_first_hist = rate_first_hist * w_hist
-        key_first_is_p1 = (p1_id < p2_id)
-    else:
-        w_hist = 1.0
-        score_first_hist = 0.5
-        key_first_is_p1 = (p1_id < p2_id) if (p1_id and p2_id and p1_id != 'unrated' and p2_id != 'unrated') else (p1_name < p2_name)
-
-    # 本赛事此前各轮次的直接交锋增量
-    tour_pair = None
-    if p1_id and p2_id and p1_id != 'unrated' and p2_id != 'unrated':
-        pair_id = (min(p1_id, p2_id), max(p1_id, p2_id))
-        tour_pair = pair_stats.get(pair_id)
-    if not tour_pair:
-        pair_name = (min(p1_name, p2_name), max(p1_name, p2_name))
-        tour_pair = pair_stats.get(pair_name)
-
-    if tour_pair and tour_pair.get('games', 0) > 0:
-        k = tour_pair['games']
-        s_add = tour_pair['score_first']
-        rate_first = (score_first_hist + s_add) / (w_hist + k)
-    else:
-        rate_first = score_first_hist / w_hist
-
-    return rate_first if key_first_is_p1 else (1.0 - rate_first)
 
 
 # ---------------------------------------------------------------- GBDT 概率推断
@@ -256,239 +135,6 @@ def predict_gbdt(sample, model=None):
     pd = round(probs[1] * 100, 1)
     pb = round(100.0 - pw - pd, 1)
     return pb, pd, pw
-
-
-# ---------------------------------------------------------------- 动态滚动 WHR 与前序轮次上下文
-
-def load_initial_ratings(tid=None):
-    """从源录入 JSON 中获取棋手的初始等级分 (姓名/编号 -> rating)。"""
-    ratings_by_name = {}
-    ratings_by_no = {}
-    if not os.path.isdir(DATA_DIR):
-        return ratings_by_name, ratings_by_no
-
-    pattern = os.path.join(DATA_DIR, '*', '*.json')
-    for path in sorted(glob.glob(pattern)):
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except (ValueError, OSError):
-            continue
-        cur_tid = (data.get('tournament') or {}).get('id')
-        if tid and cur_tid != tid:
-            continue
-        for g in data.get('games') or []:
-            for key in ('black', 'white'):
-                side = g.get(key) or {}
-                name = side.get('name')
-                no = side.get('no')
-                r = side.get('rating')
-                if r is not None:
-                    if name:
-                        ratings_by_name[name] = float(r)
-                    if no is not None:
-                        ratings_by_no[int(no)] = float(r)
-    return ratings_by_name, ratings_by_no
-
-
-def load_whr_base_games():
-    """加载截止 20261112 的世界连珠对局库。"""
-    global _WHR_BASE_GAMES_CACHE
-    if _WHR_BASE_GAMES_CACHE is not None:
-        return _WHR_BASE_GAMES_CACHE
-
-    if os.path.exists(WHR_GAMES_PATH):
-        with gzip.open(WHR_GAMES_PATH, 'rt', encoding='utf-8') as f:
-            data = json.load(f)
-            _WHR_BASE_GAMES_CACHE = (data['games'], data['name_to_pid'], data['pid_to_name'])
-            return _WHR_BASE_GAMES_CACHE
-
-    _WHR_BASE_GAMES_CACHE = ([], {}, {})
-    return _WHR_BASE_GAMES_CACHE
-
-
-def get_tournament_day(conn, tid):
-    """获取指定赛事的实际比赛日期对应的 WHR 天数 (距 1970-01-01)。
-    山海杯固定为 2026-11-14；其他赛事优先从轮次预测时间、赛事更新时间或年份推断。"""
-    custom_dates = {
-        '2026-shanhai': '2026-11-14',
-    }
-    if tid in custom_dates:
-        ds = custom_dates[tid]
-        dt = datetime.strptime(ds, '%Y-%m-%d').date()
-        return (dt - datetime(1970, 1, 1).date()).days
-
-    row = conn.execute(
-        'SELECT predicted_at, updated_at FROM rounds WHERE tournament_id=? AND predicted_at IS NOT NULL ORDER BY round LIMIT 1',
-        (tid,)
-    ).fetchone()
-    if row and row['predicted_at']:
-        try:
-            dt = datetime.strptime(row['predicted_at'][:10], '%Y-%m-%d').date()
-            return (dt - datetime(1970, 1, 1).date()).days
-        except Exception:
-            pass
-
-    t_row = conn.execute('SELECT year, updated_at FROM tournaments WHERE id=?', (tid,)).fetchone()
-    if t_row:
-        if t_row['updated_at']:
-            try:
-                dt = datetime.strptime(t_row['updated_at'][:10], '%Y-%m-%d').date()
-                return (dt - datetime(1970, 1, 1).date()).days
-            except Exception:
-                pass
-        if t_row['year']:
-            dt = datetime(int(t_row['year']), 1, 1).date()
-            return (dt - datetime(1970, 1, 1).date()).days
-
-    return (datetime.now(TZ).date() - datetime(1970, 1, 1).date()).days
-
-
-def get_tournament_prior_history(conn, tid, upto_round=None):
-    """提取本赛事此前各轮次 (round < upto_round) 已完成的对局，统计棋手状态与交锋记录。"""
-    query = ('SELECT round, table_no, black_no, black_name, white_no, white_name, result'
-             ' FROM games WHERE tournament_id=? AND result IN ("B","W","D")')
-    params = [tid]
-    if upto_round is not None:
-        query += ' AND round < ?'
-        params.append(upto_round)
-    query += ' ORDER BY round, table_no'
-
-    p_stats = {}
-    pair_stats = {}
-    tour_games = []
-
-    base_games, name_to_pid, pid_to_name = load_whr_base_games()
-    t_day = get_tournament_day(conn, tid)
-
-    for g in conn.execute(query, params):
-        res = g['result']
-        b_name = g['black_name']
-        w_name = g['white_name']
-        if b_name == '轮空' or w_name == '轮空':
-            continue
-        b_id = name_to_pid.get(b_name, b_name)
-        w_id = name_to_pid.get(w_name, w_name)
-        tour_games.append([b_id, w_id, res, t_day])
-
-        # 棋手局数与和棋数统计
-        for name in (b_name, w_name):
-            if name not in p_stats:
-                p_stats[name] = {'played': 0, 'draws': 0, 'wins': 0, 'losses': 0}
-
-        p_stats[b_name]['played'] += 1
-        p_stats[w_name]['played'] += 1
-        if res == 'D':
-            p_stats[b_name]['draws'] += 1
-            p_stats[w_name]['draws'] += 1
-        elif res == 'B':
-            p_stats[b_name]['wins'] += 1
-            p_stats[w_name]['losses'] += 1
-        elif res == 'W':
-            p_stats[w_name]['wins'] += 1
-            p_stats[b_name]['losses'] += 1
-
-        # 双方直接交手统计（按名字记录）
-        pair_name = (min(b_name, w_name), max(b_name, w_name))
-        if pair_name not in pair_stats:
-            pair_stats[pair_name] = {'games': 0, 'score_first': 0.0}
-        pair_stats[pair_name]['games'] += 1
-        if res == 'D':
-            pair_stats[pair_name]['score_first'] += 0.5
-        elif (res == 'B' and pair_name[0] == b_name) or (res == 'W' and pair_name[0] == w_name):
-            pair_stats[pair_name]['score_first'] += 1.0
-
-        # 若双方有 ID，按 ID 记录一份
-        if b_id and w_id and b_id != 'unrated' and w_id != 'unrated':
-            pair_id = (min(b_id, w_id), max(b_id, w_id))
-            if pair_id not in pair_stats:
-                pair_stats[pair_id] = {'games': 0, 'score_first': 0.0}
-            pair_stats[pair_id]['games'] += 1
-            if res == 'D':
-                pair_stats[pair_id]['score_first'] += 0.5
-            elif (res == 'B' and pair_id[0] == b_id) or (res == 'W' and pair_id[0] == w_id):
-                pair_stats[pair_id]['score_first'] += 1.0
-
-    return tour_games, p_stats, pair_stats
-
-
-def compute_whr_ratings(conn, tid, upto_round=None):
-    """使用官方 whr 库动态计算指定轮次开赛前的全员 WHR 等级分与标准差。
-
-    如果指定了 upto_round，则只纳入本赛事 round < upto_round 的已出赛果对局。
-    """
-    tour_games, _, _ = get_tournament_prior_history(conn, tid, upto_round)
-    return _run_whr(conn, tid, tour_games)
-
-
-def _run_whr(conn, tid, tour_games):
-    """运行 WHR 算法收敛拟合，输出所有选手最新 rating 与 rd。"""
-    try:
-        import whr
-    except ImportError:
-        print('！ 提示：未安装 whr 库 (pip install whr)', file=sys.stderr)
-        whr = None
-
-    base_games, name_to_pid, pid_to_name = load_whr_base_games()
-    init_ratings_name, init_ratings_no = load_initial_ratings(tid)
-    p_meta = load_players_meta()
-
-    ratings = {}
-    if whr is not None and base_games:
-        whr_base = whr.Base(config={'w2': W2, 'virtual_games': VIRTUAL_GAMES})
-        all_games = base_games + tour_games
-        whr_base.create_games(all_games)
-        whr_base.iterate_until_converge(verbose=False)
-
-        players = conn.execute(
-            'SELECT DISTINCT black_name, white_name FROM games WHERE tournament_id=?',
-            (tid,)
-        ).fetchall()
-        pnames = set()
-        for r in players:
-            pnames.add(r['black_name'])
-            pnames.add(r['white_name'])
-
-        for name in pnames:
-            pid = name_to_pid.get(name)
-            meta = p_meta.get(name) or {}
-            r_init = init_ratings_name.get(name, meta.get('rating', BIAS))
-            rd_init = meta.get('std', 80.0)
-
-            if pid:
-                hist = whr_base.ratings_for_player(pid)
-                if hist:
-                    latest = hist[-1]
-                    ratings[name] = {
-                        'rating': round(latest[1] + BIAS, 1),
-                        'rd': round(latest[2], 1)
-                    }
-                else:
-                    ratings[name] = {'rating': r_init, 'rd': rd_init}
-            else:
-                # 棋手未收录在 RIF 历史对局库中（如韦振强等著名棋手）
-                hist = whr_base.ratings_for_player(name)
-                if hist:
-                    latest = hist[-1]
-                    delta = (latest[1]) * (40.0 / max(latest[2], 40.0))
-                    ratings[name] = {
-                        'rating': round(r_init + delta, 1),
-                        'rd': round(latest[2], 1)
-                    }
-                else:
-                    ratings[name] = {'rating': r_init, 'rd': rd_init}
-    else:
-        players = conn.execute(
-            'SELECT DISTINCT black_name, white_name FROM games WHERE tournament_id=?',
-            (tid,)
-        ).fetchall()
-        for r in players:
-            for name in (r['black_name'], r['white_name']):
-                meta = p_meta.get(name) or {}
-                r_init = init_ratings_name.get(name, meta.get('rating', BIAS))
-                ratings[name] = {'rating': r_init, 'rd': meta.get('std', 80.0)}
-
-    return ratings
 
 
 def load_all_games_csv(csv_path=None):
@@ -542,11 +188,11 @@ def load_all_games_csv(csv_path=None):
     return result
 
 
-def compute_context_from_csv(conn, tid, upto_round=None, csv_path=None):
-    """直接从统一 CSV 计算 WHR 等级分/RD、衰减和棋率、衰减 H2H 与国籍映射。
+def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
+    """完全基于统一 CSV 计算 WHR 等级分/RD、衰减和棋率、衰减 H2H 与国籍映射。
 
-    因为已完赛对局（如山海杯前序轮次）已写入 CSV，不再额外查询 duiju.db 的前序轮次对局。
-    若指定了 upto_round，则仅过滤掉 CSV 中同赛事 round >= upto_round 的记录。
+    不读取 duiju.db，不做额外姓名重映射。
+    若指定了 upto_round，则过滤掉 CSV 中同赛事 round >= upto_round 的记录。
     """
     resolved_csv = csv_path or ALL_GAMES_CSV_PATH
     cache_key = (resolved_csv, tid, upto_round)
@@ -559,16 +205,15 @@ def compute_context_from_csv(conn, tid, upto_round=None, csv_path=None):
         print('！ 提示：未安装 whr 库 (pip install whr)', file=sys.stderr)
         whr = None
 
-    csv_games, csv_name_to_pid, pid_to_country = load_all_games_csv(resolved_csv)
-    p_meta = load_players_meta()
-    init_ratings_name, _ = load_initial_ratings(tid)
-    t_day = get_tournament_day(conn, tid)
+    csv_games, name_to_pid, pid_to_country = load_all_games_csv(resolved_csv)
 
-    # 合并 name -> pid 映射（优先 players.json 精确绑定，其次 CSV）
-    name_to_pid = dict(csv_name_to_pid)
-    for nm, meta in p_meta.items():
-        if meta and meta.get('id'):
-            name_to_pid[nm] = str(meta['id'])
+    # 基准日期取 CSV 中该赛事日期或全局最新日期（默认 BASE_DAY）
+    t_day = BASE_DAY
+    tid_days = [g[5] for g in csv_games if tid and g[0] == tid and g[5] > 0]
+    if tid_days:
+        t_day = max(tid_days)
+    elif csv_games:
+        t_day = max((g[5] for g in csv_games if g[5] > 0), default=BASE_DAY)
 
     whr_input = []
     dr_acc = {}   # pid -> [w_sum, d_sum]
@@ -606,62 +251,26 @@ def compute_context_from_csv(conn, tid, upto_round=None, csv_path=None):
             p_acc[0] += w
             p_acc[1] += s_first
 
-    # 计算 WHR 等级分与 RD
-    ratings = {}
-    players_rows = conn.execute(
-        'SELECT DISTINCT black_name, white_name FROM games WHERE tournament_id=?',
-        (tid,)
-    ).fetchall()
-    pnames = set()
-    for r in players_rows:
-        pnames.add(r['black_name'])
-        pnames.add(r['white_name'])
-
+    whr_base = None
     if whr is not None and whr_input:
         whr_base = whr.Base(config={'w2': W2, 'virtual_games': VIRTUAL_GAMES})
         whr_base.create_games(whr_input)
         whr_base.iterate_until_converge(verbose=False)
 
-        for name in pnames:
-            pid = name_to_pid.get(name, name)
-            meta = p_meta.get(name) or {}
-            r_init = init_ratings_name.get(name, meta.get('rating', BIAS))
-            rd_init = meta.get('std', 80.0)
-
-            hist = whr_base.ratings_for_player(pid)
-            if hist:
-                latest = hist[-1]
-                if pid != name or meta.get('id'):
-                    ratings[name] = {
-                        'rating': round(latest[1] + BIAS, 1),
-                        'rd': round(latest[2], 1),
-                    }
-                else:
-                    delta = latest[1] * (40.0 / max(latest[2], 40.0))
-                    ratings[name] = {
-                        'rating': round(r_init + delta, 1),
-                        'rd': round(latest[2], 1),
-                    }
-            else:
-                ratings[name] = {'rating': r_init, 'rd': rd_init}
-    else:
-        for name in pnames:
-            meta = p_meta.get(name) or {}
-            r_init = init_ratings_name.get(name, meta.get('rating', BIAS))
-            ratings[name] = {'rating': r_init, 'rd': meta.get('std', 80.0)}
-
     # 汇总衰减和棋率映射
-    dr_map = {}
-    for pid, (w_sum, d_sum) in dr_acc.items():
-        dr_map[pid] = (d_sum / w_sum) if w_sum > 2.0 else 0.12
+    dr_map = {
+        pid: (d_sum / w_sum) if w_sum > 2.0 else 0.12
+        for pid, (w_sum, d_sum) in dr_acc.items()
+    }
 
     # 汇总衰减 H2H 映射
-    h2h_map = {}
-    for pair, (w_sum, s_sum) in h2h_acc.items():
-        h2h_map[pair] = (0.5 + s_sum) / (1.0 + w_sum)
+    h2h_map = {
+        pair: (0.5 + s_sum) / (1.0 + w_sum)
+        for pair, (w_sum, s_sum) in h2h_acc.items()
+    }
 
     ctx = {
-        'ratings': ratings,
+        'whr_base': whr_base,
         'dr_map': dr_map,
         'h2h_map': h2h_map,
         'name_to_pid': name_to_pid,
@@ -671,26 +280,30 @@ def compute_context_from_csv(conn, tid, upto_round=None, csv_path=None):
     return ctx
 
 
-def compute_rolling_context(conn, tid, upto_round=None, csv_path=None):
-    """兼容旧接口：直接从统一 CSV 计算指定轮次开赛前的特征上下文。"""
-    return compute_context_from_csv(conn, tid, upto_round=upto_round, csv_path=csv_path)
+def get_player_rating(ctx, name):
+    """直接从 WHR 模型中查询棋手最新等级分与标准差。"""
+    whr_base = ctx.get('whr_base')
+    if whr_base is None or not name or name == '轮空':
+        return {'rating': BIAS, 'rd': 100.0}
+    pid = ctx['name_to_pid'].get(name, name)
+    hist = whr_base.ratings_for_player(pid)
+    if hist:
+        latest = hist[-1]
+        return {'rating': round(latest[1] + BIAS, 1), 'rd': round(latest[2], 1)}
+    return {'rating': BIAS, 'rd': 100.0}
 
 
 # ---------------------------------------------------------------- 对局预测 API
 
-def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None,
-                       rule_name='塔拉山口-10', model=None, ctx=None):
-    """根据最新 20261113 GBDT 模型推断一组对局的胜率，并判断正误标记。"""
+def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None):
+    """完全基于 CSV 上下文与 20261113 GBDT 模型推断一组对局的胜率。"""
     model = model or load_gbdt_model()
-    p_meta = load_players_meta()
-    p_stats = p_stats or {}
-    pair_stats = pair_stats or {}
     rule_id = RULE_MAP.get(rule_name, 25)  # 默认塔拉山口-10 (25)
 
-    dr_map = (ctx or {}).get('dr_map')
-    h2h_map = (ctx or {}).get('h2h_map')
-    name_to_pid = (ctx or {}).get('name_to_pid') or {}
-    pid_to_country = (ctx or {}).get('pid_to_country') or {}
+    dr_map = ctx['dr_map']
+    h2h_map = ctx['h2h_map']
+    name_to_pid = ctx['name_to_pid']
+    pid_to_country = ctx['pid_to_country']
 
     out = []
     for g in games_rows:
@@ -699,6 +312,8 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
 
         # 轮空台不参与预测，也不算做预测内
         if wn == '轮空' or bn == '轮空':
+            b_whr = get_player_rating(ctx, bn) if bn != '轮空' else {'rating': 0.0, 'rd': 0.0}
+            w_whr = get_player_rating(ctx, wn) if wn != '轮空' else {'rating': 0.0, 'rd': 0.0}
             out.append({
                 'table': g['table_no'],
                 'round': g['round'],
@@ -706,10 +321,10 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
                 'black_name': bn,
                 'white_no': g['white_no'],
                 'white_name': wn,
-                'rating_black': player_ratings.get(bn, {}).get('rating', 0.0),
-                'rd_black': player_ratings.get(bn, {}).get('rd', 0.0),
-                'rating_white': player_ratings.get(wn, {}).get('rating', 0.0),
-                'rd_white': player_ratings.get(wn, {}).get('rd', 0.0),
+                'rating_black': b_whr['rating'],
+                'rd_black': b_whr['rd'],
+                'rating_white': w_whr['rating'],
+                'rd_white': w_whr['rd'],
                 'dr_black': 0.0,
                 'dr_white': 0.0,
                 'h2h_score': 0.5,
@@ -722,43 +337,29 @@ def predict_games_list(games_rows, player_ratings, p_stats=None, pair_stats=None
             })
             continue
 
-        b_whr = player_ratings.get(bn, {'rating': BIAS, 'rd': 100.0})
-        w_whr = player_ratings.get(wn, {'rating': BIAS, 'rd': 100.0})
+        b_whr = get_player_rating(ctx, bn)
+        w_whr = get_player_rating(ctx, wn)
         rb, stdb = b_whr['rating'], b_whr['rd']
         rw, stdw = w_whr['rating'], w_whr['rd']
 
-        mb = p_meta.get(bn) or {}
-        mw = p_meta.get(wn) or {}
-        p1_id = name_to_pid.get(bn) or mb.get('id', 'unrated')
-        p2_id = name_to_pid.get(wn) or mw.get('id', 'unrated')
+        p1_id = name_to_pid.get(bn, bn)
+        p2_id = name_to_pid.get(wn, wn)
 
         diff = rb - rw
         mean_r = (rb + rw) / 2.0
         j_std = math.sqrt(stdb**2 + stdw**2)
 
-        if ctx is not None:
-            dr_b = dr_map.get(p1_id, mb.get('decayed_draw_rate', 0.12))
-            dr_w = dr_map.get(p2_id, mw.get('decayed_draw_rate', 0.12))
-            comb_dr = (dr_b + dr_w) / 2.0
+        dr_b = dr_map.get(p1_id, 0.12)
+        dr_w = dr_map.get(p2_id, 0.12)
+        comb_dr = (dr_b + dr_w) / 2.0
 
-            if p1_id <= p2_id:
-                h2h_rate = h2h_map.get((p1_id, p2_id), 0.5)
-            else:
-                h2h_rate = 1.0 - h2h_map.get((p2_id, p1_id), 0.5)
-
-            c_b = pid_to_country.get(p1_id, mb.get('country_id', 5))
-            c_w = pid_to_country.get(p2_id, mw.get('country_id', 5))
+        if p1_id <= p2_id:
+            h2h_rate = h2h_map.get((p1_id, p2_id), 0.5)
         else:
-            # 动态衰减和棋率（融合前序轮次实战战绩）
-            dr_b = get_dynamic_draw_rate(bn, p_meta, p_stats)
-            dr_w = get_dynamic_draw_rate(wn, p_meta, p_stats)
-            comb_dr = (dr_b + dr_w) / 2.0
+            h2h_rate = 1.0 - h2h_map.get((p2_id, p1_id), 0.5)
 
-            # 动态衰减交手胜率（融合前序轮次直接对阵赛果）
-            h2h_rate = get_dynamic_h2h_rate(p1_id, p2_id, bn, wn, pair_stats)
-
-            c_b = mb.get('country_id', 5)
-            c_w = mw.get('country_id', 5)
+        c_b = pid_to_country.get(p1_id, 5)
+        c_w = pid_to_country.get(p2_id, 5)
 
         # 14 维特征向量
         feat = [
@@ -950,8 +551,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
     tour = conn.execute('SELECT rule FROM tournaments WHERE id=?', (tid,)).fetchone()
     rule_name = (tour['rule'] if tour else None) or '塔拉山口-10'
 
-    ctx = compute_context_from_csv(conn, tid, upto_round=rnd, csv_path=csv_path)
-    ratings = ctx['ratings']
+    ctx = compute_context_from_csv(tid=tid, upto_round=rnd, csv_path=csv_path)
 
     games = conn.execute(
         'SELECT round, table_no, black_no, black_name, white_no, white_name, result'
@@ -966,7 +566,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
     else:
         todo = [g for g in games if g['result'] not in ('B', 'W', 'D')]
 
-    preds = predict_games_list(todo, ratings, rule_name=rule_name, model=model, ctx=ctx)
+    preds = predict_games_list(todo, ctx, rule_name=rule_name, model=model)
 
     if write and preds:
         for p in preds:
@@ -985,7 +585,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
         conn.commit()
         evaluate_tournament_model(conn, tid, write=True, print_report=False)
 
-    all_preds = predict_games_list(games, ratings, rule_name=rule_name, model=model, ctx=ctx)
+    all_preds = predict_games_list(games, ctx, rule_name=rule_name, model=model)
     return all_preds
 
 
@@ -1003,8 +603,8 @@ def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=N
     if not row:
         return None
 
-    ctx = compute_context_from_csv(conn, tid, upto_round=rnd, csv_path=csv_path)
-    preds = predict_games_list([row], ctx['ratings'], rule_name=rule_name, model=model, ctx=ctx)
+    ctx = compute_context_from_csv(tid=tid, upto_round=rnd, csv_path=csv_path)
+    preds = predict_games_list([row], ctx, rule_name=rule_name, model=model)
     p = preds[0] if preds else None
 
     if write and p and (overwrite or row['result'] not in ('B', 'W', 'D')):
