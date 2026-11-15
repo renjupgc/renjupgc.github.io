@@ -63,6 +63,8 @@ CSV_COLUMNS = [
     "white_country",
     "result",
     "swap",
+    "opening",
+    "moves",
 ]
 
 
@@ -208,6 +210,9 @@ def parse_rif_xml(rif_path):
             tinfo = tournaments.get(tid, {})
             rule = (elem.attrib.get("rule") or tinfo.get("rule") or "0").strip()
             gid = elem.attrib.get("id", "")
+            opening = (elem.attrib.get("opening") or "").strip()
+            move_el = elem.find("move")
+            moves = " ".join((move_el.text or "").split()) if move_el is not None else ""
 
             rows.append({
                 "game_id": f"rif_{gid}",
@@ -227,6 +232,8 @@ def parse_rif_xml(rif_path):
                 "white_country": pw["country"],
                 "result": res,
                 "swap": swap,
+                "opening": opening,
+                "moves": moves,
             })
             elem.clear()
 
@@ -283,6 +290,8 @@ def extract_duiju_games(db_path, name_to_pid, name_to_country):
             "white_country": w_country,
             "result": r["result"],
             "swap": "",
+            "opening": "",
+            "moves": "",
         })
     conn.close()
     return rows
