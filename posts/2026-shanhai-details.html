@@ -276,7 +276,7 @@ tbody tr.shade td{background:var(--mint2)}
     if (distCard) distCard.style.display = hasDist ? '' : 'none';
     if (hasDist) {
       var m = list[0].rank_probs.length;
-      var hdr = '<tr><th class="st-rk">名次</th><th class="st-no">编号</th><th class="st-nm">棋手</th><th>期望</th>';
+      var hdr = '<tr><th class="st-rk">现名</th><th class="st-no">编号</th><th class="st-nm">棋手</th><th>期望</th>';
       for (var r = 1; r <= m; r++) hdr += '<th>' + r + '</th>';
       hdr += '</tr>';
       document.getElementById('dist-head').innerHTML = hdr;
@@ -341,7 +341,7 @@ tbody tr.shade td{background:var(--mint2)}
       ctx.font = '600 12px "PingFang SC","Microsoft YaHei",sans-serif';
       ctx.fillStyle = '#7c877f';
       ctx.textAlign = 'center';
-      ctx.fillText('名次', padX + rkW / 2, y0 + thH / 2);
+      ctx.fillText('现名', padX + rkW / 2, y0 + thH / 2);
       ctx.fillText('编号', padX + rkW + noW / 2, y0 + thH / 2);
       ctx.textAlign = 'left';
       ctx.fillText('棋手', padX + rkW + noW + 10, y0 + thH / 2);
