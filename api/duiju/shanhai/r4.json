@@ -43,9 +43,9 @@
       "is_finished": false
     }
   ],
-  "model": "model_20261113",
-  "predicted_at": "2026-11-15 16:53:50",
-  "updated_at": "2026-11-15 16:53:50",
+  "model": null,
+  "predicted_at": null,
+  "updated_at": "2026-11-15 16:55:50",
   "games": [
     {
       "table": 1,

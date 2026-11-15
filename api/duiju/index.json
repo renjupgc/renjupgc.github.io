@@ -40,9 +40,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:53:25",
-          "updated_at": "2026-11-15 16:53:25",
+          "model": null,
+          "predicted_at": null,
+          "updated_at": "2026-11-15 16:55:50",
           "standings": "api/duiju/shanhai/standings/r3.json"
         },
         {
@@ -51,9 +51,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:53:50",
-          "updated_at": "2026-11-15 16:53:50",
+          "model": null,
+          "predicted_at": null,
+          "updated_at": "2026-11-15 16:55:50",
           "standings": "api/duiju/shanhai/standings/r4.json"
         },
         {
@@ -62,9 +62,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:54:13",
-          "updated_at": "2026-11-15 16:54:13",
+          "model": null,
+          "predicted_at": null,
+          "updated_at": "2026-11-15 16:55:50",
           "standings": "api/duiju/shanhai/standings/r5.json"
         },
         {
@@ -73,9 +73,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 16:54:38",
-          "updated_at": "2026-11-15 16:54:38",
+          "model": null,
+          "predicted_at": null,
+          "updated_at": "2026-11-15 16:55:50",
           "standings": "api/duiju/shanhai/standings/r6.json"
         },
         {
