@@ -44,7 +44,7 @@ def get_effective_result(res):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
 ALL_GAMES_CSV_PATH = os.path.join(ROOT, 'data', 'all_games.csv')
-MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_glicko_20261115.json')
+MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_glicko_20261113.json')
 if not os.path.exists(MODEL_PATH):
     MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model.json')
 

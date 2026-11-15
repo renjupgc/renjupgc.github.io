@@ -100,7 +100,7 @@ def build_glicko_features(games):
     return pd.DataFrame(rows, columns=feature_cols + ["label"]), feature_cols
 
 
-def train_and_export(df, feature_cols, out_name="model_glicko_20261115.json"):
+def train_and_export(df, feature_cols, out_name="model_glicko_20261113.json"):
     cat_cols = ["rule"]
     cat_indices = [0]
     all_rules = sorted(list(df["rule"].unique()))
@@ -188,7 +188,7 @@ def train_and_export(df, feature_cols, out_name="model_glicko_20261115.json"):
 def main():
     ap = argparse.ArgumentParser(description="基于 data/all_games.csv 训练 5 特征 Glicko-GBDT 模型")
     ap.add_argument("--csv", default=DEFAULT_CSV_PATH, help="统一 CSV 路径")
-    ap.add_argument("--out-name", default="model_glicko_20261115.json", help="输出模型文件名")
+    ap.add_argument("--out-name", default="model_glicko_20261113.json", help="输出模型文件名")
     ap.add_argument("--include-shanhai", action="store_true", help="是否把山海杯纳入训练集")
     args = ap.parse_args()
 

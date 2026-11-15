@@ -7,8 +7,8 @@
     "group": "公开组",
     "rule": "塔拉山口-10"
   },
-  "model": "model_glicko_20261115",
-  "evaluated_at": "2026-11-15 18:45:25",
+  "model": "model_glicko_20261113",
+  "evaluated_at": "2026-11-15 18:50:53",
   "rounds": [
     {
       "n": 23,
