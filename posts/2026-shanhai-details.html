@@ -62,8 +62,11 @@ tbody td.c-cp.z{font-weight:400;color:var(--ink3)}
 .dist-tb .st-nm{position:sticky;left:44px;z-index:2;background:var(--card);text-align:left;padding-left:10px;min-width:86px;border-right:1px solid var(--line)}
 .dist-tb tr.shade .st-rk,.dist-tb tr.shade .st-nm{background:var(--mint2)}
 .dist-tb thead .st-rk,.dist-tb thead .st-nm{background:var(--card);z-index:3}
-.dist-tb td.c-dp{color:var(--ink3);min-width:46px}
+.dist-tb td.c-dp{color:var(--ink3);min-width:52px}
 .dist-tb td.c-dp.hi{color:var(--ink);font-weight:600}
+.exp-btn{padding:4px 12px;border-radius:999px;border:1px solid var(--green);background:transparent;
+  color:var(--green);font-size:12.5px;font-weight:600;cursor:pointer}
+.exp-btn:hover{background:var(--mint)}
 tbody tr:last-child td{border-bottom:none}
 tbody tr.shade td{background:var(--mint2)}
 .empty{padding:30px;text-align:center;color:var(--ink3)}
@@ -140,6 +143,7 @@ tbody tr.shade td{background:var(--mint2)}
   <div class="card dist-card" id="dist-card" style="display:none">
     <div class="dist-hd">
       <h2>名次分布表</h2>
+      <button type="button" class="exp-btn" id="btn-export">导出图片</button>
     </div>
     <div class="tb-wrap">
       <table class="dist-tb" id="dist-tbl">
@@ -228,7 +232,7 @@ tbody tr.shade td{background:var(--mint2)}
 
   function fmtProb(v) {
     if (v == null) return '<td class="c-cp z">—</td>';
-    if (!(v > 0)) return '<td class="c-cp z">0%</td>';
+    if (!(v > 0)) return '<td class="c-cp z">0.00%</td>';
     return '<td class="c-cp">' + v.toFixed(2) + '%</td>';
   }
 
@@ -284,7 +288,7 @@ tbody tr.shade td{background:var(--mint2)}
           var v = arr[k] || 0;
           if (v > 0) {
             var alpha = Math.min(0.45, v / 100 * 0.55).toFixed(3);
-            var txt = v >= 10 ? v.toFixed(1) + '%' : (v >= 0.1 ? v.toFixed(1) + '%' : v.toFixed(2) + '%');
+            var txt = v.toFixed(2) + '%';
             cells += '<td class="c-dp' + (v >= 5 ? ' hi' : '') + '" style="background:rgba(13,71,54,' + alpha + ')">' + txt + '</td>';
           } else {
             cells += '<td class="c-dp">·</td>';
@@ -292,7 +296,116 @@ tbody tr.shade td{background:var(--mint2)}
         }
         return '<tr' + (i % 2 ? ' class="shade"' : '') + '>' + cells + '</tr>';
       }).join('');
+      bindExport(d, list, m);
     }
+  }
+
+  function bindExport(d, list, m) {
+    var btn = document.getElementById('btn-export');
+    if (!btn) return;
+    btn.onclick = function () {
+      var scale = 2;
+      var rkW = 46, nmW = 88, erW = 56, colW = 54;
+      var padX = 20, padY = 18, hdrH = 44, thH = 30, rowH = 26;
+      var W = padX * 2 + rkW + nmW + erW + m * colW;
+      var H = padY * 2 + hdrH + thH + list.length * rowH;
+      var cv = document.createElement('canvas');
+      cv.width = W * scale;
+      cv.height = H * scale;
+      var ctx = cv.getContext('2d');
+      ctx.scale(scale, scale);
+
+      ctx.fillStyle = '#fffefb';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#0d4736';
+      ctx.fillRect(0, 0, W, 4);
+
+      ctx.font = '700 17px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillStyle = '#15201c';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText('“山海杯”2026年全国五子棋业余棋王争霸赛 · 第 ' + d.round + ' 轮名次分布表', padX, padY + hdrH / 2);
+
+      var y0 = padY + hdrH;
+      ctx.fillStyle = '#f7f5ee';
+      ctx.fillRect(padX, y0, W - padX * 2, thH);
+      ctx.strokeStyle = '#e4dfd2';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padX, y0 + thH);
+      ctx.lineTo(W - padX, y0 + thH);
+      ctx.stroke();
+
+      ctx.font = '600 12px "PingFang SC","Microsoft YaHei",sans-serif';
+      ctx.fillStyle = '#7c877f';
+      ctx.textAlign = 'center';
+      ctx.fillText('现名', padX + rkW / 2, y0 + thH / 2);
+      ctx.textAlign = 'left';
+      ctx.fillText('棋手', padX + rkW + 10, y0 + thH / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('期望', padX + rkW + nmW + erW / 2, y0 + thH / 2);
+      for (var r = 0; r < m; r++) {
+        ctx.fillText(String(r + 1), padX + rkW + nmW + erW + r * colW + colW / 2, y0 + thH / 2);
+      }
+
+      list.forEach(function (p, i) {
+        var ry = y0 + thH + i * rowH;
+        if (i % 2) {
+          ctx.fillStyle = '#f2f8f5';
+          ctx.fillRect(padX, ry, W - padX * 2, rowH);
+        }
+        ctx.strokeStyle = '#eeeadf';
+        ctx.beginPath();
+        ctx.moveTo(padX, ry + rowH);
+        ctx.lineTo(W - padX, ry + rowH);
+        ctx.stroke();
+
+        ctx.font = '700 12px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.fillStyle = '#0d4736';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(p.rank), padX + rkW / 2, ry + rowH / 2);
+
+        ctx.font = '600 12px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.fillStyle = '#15201c';
+        ctx.textAlign = 'left';
+        ctx.fillText(p.name || '', padX + rkW + 10, ry + rowH / 2);
+
+        ctx.font = '700 12px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.fillStyle = '#0d4736';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.expected_rank == null ? '—' : p.expected_rank.toFixed(2), padX + rkW + nmW + erW / 2, ry + rowH / 2);
+
+        var arr = p.rank_probs || [];
+        for (var k = 0; k < m; k++) {
+          var v = arr[k] || 0;
+          var cx = padX + rkW + nmW + erW + k * colW;
+          if (v > 0) {
+            var alpha = Math.min(0.45, v / 100 * 0.55);
+            ctx.fillStyle = 'rgba(13,71,54,' + alpha.toFixed(3) + ')';
+            ctx.fillRect(cx, ry, colW, rowH);
+            ctx.font = (v >= 5 ? '600' : '400') + ' 11px "PingFang SC","Microsoft YaHei",sans-serif';
+            ctx.fillStyle = v >= 5 ? '#15201c' : '#556159';
+            ctx.fillText(v.toFixed(2) + '%', cx + colW / 2, ry + rowH / 2);
+          } else {
+            ctx.font = '400 11px "PingFang SC","Microsoft YaHei",sans-serif';
+            ctx.fillStyle = '#9aa79f';
+            ctx.fillText('·', cx + colW / 2, ry + rowH / 2);
+          }
+        }
+      });
+
+      cv.toBlob(function (blob) {
+        if (!blob) return;
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'shanhai-r' + d.round + '-dist.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      }, 'image/png');
+    };
   }
 })();
 </script>
