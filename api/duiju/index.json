@@ -18,9 +18,9 @@
           "predicted": 23,
           "played": 23,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 18:35:17",
-          "updated_at": "2026-11-15 18:35:17",
+          "model": "model_glicko_20261115",
+          "predicted_at": "2026-11-15 18:45:16",
+          "updated_at": "2026-11-15 18:45:16",
           "standings": "api/duiju/shanhai/standings/r1.json"
         },
         {
@@ -29,9 +29,9 @@
           "predicted": 23,
           "played": 23,
           "is_finished": true,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 18:35:35",
-          "updated_at": "2026-11-15 18:35:35",
+          "model": "model_glicko_20261115",
+          "predicted_at": "2026-11-15 18:45:17",
+          "updated_at": "2026-11-15 18:45:17",
           "standings": "api/duiju/shanhai/standings/r2.json"
         },
         {
@@ -40,9 +40,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
-          "updated_at": "2026-11-15 17:59:39",
+          "model": "model_glicko_20261115",
+          "predicted_at": "2026-11-15 18:45:17",
+          "updated_at": "2026-11-15 18:45:17",
           "standings": "api/duiju/shanhai/standings/r3.json"
         },
         {
@@ -51,9 +51,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
-          "updated_at": "2026-11-15 17:59:39",
+          "model": "model_glicko_20261115",
+          "predicted_at": "2026-11-15 18:45:17",
+          "updated_at": "2026-11-15 18:45:17",
           "standings": "api/duiju/shanhai/standings/r4.json"
         },
         {
@@ -62,9 +62,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
-          "updated_at": "2026-11-15 17:59:39",
+          "model": "model_glicko_20261115",
+          "predicted_at": "2026-11-15 18:45:18",
+          "updated_at": "2026-11-15 18:45:18",
           "standings": "api/duiju/shanhai/standings/r5.json"
         },
         {
@@ -73,9 +73,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
-          "updated_at": "2026-11-15 17:59:39",
+          "model": "model_glicko_20261115",
+          "predicted_at": "2026-11-15 18:45:18",
+          "updated_at": "2026-11-15 18:45:18",
           "standings": "api/duiju/shanhai/standings/r6.json"
         },
         {
@@ -84,9 +84,9 @@
           "predicted": 22,
           "played": 22,
           "is_finished": true,
-          "model": null,
-          "predicted_at": null,
-          "updated_at": "2026-11-15 17:59:39",
+          "model": "model_glicko_20261115",
+          "predicted_at": "2026-11-15 18:45:18",
+          "updated_at": "2026-11-15 18:45:18",
           "standings": "api/duiju/shanhai/standings/r7.json"
         },
         {
@@ -95,9 +95,9 @@
           "predicted": 22,
           "played": 0,
           "is_finished": false,
-          "model": "model_20261113",
-          "predicted_at": "2026-11-15 18:37:16",
-          "updated_at": "2026-11-15 18:37:16",
+          "model": "model_glicko_20261115",
+          "predicted_at": "2026-11-15 18:45:18",
+          "updated_at": "2026-11-15 18:45:18",
           "standings": null
         }
       ]
