@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
-"""赛事对局胜率预测 API（完全基于统一 CSV 与 20261113 GBDT 模型）。
+"""赛事对局胜率预测 API（基于统一 CSV 与 6 特征 Glicko-GBDT 模型）。
 
 核心逻辑：
-1. 数据源：完全基于 data/all_games.csv（含 RIF XML 历史库与已完赛赛事对局），
-   不再读取 duiju.db 历史对局，也不做额外姓名重映射。
-2. 特征计算：直接从 CSV 计算全量 WHR 等级分与标准差、时间衰减和棋率、衰减 H2H 与国籍属性（共 14 维）。
-3. 预测接口：支持按 (赛事, 轮次, 台次) 或整轮预测，模型为 bisai/data/model_20261113.json。
+1. 数据源：基于 data/all_games.csv（含 RIF XML 历史库与已完赛赛事对局），
+   仅使用当前赛事开始时间之前的其他赛事对局，以及本赛事轮数更小的对局。
+2. 特征计算：按时间顺序单遍递推 Glicko-1 等级分与 Glicko 式双方和棋倾向（共 6 维）：
+   [rule, rating_tb, rating_tw, rating_diff, glicko_dr_tb, glicko_dr_tw]
+3. 预测接口：支持按 (赛事, 轮次, 台次) 或整轮预测，模型为 bisai/data/model_glicko_20261113.json。
 
 用法：
-    python tools/predict_api.py --tid 2026-shanhai --round 6 --table 1
-    python tools/predict_api.py --tid 2026-shanhai --round 6 --write
+    python tools/predict_api.py --tid 2026-shanhai --round 8
+    python tools/predict_api.py --tid 2026-shanhai --round 8 --write
 """
 
 import argparse
@@ -26,21 +27,6 @@ import tempfile
 
 TZ = timezone(timedelta(hours=8))
 
-
-def now_str():
-    return datetime.now(TZ).strftime('%Y-%m-%d %H:%M:%S')
-
-
-def get_effective_result(res):
-    """把 BF/WF 映射为等效对局胜方（BF 黑弃权=白胜 W，WF 白弃权=黑胜 B）。"""
-    if res in ('B', 'WF'):
-        return 'B'
-    if res in ('W', 'BF'):
-        return 'W'
-    if res == 'D':
-        return 'D'
-    return None
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT, 'data', 'duiju.db')
 ALL_GAMES_CSV_PATH = os.path.join(ROOT, 'data', 'all_games.csv')
@@ -48,7 +34,7 @@ MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model_glicko_20261113.json')
 if not os.path.exists(MODEL_PATH):
     MODEL_PATH = os.path.join(ROOT, 'bisai', 'data', 'model.json')
 
-# Glicko-1 基准常数与时间衰减常数
+# Glicko-1 胜负等级分常数
 GLICKO_Q = math.log(10.0) / 400.0
 GLICKO_Q2 = GLICKO_Q * GLICKO_Q
 GLICKO_THREE_Q2_OVER_PI2 = 3.0 * GLICKO_Q2 / (math.pi * math.pi)
@@ -66,10 +52,8 @@ GLICKO_D_MIN_RD = 35.0
 GLICKO_D_MAX_RD = 250.0
 GLICKO_D_C2_PER_DAY = 50.0
 
-BASE_DAY = 20771  # 比赛日期 2026-11-14
-TAU = 730.0  # 衰减半衰尺度（天）
+BASE_DAY = 20771  # 2026-11-14
 
-# 规则 ID 映射
 RULE_MAP = {
     '塔拉山口-10': 25,
     'Taraguchi-10': 25,
@@ -82,7 +66,22 @@ RULE_MAP = {
 _MODEL_CACHE = None
 _CSV_GAMES_CACHE = {}
 _CONTEXT_CACHE = {}
-_INCREMENTAL_GLICKO_STATE = {}  # (csv_path, csv_sig, tid) -> (last_upto_round, rating, rd_map, last_day)
+_INCREMENTAL_GLICKO_STATE = {}  # (csv_path, csv_sig, tid) -> (last_upto_round, rating, rd_map, last_day, d_rating, d_rd_map, d_last_day)
+
+
+def now_str():
+    return datetime.now(TZ).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def get_effective_result(res):
+    """把 BF/WF 映射为等效对局胜方（BF 黑弃权=白胜 W，WF 白弃权=黑胜 B）。"""
+    if res in ('B', 'WF'):
+        return 'B'
+    if res in ('W', 'BF'):
+        return 'W'
+    if res == 'D':
+        return 'D'
+    return None
 
 
 def connect(path=None):
@@ -91,29 +90,22 @@ def connect(path=None):
     return conn
 
 
-# ---------------------------------------------------------------- 加载 20261113 模型
+# ---------------------------------------------------------------- 模型加载与推断
 
 def load_gbdt_model():
-    """加载截止 20261113 的最新 GBDT 决策树模型。"""
+    """加载 Glicko-GBDT 决策树模型。"""
     global _MODEL_CACHE
     if _MODEL_CACHE is not None:
         return _MODEL_CACHE
     if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f'未找到最新模型文件: {MODEL_PATH}')
+        raise FileNotFoundError(f'未找到模型文件: {MODEL_PATH}')
     with open(MODEL_PATH, 'r', encoding='utf-8') as f:
         _MODEL_CACHE = json.load(f)
     return _MODEL_CACHE
 
 
-# ---------------------------------------------------------------- GBDT 概率推断
-
 def predict_gbdt(sample, model=None):
-    """最新 20261113 模型推断三分类概率 (p_black, p_draw, p_white)。
-    
-    sample 维度为 14:
-    [rule, r_tb, r_tw, diff, mean_r, std_tb, std_tw, joint_std,
-     decayed_dr_tb, decayed_dr_tw, combined_decayed_dr, decayed_h2h_score, country_tb, country_tw]
-    """
+    """GBDT 三分类概率推断 (p_black, p_draw, p_white)。"""
     model = model or load_gbdt_model()
     scores = [0.0, 0.0, 0.0]
     cat_maps = model.get('cat_maps', {})
@@ -153,13 +145,15 @@ def predict_gbdt(sample, model=None):
     return pb, pd, pw
 
 
+# ---------------------------------------------------------------- CSV 加载与 Glicko 特征计算
+
 def _csv_lite_cache_path(path):
     key = hashlib.md5(os.path.abspath(path).encode('utf-8')).hexdigest()[:12]
-    return os.path.join(tempfile.gettempdir(), f'renjupgc_all_games_lite_v3_{key}.pkl')
+    return os.path.join(tempfile.gettempdir(), f'renjupgc_all_games_lite_v4_{key}.pkl')
 
 
 def load_all_games_csv(csv_path=None):
-    """加载统一对局 CSV（跳过 moves 列并启用轻量缓存）。"""
+    """加载统一对局 CSV（跳过 moves 列并启用轻量缓存，按时间排序）。"""
     path = csv_path or ALL_GAMES_CSV_PATH
     if not os.path.exists(path):
         raise FileNotFoundError(f'未找到统一对局 CSV 文件: {path}，请先运行 tools/export_games_csv.py')
@@ -181,14 +175,13 @@ def load_all_games_csv(csv_path=None):
         except Exception:
             pass
 
-    games = []
     name_to_pid = {}
-    pid_to_country = {}
+    indexed_games = []
     with open(path, 'r', encoding='utf-8', newline='') as f:
         reader = csv.reader(f)
         header = next(reader, None)
         if not header:
-            result = (games, name_to_pid, pid_to_country)
+            result = ([], name_to_pid)
             _CSV_GAMES_CACHE[path] = (sig, result)
             return result
         col_idx = {name: i for i, name in enumerate(header)}
@@ -197,14 +190,11 @@ def load_all_games_csv(csv_path=None):
         i_rnd = col_idx['round']
         i_bid = col_idx['black_id']
         i_bn = col_idx['black_name']
-        i_bc = col_idx['black_country']
         i_wid = col_idx['white_id']
         i_wn = col_idx['white_name']
-        i_wc = col_idx['white_country']
         i_res = col_idx['result']
         i_day = col_idx['day']
 
-        indexed_games = []
         for row_idx, row in enumerate(reader):
             res = row[i_res]
             if res not in ('B', 'W', 'D'):
@@ -225,22 +215,15 @@ def load_all_games_csv(csv_path=None):
             rnd = int(r_raw) if r_raw.isdigit() else None
             tid = row[i_tid]
             tname = row[i_tname] if i_tname is not None else ''
-            indexed_games.append((day, rnd or 0, row_idx, (tid, rnd, b_id, w_id, res, day, b_name, w_name, tname)))
+            indexed_games.append((day, rnd or 0, row_idx, (tid, rnd, b_id, w_id, res, day, tname)))
             if b_name and b_id and b_name not in name_to_pid:
                 name_to_pid[b_name] = b_id
             if w_name and w_id and w_name not in name_to_pid:
                 name_to_pid[w_name] = w_id
-            for pid, c_raw in ((b_id, row[i_bc]), (w_id, row[i_wc])):
-                if pid and c_raw:
-                    try:
-                        pid_to_country[pid] = int(c_raw)
-                    except ValueError:
-                        pass
 
-        indexed_games.sort(key=lambda x: (x[0], x[1], x[2]))
-        games = [x[3] for x in indexed_games]
-
-    result = (games, name_to_pid, pid_to_country)
+    indexed_games.sort(key=lambda x: (x[0], x[1], x[2]))
+    games = [x[3] for x in indexed_games]
+    result = (games, name_to_pid)
     _CSV_GAMES_CACHE[path] = (sig, result)
     try:
         with open(pkl_path, 'wb') as pf:
@@ -314,18 +297,17 @@ def _glicko_draw_step(d_rating, d_rd_map, d_last_day, day, b_id, w_id, res):
 
 
 def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
-    """完全基于统一 CSV 计算 Glicko-1 等级分/RD、衰减和棋率、衰减 H2H 与国籍映射。
+    """基于统一 CSV 计算 Glicko-1 等级分/RD 与 Glicko 式双方和棋倾向。
 
-    不读取 duiju.db，不做额外姓名重映射。
     若指定了 tid：仅使用本次赛事开始时间之前（g_day < t_start_day）的历史对局，
-    以及本次赛事轮数更小（g_tid == tid 且 g_rnd < upto_round）的对局。
+    以及本次赛事轮数更小（同赛事且 g_rnd < upto_round）的对局。
     """
     resolved_csv = csv_path or ALL_GAMES_CSV_PATH
     cache_key = (resolved_csv, tid, upto_round)
     if cache_key in _CONTEXT_CACHE:
         return _CONTEXT_CACHE[cache_key]
 
-    csv_games, name_to_pid, pid_to_country = load_all_games_csv(resolved_csv)
+    csv_games, name_to_pid = load_all_games_csv(resolved_csv)
 
     tour_name = None
     if tid and os.path.exists(DB_PATH):
@@ -343,8 +325,7 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
             return False
         return g_tid == tid or (bool(tour_name) and g_tname == tour_name)
 
-    # 基准日期取 CSV 中该赛事开始日期（min）；若赛事尚未入库则取全库最新日期 + 1
-    tid_days = [g[5] for g in csv_games if tid and _is_same_tour(g[0], g[8]) and g[5] > 0]
+    tid_days = [g[5] for g in csv_games if tid and _is_same_tour(g[0], g[6]) and g[5] > 0]
     if tid_days:
         t_day = min(tid_days)
     elif csv_games:
@@ -353,54 +334,11 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
     else:
         t_day = BASE_DAY
 
-    glicko_input = []
-    dr_acc = {}   # pid -> [w_sum, d_sum]
-    h2h_acc = {}  # (p1, p2) -> [w_sum, s_first_sum]
-
-    for g_tid, g_rnd, b_id, w_id, res, g_day, _, _, g_tname in csv_games:
-        if tid:
-            if _is_same_tour(g_tid, g_tname):
-                if upto_round is not None and (g_rnd is None or g_rnd >= upto_round):
-                    continue
-            else:
-                if g_day >= t_day:
-                    continue
-        else:
-            if g_day > t_day:
-                continue
-        glicko_input.append((b_id, w_id, res, g_day))
-
-        # 时间衰减权重
-        w = math.exp(-max(0, t_day - g_day) / TAU)
-
-        # 衰减和棋率累计
-        d_val = w if res == 'D' else 0.0
-        for pid in (b_id, w_id):
-            acc = dr_acc.get(pid)
-            if acc is None:
-                dr_acc[pid] = [w, d_val]
-            else:
-                acc[0] += w
-                acc[1] += d_val
-
-        # 衰减 H2H 累计（按字典序较小者视角）
-        if b_id <= w_id:
-            pair = (b_id, w_id)
-            s_first = w if res == 'B' else (0.5 * w if res == 'D' else 0.0)
-        else:
-            pair = (w_id, b_id)
-            s_first = w if res == 'W' else (0.5 * w if res == 'D' else 0.0)
-        p_acc = h2h_acc.get(pair)
-        if p_acc is None:
-            h2h_acc[pair] = [w, s_first]
-        else:
-            p_acc[0] += w
-            p_acc[1] += s_first
-
     st = os.stat(resolved_csv)
     csv_sig = (st.st_mtime_ns, st.st_size)
     inc_key = (resolved_csv, csv_sig, tid)
     inc_state = _INCREMENTAL_GLICKO_STATE.get(inc_key)
+
     if (
         inc_state is not None
         and upto_round is not None
@@ -408,7 +346,7 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
         and upto_round > inc_state[0]
     ):
         last_rnd, rating, rd_map, last_day, d_rating, d_rd_map, d_last_day = inc_state
-        for g_tid, g_rnd, b_id, w_id, res, g_day, _, _, g_tname in csv_games:
+        for g_tid, g_rnd, b_id, w_id, res, g_day, g_tname in csv_games:
             if _is_same_tour(g_tid, g_tname) and g_rnd is not None and last_rnd <= g_rnd < upto_round:
                 _glicko_step(rating, rd_map, last_day, g_day, b_id, w_id, res)
                 _glicko_draw_step(d_rating, d_rd_map, d_last_day, g_day, b_id, w_id, res)
@@ -416,13 +354,20 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
     else:
         rating, rd_map, last_day = {}, {}, {}
         d_rating, d_rd_map, d_last_day = {}, {}, {}
-        for b_id, w_id, res, g_day in glicko_input:
+        for g_tid, g_rnd, b_id, w_id, res, g_day, g_tname in csv_games:
+            if tid:
+                if _is_same_tour(g_tid, g_tname):
+                    if upto_round is not None and (g_rnd is None or g_rnd >= upto_round):
+                        continue
+                elif g_day >= t_day:
+                    continue
+            elif g_day > t_day:
+                continue
             _glicko_step(rating, rd_map, last_day, g_day, b_id, w_id, res)
             _glicko_draw_step(d_rating, d_rd_map, d_last_day, g_day, b_id, w_id, res)
         if tid is not None and upto_round is not None:
             _INCREMENTAL_GLICKO_STATE[inc_key] = (upto_round, rating, rd_map, last_day, d_rating, d_rd_map, d_last_day)
 
-    # 汇总当前时间点（t_day）各棋手 Glicko 等级分与时间膨胀 RD，以及 Glicko 和棋倾向
     pred_day = t_day + (max(0, (upto_round - 1) // 2) if upto_round else 0)
     glicko_snapshot = {}
     for pid in set(rating.keys()) | set(rd_map.keys()):
@@ -434,32 +379,17 @@ def compute_context_from_csv(tid=None, upto_round=None, csv_path=None):
         for pid, d_val in d_rating.items()
     }
 
-    # 汇总衰减和棋率映射
-    dr_map = {
-        pid: (d_sum / w_sum) if w_sum > 2.0 else 0.12
-        for pid, (w_sum, d_sum) in dr_acc.items()
-    }
-
-    # 汇总衰减 H2H 映射
-    h2h_map = {
-        pair: (0.5 + s_sum) / (1.0 + w_sum)
-        for pair, (w_sum, s_sum) in h2h_acc.items()
-    }
-
     ctx = {
         'glicko_snapshot': glicko_snapshot,
         'glicko_dr_snapshot': glicko_dr_snapshot,
-        'dr_map': dr_map,
-        'h2h_map': h2h_map,
         'name_to_pid': name_to_pid,
-        'pid_to_country': pid_to_country,
     }
     _CONTEXT_CACHE[cache_key] = ctx
     return ctx
 
 
 def get_player_rating(ctx, name):
-    """直接从 Glicko 快照中查询棋手最新等级分与标准差 (RD)。"""
+    """查询棋手最新 Glicko 等级分与标准差 (RD)。"""
     snap = ctx.get('glicko_snapshot')
     if not snap or not name or name == '轮空':
         return {'rating': GLICKO_INIT_RATING, 'rd': GLICKO_INIT_RD}
@@ -473,24 +403,20 @@ def get_player_rating(ctx, name):
 # ---------------------------------------------------------------- 对局预测 API
 
 def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None):
-    """完全基于 CSV 上下文与 20261113 GBDT 模型推断一组对局的胜率。"""
+    """基于 6 特征 Glicko-GBDT 模型推断一组对局的胜率。"""
     model = model or load_gbdt_model()
-    rule_id = RULE_MAP.get(rule_name, 25)  # 默认塔拉山口-10 (25)
-
-    dr_map = ctx['dr_map']
-    h2h_map = ctx['h2h_map']
+    rule_id = RULE_MAP.get(rule_name, 25)
+    glicko_dr_map = ctx.get('glicko_dr_snapshot') or {}
     name_to_pid = ctx['name_to_pid']
-    pid_to_country = ctx['pid_to_country']
 
     out = []
     for g in games_rows:
         bn = g['black_name']
         wn = g['white_name']
 
-        # 轮空台不参与预测，也不算做预测内
         if wn == '轮空' or bn == '轮空':
-            b_whr = get_player_rating(ctx, bn) if bn != '轮空' else {'rating': 0.0, 'rd': 0.0}
-            w_whr = get_player_rating(ctx, wn) if wn != '轮空' else {'rating': 0.0, 'rd': 0.0}
+            b_g = get_player_rating(ctx, bn) if bn != '轮空' else {'rating': 0.0, 'rd': 0.0}
+            w_g = get_player_rating(ctx, wn) if wn != '轮空' else {'rating': 0.0, 'rd': 0.0}
             out.append({
                 'table': g['table_no'],
                 'round': g['round'],
@@ -498,13 +424,12 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None)
                 'black_name': bn,
                 'white_no': g['white_no'],
                 'white_name': wn,
-                'rating_black': b_whr['rating'],
-                'rd_black': b_whr['rd'],
-                'rating_white': w_whr['rating'],
-                'rd_white': w_whr['rd'],
+                'rating_black': b_g['rating'],
+                'rd_black': b_g['rd'],
+                'rating_white': w_g['rating'],
+                'rd_white': w_g['rd'],
                 'dr_black': 0.0,
                 'dr_white': 0.0,
-                'h2h_score': 0.5,
                 'p_black': None,
                 'p_draw': None,
                 'p_white': None,
@@ -514,55 +439,19 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None)
             })
             continue
 
-        b_whr = get_player_rating(ctx, bn)
-        w_whr = get_player_rating(ctx, wn)
-        rb, stdb = b_whr['rating'], b_whr['rd']
-        rw, stdw = w_whr['rating'], w_whr['rd']
+        b_g = get_player_rating(ctx, bn)
+        w_g = get_player_rating(ctx, wn)
+        rb, stdb = b_g['rating'], b_g['rd']
+        rw, stdw = w_g['rating'], w_g['rd']
 
         p1_id = name_to_pid.get(bn, bn)
         p2_id = name_to_pid.get(wn, wn)
-
-        diff = rb - rw
-        mean_r = (rb + rw) / 2.0
-        j_std = math.sqrt(stdb**2 + stdw**2)
-
-        dr_b = dr_map.get(p1_id, 0.12)
-        dr_w = dr_map.get(p2_id, 0.12)
-        comb_dr = (dr_b + dr_w) / 2.0
-
-        if p1_id <= p2_id:
-            h2h_rate = h2h_map.get((p1_id, p2_id), 0.5)
-        else:
-            h2h_rate = 1.0 - h2h_map.get((p2_id, p1_id), 0.5)
-
-        c_b = pid_to_country.get(p1_id, 5)
-        c_w = pid_to_country.get(p2_id, 5)
-
-        glicko_dr_map = ctx.get('glicko_dr_snapshot') or {}
         gdr_b = glicko_dr_map.get(p1_id, GLICKO_BASE_DRAW_P)
         gdr_w = glicko_dr_map.get(p2_id, GLICKO_BASE_DRAW_P)
 
-        n_feats = len(model.get('features', []))
-        if n_feats == 4:
-            # Glicko 4 维特征向量: [rule, rating_tb, rating_tw, rating_diff]
-            feat = [rule_id, rb, rw, diff]
-        elif n_feats == 5:
-            # Glicko 5 维特征向量
-            feat = [rule_id, rb, rw, diff, mean_r]
-        elif n_feats == 6:
-            # Glicko 6 维特征向量: [rule, rating_tb, rating_tw, rating_diff, glicko_dr_tb, glicko_dr_tw]
-            feat = [rule_id, rb, rw, diff, gdr_b, gdr_w]
-        else:
-            # 兼容旧 14 维特征向量
-            feat = [
-                rule_id, rb, rw, diff, mean_r,
-                stdb, stdw, j_std,
-                dr_b, dr_w, comb_dr,
-                h2h_rate, c_b, c_w
-            ]
+        feat = [rule_id, rb, rw, rb - rw, gdr_b, gdr_w]
         pb, pd, pw = predict_gbdt(feat, model)
 
-        # 预测最高项判定
         top_prob = max(pb, pd, pw)
         fav = 'B' if pb == top_prob else ('W' if pw == top_prob else 'D')
         res = g['result']
@@ -580,9 +469,8 @@ def predict_games_list(games_rows, ctx, rule_name='塔拉山口-10', model=None)
             'rd_black': stdb,
             'rating_white': rw,
             'rd_white': stdw,
-            'dr_black': round(dr_b, 4),
-            'dr_white': round(dr_w, 4),
-            'h2h_score': round(h2h_rate, 4),
+            'dr_black': round(gdr_b, 4),
+            'dr_white': round(gdr_w, 4),
             'p_black': pb,
             'p_draw': pd,
             'p_white': pw,
@@ -645,7 +533,7 @@ def compute_metrics_for_games(games_rows):
 
 
 def evaluate_tournament_model(conn, tid, write=True, print_report=True):
-    """自动评估当前/最新模型在指定赛事的整体及逐轮实战表现，并自动写回 metrics.json。"""
+    """自动评估当前模型在指定赛事的整体及逐轮实战表现，并自动写回 metrics.json。"""
     tour = conn.execute('SELECT * FROM tournaments WHERE id=?', (tid,)).fetchone()
     if not tour:
         return None
@@ -707,38 +595,32 @@ def evaluate_tournament_model(conn, tid, write=True, print_report=True):
             json.dump(payload, f, ensure_ascii=False, indent=2)
 
     if print_report:
-        print("=" * 68)
-        print(f"📊 模型实战评估看板 ({tour['name']} | 当前评估模型: {model_name})")
-        print("=" * 68)
+        print('=' * 68)
+        print(f'📊 模型实战评估看板 ({tour["name"]} | 当前评估模型: {model_name})')
+        print('=' * 68)
         ov = overall
         acc_pct = ov['accuracy'] * 100
-        print(f"总完赛台数: {ov['n']} 台 | 命中: {ov['hit']} 台 | 命中率: {acc_pct:.2f}%")
-        print(f"对数损失 (Log-Loss): {ov['logloss']:.4f} | Brier 校准误差: {ov['brier']:.4f} | 平均置信度: {ov['confidence']*100:.2f}%")
-        print("【分项命中率】")
+        print(f'总完赛台数: {ov["n"]} 台 | 命中: {ov["hit"]} 台 | 命中率: {acc_pct:.2f}%')
+        print(f'对数损失 (Log-Loss): {ov["logloss"]:.4f} | Brier 校准误差: {ov["brier"]:.4f} | 平均置信度: {ov["confidence"]*100:.2f}%')
+        print('【分项命中率】')
         for res_k, name_k in [('B', '黑胜'), ('W', '白胜'), ('D', '和棋')]:
             tot_c = ov['results'].get(res_k, 0)
             hit_c = ov['hit_by_result'].get(res_k, 0)
             rate_c = (hit_c / tot_c * 100) if tot_c > 0 else 0.0
-            print(f"  - {name_k} ({res_k}): 实际 {tot_c:2d} 局，命中 {hit_c:2d} 局 ({rate_c:5.1f}%)")
-        print("-" * 68)
+            print(f'  - {name_k} ({res_k}): 实际 {tot_c:2d} 局，命中 {hit_c:2d} 局 ({rate_c:5.1f}%)')
+        print('-' * 68)
         for r_stat in rounds_stats:
-            print(f"  第 {r_stat['round']} 轮: 完赛 {r_stat['n']} 台，命中 {r_stat['hit']} 台 ({r_stat['accuracy']*100:.1f}%) | "
-                  f"LogLoss {r_stat['logloss']:.4f} | Brier {r_stat['brier']:.4f}")
+            print(f'  第 {r_stat["round"]} 轮: 完赛 {r_stat["n"]} 台，命中 {r_stat["hit"]} 台 ({r_stat["accuracy"]*100:.1f}%) | '
+                  f'LogLoss {r_stat["logloss"]:.4f} | Brier {r_stat["brier"]:.4f}')
         if write:
-            print(f"✔ 最新评估指标已自动同步持久化至: api/duiju/{slug}/metrics.json")
-        print("=" * 68)
+            print(f'✔ 最新评估指标已自动同步持久化至: api/duiju/{slug}/metrics.json')
+        print('=' * 68)
 
     return payload
 
 
 def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
-    """预测指定赛事的某一轮对局。
-
-    直接从统一 CSV（含 RIF XML 历史对局与已完赛的本赛事前序对局）计算 WHR、衰减和棋率与 H2H，
-    再使用 20261113 GBDT 模型推断概率。
-    write=True 时写回 duiju.db。
-    overwrite=True 时强制覆盖已有概率（即使已有赛果或旧概率）。
-    """
+    """预测指定赛事的某一轮对局。"""
     model = load_gbdt_model()
     tour = conn.execute('SELECT rule FROM tournaments WHERE id=?', (tid,)).fetchone()
     rule_name = (tour['rule'] if tour else None) or '塔拉山口-10'
@@ -753,11 +635,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
     if not games:
         return []
 
-    if overwrite:
-        todo = games
-    else:
-        todo = [g for g in games if g['result'] not in ('B', 'W', 'D')]
-
+    todo = games if overwrite else [g for g in games if g['result'] not in ('B', 'W', 'D')]
     preds = predict_games_list(todo, ctx, rule_name=rule_name, model=model)
 
     if write and preds:
@@ -777,8 +655,7 @@ def predict_round(conn, tid, rnd, write=False, overwrite=False, csv_path=None):
         conn.commit()
         evaluate_tournament_model(conn, tid, write=True, print_report=False)
 
-    all_preds = predict_games_list(games, ctx, rule_name=rule_name, model=model)
-    return all_preds
+    return predict_games_list(games, ctx, rule_name=rule_name, model=model)
 
 
 def predict_game(conn, tid, rnd, table, write=False, overwrite=False, csv_path=None):
@@ -820,7 +697,7 @@ def predict_by_table(tid, rnd, table, write=False, overwrite=False, db_path=None
 
 
 def predict_tournament(conn, tid, write=True, overwrite=False, csv_path=None):
-    """预测一个赛事一系列对局的完整 API。"""
+    """预测一个赛事所有轮次对局的完整 API。"""
     rounds = [r['round'] for r in conn.execute(
         'SELECT DISTINCT round FROM games WHERE tournament_id=? ORDER BY round', (tid,)
     )]
@@ -844,7 +721,7 @@ def predict_tournament(conn, tid, write=True, overwrite=False, csv_path=None):
 
     if write:
         if total_predicted:
-            print(f'已完成赛事 {tid} 全特征预测（基于统一 CSV）：共更新 {total_predicted} 台概率')
+            print(f'已完成赛事 {tid} 预测（基于统一 CSV）：共更新 {total_predicted} 台概率')
         evaluate_tournament_model(conn, tid, write=True, print_report=True)
 
     return total_predicted
@@ -853,7 +730,7 @@ def predict_tournament(conn, tid, write=True, overwrite=False, csv_path=None):
 # ---------------------------------------------------------------- CLI 命令行入口
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='基于统一 CSV 与 20261113 GBDT 模型的赛事/轮次/台次预测 API')
+    ap = argparse.ArgumentParser(description='基于统一 CSV 与 6 特征 Glicko-GBDT 模型的赛事/轮次/台次预测 API')
     ap.add_argument('--tid', required=True, help='赛事 id，如 2026-shanhai')
     ap.add_argument('--round', type=int, help='指定轮次（默认全赛事所有轮次）')
     ap.add_argument('--table', type=int, help='指定台次（需同时指定 --round）')
@@ -883,7 +760,7 @@ def main(argv=None):
         elif args.round:
             rows = predict_round(conn, args.tid, args.round,
                                  write=args.write, overwrite=args.overwrite, csv_path=args.csv)
-            print(f'=== {args.tid} 第 {args.round} 轮预测结果 (基于最新模型，共 {len(rows)} 台) ===')
+            print(f'=== {args.tid} 第 {args.round} 轮预测结果 (基于 Glicko-GBDT 6特征，共 {len(rows)} 台) ===')
             for p in rows:
                 mark = '✔' if p['is_correct'] is True else ('✘' if p['is_correct'] is False else '·')
                 res_str = p['result'] or '进行中'
@@ -892,7 +769,7 @@ def main(argv=None):
                 else:
                     print(f'{mark} 第{p["table"]:2d}台  {p["black_name"]}({p["rating_black"]:.0f}) vs {p["white_name"]}({p["rating_white"]:.0f})  '
                           f'胜率: {p["p_black"]:.1f}% / {p["p_draw"]:.1f}% / {p["p_white"]:.1f}%  '
-                          f'[和棋率: {p["dr_black"]:.3f}/{p["dr_white"]:.3f}, H2H: {p["h2h_score"]:.2f}]  '
+                          f'[和棋倾向: {p["dr_black"]:.3f}/{p["dr_white"]:.3f}]  '
                           f'[实际: {res_str}]')
             if args.write:
                 evaluate_tournament_model(conn, args.tid, write=True, print_report=True)
