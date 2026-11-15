@@ -73,14 +73,8 @@ tbody tr.shade td{background:var(--mint2)}
   thead th:nth-child(5){width:13%}
   thead th:nth-child(6){width:15%}
   thead th:nth-child(7){width:15%}
-  table.has-cp thead th:nth-child(1){width:10%}
-  table.has-cp thead th:nth-child(2){width:9%}
-  table.has-cp thead th:nth-child(3){width:20%}
-  table.has-cp thead th:nth-child(4){width:10%}
-  table.has-cp thead th:nth-child(5){width:12%}
-  table.has-cp thead th:nth-child(6){width:13%}
-  table.has-cp thead th:nth-child(7){width:11%}
-  table.has-cp thead th:nth-child(8){width:15%}
+  table.has-cp{table-layout:auto;min-width:540px}
+  table.has-cp thead th{width:auto!important;padding:8px 5px 7px}
   tbody td.c-rk{width:auto;font-size:13px}
   tbody td.c-no{width:auto;font-size:11px}
   tbody td.c-nm{width:auto;min-width:0;padding-left:8px;font-size:13px;
@@ -120,6 +114,8 @@ tbody tr.shade td{background:var(--mint2)}
             <th>中间<br>对手分</th>
             <th>胜局数</th>
             <th id="th-cp" style="display:none">夺冠<br>概率</th>
+            <th id="th-t3" style="display:none">前三<br>概率</th>
+            <th id="th-t8" style="display:none">前八<br>概率</th>
           </tr>
         </thead>
         <tbody id="rows">
@@ -206,21 +202,26 @@ tbody tr.shade td{background:var(--mint2)}
     tbody.innerHTML = '<tr><td colspan="7" class="empty">数据读取失败，请稍后重试</td></tr>';
   });
 
+  function fmtProb(v) {
+    if (v == null) return '<td class="c-cp z">—</td>';
+    if (!(v > 0)) return '<td class="c-cp z">0%</td>';
+    return '<td class="c-cp">' + v.toFixed(2) + '%</td>';
+  }
+
   function render(d) {
     document.getElementById('rnd').textContent = '第 ' + d.round + ' 轮';
     var hasCp = (d.ranking || []).some(function (p) { return p.champion_prob != null; });
     var tbl = document.getElementById('tbl');
-    var thCp = document.getElementById('th-cp');
     if (tbl) tbl.classList.toggle('has-cp', hasCp);
-    if (thCp) thCp.style.display = hasCp ? '' : 'none';
+    ['th-cp', 'th-t3', 'th-t8'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = hasCp ? '' : 'none';
+    });
 
     var html = (d.ranking || []).map(function (p, i) {
-      var cpCell = '';
-      if (hasCp) {
-        var cp = p.champion_prob;
-        var cpText = cp == null ? '—' : (cp > 0 ? cp.toFixed(2) + '%' : '0%');
-        cpCell = '<td class="c-cp' + (cp > 0 ? '' : ' z') + '">' + cpText + '</td>';
-      }
+      var probCells = hasCp
+        ? (fmtProb(p.champion_prob) + fmtProb(p.top3_prob) + fmtProb(p.top8_prob))
+        : '';
       return '<tr' + (i % 2 ? ' class="shade"' : '') + '>' +
         '<td class="c-rk">' + p.rank + '</td>' +
         '<td class="c-no">' + (p.no == null ? '—' : p.no) + '</td>' +
@@ -229,10 +230,10 @@ tbody tr.shade td{background:var(--mint2)}
         '<td class="c-bk">' + num(p.buch) + '</td>' +
         '<td class="c-md">' + num(p.med) + '</td>' +
         '<td class="c-ws">' + (p.wins == null ? '—' : p.wins) + '</td>' +
-        cpCell +
+        probCells +
         '</tr>';
     }).join('');
-    tbody.innerHTML = html || '<tr><td colspan="' + (hasCp ? 8 : 7) + '" class="empty">还没有名次</td></tr>';
+    tbody.innerHTML = html || '<tr><td colspan="' + (hasCp ? 10 : 7) + '" class="empty">还没有名次</td></tr>';
   }
 })();
 </script>

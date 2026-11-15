@@ -100,7 +100,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 67.412
+      "champion_prob": 67.4082,
+      "top3_prob": 96.1573,
+      "top8_prob": 100.0
     },
     {
       "rank": 2,
@@ -169,7 +171,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 32.588
+      "champion_prob": 32.5918,
+      "top3_prob": 56.6533,
+      "top8_prob": 100.0
     },
     {
       "rank": 3,
@@ -238,7 +242,9 @@
           "result": "D"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 68.6712,
+      "top8_prob": 93.7406
     },
     {
       "rank": 4,
@@ -307,7 +313,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 47.0928,
+      "top8_prob": 89.2663
     },
     {
       "rank": 5,
@@ -376,7 +384,9 @@
           "result": "D"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 7.455,
+      "top8_prob": 47.261
     },
     {
       "rank": 6,
@@ -445,7 +455,9 @@
           "result": "D"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 4.2213,
+      "top8_prob": 44.5982
     },
     {
       "rank": 7,
@@ -514,7 +526,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 6.4124,
+      "top8_prob": 62.1223
     },
     {
       "rank": 8,
@@ -583,7 +597,9 @@
           "result": "D"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 4.7221,
+      "top8_prob": 26.2977
     },
     {
       "rank": 9,
@@ -652,7 +668,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 8.6146,
+      "top8_prob": 80.0933
     },
     {
       "rank": 10,
@@ -721,7 +739,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 35.6688
     },
     {
       "rank": 11,
@@ -790,7 +810,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 34.7746
     },
     {
       "rank": 12,
@@ -859,7 +881,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 15.8109
     },
     {
       "rank": 13,
@@ -928,7 +952,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 35.154
     },
     {
       "rank": 14,
@@ -997,7 +1023,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 35.2121
     },
     {
       "rank": 15,
@@ -1066,7 +1094,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 16,
@@ -1135,7 +1165,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 17,
@@ -1204,7 +1236,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 18,
@@ -1273,7 +1307,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 19,
@@ -1342,7 +1378,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 20,
@@ -1411,7 +1449,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 21,
@@ -1480,7 +1520,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 22,
@@ -1549,7 +1591,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 23,
@@ -1618,7 +1662,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 24,
@@ -1687,7 +1733,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 25,
@@ -1756,7 +1804,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 26,
@@ -1825,7 +1875,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 27,
@@ -1894,7 +1946,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 28,
@@ -1963,7 +2017,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 29,
@@ -2032,7 +2088,9 @@
           "result": "D"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 30,
@@ -2101,7 +2159,9 @@
           "result": "D"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 31,
@@ -2170,7 +2230,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 32,
@@ -2239,7 +2301,9 @@
           "result": "D"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 33,
@@ -2308,7 +2372,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 34,
@@ -2377,7 +2443,9 @@
           "result": "D"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 35,
@@ -2446,7 +2514,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 36,
@@ -2515,7 +2585,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 37,
@@ -2584,7 +2656,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 38,
@@ -2653,7 +2727,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 39,
@@ -2722,7 +2798,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 40,
@@ -2791,7 +2869,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 41,
@@ -2860,7 +2940,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 42,
@@ -2929,7 +3011,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 43,
@@ -2998,7 +3082,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 44,
@@ -3067,7 +3153,9 @@
           "result": "W"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 45,
@@ -3129,7 +3217,9 @@
           "result": "B"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     },
     {
       "rank": 46,
@@ -3156,7 +3246,9 @@
           "result": "BF"
         }
       ],
-      "champion_prob": 0.0
+      "champion_prob": 0.0,
+      "top3_prob": 0.0,
+      "top8_prob": 0.0
     }
   ],
   "champion_sim_trials": 10000000
