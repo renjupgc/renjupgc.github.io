@@ -19,7 +19,7 @@ zayu/                 杂豫：赛事、成绩与棋手
                       页头再标「选手平均等级分 + 等级」两个徽标（只给平均分与对应等级，
                       不列个人档位）
   p/{姓名}.html       每位棋手一页：等级分走势、参赛记录、逐局战绩、成绩卡
-                      （只给 data/public_players.txt 名单里的人出页，现 501 页）
+                      （只给 data/public_players.txt 名单里的人出页，现 599 页）
   rating.html         等级分总表（页角挂时光机入口）
   shiguang.html       等级分时光机：拖时间轴看每个比赛日的先验榜单
                       不单独列出，也不进 sitemap：只从 rating.html 的页角进
