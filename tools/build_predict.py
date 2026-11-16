@@ -72,7 +72,8 @@ def main():
     #    tournaments 是 {id: 行}，unrated_tids 收的是行列表，取值后传
     rows, as_of = bz.compute_ratings(matches, unis, regions,
                                      exclude_tids=bz.unrated_tids(
-                                         list(tournaments.values())))
+                                         list(tournaments.values())),
+                                     adults=bz.adult_names())
     if not rows:
         print('！ 未安装 whr 库，退出')
         return 1
