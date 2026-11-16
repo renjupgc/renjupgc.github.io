@@ -85,7 +85,7 @@ tbody tr:last-child td{border-bottom:none}
       <h1 id="ttl"><em>“山海杯”</em><span class="yr">2026</span>年全国五子棋业余棋王争霸赛 · 模型评估</h1>
       <div class="hd-sub">
         <span id="grp">公开组</span>
-        <a class="mlink" href="2026-shanhai.html">对阵表 ↗</a>
+        <a class="mlink" href="index.html">对阵表 ↗</a>
         <a class="mlink" href="2026-shanhai-details.html">名次表 ↗</a>
       </div>
     </div>
@@ -158,7 +158,7 @@ tbody tr:last-child td{border-bottom:none}
     indexUrl: INDEX,
     page: 'metrics',
     pages: {
-      matches: '2026-shanhai.html',
+      matches: 'index.html',
       standings: '2026-shanhai-details.html',
       metrics: '2026-shanhai-metrics.html',
       predict: 'https://renju4433.github.io/predict.html'
@@ -170,8 +170,8 @@ tbody tr:last-child td{border-bottom:none}
       document.getElementById('grp').textContent = t.group || '公开组';
       document.getElementById('ttl').innerHTML = decorate(t.name, t.year) + ' · 模型评估';
       document.title = (t.name || '赛事') + ' · 模型评估';
-      var il = document.querySelector('a.mlink[href^="2026-shanhai.html"]');
-      if (il) il.href = '2026-shanhai.html?t=' + encodeURIComponent(SLUG) + '&r=' + state.round;
+      var il = document.querySelector('a.mlink[href^="index.html"]');
+      if (il) il.href = 'index.html?t=' + encodeURIComponent(SLUG) + '&r=' + state.round;
       var sl = document.querySelector('a.mlink[href^="2026-shanhai-details.html"]');
       if (sl) sl.href = '2026-shanhai-details.html?t=' + encodeURIComponent(SLUG) + '&r=' + state.round;
       getJSON(MAPI).then(render).catch(function () {
