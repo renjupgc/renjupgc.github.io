@@ -158,8 +158,8 @@ tbody tr.shade td{background:var(--mint2)}
 (function () {
   'use strict';
   var SLUG = 'shanhai';
-  var INDEX = '../api/duiju/index.json';
-  var SAPI = '../api/duiju/' + SLUG + '/standings/';
+  var INDEX = 'https://renju4433.github.io/api/index.json';
+  var SAPI = 'https://renju4433.github.io/api/' + SLUG + '/standings/';
   var fromQuery = new URLSearchParams(location.search).get('r');
   var ROUND = parseInt(fromQuery || '0', 10);
   if (!(ROUND > 0)) ROUND = 0;

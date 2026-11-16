@@ -121,8 +121,8 @@ tbody tr:last-child td{border-bottom:none}
 (function () {
   'use strict';
   var SLUG = 'shanhai';
-  var INDEX = '../api/duiju/index.json';
-  var MAPI = '../api/duiju/' + SLUG + '/metrics.json';
+  var INDEX = 'https://renju4433.github.io/api/index.json';
+  var MAPI = 'https://renju4433.github.io/api/' + SLUG + '/metrics.json';
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
