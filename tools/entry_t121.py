@@ -116,8 +116,18 @@ def board_numbers(r):
     return [b for b in range(1, n + 1, 2)] + [b for b in range(2, n + 1, 2)]
 
 
+# 名次表「单位」栏为空、按外省计的个人，逐个点名（地区, 是否高校）
+OVERRIDE = {
+    '刘晋峰': ('天津市', 0),
+}
+
+
 def classify(no):
     """(地区, 单位, 是否高校)。"""
+    name = D.NO.get(no)
+    if name in OVERRIDE:
+        region, college = OVERRIDE[name]
+        return region, D.UNIT.get(no, ''), college
     unit = D.UNIT.get(no, '')
     if not unit:
         return '河南省', '', 1
@@ -199,6 +209,9 @@ def main():
         region, unit, college = classify(no)
         row = d.execute('select region, university from ratings where name=?',
                         (name,)).fetchone()
+        if row and name in OVERRIDE:      # 点名校正的，直接覆盖
+            d.execute('update ratings set region=?, college=?, university=? where name=?',
+                      (region, college, row['university'], name))
         if row:
             if not (row['region'] or '').strip():
                 d.execute('update ratings set region=? where name=?', (region, name))
