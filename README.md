@@ -30,7 +30,7 @@ zaji/                 杂技：工具页
   predict.html        胜率预测
   jinzhao.html        禁手找茬
   vcf.html            VCF 做题
-  english.html        连珠英语：四级词汇 + 连珠术语的记忆卡，本地账号存进度
+  english.html        连珠英语：四级词汇 + 连珠术语、五子棋阅读题，账号可多端同步
 bisai/index.html      单届选拔赛成绩表，浏览器里用 sql.js 读 bisai.db
 api/duiju/            只读 JSON 接口（Actions 定时生成并提交，Pages 直接发）
   index.json          赛事与轮次索引
@@ -51,7 +51,8 @@ assets/
   qipu.js  qipu/      棋谱数据与复盘（脚本生成）
   predict.js          预测模型参数与交手记录（脚本生成）
   words-cet4.js  words-renju.js   连珠英语词库（脚本生成）
-  english-app.js      连珠英语：账号、记忆排期、学习/复习/拼写/词表
+  reading-articles.js 五子棋英语阅读文章与题目（脚本生成）
+  english-app.js      连珠英语：账号、记忆排期、学习/复习/拼写/阅读/词表、同步
   engine/             Rapfi 引擎 wasm
   vendor/sqljs/       浏览器端 SQLite
   img/  audio/        配图与音乐
@@ -65,7 +66,8 @@ data/
   duiju.db            对局库：逐台对局 + 预测概率（山海杯等），api/duiju/ 由它导出
   shanhai/2026-r1.json  山海杯第 1 轮的录入源文件（一轮一份）
   visits.ndjson       访问日志：一行一个事件，Actions 定时从通道归档
-  english/            连珠英语的原始词表：cet4.txt（四级大纲）＋ renju_terms.json（术语）
+  english/            连珠英语素材：cet4.txt（四级大纲）＋ renju_terms.json（术语）
+                      ＋ reading.json（7 篇五子棋英语阅读、28 道题）
 
 tools/                构建脚本（见下）
 docs/ROADMAP.md       改进建议与创意清单
@@ -98,10 +100,64 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 连珠英语的词库另走一条：
 
 ```bash
-python tools/build_english_words.py   # data/english/ -> assets/words-cet4.js、words-renju.js
+python tools/build_english_words.py   # data/english/ -> assets/words-cet4.js、words-renju.js、reading-articles.js
 ```
 
 后两个是「全站扫一遍」的脚本，可反复执行（幂等）：手写页面加了新文章、换了配图之后单独跑它们就行。
+
+
+## 连珠英语的多端同步
+
+站点本身仍是纯静态的，没有自建服务器。连珠英语默认把账号与进度存在浏览器
+localStorage；要真正多端同步，在页面侧栏（或登录页的「换设备了？」）填一次同步设置：
+
+**GitHub Gist（省事）**
+
+1. 新建一条 Secret Gist，内容随意（比如 `{}`），拿到地址末尾那串 32 位 Gist ID。
+2. 生成一个 fine-grained personal access token，只勾 Gist 的读写权限。
+3. 同步方式选「GitHub Gist」，填 Gist ID 和令牌，保存。每台设备填同一组设置。
+4. 新设备不用先注册：点「登录」，输入同一账号密码，程序会用密码派生出与设备无关的
+   账号钥匙，从 Gist 拉回进度并在本机建好账号。
+
+**自定义接口（自己的服务器）**
+
+同步方式选「自定义接口」，填一个支持 CORS 的 https 地址。协议很简单：
+
+- `GET <地址>?k=<账号钥匙>` → 404 表示没有记录；有记录时返回
+  `{"app":"zbx-english","user":"账号","rev":数字,"updatedMs":毫秒时间戳,"data":{...}}`
+- `PUT <地址>?k=<账号钥匙>` → 请求体是上面那个对象，返回任意 2xx 即可。
+
+最小的 Cloudflare Worker 例子（KV 命名空间绑定名 `ZBX`）：
+
+```js
+export default {
+  async fetch(req, env) {
+    const url = new URL(req.url);
+    const key = 'zbx:' + url.searchParams.get('k');
+    if (req.method === 'PUT') {
+      await env.ZBX.put(key, await req.text());
+      return new Response('{"ok":1}', { headers: { 'content-type': 'application/json' } });
+    }
+    const val = await env.ZBX.get(key);
+    return new Response(val || '{}', {
+      status: val ? 200 : 404,
+      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*',
+                 'access-control-allow-headers': 'content-type,authorization',
+                 'access-control-allow-methods': 'GET,PUT,OPTIONS' }
+    });
+  }
+};
+```
+
+**加密同步码**：不想配云端时，一台设备点「生成同步码」，另一台粘进文本框点「用同步码合并」。
+内容用账号钥匙做 AES-GCM 加密，只有同一账号密码能解开。
+
+合并规则：记忆卡按「记得更牢」取一条，阅读成绩取最好成绩与最多尝试次数，每日统计取各项最大值，
+设置取时间戳较新的一份。账号钥匙是 `SHA256(用户名|PBKDF2(密码, 固定盐))` 的前 16 位，
+明文密码不落盘、不上云；Gist 令牌和接口地址只存在当前设备，不随进度上传。
+
+术语表与阅读文章中涉及规则的英文表述，参照 renju.net 上的
+[RIF 国际规则](https://www.renju.net/rifrules/)与 [What is Renju?](https://www.renju.net/rules/)。
 
 ## 对局库与预测接口（duiju.db）
 

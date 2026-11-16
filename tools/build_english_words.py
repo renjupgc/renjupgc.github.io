@@ -3,10 +3,12 @@
 
     assets/words-cet4.js    window.ZBX_WORDS_CET4
     assets/words-renju.js   window.ZBX_WORDS_RENJU
+    assets/reading-articles.js  window.ZBX_READING
 
 源数据：
     data/english/cet4.txt          大学英语四级大纲单词表（一行一词：词 [音标] 词性.释义）
     data/english/renju_terms.json  连珠/五子棋常用术语，人工整理
+    data/english/reading.json      五子棋主题英语阅读文章与题目
 
 格式用「数组的数组」而不是对象，省掉一半键名，4500 词的体积能压到 200 KB 上下：
 
@@ -25,6 +27,7 @@ SRC_CET4 = os.path.join(ROOT, 'data', 'english', 'cet4.txt')
 SRC_RENJU = os.path.join(ROOT, 'data', 'english', 'renju_terms.json')
 OUT_CET4 = os.path.join(ROOT, 'assets', 'words-cet4.js')
 OUT_RENJU = os.path.join(ROOT, 'assets', 'words-renju.js')
+OUT_READING = os.path.join(ROOT, 'assets', 'reading-articles.js')
 
 # 一行里「词 + 音标 + 释义」，音标有时紧贴词根（instruct[ inˈstrʌkt]），
 # 所以先试带音标的写法，再退回「词 + 空白 + 其余」；a.m / i.e. 这类缩写两次都不中，直接跳过
@@ -97,9 +100,14 @@ def main():
     n1 = write_js(OUT_CET4, 'ZBX_WORDS_CET4', '大学英语四级大纲词汇', cet4,
                   {'source': '《大学英语四级考试大纲》词汇表'})
     n2 = write_js(OUT_RENJU, 'ZBX_WORDS_RENJU', '连珠英语常用术语', renju,
-                  {'source': '连珠（renju）与五子棋（gomoku）实务用语'})
+                  {'source': '连珠（renju）与五子棋（gomoku）实务用语；规则用语参照 renju.net / RIF'})
+    with open(os.path.join(ROOT, 'data', 'english', 'reading.json'), encoding='utf-8') as f:
+        reading = json.load(f)
+    n3 = write_js(OUT_READING, 'ZBX_READING', reading['name'], reading['passages'],
+                  {'source': reading.get('source', '')})
     print('四级 %d 词 -> %s（%.1f KB）' % (len(cet4), os.path.relpath(OUT_CET4, ROOT), n1 / 1024))
     print('术语 %d 条 -> %s（%.1f KB）' % (len(renju), os.path.relpath(OUT_RENJU, ROOT), n2 / 1024))
+    print('阅读 %d 篇 -> %s（%.1f KB）' % (len(reading['passages']), os.path.relpath(OUT_READING, ROOT), n3 / 1024))
     if dropped:
         print('  跳过 %d 行（缩写等）: %s' % (len(dropped), '、'.join(dropped[:6])))
     tags = {}
