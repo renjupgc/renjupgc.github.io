@@ -30,6 +30,7 @@ zaji/                 杂技：工具页
   predict.html        胜率预测
   jinzhao.html        禁手找茬
   vcf.html            VCF 做题
+  english.html        连珠英语：四级词汇 + 连珠术语的记忆卡，本地账号存进度
 bisai/index.html      单届选拔赛成绩表，浏览器里用 sql.js 读 bisai.db
 api/duiju/            只读 JSON 接口（Actions 定时生成并提交，Pages 直接发）
   index.json          赛事与轮次索引
@@ -49,6 +50,8 @@ assets/
   playercard.js  qr.js  棋手成绩卡（Canvas 出图，二维码自研编码）
   qipu.js  qipu/      棋谱数据与复盘（脚本生成）
   predict.js          预测模型参数与交手记录（脚本生成）
+  words-cet4.js  words-renju.js   连珠英语词库（脚本生成）
+  english-app.js      连珠英语：账号、记忆排期、学习/复习/拼写/词表
   engine/             Rapfi 引擎 wasm
   vendor/sqljs/       浏览器端 SQLite
   img/  audio/        配图与音乐
@@ -62,6 +65,7 @@ data/
   duiju.db            对局库：逐台对局 + 预测概率（山海杯等），api/duiju/ 由它导出
   shanhai/2026-r1.json  山海杯第 1 轮的录入源文件（一轮一份）
   visits.ndjson       访问日志：一行一个事件，Actions 定时从通道归档
+  english/            连珠英语的原始词表：cet4.txt（四级大纲）＋ renju_terms.json（术语）
 
 tools/                构建脚本（见下）
 docs/ROADMAP.md       改进建议与创意清单
@@ -89,6 +93,12 @@ python tools/build_openings.py        # 导出有手顺的对局语料（开局�
 python tools/build_predict.py    # 预测页的模型参数与交手记录
 python tools/build_seo.py        # canonical / og: / sitemap / robots / feed / 分享图
 python tools/build_img_attrs.py  # 图片尺寸、懒加载
+```
+
+连珠英语的词库另走一条：
+
+```bash
+python tools/build_english_words.py   # data/english/ -> assets/words-cet4.js、words-renju.js
 ```
 
 后两个是「全站扫一遍」的脚本，可反复执行（幂等）：手写页面加了新文章、换了配图之后单独跑它们就行。
