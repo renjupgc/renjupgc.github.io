@@ -464,6 +464,9 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     uni = (rec.get('university') or '').strip()
     pt = '%.2f' % rec['rating'] if rated else '—'
     rank = rec.get('rank') or ''
+    # 成人（非高校）棋手不进榜单，只给「预估名次」：把成人也算进去的名义位次
+    college = rec.get('college', 1)
+    est = rec.get('est_rank') or ''
     as_of = rec.get('as_of') or ''
 
     # 只收在「山河四省连珠人物」里、既无等级分也无对局记录的人（教练、裁判、名宿），
@@ -501,9 +504,11 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     else:
         body += ['                <span class="ps"><span class="ps-k">等级分</span>'
                  '<span class="ps-v">%s</span></span>' % pt,
-                 '                <span class="ps"><span class="ps-k">榜上名次</span>'
+                 '                <span class="ps"><span class="ps-k">%s</span>'
                  '<span class="ps-v">%s</span></span>'
-                 % ('第 %s 名' % rank if rank else '未入榜'),
+                 % ('预估名次' if college == 0 else '榜上名次',
+                    ('预估第 %s 名' % est if est else '未入表') if college == 0
+                    else ('第 %s 名' % rank if rank else '未入榜')),
                  '                <span class="ps"><span class="ps-k">对局</span>'
                  '<span class="ps-v">%d 局</span></span>' % (rec['games'] or 0),
                  '                <span class="ps"><span class="ps-k">胜 / 和 / 负</span>'
@@ -513,7 +518,14 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                  '<span class="ps-v">%d 场</span></span>'
                  % (len([e for e in events if e.get('real', True)]) + len(extras)),
                  '            </div>']
-        if rated:
+        if rated and college == 0:
+            note = ('TA 是成人（非高校）棋手：等级分照算、照常更新，但不进 '
+                    '<a href="../rating.html">河南高校爱好者等级分</a> 的榜单，也不占'
+                    '榜上的位次；上面那个「预估名次」，是把成人一并算进去、只作参考的'
+                    '名义位次（等级分截至 %s）。上方对局数、胜负与参赛场次都不含轮空'
+                    '与弃权，下方的对局记录则全部分局照录。'
+                    % bz.esc(as_of))
+        elif rated:
             note = ('等级分截至 %s，在 <a href="../rating.html">河南高校爱好者等级分</a>'
                     '的 %d 人中列第 %s 位；上方对局数、胜负与参赛场次都不含轮空与弃权，'
                     '下方的对局记录则全部分局照录。'
@@ -656,9 +668,13 @@ def page(name, rec, events, games, reports, index, total_players, arts,
         desc = '%s（%s·%s）的个人主页：段位、小传与主要战绩。' % (
             name, prof['tag'].replace(' · ', ' '), prof['dan'])
     else:
+        # 成人不进榜单，页面描述里给的是预估名次
+        if college == 0:
+            where = '预估第 %s 名，' % est if est else '成人棋手，'
+        else:
+            where = '第 %s 名，' % rank if rank else '未入榜，'
         desc = '%s%s的个人主页：等级分 %s，%s参赛 %d 场。' % (
-            name, '（%s）' % sub if sub else '', pt,
-            '第 %s 名，' % rank if rank else '未入榜，',
+            name, '（%s）' % sub if sub else '', pt, where,
             len([e for e in events if e.get('real', True)]) + len(extras))
 
     html = bz.HEAD.format(
@@ -771,13 +787,18 @@ def write_search_index(names, ratings, profiles):
         if p.get('dan') and p['dan'] != '段位未载':
             bits.append(p['dan'])
         if r.get('rating') is not None:
-            bits.append('等级分第 %s 位' % r.get('rank'))
+            if r.get('college', 1):
+                bits.append('等级分第 %s 位' % r.get('rank'))
+            else:
+                bits.append('预估第 %s 位' % r.get('est_rank'))
         elif p:
             bits.append('人物')
         rows.append({'n': name,
                      'p': 'zayu/p/%s.html' % quote(name),
                      's': ' · '.join(bits),
-                     'k': r.get('rank') or 9999})
+                     # 成人按预估位次排，不占榜单的序号
+                     'k': (r.get('rank') if r.get('college', 1) else r.get('est_rank'))
+                          or 9999})
     rows.sort(key=lambda x: (x['k'], x['n']))
     body = ',\n'.join(json.dumps(x, ensure_ascii=False, separators=(',', ':'))
                       for x in rows)
@@ -811,6 +832,8 @@ def main():
 
     # 入榜者的个人主页同样受名单约束：榜上有名不等于可以单独出页。
     rated_names = [n for n in rated_names if n in public]
+    # 榜单人数只数高校棋手：成人不进榜，页面上的「N 人中列第 N 位」按这个口径写
+    n_college = sum(1 for r in ratings if r.get('college', 1))
 
     zposts = zashi_posts(rated_names + unrated + solo)
     reports = person_reports(zposts)
@@ -850,7 +873,7 @@ def main():
         if name not in index:            # 榜上有名但不在公开名单里，不出页
             continue
         html = page(name, rec, stats.get(name, []), games.get(name, []),
-                    reports.get(name, []), index, len(rated_names), arts,
+                    reports.get(name, []), index, n_college, arts,
                     EXTRA_EVENTS.get(name, ()), profiles.get(name))
         with open(os.path.join(PLAYER_DIR, '%s.html' % name), 'w',
                   encoding='utf-8', newline='') as f:
@@ -862,8 +885,10 @@ def main():
 
     tops = sorted(reports.items(), key=lambda kv: (-len(kv[1]), kv[0]))
     print('主页   ->', PLAYER_DIR,
-          '(%d 页：入榜 %d，未入榜 %d，人物页 %d)'
-          % (len(names), len(rated_names), len(unrated), len(solo)))
+          '(%d 页：榜单 %d 人（含成人 %d），未入榜 %d，人物页 %d)'
+          % (len(names), len(rated_names),
+             sum(1 for r in ratings if not r.get('college', 1)),
+             len(unrated), len(solo)))
     band = sorted(n for n in bz.all_players(matches) if n not in public)
     print('名单外 ->', '%d 人不出页、不进搜索（成绩表里仍是纯文本）' % len(band))
     print('索引   ->', SEARCH_OUT, '(%d 人)' % made)

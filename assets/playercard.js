@@ -76,7 +76,8 @@
             region: meta[1] && meta[1] !== '—' ? meta[1] : '',
             uni: meta[2] && meta[2] !== '—' ? meta[2] : '',
             rating: stats['等级分'] || '',
-            rank: stats['榜上名次'] || '',
+            /* 成人（非高校）棋手不进榜单，卡片上写的是「预估第 N 名」 */
+            rank: stats['榜上名次'] || stats['预估名次'] || '',
             games: stats['对局'] || '',
             wins: wdl[0] || 0,
             draws: wdl[1] || 0,

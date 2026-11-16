@@ -32,6 +32,9 @@
         }
         var rows = [];
         for (var k = 0; k < PLAYERS.length; k++) {
+            if (PLAYERS[k][3]) {
+                continue;   /* 成人（非高校）棋手：有分有曲线，但不占榜上位次 */
+            }
             var v = PLAYERS[k][1][i];
             if (v === null || v === undefined) {
                 continue;
@@ -282,8 +285,9 @@
             }
             var now = s.v[state.idx];
             var nowG = (PLAYERS[pi][2] || [])[state.idx] || 0;
+            var adult = !!PLAYERS[pi][3];
             var rank = 0;
-            if (now !== null) {
+            if (now !== null && !adult) {
                 var rows = rowsAt(state.idx);
                 for (var k = 0; k < rows.length; k++) {
                     if (rows[k].n === s.name) { rank = rows[k].rank; break; }
@@ -299,7 +303,9 @@
                 '<p class="tm-side-meta">' +
                 (now === null
                     ? '此时尚未出场'
-                    : '此时第 <b>' + rank + '</b> 名 · <b>' + now.toFixed(2) + '</b> 分'
+                    : (adult
+                        ? '成人（非高校）棋手，不计入榜单位次 · <b>' + now.toFixed(2) + '</b> 分'
+                        : '此时第 <b>' + rank + '</b> 名 · <b>' + now.toFixed(2) + '</b> 分')
                       + (nowG ? '（' + nowG + ' 局）' : '')) +
                 '　｜　最高 <b>' + peak.toFixed(2) + '</b>' +
                 '</p>' +

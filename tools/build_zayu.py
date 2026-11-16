@@ -48,6 +48,8 @@ RATING_OUT = os.path.join(DETAIL_DIR, 'rating.html')
 PUBLIC_FILE = os.path.join(ROOT, 'data', 'public_players.txt')
 # 不计入等级分的赛事（非公开进行）：公示表与时光机都读这一份，两侧口径保持一致
 UNRATED_FILE = os.path.join(ROOT, 'data', 'rating_excluded.txt')
+# 成人（非高校）棋手名单：照算等级分，但不进「河南高校爱好者等级分」榜单，只给预估名次
+ADULT_FILE = os.path.join(ROOT, 'data', 'adult_players.txt')
 
 # 等级分参数：沿用 WHR 公开实现（renjurating）的取值
 RATING_W2 = 19.3          # 等级分随时间的波动幅度
@@ -322,7 +324,9 @@ def write_db(ts, ms, ratings=None):
         draws      INTEGER,
         losses     INTEGER,
         rank       INTEGER,
-        as_of      TEXT
+        as_of      TEXT,
+        college    INTEGER DEFAULT 1,
+        est_rank   INTEGER
     );
     """)
     for t in ts:
@@ -336,10 +340,11 @@ def write_db(ts, ms, ratings=None):
                     m['board_record'] or '', m['swap_sequence'] or '', m['five_a'] or '')
                    for m in ms])
     if ratings:
-        d.executemany('INSERT INTO ratings VALUES (?,?,?,?,?,?,?,?,?,?)',
+        d.executemany('INSERT INTO ratings VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
                       [(r['name'], r['region'], r['uni'], r['pt'],
                         r['games'], r['wins'], r['draws'], r['losses'],
-                        r['rank'], r['as_of'])
+                        r['rank'], r['as_of'], r.get('college', 1),
+                        r.get('est_rank'))
                        for r in ratings])
     d.commit()
     d.close()
@@ -488,7 +493,22 @@ def unrated_tids(ts):
     return {t['id'] for t in ts if (t['name'] or '').strip() in bad}
 
 
-def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=()):
+def adult_names():
+    """成人（非高校）棋手名单（data/adult_players.txt）。
+
+    站上的榜叫「河南高校爱好者等级分」，只排高校棋手。名单里的人照样算分、
+    照样有等级分，但不占榜单位次，个人页给的是「预估名次」。
+    名单之外的默认按高校棋手处理；读不到名单就当没有成人。
+    """
+    if not os.path.exists(ADULT_FILE):
+        return set()
+    with open(ADULT_FILE, encoding='utf-8') as f:
+        return {ln.strip() for ln in f
+                if ln.strip() and not ln.startswith('#')}
+
+
+def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=(),
+                    adults=None):
     """用 WHR（Whole-History Rating）算法预先计算每位棋手的等级分。
 
     只统计真正下完的对局：轮空、弃权（f0 / 0f / ff）与无结果的对局都不计入，
@@ -498,6 +518,10 @@ def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=()):
     参数：w2 = 19.3，每人首日附加两个虚拟和棋，输出「WHR 分数 + 基准分 2000」。
     长期未参赛按 0.9995 每周衰减，最多累计 730 天；起点为 365 天，
     只参加过一次比赛的棋手从 180 天起算。
+
+    高校与成人分开管理（adults = data/adult_players.txt）：两边都照算分，
+    但「名次」只在高校棋手里排——成人不进榜，另给一份估名次 est_rank
+    （把成人也算进去的名义位次），个人主页显示的就是它。
     """
     try:
         import whr
@@ -576,12 +600,22 @@ def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=()):
                      'events': len(events.get(name, ())),
                      'as_of': as_of})
 
+    # 高校 / 成人分榜。成人照算分，但不进「河南高校爱好者等级分」榜单；
+    # 门槛（河南 4 局、外省 2 场）是为榜单收人设的，成人不进榜也就用不上——
+    # 下过一局正式对局就出分，名次只作预估。
+    adults = set(adults or ())
+    for r in rows:
+        r['college'] = 0 if r['name'] in adults else 1
+
     # 入榜门槛：只看地区。河南选手须下满 4 局；外省选手须至少参加 2 场比赛
     def is_henan(r):
         return '河南' in (r['region'] or '')
 
     for r in rows:
-        r['listed'] = (r['games'] >= 4 if is_henan(r) else r['events'] >= 2)
+        if r['college']:
+            r['listed'] = (r['games'] >= 4 if is_henan(r) else r['events'] >= 2)
+        else:
+            r['listed'] = r['games'] >= 1
     if apply_threshold:
         rows = [r for r in rows if r['listed']]
 
@@ -589,11 +623,23 @@ def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=()):
         r['pt'] = round(r['rating'], 2)       # 等级分保留两位小数
     rows.sort(key=lambda r: (-r['pt'], -r['games'], r['name']))
 
-    # 等级分相同者并列
-    rank, prev = 0, None
+    # 预估名次：不分高校成人，一律按分数排（等级分相同者并列）。
+    # 成人个人主页显示的就是这个位次——名义上排第几，但不占榜单的位子。
+    est, prev = 0, None
     for i, r in enumerate(rows, 1):
         if r['pt'] != prev:
-            rank, prev = i, r['pt']
+            est, prev = i, r['pt']
+        r['est_rank'] = est
+
+    # 榜上名次：只在高校棋手里数（成人留空），并列规则同上
+    rank, prev, n = 0, None, 0
+    for r in rows:
+        if not r['college']:
+            r['rank'] = None
+            continue
+        n += 1
+        if r['pt'] != prev:
+            rank, prev = n, r['pt']
         r['rank'] = rank
     return rows, as_of
 
@@ -622,7 +668,10 @@ def rating_page(rows, as_of, n_tournaments, n_games):
             '            <tbody>']
 
     public = public_names()
-    for r in rows:
+    # 榜单只排高校棋手；成人的分数照算，但不出现在这张表里（不占位次）
+    college = [r for r in rows if r.get('college', 1)]
+    n_adult = len(rows) - len(college)
+    for r in college:
         body.append('                <tr><td class="r-rank">%d</td>'
                     '<td class="r-name">%s</td>'
                     '<td class="r-region">%s</td><td class="r-uni">%s</td>'
@@ -633,8 +682,14 @@ def rating_page(rows, as_of, n_tournaments, n_games):
     body += ['            </tbody>',
              '        </table>',
              '        </div>',
-             '',
-             FOOT.format(back='../zayu.html', home='../index.html')]
+             '']
+    if n_adult:
+        body += ['        <p class="player-note">本榜只排高校棋手。另有 %d 位成人'
+                 '（非高校）棋手同样参与等级分计算，分数照算，但不占本榜位次——'
+                 '他们的个人主页给出的是「预估名次」，即把成人一并算进去的名义位次。</p>'
+                 % n_adult,
+                 '']
+    body += [FOOT.format(back='../zayu.html', home='../index.html')]
 
     page = HEAD.format(
         title='河南高校爱好者等级分（%s 更新） - 杂豫 - 连珠杂箱' % as_of,
@@ -1158,7 +1213,8 @@ def main(src):
             os.remove(os.path.join(DETAIL_DIR, old))
 
     ratings, as_of = compute_ratings(ms, unis, regions,
-                                     exclude_tids=unrated_tids(ts))
+                                     exclude_tids=unrated_tids(ts),
+                                     adults=adult_names())
     write_db(ts, ms, ratings)
     players = all_players(ms)
     qipu = qipu_index()

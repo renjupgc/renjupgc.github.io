@@ -25,6 +25,9 @@
 只收公示表（ratings）上、且在 data/public_players.txt 名单里的人：不在名单里的
 棋手不出现在时光机里。
 
+成人（非高校）棋手（data/adult_players.txt）也在数据里——个人页的走势图要用——
+但时光机排名把他们跳过、名次只数高校棋手：榜只排高校，与公示表口径一致。
+
 有 whr 库就用它（与站点同源）；没有就退回仓库自带的 whr_lite，模型一致、尺度略有差别。
 
 用法：
@@ -47,6 +50,7 @@ DB = os.path.join(ROOT, 'data', 'renju.db')
 OUT = os.path.join(ROOT, 'assets', 'rating-history.js')
 PUBLIC_FILE = os.path.join(ROOT, 'data', 'public_players.txt')
 UNRATED_FILE = os.path.join(ROOT, 'data', 'rating_excluded.txt')
+ADULT_FILE = os.path.join(ROOT, 'data', 'adult_players.txt')
 
 RATING_BASE = 2000
 RATING_W2 = 19.3
@@ -102,6 +106,14 @@ def load_public():
         print('！ 缺 %s，时光机按公示表全员出榜' % os.path.relpath(PUBLIC_FILE, ROOT))
         return None
     with open(PUBLIC_FILE, encoding='utf-8') as f:
+        return {ln.strip() for ln in f if ln.strip() and not ln.startswith('#')}
+
+
+def load_adults():
+    """成人（非高校）棋手：照算分、照画曲线，但时光机不给他们排位次。"""
+    if not os.path.exists(ADULT_FILE):
+        return set()
+    with open(ADULT_FILE, encoding='utf-8') as f:
         return {ln.strip() for ln in f if ln.strip() and not ln.startswith('#')}
 
 
@@ -193,6 +205,7 @@ def build_series():
         return 1
 
     public = load_public()
+    adults = load_adults()
     roster = [n for n in table if public is None or n in public]
     snaps = snapshot_dates(played, tours)
     order = sorted(played, key=lambda g: (g[3], g[4]))
@@ -228,14 +241,16 @@ def build_series():
             values[n].append(None if v is None else round(v, 2))
             counts[n].append(n_games.get(n, 0) if v is not None else None)
 
-    players = [[n, values[n], counts[n]] for n in roster]
+    # 每项 [姓名, 各时点分数, 各时点局数, 是否成人]：成人不进时光机榜单的排位，
+    # 但曲线照样保留，个人页的走势图用的是同一份数据
+    players = [[n, values[n], counts[n], 1 if n in adults else 0] for n in roster]
 
     # 稳定排序：最终分数高者在前，同分按姓名
     players.sort(key=lambda p: (-(p[1][-1] if p[1][-1] is not None else -1e9), p[0]))
 
     # 自检：末帧必须与公示表逐人相等（同一套对局、同一套规则）
     worst, worst_name = 0.0, ''
-    for name, row, _c in players:
+    for name, row, _c, *_ad in players:
         if row[-1] is not None and name in table:
             dv = abs(row[-1] - table[name])
             if dv > worst:
@@ -264,8 +279,9 @@ def main():
         f.write(js)
 
     ranked = sum(1 for p in players if p[1][-1] is not None)
-    print('引擎 %s ｜ 对局 %d ｜ 时点 %d ｜ 入册棋手 %d（末帧在榜 %d）'
-          % (engine, n_played, len(snaps), len(players), ranked))
+    n_adult = sum(1 for p in players if len(p) > 3 and p[3])
+    print('引擎 %s ｜ 对局 %d ｜ 时点 %d ｜ 入册棋手 %d（末帧有分 %d，其中成人 %d 不排位）'
+          % (engine, n_played, len(snaps), len(players), ranked, n_adult))
     if worst <= 0.005:
         print('末帧与等级分表：逐人一致')
     else:

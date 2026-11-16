@@ -19,7 +19,7 @@ zayu/                 杂豫：赛事、成绩与棋手
                       页头再标「选手平均等级分 + 等级」两个徽标（只给平均分与对应等级，
                       不列个人档位）
   p/{姓名}.html       每位棋手一页：等级分走势、参赛记录、逐局战绩、成绩卡
-                      （只给 data/public_players.txt 名单里的人出页，现 354 页）
+                      （只给 data/public_players.txt 名单里的人出页，现 363 页）
   rating.html         等级分总表（页角挂时光机入口）
   shiguang.html       等级分时光机：拖时间轴看每个比赛日的先验榜单
                       不单独列出，也不进 sitemap：只从 rating.html 的页角进
@@ -58,6 +58,7 @@ data/
   manual.db           手工补丁：补录赛事与对局、改名、弃权、隐藏赛事、名次修正
   public_players.txt  可公开的棋手名单：名册之外不出页、不进搜索、不挂内链
   rating_excluded.txt 不计等级分的赛事（非公开进行）：公示表与时光机都按它排除
+  adult_players.txt   成人（非高校）棋手：照算等级分，但不进榜单，只给预估名次
   duiju.db            对局库：逐台对局 + 预测概率（山海杯等），api/duiju/ 由它导出
   shanhai/2026-r1.json  山海杯第 1 轮的录入源文件（一轮一份）
   visits.ndjson       访问日志：一行一个事件，Actions 定时从通道归档
@@ -234,6 +235,13 @@ python tools/build_zayu.py --rebuild  # 重出赛事页（沿用库内快照，�
 不出赛事页）留在库里备查，但不进 WHR 计算。`build_zayu.py`、`recompute_ratings.py`、
 `build_rating_history.py` 读的是同一份名单，所以公示表与时光机末帧逐人相等；改完重跑
 `build_rating_history.py` 与 `build_players.py` 即可。
+
+`data/adult_players.txt` 是成人（非高校）棋手：站上的榜叫「河南高校爱好者等级分」，只排高校
+棋手，所以这批人照样参与 WHR 计算、照样有等级分，但不进公示表、不占榜上位次，时光机也不给他们
+排名。他们的个人主页显示的是「预估名次」——把成人一并算进去的名义位次（`ratings.est_rank`）。
+名单之外的默认按高校棋手处理，入榜门槛（河南 4 局、外省 2 场）也只约束高校棋手；成人不进榜，
+门槛也就用不上，下过一局正式对局就出分。改完重跑
+`recompute_ratings.py` → `build_rating_history.py` → `build_players.py`。
 
 依赖只有 Python 3 标准库，没有第三方包。
 

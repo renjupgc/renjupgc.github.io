@@ -24,7 +24,8 @@ def main(dry=False):
     regions = {r['name']: r['region'] or '' for r in snap}
 
     rows, as_of = bz.compute_ratings(ms, unis, regions,
-                                     exclude_tids=bz.unrated_tids(ts))
+                                     exclude_tids=bz.unrated_tids(ts),
+                                     adults=bz.adult_names())
     if not rows:
         print('！ 未安装 whr 库，退出')
         return 1
@@ -34,7 +35,9 @@ def main(dry=False):
     changed = [(n, old[n], new[n]) for n in new
                if n in old and old[n] is not None and abs(new[n] - old[n]) > 0.005]
     changed.sort(key=lambda x: -abs(x[2] - x[1]))
-    print('as_of %s  入榜 %d 人  分数变动 %d 人' % (as_of, len(rows), len(changed)))
+    n_college = sum(1 for r in rows if r['college'])
+    print('as_of %s  入表 %d 人（高校 %d / 成人 %d）  分数变动 %d 人'
+          % (as_of, len(rows), n_college, len(rows) - n_college, len(changed)))
     for n, a, b in changed[:12]:
         print('  %-6s %9.2f -> %9.2f  Δ%+.2f' % (n, a, b, b - a))
 
@@ -54,15 +57,18 @@ def main(dry=False):
 
     for r in rows:
         d.execute('UPDATE ratings SET rating=?, games=?, wins=?, draws=?, losses=?,'
-                  ' rank=?, as_of=? WHERE name=?',
+                  ' rank=?, as_of=?, college=?, est_rank=? WHERE name=?',
                   (r['pt'], r['games'], r['wins'], r['draws'], r['losses'],
-                   r['rank'], r['as_of'], r['name']))
+                   r['rank'], r['as_of'], r['college'], r['est_rank'], r['name']))
     d.commit()
     d.close()
 
-    # rating_page 自己写文件
+    # rating_page 自己写文件（榜单只排高校棋手，成人在页面下方另作说明）
     bz.rating_page(rows, as_of, len(ts), sum(r['games'] for r in rows) // 2)
     print('rating ->', bz.RATING_OUT)
+    print('成人（非高校）->',
+          '，'.join('%s 预估第 %s 名（%s）' % (r['name'], r['est_rank'], r['pt'])
+                   for r in rows if not r['college']) or '无')
     return 0
 
 
