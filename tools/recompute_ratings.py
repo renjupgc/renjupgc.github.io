@@ -36,14 +36,17 @@ def main(dry=False):
                if n in old and old[n] is not None and abs(new[n] - old[n]) > 0.005]
     changed.sort(key=lambda x: -abs(x[2] - x[1]))
     n_college = sum(1 for r in rows if r['college'])
-    print('as_of %s  入表 %d 人（高校 %d / 成人 %d）  分数变动 %d 人'
-          % (as_of, len(rows), n_college, len(rows) - n_college, len(changed)))
+    n_listed = sum(1 for r in rows if r['listed'])
+    print('as_of %s  有分 %d 人（入榜高校 %d / 未入榜高校 %d / 成人 %d）  分数变动 %d 人'
+          % (as_of, len(rows), n_listed, n_college - n_listed,
+             len(rows) - n_college, len(changed)))
     for n, a, b in changed[:12]:
         print('  %-6s %9.2f -> %9.2f  Δ%+.2f' % (n, a, b, b - a))
 
     oldrank = {r['name']: r['rank'] for r in snap}
     moved = [(r['name'], oldrank[r['name']], r['rank']) for r in rows
-             if r['name'] in oldrank and oldrank[r['name']] is not None
+             if r['listed'] and r['name'] in oldrank
+             and oldrank[r['name']] is not None
              and oldrank[r['name']] != r['rank']]
     print('名次变动 %d 人' % len(moved))
     for n, a, b in moved[:12]:
@@ -55,11 +58,20 @@ def main(dry=False):
         d.close()
         return 0
 
+    # 有分的都进表：入榜的 rank 有值，未入榜的 rank 留空、只记预估名次。
+    # 表里还没有的人（新补录赛事的生面孔）一并补一行，地区/学校沿用库里的。
     for r in rows:
-        d.execute('UPDATE ratings SET rating=?, games=?, wins=?, draws=?, losses=?,'
-                  ' rank=?, as_of=?, college=?, est_rank=? WHERE name=?',
-                  (r['pt'], r['games'], r['wins'], r['draws'], r['losses'],
-                   r['rank'], r['as_of'], r['college'], r['est_rank'], r['name']))
+        cur = d.execute('UPDATE ratings SET rating=?, games=?, wins=?, draws=?, losses=?,'
+                        ' rank=?, as_of=?, college=?, est_rank=? WHERE name=?',
+                        (r['pt'], r['games'], r['wins'], r['draws'], r['losses'],
+                         r['rank'], r['as_of'], r['college'], r['est_rank'], r['name']))
+        if not cur.rowcount:
+            d.execute('INSERT INTO ratings(name, region, university, rating, games,'
+                      ' wins, draws, losses, rank, as_of, college, est_rank)'
+                      ' VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                      (r['name'], r['region'], r['uni'], r['pt'], r['games'],
+                       r['wins'], r['draws'], r['losses'], r['rank'], r['as_of'],
+                       r['college'], r['est_rank']))
     d.commit()
     d.close()
 
@@ -69,6 +81,9 @@ def main(dry=False):
     print('成人（非高校）->',
           '，'.join('%s 预估第 %s 名（%s）' % (r['name'], r['est_rank'], r['pt'])
                    for r in rows if not r['college']) or '无')
+    print('未入榜的高校棋手 ->',
+          '，'.join('%s 预估第 %s 名（%s）' % (r['name'], r['est_rank'], r['pt'])
+                   for r in rows if r['college'] and not r['listed']) or '无')
     return 0
 
 

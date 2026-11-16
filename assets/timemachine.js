@@ -5,8 +5,9 @@
  * 每个时点一行先验分，时点取「某个比赛日全部对局结束后」。某一时点只用该日
  * 及之前的对局重算，不含后来的胜负——所以不是把最终分数倒推回去。
  *
- * 页面上的排名不预先算好，都在这里现排——252 人、十几个时点，排起来是瞬时的，
- * 数据文件也能小一半。
+ * 页面上的排名不预先算好，都在这里现排——三百来人、十几个时点，排起来是瞬时的，
+ * 数据文件也能小一半。排位与公示表同一口径：成人与当时没够入榜门槛的人跳过，
+ * 他们的位次只在个人主页以「预估名次」出现。
  *
  * 站内是无刷新跳转，换页时本文件不会重跑，所以逻辑挂在 boot() 上，
  * 由页面末尾的内联脚本再叫一次；新换进来的 DOM 没有 data-ready，会重新初始化。
@@ -34,6 +35,10 @@
         for (var k = 0; k < PLAYERS.length; k++) {
             if (PLAYERS[k][3]) {
                 continue;   /* 成人（非高校）棋手：有分有曲线，但不占榜上位次 */
+            }
+            var on = PLAYERS[k][4];
+            if (on && !on[i]) {
+                continue;   /* 那一刻没够入榜门槛：有分，但不在榜上，也不占位次 */
             }
             var v = PLAYERS[k][1][i];
             if (v === null || v === undefined) {
@@ -286,8 +291,9 @@
             var now = s.v[state.idx];
             var nowG = (PLAYERS[pi][2] || [])[state.idx] || 0;
             var adult = !!PLAYERS[pi][3];
+            var onFlag = (PLAYERS[pi][4] || [])[state.idx];
             var rank = 0;
-            if (now !== null && !adult) {
+            if (now !== null && !adult && onFlag) {
                 var rows = rowsAt(state.idx);
                 for (var k = 0; k < rows.length; k++) {
                     if (rows[k].n === s.name) { rank = rows[k].rank; break; }
@@ -305,7 +311,9 @@
                     ? '此时尚未出场'
                     : (adult
                         ? '成人（非高校）棋手，不计入榜单位次 · <b>' + now.toFixed(2) + '</b> 分'
-                        : '此时第 <b>' + rank + '</b> 名 · <b>' + now.toFixed(2) + '</b> 分')
+                        : (rank
+                            ? '此时第 <b>' + rank + '</b> 名 · <b>' + now.toFixed(2) + '</b> 分'
+                            : '此时未入榜（未达门槛）· <b>' + now.toFixed(2) + '</b> 分'))
                       + (nowG ? '（' + nowG + ' 局）' : '')) +
                 '　｜　最高 <b>' + peak.toFixed(2) + '</b>' +
                 '</p>' +

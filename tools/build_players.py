@@ -468,6 +468,8 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     college = rec.get('college', 1)
     est = rec.get('est_rank') or ''
     as_of = rec.get('as_of') or ''
+    # 参赛场次：只数真正下过棋的场次（弃权台、编排表不算），与入榜门槛同一口径
+    n_ev = len([e for e in events if e.get('real', True)]) + len(extras)
 
     # 只收在「山河四省连珠人物」里、既无等级分也无对局记录的人（教练、裁判、名宿），
     # 统计条改登段位与地区，免得摆一排「—」「0 局」。
@@ -502,38 +504,50 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                  '%s</p>' % how,
                  '']
     else:
+        # 入榜的登「榜上名次」，未入榜的（成人、没够门槛的高校棋手）一律只登
+        # 「预估名次」——榜单上没有这个人，位次只在个人主页给。
+        on_board = bool(rank)
         body += ['                <span class="ps"><span class="ps-k">等级分</span>'
                  '<span class="ps-v">%s</span></span>' % pt,
                  '                <span class="ps"><span class="ps-k">%s</span>'
                  '<span class="ps-v">%s</span></span>'
-                 % ('预估名次' if college == 0 else '榜上名次',
-                    ('预估第 %s 名' % est if est else '未入表') if college == 0
-                    else ('第 %s 名' % rank if rank else '未入榜')),
+                 % ('榜上名次' if on_board else '预估名次',
+                    ('第 %s 名' % rank) if on_board
+                    else ('预估第 %s 名' % est if est else '未入表')),
                  '                <span class="ps"><span class="ps-k">对局</span>'
                  '<span class="ps-v">%d 局</span></span>' % (rec['games'] or 0),
                  '                <span class="ps"><span class="ps-k">胜 / 和 / 负</span>'
                  '<span class="ps-v">%d / %d / %d</span></span>'
                  % (rec['wins'] or 0, rec['draws'] or 0, rec['losses'] or 0),
                  '                <span class="ps"><span class="ps-k">参赛</span>'
-                 '<span class="ps-v">%d 场</span></span>'
-                 % (len([e for e in events if e.get('real', True)]) + len(extras)),
+                 '<span class="ps-v">%d 场</span></span>' % n_ev,
                  '            </div>']
-        if rated and college == 0:
-            note = ('TA 是成人（非高校）棋手：等级分照算、照常更新，但不进 '
-                    '<a href="../rating.html">河南高校爱好者等级分</a> 的榜单，也不占'
-                    '榜上的位次；上面那个「预估名次」，是把成人一并算进去、只作参考的'
-                    '名义位次（等级分截至 %s）。上方对局数、胜负与参赛场次都不含轮空'
-                    '与弃权，下方的对局记录则全部分局照录。'
-                    % bz.esc(as_of))
-        elif rated:
+        if rated and on_board:
             note = ('等级分截至 %s，在 <a href="../rating.html">河南高校爱好者等级分</a>'
                     '的 %d 人中列第 %s 位；上方对局数、胜负与参赛场次都不含轮空与弃权，'
                     '下方的对局记录则全部分局照录。'
                     % (bz.esc(as_of), total_players, rank))
+        elif rated and college == 0:
+            note = ('TA 是成人（非高校）棋手：等级分照算、照常更新，而且不随时间衰减，'
+                    '但不进 <a href="../rating.html">河南高校爱好者等级分</a> 的榜单，'
+                    '也不占榜上的位次。未入榜的棋手只在个人主页给出「预估名次」，'
+                    '即把所有棋手（高校 + 成人）并在一起排序时的名义位次（等级分截至 %s）。'
+                    '上方对局数、胜负与参赛场次都不含轮空与弃权，下方的对局记录则'
+                    '全部分局照录。' % bz.esc(as_of))
+        elif rated:
+            note = ('TA 暂未达到 <a href="../rating.html">河南高校爱好者等级分</a> 的'
+                    '入榜门槛（河南选手须下满 4 局，外省选手须至少 2 场比赛；上次参赛'
+                    '在 2023 年 12 月以前的，还要再打满两场），所以不在榜单上、也不占'
+                    '榜上位次。未入榜的棋手只在个人主页给出「预估名次」，即把所有棋手'
+                    '并在一起排序时的名义位次（等级分截至 %s，TA 目前 %d 局 / %d 场）。'
+                    '上方对局数、胜负与参赛场次都不含轮空与弃权，下方的对局记录则'
+                    '全部分局照录。'
+                    % (bz.esc(as_of), rec['games'] or 0, n_ev))
         else:
-            note = ('等级分榜只收达到门槛的棋手（河南选手须下满 4 局，外省选手须至少'
-                    '参加 2 场比赛），TA 暂未入榜，故不列等级分与榜上名次；上方对局数、'
-                    '胜负与参赛场次都不含轮空与弃权，下方的对局记录则全部分局照录。')
+            note = ('等级分榜只收达到门槛的高校棋手（河南选手须下满 4 局，外省选手须'
+                    '至少 2 场比赛），TA 还没有算得出等级分的正式对局，故不列分数与'
+                    '名次；上方对局数、胜负与参赛场次都不含轮空与弃权，下方的对局'
+                    '记录则全部分局照录。')
         body += ['            <p class="player-note">%s' % note,
                  '            </p>',
                  '',
@@ -672,7 +686,8 @@ def page(name, rec, events, games, reports, index, total_players, arts,
         if college == 0:
             where = '预估第 %s 名，' % est if est else '成人棋手，'
         else:
-            where = '第 %s 名，' % rank if rank else '未入榜，'
+            where = ('第 %s 名，' % rank if rank
+                     else ('预估第 %s 名，' % est if est else '未入榜，'))
         desc = '%s%s的个人主页：等级分 %s，%s参赛 %d 场。' % (
             name, '（%s）' % sub if sub else '', pt, where,
             len([e for e in events if e.get('real', True)]) + len(extras))
@@ -787,18 +802,18 @@ def write_search_index(names, ratings, profiles):
         if p.get('dan') and p['dan'] != '段位未载':
             bits.append(p['dan'])
         if r.get('rating') is not None:
-            if r.get('college', 1):
+            # 入榜的报榜上位次，未入榜的（成人、没够门槛）只报预估位次
+            if r.get('rank'):
                 bits.append('等级分第 %s 位' % r.get('rank'))
-            else:
+            elif r.get('est_rank'):
                 bits.append('预估第 %s 位' % r.get('est_rank'))
         elif p:
             bits.append('人物')
         rows.append({'n': name,
                      'p': 'zayu/p/%s.html' % quote(name),
                      's': ' · '.join(bits),
-                     # 成人按预估位次排，不占榜单的序号
-                     'k': (r.get('rank') if r.get('college', 1) else r.get('est_rank'))
-                          or 9999})
+                     # 未入榜的按预估位次排，不占榜单的序号
+                     'k': (r.get('rank') or r.get('est_rank')) or 9999})
     rows.sort(key=lambda x: (x['k'], x['n']))
     body = ',\n'.join(json.dumps(x, ensure_ascii=False, separators=(',', ':'))
                       for x in rows)
@@ -832,8 +847,9 @@ def main():
 
     # 入榜者的个人主页同样受名单约束：榜上有名不等于可以单独出页。
     rated_names = [n for n in rated_names if n in public]
-    # 榜单人数只数高校棋手：成人不进榜，页面上的「N 人中列第 N 位」按这个口径写
-    n_college = sum(1 for r in ratings if r.get('college', 1))
+    # 榜单人数只数真正入榜的人：成人、没够门槛的都不占位次，
+    # 页面上的「N 人中列第 N 位」按榜单的实际人数写
+    n_college = sum(1 for r in ratings if r.get('rank') is not None)
 
     zposts = zashi_posts(rated_names + unrated + solo)
     reports = person_reports(zposts)

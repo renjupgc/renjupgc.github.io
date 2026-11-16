@@ -63,6 +63,11 @@ RATING_DECAY_AFTER_SINGLE = 180
 RATING_DECAY_CAP = 730
 RATING_DECAY_RATE = 0.9995
 
+# 高校棋手「上次参赛早于这一天」的，入榜要两场比赛：一别经年，只凭一场旧成绩
+# 就上榜单没有说服力。成人（非高校）不走这条，也不衰减。
+RATING_STALE_BEFORE = datetime.date(2023, 12, 1)
+RATING_STALE_EVENTS = 2
+
 BYE = '轮空'
 
 # winner 编码 -> (假先得点, 假后得点)；f 表示该方弃权
@@ -507,8 +512,7 @@ def adult_names():
                 if ln.strip() and not ln.startswith('#')}
 
 
-def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=(),
-                    adults=None):
+def compute_ratings(ms, unis, regions, exclude_tids=(), adults=None):
     """用 WHR（Whole-History Rating）算法预先计算每位棋手的等级分。
 
     只统计真正下完的对局：轮空、弃权（f0 / 0f / ff）与无结果的对局都不计入，
@@ -516,12 +520,14 @@ def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=(),
     非公开进行的赛事（data/rating_excluded.txt，经 exclude_tids 传进来）整批跳过，
     既不进分数也不进对局数与参赛场次。
     参数：w2 = 19.3，每人首日附加两个虚拟和棋，输出「WHR 分数 + 基准分 2000」。
-    长期未参赛按 0.9995 每周衰减，最多累计 730 天；起点为 365 天，
-    只参加过一次比赛的棋手从 180 天起算。
+    高校棋手长期未参赛按 0.9995 每周衰减，最多累计 730 天；起点为 365 天，
+    只参加过一次比赛的棋手从 180 天起算。**成人（非高校）棋手不衰减**：
+    他们不靠高校赛维持出场，按同一把尺子掉分并不公平。
 
     高校与成人分开管理（adults = data/adult_players.txt）：两边都照算分，
-    但「名次」只在高校棋手里排——成人不进榜，另给一份估名次 est_rank
-    （把成人也算进去的名义位次），个人主页显示的就是它。
+    但「名次」只在高校棋手里排——成人不进榜，另给一份预估名次 est_rank
+    （把所有棋手并在一起排序时的名义位次）。未入榜的人（成人、以及没够门槛的
+    高校棋手）都只在个人主页给预估名次，榜单上不出现、也就不占位次。
     """
     try:
         import whr
@@ -577,6 +583,9 @@ def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=(),
     base.create_games(games)
     base.iterate_until_converge(verbose=False)
 
+    # 高校 / 成人先分开：成人不衰减、不排位，下面几处都要用到这个标记
+    adults = set(adults or ())
+
     as_of_date = max(g[3] for g in played)
     as_of = as_of_date.isoformat()
     rows = []
@@ -585,56 +594,58 @@ def compute_ratings(ms, unis, regions, apply_threshold=True, exclude_tids=(),
         ev = len(events.get(name, ()))
         rating = hist[-1][1] + RATING_BASE
         # 长期未参赛：一般满一年开始衰减，只打过一场比赛的满半年就开始；
-        # 按周衰减，最多累计两年
-        threshold = (RATING_DECAY_AFTER_SINGLE if ev == 1
-                     else RATING_DECAY_AFTER)
-        days_since = (as_of_date - last_played[name]).days
-        if days_since > threshold:
-            decay_days = min(days_since, RATING_DECAY_CAP)
-            rating *= RATING_DECAY_RATE ** (decay_days / 7.0)
+        # 按周衰减，最多累计两年。成人（非高校）棋手不衰减。
+        if name not in adults:
+            threshold = (RATING_DECAY_AFTER_SINGLE if ev == 1
+                         else RATING_DECAY_AFTER)
+            days_since = (as_of_date - last_played[name]).days
+            if days_since > threshold:
+                decay_days = min(days_since, RATING_DECAY_CAP)
+                rating *= RATING_DECAY_RATE ** (decay_days / 7.0)
         rows.append({'name': name, 'uni': unis.get(name, ''),
                      'region': regions.get(name, ''),
                      'rating': rating,
                      'games': s['games'], 'wins': s['wins'],
                      'draws': s['draws'], 'losses': s['losses'],
                      'events': len(events.get(name, ())),
+                     'last_played': last_played[name].isoformat(),
+                     'college': 0 if name in adults else 1,
                      'as_of': as_of})
 
-    # 高校 / 成人分榜。成人照算分，但不进「河南高校爱好者等级分」榜单；
-    # 门槛（河南 4 局、外省 2 场）是为榜单收人设的，成人不进榜也就用不上——
-    # 下过一局正式对局就出分，名次只作预估。
-    adults = set(adults or ())
-    for r in rows:
-        r['college'] = 0 if r['name'] in adults else 1
-
-    # 入榜门槛：只看地区。河南选手须下满 4 局；外省选手须至少参加 2 场比赛
+    # 入榜门槛（只对高校棋手）：河南选手须下满 4 局，外省选手须至少 2 场比赛；
+    # 另外，上次参赛在 2023 年 12 月以前的老棋手，得再打满两场才收——隔了几年
+    # 只凭一场旧成绩上榜单，说明不了眼下的水平。成人一律不进榜。
     def is_henan(r):
         return '河南' in (r['region'] or '')
 
     for r in rows:
-        if r['college']:
-            r['listed'] = (r['games'] >= 4 if is_henan(r) else r['events'] >= 2)
-        else:
-            r['listed'] = r['games'] >= 1
-    if apply_threshold:
-        rows = [r for r in rows if r['listed']]
+        if not r['college']:
+            r['listed'] = False
+            continue
+        ok = (r['games'] >= 4 if is_henan(r) else r['events'] >= 2)
+        stale = r['last_played'] < RATING_STALE_BEFORE.isoformat()
+        if stale:
+            ok = ok and r['events'] >= RATING_STALE_EVENTS
+        r['listed'] = ok
+        r['stale'] = stale
 
     for r in rows:
         r['pt'] = round(r['rating'], 2)       # 等级分保留两位小数
     rows.sort(key=lambda r: (-r['pt'], -r['games'], r['name']))
 
-    # 预估名次：不分高校成人，一律按分数排（等级分相同者并列）。
-    # 成人个人主页显示的就是这个位次——名义上排第几，但不占榜单的位子。
+    # 预估名次：不分高校成人、也不看门槛，所有算得出分的人一起排（同分并列）。
+    # 未入榜的人（成人、没够门槛的高校棋手）只在个人主页露这个位次——
+    # 名义上排第几，但不占榜单的位子，榜单上也不出现。
     est, prev = 0, None
     for i, r in enumerate(rows, 1):
         if r['pt'] != prev:
             est, prev = i, r['pt']
         r['est_rank'] = est
 
-    # 榜上名次：只在高校棋手里数（成人留空），并列规则同上
+    # 榜上名次：只在入榜的高校棋手里数，并列规则同上
     rank, prev, n = 0, None, 0
     for r in rows:
-        if not r['college']:
+        if not r['listed']:
             r['rank'] = None
             continue
         n += 1
@@ -668,9 +679,13 @@ def rating_page(rows, as_of, n_tournaments, n_games):
             '            <tbody>']
 
     public = public_names()
-    # 榜单只排高校棋手；成人的分数照算，但不出现在这张表里（不占位次）
-    college = [r for r in rows if r.get('college', 1)]
-    n_adult = len(rows) - len(college)
+    # 榜单只排「入榜的高校棋手」；成人、以及没够门槛的高校棋手都不在这张表里，
+    # 他们的等级分照算，位次只在个人主页以「预估名次」出现。
+    college = [r for r in rows if r.get('listed')]
+    # 只数算得出分的人：整场弃权、没落过子的那几位没有等级分，也就不必提
+    n_adult = sum(1 for r in rows if not r.get('college', 1))
+    n_short = sum(1 for r in rows
+                  if r.get('college', 1) and not r.get('listed'))
     for r in college:
         body.append('                <tr><td class="r-rank">%d</td>'
                     '<td class="r-name">%s</td>'
@@ -683,11 +698,18 @@ def rating_page(rows, as_of, n_tournaments, n_games):
              '        </table>',
              '        </div>',
              '']
+    tail = []
     if n_adult:
-        body += ['        <p class="player-note">本榜只排高校棋手。另有 %d 位成人'
-                 '（非高校）棋手同样参与等级分计算，分数照算，但不占本榜位次——'
-                 '他们的个人主页给出的是「预估名次」，即把成人一并算进去的名义位次。</p>'
-                 % n_adult,
+        tail.append('%d 位成人（非高校）棋手' % n_adult)
+    if n_short:
+        tail.append('%d 位还没够入榜门槛的高校棋手' % n_short)
+    if tail:
+        body += ['        <p class="player-note">本榜只排高校棋手，且只收达到门槛的：'
+                 '河南选手须下满 4 局，外省选手须至少 2 场比赛；上次参赛在 2023 年 12 月'
+                 '以前的，还要再打满两场。另有 %s，等级分照算、照常更新，但不占本榜'
+                 '位次——他们的个人主页给出的是「预估名次」，即所有棋手并在一起排序时'
+                 '的名义位次。成人棋手的等级分不随时间衰减。</p>'
+                 % '、'.join(tail),
                  '']
     body += [FOOT.format(back='../zayu.html', home='../index.html')]
 
@@ -862,15 +884,27 @@ def crosstab(rows, rounds, idmap, players=(), qmap=None, tid=None):
 
 
 def roster_ids(t, ms):
-    """赛事内编号：按参赛名单顺序从 1 开始，名单外出场的棋手依次续编。"""
-    names = [x.strip() for x in (t['participants'] or '').split(',') if x.strip()]
-    seen = set(names)
+    """赛事内编号：秩序册上登记过编号的（players 表）就用秩序册的号，中间缺号也照抄；
+    没登记的按参赛名单顺序从 1 开始编，名单外出场的人依次续编。
+
+    2023 年智运会选拔赛就是缺号的例子：编号 13 全场未出场，若按顺序重编，
+    后面每个人的号都会往前挪一位，与成绩表上的号对不上。
+    """
+    ids = {}
+    for no, name, _unit in roster_rows(t['id']):
+        if name and name != BYE and no:
+            ids[name] = no
+    nxt = max(ids.values(), default=0) + 1
+    for name in [x.strip() for x in (t['participants'] or '').split(',') if x.strip()]:
+        if name not in ids:
+            ids[name] = nxt
+            nxt += 1
     for m in ms:
         for p in (m['player1'], m['player2']):
-            if p and p != BYE and p not in seen:
-                seen.add(p)
-                names.append(p)
-    return {n: i for i, n in enumerate(names, 1)}
+            if p and p != BYE and p not in ids:
+                ids[p] = nxt
+                nxt += 1
+    return ids
 
 
 def all_players(ms):

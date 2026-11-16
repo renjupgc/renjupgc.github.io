@@ -14,6 +14,7 @@
   赛事页、不公示成绩，算进等级分就会把公开赛的成绩稀释掉——公示表也从不含它们。
 * WHR：w2 = 19.3，每人首日附加两个虚拟和棋，输出「分数 + 基准分 2000」。
 * 久未参赛按 0.9995 每周衰减，最多累计 730 天；只参加过一次比赛的从 180 天起算。
+  成人（非高校）棋手不衰减。
 
 先验
 ----
@@ -27,6 +28,8 @@
 
 成人（非高校）棋手（data/adult_players.txt）也在数据里——个人页的走势图要用——
 但时光机排名把他们跳过、名次只数高校棋手：榜只排高校，与公示表口径一致。
+未入榜的人（成人、没够门槛的高校棋手）同样有曲线，但每个时点的排位都跳过他们——
+与公示表「未入榜不给位次」一致，他们的位次只在个人主页以「预估名次」出现。
 
 有 whr 库就用它（与站点同源）；没有就退回仓库自带的 whr_lite，模型一致、尺度略有差别。
 
@@ -59,6 +62,11 @@ RATING_DECAY_AFTER = 365
 RATING_DECAY_AFTER_SINGLE = 180
 RATING_DECAY_CAP = 730
 RATING_DECAY_RATE = 0.9995
+
+# 入榜门槛，与 build_zayu.compute_ratings 同一套：河南 4 局、外省 2 场；
+# 上次参赛在 2023 年 12 月以前的，还要再打满两场
+RATING_STALE_BEFORE = datetime.date(2023, 12, 1)
+RATING_STALE_EVENTS = 2
 
 BYE = {'', None, '轮空'}
 
@@ -96,8 +104,9 @@ def load_games(db, unrated):
             played.append((p1, p2, res, datetime.date.fromisoformat(m['date']), tid))
 
     table = {r['name']: r['rating'] for r in d.execute('SELECT name, rating FROM ratings')}
+    regions = {r['name']: r['region'] or '' for r in d.execute('SELECT name, region FROM ratings')}
     d.close()
-    return played, tours, table, skipped
+    return played, tours, table, skipped, regions
 
 
 def load_public():
@@ -144,11 +153,15 @@ def fit(games, first):
     return out, engine
 
 
-def apply_decay(raw, day, events, last_played):
-    """复刻公示表的「久未参赛」衰减，参照日取这个时点本身（先验，不看以后）。"""
+def apply_decay(raw, day, events, last_played, adults=()):
+    """复刻公示表的「久未参赛」衰减，参照日取这个时点本身（先验，不看以后）。
+
+    成人（非高校）棋手不衰减：公示表那边也不衰减，两边必须同一套规则，
+    否则末帧与等级分表对不上。
+    """
     for name, v in raw.items():
         last = last_played.get(name)
-        if last is None:
+        if last is None or name in adults:
             continue
         threshold = (RATING_DECAY_AFTER_SINGLE if len(events.get(name, ())) == 1
                      else RATING_DECAY_AFTER)
@@ -156,6 +169,21 @@ def apply_decay(raw, day, events, last_played):
         if days_since > threshold:
             decay_days = min(days_since, RATING_DECAY_CAP)
             raw[name] = v * RATING_DECAY_RATE ** (decay_days / 7.0)
+
+
+def listed_at(name, day, n_games, events, last_played, regions, adults):
+    """这个时点上他够不够入榜门槛（口径同公示表）。成人一律不进榜。"""
+    if name in adults:
+        return False
+    ev = len(events.get(name, ()))
+    if '河南' in (regions.get(name) or ''):
+        ok = n_games.get(name, 0) >= 4
+    else:
+        ok = ev >= 2
+    last = last_played.get(name)
+    if last is not None and last < RATING_STALE_BEFORE:
+        ok = ok and ev >= RATING_STALE_EVENTS
+    return ok
 
 
 def snapshot_dates(played, tours):
@@ -199,14 +227,16 @@ def build_series():
     build_players.py 也调这个函数给棋手页画走势，免得两处各算一遍还可能不一致。
     """
     unrated = load_unrated()
-    played, tours, table, skipped = load_games(DB, unrated)
+    played, tours, table, skipped, regions = load_games(DB, unrated)
     if not played:
         print('！ 数据库里没有可用的对局')
         return 1
 
     public = load_public()
     adults = load_adults()
-    roster = [n for n in table if public is None or n in public]
+    # 表里没有分的人（整场弃权、一局未落子）不必进时光机：画不出曲线
+    roster = [n for n in table
+              if table[n] is not None and (public is None or n in public)]
     snaps = snapshot_dates(played, tours)
     order = sorted(played, key=lambda g: (g[3], g[4]))
     first = order[0][3]
@@ -219,6 +249,7 @@ def build_series():
     # 每次拟合的输入都只到当天为止，所以某一时点的分数不会用到此后的任何结果。
     values = {n: [] for n in roster}
     counts = {n: [] for n in roster}
+    flags = {n: [] for n in roster}
     engine = ''
     for s in snaps:
         day = datetime.date.fromisoformat(s['d'])
@@ -234,23 +265,27 @@ def build_series():
                 events.setdefault(p, set()).add(tid)
                 if p not in last_played or d > last_played[p]:
                     last_played[p] = d
-        apply_decay(cur, day, events, last_played)
+        apply_decay(cur, day, events, last_played, adults)
 
         for n in roster:
             v = cur.get(n)
             values[n].append(None if v is None else round(v, 2))
             counts[n].append(n_games.get(n, 0) if v is not None else None)
+            flags[n].append(1 if (v is not None and listed_at(
+                n, day, n_games, events, last_played, regions, adults)) else 0)
 
     # 每项 [姓名, 各时点分数, 各时点局数, 是否成人]：成人不进时光机榜单的排位，
     # 但曲线照样保留，个人页的走势图用的是同一份数据
-    players = [[n, values[n], counts[n], 1 if n in adults else 0] for n in roster]
+    # 每项 [姓名, 各时点分数, 各时点局数, 是否成人, 各时点是否在榜]
+    players = [[n, values[n], counts[n], 1 if n in adults else 0, flags[n]]
+               for n in roster]
 
     # 稳定排序：最终分数高者在前，同分按姓名
     players.sort(key=lambda p: (-(p[1][-1] if p[1][-1] is not None else -1e9), p[0]))
 
     # 自检：末帧必须与公示表逐人相等（同一套对局、同一套规则）
     worst, worst_name = 0.0, ''
-    for name, row, _c, *_ad in players:
+    for name, row, _c, *_rest in players:
         if row[-1] is not None and name in table:
             dv = abs(row[-1] - table[name])
             if dv > worst:
@@ -269,7 +304,7 @@ def main():
         'snaps': snaps,
         'players': players,
         'note': '每个时点只用该日及之前的对局重算；非公开赛事不计，久未参赛者按公示表'
-                '同一规则衰减。末时点与等级分表逐人相等。',
+                '同一规则衰减（成人不衰减）。末时点与等级分表逐人相等。',
     }
     js = ('/* 由 tools/build_rating_history.py 生成，勿手改。\n'
           '   数据：每个时点（= 某日全部对局结束后）全体棋手的先验等级分。 */\n'

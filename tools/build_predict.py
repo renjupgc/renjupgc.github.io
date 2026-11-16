@@ -68,16 +68,17 @@ def main():
         if not unis.get(name):
             unis[name] = uni
 
-    # 1) 等级分：不带门槛算一遍，顺带拿到 listed 标记
+    # 1) 等级分：全员算一遍（含未入榜的人，预测页要用他们的分）
     #    tournaments 是 {id: 行}，unrated_tids 收的是行列表，取值后传
-    rows, as_of = bz.compute_ratings(matches, unis, regions, apply_threshold=False,
+    rows, as_of = bz.compute_ratings(matches, unis, regions,
                                      exclude_tids=bz.unrated_tids(
                                          list(tournaments.values())))
     if not rows:
         print('！ 未安装 whr 库，退出')
         return 1
     rating = {r['name']: r for r in rows}
-    listed = {r['name'] for r in ratings}
+    # ratings 表现在谁有分就收谁；「入榜」看榜上名次有没有值
+    listed = {r['name'] for r in ratings if r.get('rank') is not None}
 
     # 2) 参赛成绩（含报道登记的名次）与逐局记录
     stats, _games = bp.collect(ratings, tournaments, matches)
@@ -110,8 +111,8 @@ def main():
         print('  %3d+  %4d  %.3f  %.3f' % (b, n, obs / n, pred / n))
 
     # 4) 每人一条记录
-    # 名次要取等级分榜上的名次：上面那次 compute_ratings 是不带门槛算的，
-    # 里面的 rank 含未入榜的人，直接拿来用会和 rating.html 对不上。
+    # 名次要取等级分榜上的名次：上面那次 compute_ratings 把未入榜的人也算进去了，
+    # 他们 rank 为空，所以直接用库里的快照，口径才和 rating.html 一致。
     snap_rank = {r['name']: r['rank'] for r in ratings}
     players = {}
     for name, r in rating.items():
