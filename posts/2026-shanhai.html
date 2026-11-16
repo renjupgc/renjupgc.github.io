@@ -513,6 +513,7 @@ td.c-prob{width:248px;padding:11px 22px}
     </table>
   </div>
 </div>
+<script src="https://renju4433.github.io/platform.js"></script>
 <script>
 (function () {
   'use strict';
@@ -520,13 +521,8 @@ td.c-prob{width:248px;padding:11px 22px}
   var SLUG = 'shanhai';
   var API = 'https://renju4433.github.io/api/' + SLUG + '/';
   var INDEX = 'https://renju4433.github.io/api/index.json';
-
-  var fromPath = (/r(\d+)\.html$/.exec(location.pathname) || [])[1];
-  var fromQuery = new URLSearchParams(location.search).get('r');
-  var ROUND = parseInt(fromQuery || fromPath || '1', 10);
-  if (!(ROUND > 0)) ROUND = 1;
-  var dlink = document.querySelector('a[href="2026-shanhai-details.html"]');
-  if (dlink) dlink.href = '2026-shanhai-details.html';
+  var ROUND = 1;
+  var _setRound = null;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -642,8 +638,16 @@ td.c-prob{width:248px;padding:11px 22px}
     el.innerHTML = list.map(function (item) {
       var r = item.round;
       var isCur = (r === cur);
-      return '<a href="?r=' + r + '"' + (isCur ? ' class="on"' : '') + '>第 ' + r + ' 轮</a>';
+      return '<a href="?t=' + encodeURIComponent(SLUG) + '&r=' + r + '" data-r="' + r + '"' + (isCur ? ' class="on"' : '') + '>第 ' + r + ' 轮</a>';
     }).join('');
+    Array.prototype.forEach.call(el.querySelectorAll('a[data-r]'), function (a) {
+      a.addEventListener('click', function (e) {
+        if (_setRound) {
+          e.preventDefault();
+          _setRound(parseInt(a.getAttribute('data-r'), 10));
+        }
+      });
+    });
   }
 
   function render(d) {
@@ -675,7 +679,7 @@ td.c-prob{width:248px;padding:11px 22px}
           if (finRound == null || rounds[i].round > finRound) finRound = rounds[i].round;
         }
       }
-      dl.href = finRound ? "2026-shanhai-details.html?r=" + finRound : "2026-shanhai-details.html";
+      dl.href = finRound ? ('2026-shanhai-details.html?t=' + encodeURIComponent(SLUG) + '&r=' + finRound) : ('2026-shanhai-details.html?t=' + encodeURIComponent(SLUG));
     }
 
     document.getElementById('rows').innerHTML = games.length
@@ -696,30 +700,56 @@ td.c-prob{width:248px;padding:11px 22px}
     });
   }
 
-  get(API + 'r' + ROUND + '.json').then(render).catch(function (err) {
-    if (err && err.status === 404) {
-      get(INDEX).then(function (idx) {
-        var list = idx.tournaments || [];
-        var t = list.filter(function (x) { return x.slug === SLUG; })[0] || list[0];
-        var rounds = t ? (t.rounds || []).map(roundNo) : [];
-        if (t) {
-          var short = (String(t.name || '').match(/「([^」]+)」/) || [])[1] || '山海杯';
-          document.title = short + ' · 第 ' + ROUND + ' 轮（未录入）';
-          document.getElementById('ttl').innerHTML = decorate(t.name || short, t.year);
-          document.getElementById('grp').textContent = t.group || '';
-          document.getElementById('rnd').textContent = '第 ' + ROUND + ' 轮';
-        }
-        fail('第 ' + ROUND + ' 轮还没有录入。',
-             rounds.length
-               ? '库里现有：' + rounds.map(function (x) { return '第 ' + x + ' 轮'; }).join('、') + '。'
-               : '这场赛事还没有任何一轮入库。',
-             rounds);
-      }).catch(function () {
-        fail('第 ' + ROUND + ' 轮还没有录入。', '也读不到 api/duiju/index.json，列不出已有轮次。', []);
-      });
-    } else {
-      fail('读不到接口数据。',
-           '本地预览请起 http 服务（<code>python -m http.server</code>）再打开本页；<code>file://</code> 下浏览器不允许 fetch 本地 JSON。', []);
+  function loadRound() {
+    get(API + 'r' + ROUND + '.json').then(render).catch(function (err) {
+      if (err && err.status === 404) {
+        get(INDEX).then(function (idx) {
+          var list = idx.tournaments || [];
+          var t = list.filter(function (x) { return x.slug === SLUG; })[0] || list[0];
+          var rounds = t ? (t.rounds || []).map(roundNo) : [];
+          if (t) {
+            var short = (String(t.name || '').match(/「([^」]+)」/) || [])[1] || t.name || '赛事';
+            document.title = short + ' · 第 ' + ROUND + ' 轮（未录入）';
+            document.getElementById('ttl').innerHTML = decorate(t.name || short, t.year);
+            document.getElementById('grp').textContent = t.group || '';
+            document.getElementById('rnd').textContent = '第 ' + ROUND + ' 轮';
+          }
+          fail('第 ' + ROUND + ' 轮还没有录入。',
+               rounds.length
+                 ? '库里现有：' + rounds.map(function (x) { return '第 ' + x + ' 轮'; }).join('、') + '。'
+                 : '这场赛事还没有任何一轮入库。',
+               rounds);
+        }).catch(function () {
+          fail('第 ' + ROUND + ' 轮还没有录入。', '也读不到 api/index.json，列不出已有轮次。', []);
+        });
+      } else {
+        fail('读不到接口数据。',
+             '本地预览请起 http 服务（<code>python -m http.server</code>）再打开本页；<code>file://</code> 下浏览器不允许 fetch 本地 JSON。', []);
+      }
+    });
+  }
+
+  window.RenjuPlatform.init({
+    apiRoot: 'https://renju4433.github.io/api/',
+    indexUrl: INDEX,
+    page: 'matches',
+    pages: {
+      matches: '2026-shanhai.html',
+      standings: '2026-shanhai-details.html',
+      metrics: '2026-shanhai-metrics.html',
+      predict: 'https://renju4433.github.io/predict.html'
+    },
+    onLoad: function (state) {
+      SLUG = state.slug;
+      ROUND = state.round;
+      API = state.apiBase;
+      _setRound = state.setRound;
+      var ml = document.querySelector('a.mlink[href^="2026-shanhai-metrics.html"]');
+      if (ml) ml.href = '2026-shanhai-metrics.html?t=' + encodeURIComponent(SLUG);
+      loadRound();
+    },
+    onError: function () {
+      loadRound();
     }
   });
 })();

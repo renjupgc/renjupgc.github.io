@@ -154,15 +154,15 @@ tbody tr.shade td{background:var(--mint2)}
     </div>
   </div>
 </div>
+<script src="https://renju4433.github.io/platform.js"></script>
 <script>
 (function () {
   'use strict';
   var SLUG = 'shanhai';
   var INDEX = 'https://renju4433.github.io/api/index.json';
   var SAPI = 'https://renju4433.github.io/api/' + SLUG + '/standings/';
-  var fromQuery = new URLSearchParams(location.search).get('r');
-  var ROUND = parseInt(fromQuery || '0', 10);
-  if (!(ROUND > 0)) ROUND = 0;
+  var ROUND = 0;
+  var _setRound = null;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -189,15 +189,14 @@ tbody tr.shade td{background:var(--mint2)}
   var navBox = document.getElementById('rdnav');
   var tbody = document.getElementById('rows');
 
-  getJSON(INDEX).then(function (idx) {
-    var t = (idx.tournaments || []).filter(function (x) { return x.slug === SLUG; })[0];
-    if (!t) throw new Error('index 里没有 ' + SLUG);
+  function loadStandings(t, reqRound) {
     document.getElementById('grp').textContent = t.group || '公开组';
-    var short = (String(t.name || '').match(/「([^」]+)」/) || [])[1] || '山海杯';
+    var short = (String(t.name || '').match(/「([^」]+)」/) || [])[1] || t.name || '赛事';
     document.getElementById('ttl').innerHTML = decorate(t.name, t.year) + ' · 名次表';
+    var distCard = document.getElementById('dist-card');
+    if (distCard) distCard.style.display = 'none';
 
     var rList = t.rounds || [];
-    // 只有全部出赛果的完赛轮次才有名次表
     var finishedList = rList.filter(function (r) {
       return r.standings && (r.is_finished !== false);
     });
@@ -210,25 +209,50 @@ tbody tr.shade td{background:var(--mint2)}
       return;
     }
 
-    // 未指定 ?r= 或请求的轮次尚未全部完赛时，自动选择最新的已完赛轮次（不显示未完赛轮次的名次表）
-    if (!ROUND || finishedRounds.indexOf(ROUND) === -1) {
-      ROUND = Math.max.apply(null, finishedRounds);
-    }
+    ROUND = (reqRound && finishedRounds.indexOf(reqRound) !== -1) ? reqRound : Math.max.apply(null, finishedRounds);
 
-    // 名次表导航仅展示全部完赛的轮次
     navBox.innerHTML = finishedList.map(function (item) {
       var r = item.round;
       var cls = r === ROUND ? ' class="on"' : '';
-      return '<a href="2026-shanhai-details.html?r=' + r + '"' + cls + '>第 ' + r + ' 轮</a>';
+      return '<a href="2026-shanhai-details.html?t=' + encodeURIComponent(SLUG) + '&r=' + r + '" data-r="' + r + '"' + cls + '>第 ' + r + ' 轮</a>';
     }).join('');
-    document.getElementById('mlink').href = '2026-shanhai.html?r=' + ROUND;
+    Array.prototype.forEach.call(navBox.querySelectorAll('a[data-r]'), function (a) {
+      a.addEventListener('click', function (e) {
+        if (_setRound) {
+          e.preventDefault();
+          _setRound(parseInt(a.getAttribute('data-r'), 10));
+        }
+      });
+    });
+    document.getElementById('mlink').href = '2026-shanhai.html?t=' + encodeURIComponent(SLUG) + '&r=' + ROUND;
+    var mtLink = document.querySelector('a.mlink[href^="2026-shanhai-metrics.html"]');
+    if (mtLink) mtLink.href = '2026-shanhai-metrics.html?t=' + encodeURIComponent(SLUG);
 
     document.title = short + ' · 第 ' + ROUND + ' 轮名次表';
     return getJSON(SAPI + 'r' + ROUND + '.json').then(render).catch(function () {
       tbody.innerHTML = '<tr><td colspan="7" class="empty">第 ' + ROUND + ' 轮名次表未生成或读取失败</td></tr>';
     });
-  }).catch(function () {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">数据读取失败，请稍后重试</td></tr>';
+  }
+
+  window.RenjuPlatform.init({
+    apiRoot: 'https://renju4433.github.io/api/',
+    indexUrl: INDEX,
+    page: 'standings',
+    pages: {
+      matches: '2026-shanhai.html',
+      standings: '2026-shanhai-details.html',
+      metrics: '2026-shanhai-metrics.html',
+      predict: 'https://renju4433.github.io/predict.html'
+    },
+    onLoad: function (state) {
+      SLUG = state.slug;
+      SAPI = state.apiBase + 'standings/';
+      _setRound = state.setRound;
+      loadStandings(state.tournament, state.round);
+    },
+    onError: function () {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">数据读取失败，请稍后重试</td></tr>';
+    }
   });
 
   function fmtProb(v) {

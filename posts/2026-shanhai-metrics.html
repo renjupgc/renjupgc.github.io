@@ -117,6 +117,7 @@ tbody tr:last-child td{border-bottom:none}
     </div>
   </div>
 </div>
+<script src="https://renju4433.github.io/platform.js"></script>
 <script>
 (function () {
   'use strict';
@@ -152,14 +153,34 @@ tbody tr:last-child td{border-bottom:none}
 
   var tbody = document.getElementById('rows');
 
-  getJSON(INDEX).then(function (idx) {
-    var t = (idx.tournaments || []).filter(function (x) { return x.slug === SLUG; })[0];
-    if (!t) throw new Error('index 里没有 ' + SLUG);
-    document.getElementById('grp').textContent = t.group || '公开组';
-    document.getElementById('ttl').innerHTML = decorate(t.name, t.year) + ' · 模型评估';
-    return getJSON(MAPI);
-  }).then(render).catch(function () {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">正在读取</td></tr>';
+  window.RenjuPlatform.init({
+    apiRoot: 'https://renju4433.github.io/api/',
+    indexUrl: INDEX,
+    page: 'metrics',
+    pages: {
+      matches: '2026-shanhai.html',
+      standings: '2026-shanhai-details.html',
+      metrics: '2026-shanhai-metrics.html',
+      predict: 'https://renju4433.github.io/predict.html'
+    },
+    onLoad: function (state) {
+      SLUG = state.slug;
+      MAPI = state.apiBase + 'metrics.json';
+      var t = state.tournament;
+      document.getElementById('grp').textContent = t.group || '公开组';
+      document.getElementById('ttl').innerHTML = decorate(t.name, t.year) + ' · 模型评估';
+      document.title = (t.name || '赛事') + ' · 模型评估';
+      var il = document.querySelector('a.mlink[href^="2026-shanhai.html"]');
+      if (il) il.href = '2026-shanhai.html?t=' + encodeURIComponent(SLUG) + '&r=' + state.round;
+      var sl = document.querySelector('a.mlink[href^="2026-shanhai-details.html"]');
+      if (sl) sl.href = '2026-shanhai-details.html?t=' + encodeURIComponent(SLUG) + '&r=' + state.round;
+      getJSON(MAPI).then(render).catch(function () {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">该赛事暂无评估数据</td></tr>';
+      });
+    },
+    onError: function () {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">数据读取失败，请稍后重试</td></tr>';
+    }
   });
 
   function render(d) {
