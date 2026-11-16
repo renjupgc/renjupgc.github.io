@@ -599,12 +599,11 @@ td.c-prob{width:248px;padding:11px 22px}
     var b = g.black || {}, w = g.white || {};
     var isBye = (b.name === '轮空' || w.name === '轮空');
     var mark = '';
-    if (!isBye && g.result && g.prediction && g.prediction.black != null) {
+    if (!isBye && (g.result === 'B' || g.result === 'W' || g.result === 'D') && g.prediction && g.prediction.black != null) {
       var pb = g.prediction.black, pd = g.prediction.draw, pw = g.prediction.white;
       var top = Math.max(pb, pd, pw);
       var fav = (pb === top) ? 'B' : ((pw === top) ? 'W' : 'D');
-      var eff = (g.result === 'BF') ? 'W' : ((g.result === 'WF') ? 'B' : g.result);
-      if (fav === eff) {
+      if (fav === g.result) {
         mark = '<span class="pred-mark ok">✔</span>';
       } else {
         mark = '<span class="pred-mark wrong">✘</span>';
