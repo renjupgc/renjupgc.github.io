@@ -2501,15 +2501,6 @@ table.ratings .r-name a:hover {
     letter-spacing: 0.02em;
     color: var(--ink-2);
 }
-.prif-dan {
-    padding: 2px 9px;
-    font-size: 11.5px;
-    letter-spacing: 0.04em;
-    color: var(--gold-deep);
-    background: var(--gold-tint);
-    border: 1px solid rgba(176, 141, 87, 0.32);
-    border-radius: 20px;
-}
 .prif-src {
     margin-left: auto;
     font-size: 11.5px;
@@ -2572,133 +2563,6 @@ table.ratings .r-name a:hover {
     font-size: 11px;
     color: var(--muted);
 }
-.prif-events {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    border-top: 1px solid var(--line);
-}
-.prif-ev {
-    display: grid;
-    grid-template-columns: 88px minmax(0, 1fr);
-    gap: 2px 14px;
-    padding: 11px 2px;
-    border-bottom: 1px solid var(--line-soft);
-}
-.prif-ev-date {
-    padding-top: 2px;
-    font-family: var(--mono);
-    font-size: 11.5px;
-    letter-spacing: 0;
-    color: var(--faint);
-}
-.prif-ev-body {
-    min-width: 0;
-}
-.prif-ev-name {
-    display: block;
-    font-size: 13.5px;
-    line-height: 1.6;
-    color: var(--ink-2);
-    text-decoration: none;
-}
-.prif-ev-name:hover {
-    color: var(--gold-deep);
-}
-.prif-ev-meta {
-    display: block;
-    margin-top: 3px;
-    font-family: var(--sans);
-    font-size: 11.5px;
-    line-height: 1.7;
-    color: var(--muted);
-}
-.prif-ev-rank {
-    font-weight: 600;
-    color: var(--gold-deep);
-}
-.prif-ev-rank.is-plain {
-    font-weight: 400;
-    color: var(--ink-3);
-}
-.prif-tag {
-    display: inline-block;
-    margin-left: 7px;
-    padding: 1px 6px;
-    font-family: var(--sans);
-    font-size: 10.5px;
-    letter-spacing: 0.03em;
-    color: var(--muted);
-    background: var(--paper-deep);
-    border-radius: 4px;
-    vertical-align: 1px;
-}
-.prif-tag-link {
-    color: var(--gold-deep);
-    text-decoration: none;
-    background: var(--gold-tint);
-}
-.prif-tag-link:hover {
-    background: #efe0c2;
-}
-.prif-games {
-    margin-top: 16px;
-    padding-top: 10px;
-    border-top: 1px solid var(--line-soft);
-}
-.prif-games summary {
-    cursor: pointer;
-    font-family: var(--sans);
-    font-size: 12.5px;
-    letter-spacing: 0.06em;
-    color: var(--gold-deep);
-}
-.prif-games .table-scroll {
-    margin-top: 10px;
-}
-
-/* 逐局记录按赛事分组：组头一行写赛事名与他的名次，下面只留轮次、执位、对手、结果 */
-.prif-log td,
-.prif-log th {
-    white-space: normal;
-}
-.prif-log .c-opp {
-    line-height: 1.6;
-}
-.prif-log th.c-tb,
-.prif-log td.c-tb {
-    width: 62px;
-    text-align: center;
-}
-.prif-log th.c-rank,
-.prif-log td.c-rank {
-    width: 72px;
-    text-align: center;
-}
-.prif-log .prif-grp td {
-    padding: 15px 8px 5px;
-    border-bottom: 0;
-    font-family: var(--sans);
-    font-size: 12px;
-    letter-spacing: 0.01em;
-    color: var(--ink-3);
-    background: transparent;
-}
-.prif-log tbody tr.prif-grp:first-child td {
-    padding-top: 6px;
-}
-.prif-log tbody tr.prif-grp:hover td {
-    background: transparent;
-}
-.prif-log .prif-grp a {
-    color: var(--gold-deep);
-    text-decoration: none;
-    border-bottom: 1px solid rgba(176, 141, 87, 0.34);
-}
-.prif-log .prif-grp a:hover {
-    border-bottom-color: var(--gold-deep);
-}
-
 @media (max-width: 620px) {
     .p-rif {
         padding: 18px 16px 16px;
@@ -2709,13 +2573,6 @@ table.ratings .r-name a:hover {
     .prif-openings li {
         font-size: 11.5px;
         padding: 5px 9px;
-    }
-    .prif-ev {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 3px;
-    }
-    .prif-ev-date {
-        padding-top: 0;
     }
 }
 

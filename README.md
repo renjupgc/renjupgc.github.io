@@ -68,7 +68,7 @@ data/
   visits.ndjson       访问日志：一行一个事件，Actions 定时从通道归档
   english/            连珠英语素材：cet4.txt（四级大纲）＋ renju_terms.json（术语）
                       ＋ reading.json（18 篇五子棋英语阅读、105 道题）
-  rif_players.json    renju.net 抓下来的 RIF 档案（编号、段位、等级分、开局偏好、逐局记录）
+  rif_players.json    renju.net 抓下来的 RIF 档案（编号、段位、等级分、开局偏好、赛事与逐局记录）
 
 tools/                构建脚本（见下）
 docs/ROADMAP.md       改进建议与创意清单
@@ -104,7 +104,7 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 python tools/build_english_words.py   # data/english/ -> assets/words-cet4.js、words-renju.js、reading-articles.js
 ```
 
-棋手的 RIF 档案（国际连珠联盟那一套编号、段位、等级分与海外战绩）从 renju.net 抓：
+棋手的 RIF 档案（国际连珠联盟那一套编号、等级分与开局偏好）从 renju.net 抓；页面上只登「人」这一层的数字，赛事清单与逐局记录仍以本站成绩表为准：
 
 ```bash
 python tools/fetch_rif_player.py 102247          # 按 RIF 编号抓，写进 data/rif_players.json

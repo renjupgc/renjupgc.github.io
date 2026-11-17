@@ -1190,6 +1190,1230 @@
      "buchholz": ""
     }
    ]
+  },
+  "王鑫宇": {
+   "id": "102574",
+   "name_en": "Wang Xinyu",
+   "native": "王鑫宇",
+   "flag": "CHN",
+   "city": "Taiyuan, China",
+   "gender": "Male",
+   "rank": "2 kyu",
+   "birth": "2006-08-15",
+   "rating": 2230,
+   "rating_pos": 406,
+   "rating_url": "https://rating.renju.net/player_102574.html",
+   "games_page": 23,
+   "photos": 1,
+   "stats": {
+    "games": 23,
+    "points": 11.0,
+    "score_rate": 47.8,
+    "wins": 11.0,
+    "wins_rate": 47.8,
+    "draws": 0.0,
+    "draws_rate": 0.0,
+    "losses": 12.0,
+    "losses_rate": 52.2,
+    "black_games": 8,
+    "black_share": 50.0,
+    "black_points": 3.0,
+    "black_points_rate": 37.5,
+    "black_wins": 3.0,
+    "black_wins_rate": 37.5,
+    "black_draws": 0.0,
+    "black_draws_rate": 0.0,
+    "black_losses": 5.0,
+    "black_losses_rate": 62.5,
+    "white_games": 8,
+    "white_share": 50.0,
+    "white_points": 3.0,
+    "white_points_rate": 37.5,
+    "white_wins": 3.0,
+    "white_wins_rate": 37.5,
+    "white_draws": 0.0,
+    "white_draws_rate": 0.0,
+    "white_losses": 5.0,
+    "white_losses_rate": 62.5
+   },
+   "openings": [
+    {
+     "code": "d4",
+     "jp": "花月",
+     "count": 7,
+     "pct": 43.8,
+     "score": 28.6
+    },
+    {
+     "code": "i4",
+     "jp": "水月",
+     "count": 3,
+     "pct": 18.8,
+     "score": 100.0
+    },
+    {
+     "code": "i7",
+     "jp": "浦月",
+     "count": 2,
+     "pct": 12.5,
+     "score": 50.0
+    },
+    {
+     "code": "i2",
+     "jp": "峡月",
+     "count": 1,
+     "pct": 6.2,
+     "score": 0.0
+    },
+    {
+     "code": "i3",
+     "jp": "恒星",
+     "count": 1,
+     "pct": 6.2,
+     "score": 0.0
+    },
+    {
+     "code": "i6",
+     "jp": "雲月",
+     "count": 1,
+     "pct": 6.2,
+     "score": 0.0
+    },
+    {
+     "code": "i13",
+     "jp": "彗星",
+     "count": 1,
+     "pct": 6.2,
+     "score": 0.0
+    }
+   ],
+   "events": [
+    {
+     "tid": "3597",
+     "name": "Youth World Championship 2026 Group B",
+     "place": "Dalian, China",
+     "rule": "Taraguchi-10",
+     "level": "RIF Title Competition",
+     "system": "Swiss system",
+     "time_control": "60min + 30s/move",
+     "organizer": "Board and Card Games Administrative Center of the General Administration of Sport of China",
+     "chief_referee": "Yang Chunyan",
+     "date": "2026-07-05",
+     "date_end": "2026-07-08",
+     "rated": "Yes",
+     "games_on_site": 56,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Ivan Vershinin",
+       "opp_id": "021171",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Ding Zeyu",
+       "opp_id": "101314",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Konstantin Kazantsev",
+       "opp_id": "020978",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Pan Guanchen",
+       "opp_id": "102247",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Pavel Noskov",
+       "opp_id": "020961",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Yao Bofan",
+       "opp_id": "102459",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Cai Jiamu",
+       "opp_id": "102695",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "11",
+     "points": "3",
+     "buchholz": "20"
+    },
+    {
+     "tid": "3577",
+     "name": "Youth World qualifying tournament 2026 Group B",
+     "place": "Anji, China",
+     "rule": "Taraguchi-10",
+     "level": "Federation Title/Top Competition",
+     "system": "Swiss system",
+     "time_control": "60min",
+     "organizer": "China Qiyuan",
+     "chief_referee": "Zhao Yan",
+     "date": "2026-05-29",
+     "date_end": "2026-06-01",
+     "rated": "Yes",
+     "games_on_site": 42,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Li Jinzhao",
+       "opp_id": "102704",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Zhong Yuyang",
+       "opp_id": "100963",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Ding Zeyu",
+       "opp_id": "101314",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Zhou Shijie",
+       "opp_id": "102702",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Kang Tingrui",
+       "opp_id": "100732",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Chen Haoyuan",
+       "opp_id": "101769",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Yao Bofan",
+       "opp_id": "102459",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "2",
+     "points": "5",
+     "buchholz": "29"
+    },
+    {
+     "tid": "3434",
+     "name": "World Renju Youth Cup 2025 (online) AB Group",
+     "place": "Tallinn, Estonia",
+     "rule": "Taraguchi-10",
+     "level": "International Competition",
+     "system": "Swiss system",
+     "time_control": "30min + 5s/move",
+     "organizer": "RIF, vint.ee, Estonian Renju Union",
+     "chief_referee": "Ando Meritee",
+     "date": "2025-07-19",
+     "date_end": "2025-07-21",
+     "rated": "Yes",
+     "games_on_site": 102,
+     "rounds": 9,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Rauno Lääne",
+       "opp_id": "090193",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Pan Guanchen",
+       "opp_id": "102247",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Ning Haoran",
+       "opp_id": "102575",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Yao Bofan",
+       "opp_id": "102459",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Shen Wei",
+       "opp_id": "102576",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Maksim Startsev",
+       "opp_id": "020975",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Ai Gaoqiang",
+       "opp_id": "102388",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 8,
+       "color": "black",
+       "opp": "Ma Ye",
+       "opp_id": "101703",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 9,
+       "color": "white",
+       "opp": "Vsevolod Troitsky",
+       "opp_id": "021008",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "20",
+     "points": "3",
+     "buchholz": "36"
+    }
+   ]
+  },
+  "药博凡": {
+   "id": "102459",
+   "name_en": "Yao Bofan",
+   "native": "药博凡",
+   "flag": "CHN",
+   "city": "Beijing, China",
+   "gender": "Male",
+   "rank": "1 dan",
+   "birth": "2007-04-21",
+   "rating": 2180,
+   "rating_pos": 479,
+   "rating_url": "https://rating.renju.net/player_102459.html",
+   "games_page": 67,
+   "photos": null,
+   "stats": {
+    "games": 67,
+    "points": 29.0,
+    "score_rate": 43.3,
+    "wins": 26.0,
+    "wins_rate": 38.8,
+    "draws": 6.0,
+    "draws_rate": 9.0,
+    "losses": 35.0,
+    "losses_rate": 52.2,
+    "black_games": 12,
+    "black_share": 40.0,
+    "black_points": 5.0,
+    "black_points_rate": 41.7,
+    "black_wins": 5.0,
+    "black_wins_rate": 41.7,
+    "black_draws": 0.0,
+    "black_draws_rate": 0.0,
+    "black_losses": 7.0,
+    "black_losses_rate": 58.3,
+    "white_games": 18,
+    "white_share": 60.0,
+    "white_points": 9.5,
+    "white_points_rate": 52.8,
+    "white_wins": 9.0,
+    "white_wins_rate": 50.0,
+    "white_draws": 1.0,
+    "white_draws_rate": 5.6,
+    "white_losses": 8.0,
+    "white_losses_rate": 44.4
+   },
+   "openings": [
+    {
+     "code": "d4",
+     "jp": "花月",
+     "count": 7,
+     "pct": 23.3,
+     "score": 42.9
+    },
+    {
+     "code": "d6",
+     "jp": "雨月",
+     "count": 5,
+     "pct": 16.7,
+     "score": 40.0
+    },
+    {
+     "code": "d11",
+     "jp": "瑞星",
+     "count": 3,
+     "pct": 10.0,
+     "score": 66.7
+    },
+    {
+     "code": "i6",
+     "jp": "雲月",
+     "count": 3,
+     "pct": 10.0,
+     "score": 33.3
+    },
+    {
+     "code": "d3",
+     "jp": "疎星",
+     "count": 2,
+     "pct": 6.7,
+     "score": 100.0
+    },
+    {
+     "code": "i7",
+     "jp": "浦月",
+     "count": 2,
+     "pct": 6.7,
+     "score": 50.0
+    },
+    {
+     "code": "d10",
+     "jp": "新月",
+     "count": 2,
+     "pct": 6.7,
+     "score": 25.0
+    },
+    {
+     "code": "i9",
+     "jp": "銀月",
+     "count": 1,
+     "pct": 3.3,
+     "score": 100.0
+    },
+    {
+     "code": "d2",
+     "jp": "渓月",
+     "count": 1,
+     "pct": 3.3,
+     "score": 100.0
+    },
+    {
+     "code": "d9",
+     "jp": "丘月",
+     "count": 1,
+     "pct": 3.3,
+     "score": 100.0
+    },
+    {
+     "code": "i4",
+     "jp": "水月",
+     "count": 1,
+     "pct": 3.3,
+     "score": 0.0
+    },
+    {
+     "code": "d1",
+     "jp": "寒星",
+     "count": 1,
+     "pct": 3.3,
+     "score": 0.0
+    },
+    {
+     "code": "d13",
+     "jp": "遊星",
+     "count": 1,
+     "pct": 3.3,
+     "score": 0.0
+    }
+   ],
+   "events": [
+    {
+     "tid": "3657",
+     "name": "2026 Beijing Renju Championship, A Group",
+     "place": "Beijing, China",
+     "rule": "Taraguchi-10",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "30min + 15s/move",
+     "organizer": "Beijing Qiyuan",
+     "chief_referee": "Han Mina",
+     "date": "2026-09-12",
+     "date_end": "2026-09-13",
+     "rated": "Yes",
+     "games_on_site": 136,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Liu Di",
+       "opp_id": "102657",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Zhou Jianxin",
+       "opp_id": "102625",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Yang Fan",
+       "opp_id": "102780",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Ma Hongzhou",
+       "opp_id": "100751",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Hu Xi",
+       "opp_id": "100015",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Li Ming",
+       "opp_id": "101974",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Jin Hongli",
+       "opp_id": "100397",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "14",
+     "points": "4",
+     "buchholz": "25.5"
+    },
+    {
+     "tid": "3597",
+     "name": "Youth World Championship 2026 Group B",
+     "place": "Dalian, China",
+     "rule": "Taraguchi-10",
+     "level": "RIF Title Competition",
+     "system": "Swiss system",
+     "time_control": "60min + 30s/move",
+     "organizer": "Board and Card Games Administrative Center of the General Administration of Sport of China",
+     "chief_referee": "Yang Chunyan",
+     "date": "2026-07-05",
+     "date_end": "2026-07-08",
+     "rated": "Yes",
+     "games_on_site": 56,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Ding Zeyu",
+       "opp_id": "101314",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Ivan Vershinin",
+       "opp_id": "021171",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Random Barinov",
+       "opp_id": "021042",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Li Jiajun",
+       "opp_id": "100889",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Cai Jiamu",
+       "opp_id": "102695",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Wang Xinyu",
+       "opp_id": "102574",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Pan Guanchen",
+       "opp_id": "102247",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "12a",
+     "points": "3",
+     "buchholz": "19"
+    },
+    {
+     "tid": "3577",
+     "name": "Youth World qualifying tournament 2026 Group B",
+     "place": "Anji, China",
+     "rule": "Taraguchi-10",
+     "level": "Federation Title/Top Competition",
+     "system": "Swiss system",
+     "time_control": "60min",
+     "organizer": "China Qiyuan",
+     "chief_referee": "Zhao Yan",
+     "date": "2026-05-29",
+     "date_end": "2026-06-01",
+     "rated": "Yes",
+     "games_on_site": 42,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Yu Zisheng",
+       "opp_id": "102703",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Zhou Shangli",
+       "opp_id": "102705",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Zhong Yuyang",
+       "opp_id": "100963",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Cai Jiamu",
+       "opp_id": "102695",
+       "res": "½",
+       "kind": "draw"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Ding Zeyu",
+       "opp_id": "101314",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Pan Guanchen",
+       "opp_id": "102247",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Wang Xinyu",
+       "opp_id": "102574",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "8",
+     "points": "3.5",
+     "buchholz": "25.5"
+    },
+    {
+     "tid": "3564",
+     "name": "Chinese National Championship 2026, Men Preliminary",
+     "place": "Suizhou, China",
+     "rule": "Taraguchi-10",
+     "level": "Federation Title/Top Competition",
+     "system": "Swiss system",
+     "time_control": "60min + 30s/move",
+     "organizer": "China Qiyuan",
+     "chief_referee": "Yin Bing",
+     "date": "2026-05-16",
+     "date_end": "2026-05-21",
+     "rated": "Yes",
+     "games_on_site": 224,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Zhou Nan",
+       "opp_id": "101423",
+       "res": "½",
+       "kind": "draw"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Yang Tingyu",
+       "opp_id": "100954",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "white",
+       "opp": "Xia Jianjin",
+       "opp_id": "101865",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Xiao Yikang",
+       "opp_id": "101301",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Yu Yajun",
+       "opp_id": "100395",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Liang Zhong",
+       "opp_id": "100785",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Qian Kun",
+       "opp_id": "100513",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "52",
+     "points": "2.5",
+     "buchholz": "24.5"
+    },
+    {
+     "tid": "3502",
+     "name": "Chinese National Amateur King Tournament 2025",
+     "place": "Hangzhou, China",
+     "rule": "Taraguchi-10",
+     "level": "Federation Competition",
+     "system": "Swiss system",
+     "time_control": "45min + 30s/move",
+     "organizer": "China Qiyuan",
+     "chief_referee": "Han Mina",
+     "date": "2025-11-29",
+     "date_end": "2025-12-01",
+     "rated": "Yes",
+     "games_on_site": 209,
+     "rounds": 9,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Wang Qingle",
+       "opp_id": "100768",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Chen Chao",
+       "opp_id": "102456",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "white",
+       "opp": "Chang Hongwei",
+       "opp_id": "102334",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Zeng Weicong",
+       "opp_id": "102651",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Tu Shuyan",
+       "opp_id": "102293",
+       "res": "½",
+       "kind": "draw"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Zhong Baogui",
+       "opp_id": "100833",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Liu Pei",
+       "opp_id": "101333",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 8,
+       "color": "white",
+       "opp": "Jin Hongtao",
+       "opp_id": "101671",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 9,
+       "color": "black",
+       "opp": "Xu Pengwei",
+       "opp_id": "102063",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "45",
+     "points": "3.5",
+     "buchholz": "36.5"
+    },
+    {
+     "tid": "3458",
+     "name": "2025 Beijing Renju Championship",
+     "place": "Beijing, China",
+     "rule": "Taraguchi-10",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "30min + 10s/move",
+     "organizer": "Beijing Chess and Card Sports Association",
+     "chief_referee": "Han Mina",
+     "date": "2025-09-13",
+     "date_end": "2025-09-14",
+     "rated": "Yes",
+     "games_on_site": 129,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Liu Tong",
+       "opp_id": "102624",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Liang Da",
+       "opp_id": "102366",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "white",
+       "opp": "Qiao Mingtian",
+       "opp_id": "101403",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Tian Hanfa",
+       "opp_id": "100103",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Hao Tianyi",
+       "opp_id": "100753",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Shen Jin",
+       "opp_id": "100720",
+       "res": "½",
+       "kind": "draw"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Qiu Wuxiang",
+       "opp_id": "102332",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "11",
+     "points": "4.5",
+     "buchholz": "28"
+    },
+    {
+     "tid": "3440",
+     "name": "Chinese National King Tournament 2025",
+     "place": "Xintai, China",
+     "rule": "Taraguchi-10",
+     "level": "Federation Title/Top Competition",
+     "system": "Swiss system",
+     "time_control": "60min + 30s/move",
+     "organizer": "China Qiyuan",
+     "chief_referee": "Zhao Yan",
+     "date": "2025-07-26",
+     "date_end": "2025-07-29",
+     "rated": "Yes",
+     "games_on_site": 133,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Huang Jianguang",
+       "opp_id": "100448",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Jiang Chenglang",
+       "opp_id": "102599",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "white",
+       "opp": "Meng Jiehuan",
+       "opp_id": "100824",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Tang Yahan",
+       "opp_id": "102114",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Zhong Yuyang",
+       "opp_id": "100963",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Cheng Yanzhen",
+       "opp_id": "100635",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Li Jiajun",
+       "opp_id": "100889",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "23g",
+     "points": "3",
+     "buchholz": ""
+    },
+    {
+     "tid": "3434",
+     "name": "World Renju Youth Cup 2025 (online) AB Group",
+     "place": "Tallinn, Estonia",
+     "rule": "Taraguchi-10",
+     "level": "International Competition",
+     "system": "Swiss system",
+     "time_control": "30min + 5s/move",
+     "organizer": "RIF, vint.ee, Estonian Renju Union",
+     "chief_referee": "Ando Meritee",
+     "date": "2025-07-19",
+     "date_end": "2025-07-21",
+     "rated": "Yes",
+     "games_on_site": 102,
+     "rounds": 9,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Maksim Metreveli",
+       "opp_id": "020813",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Maksim Startsev",
+       "opp_id": "020975",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Yuan Wa Chon",
+       "opp_id": "200008",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Wang Xinyu",
+       "opp_id": "102574",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Egor Fokichev",
+       "opp_id": "020896",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Sören Kask",
+       "opp_id": "090272",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Vsevolod Troitsky",
+       "opp_id": "021008",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 8,
+       "color": "black",
+       "opp": "Liu Yujun",
+       "opp_id": "102472",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 9,
+       "color": "black",
+       "opp": "Rauno Lääne",
+       "opp_id": "090193",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "21",
+     "points": "3",
+     "buchholz": "32.5"
+    },
+    {
+     "tid": "3387",
+     "name": "Chinese National Championship 2025, Men Preliminary",
+     "place": "Hefei, China",
+     "rule": "Taraguchi-10",
+     "level": "Federation Title/Top Competition",
+     "system": "Swiss system",
+     "time_control": "60min + 30s/move",
+     "organizer": "China Qiyuan",
+     "chief_referee": "Yin Bing",
+     "date": "2025-05-07",
+     "date_end": "2025-05-10",
+     "rated": "Yes",
+     "games_on_site": 174,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Chen Xin",
+       "opp_id": "100173",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Zhu Tianyi",
+       "opp_id": "100601",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Han Yichen",
+       "opp_id": "102184",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Meng Jiehuan",
+       "opp_id": "100824",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Ling Hongrui",
+       "opp_id": "102455",
+       "res": "½",
+       "kind": "draw"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Qiu Wuxiang",
+       "opp_id": "102332",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Xu Yepeng",
+       "opp_id": "100968",
+       "res": "½",
+       "kind": "draw"
+      }
+     ],
+     "played": true,
+     "rank": "42d",
+     "points": "2",
+     "buchholz": ""
+    }
+   ]
   }
  }
 }

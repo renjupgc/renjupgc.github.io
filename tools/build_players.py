@@ -28,7 +28,6 @@ event_ranks 表里，凡是表里有的（赛事 id + 姓名）一律按报道�
 """
 
 import collections
-import datetime
 import json
 import os
 import re
@@ -75,19 +74,6 @@ def load_rif():
 
 
 RIF = load_rif()
-
-# RIF 的赛事等级与段位用英文写，页面上给个中文说法
-RIF_LEVEL = {
-    'International Competition': '国际赛',
-    'RIF Title Competition': 'RIF 头衔赛',
-    'Federation Title/Top Competition': '协会头衔赛',
-    'Local/Area Competition': '地方赛',
-    'National Championship': '全国锦标赛',
-}
-RIF_RES = {'win': ('res-win', '胜'), 'loss': ('res-loss', '负'),
-           'draw': ('res-draw', '和'), 'fwin': ('res-fwin', '弃权胜'),
-           'floss': ('res-floss', '弃权负')}
-RIF_POINTS = {'win': 1.0, 'loss': 0.0, 'draw': 0.5, 'fwin': 1.0, 'floss': 0.0}
 
 
 def public_players():
@@ -490,64 +476,19 @@ def render_renwu(prof):
             '']
 
 
-def rif_rank_label(raw):
-    """RIF 的段位写法换成中文：1 kyu → 1 级，2 dan → 2 段。"""
-    m = re.match(r'\s*(\d+)\s*(kyu|dan)\b', raw or '', re.I)
-    if not m:
-        return raw or ''
-    return ('%d 级' if m.group(2).lower() == 'kyu' else '%d 段') % int(m.group(1))
-
-
-def rif_place(raw):
-    """赛事地点：RIF 写「Tallinn, Estonia」，能认的换成中文地名。"""
-    city = (raw or '').split(',')[0].strip()
-    return {
-        'Tallinn': '塔林', 'Laagri': '拉格里', 'Dalian': '大连', 'Anji': '安吉',
-        'Zhenjiang': '镇江', 'Zhengzhou': '郑州', 'Beijing': '北京',
-        'Ankang': '安康', "Tai'an": '泰安', 'Taian': '泰安',
-    }.get(city, city or '—')
-
-
-def rif_rank_num(raw):
-    """名次里的并列标记（40a、19b）去掉字母，只留数字。"""
-    m = re.match(r'\s*(\d+)', raw or '')
-    return m.group(1) if m else (raw or '')
-
-
-def render_rif(name, events, index):
-    """RIF 国际档案：renju.net 上的段位、等级分、开局偏好与海外战绩。
+def render_rif(name):
+    """RIF 国际档案：renju.net 上的编号、等级分、对局统计与开局偏好。
 
     数据来自 tools/fetch_rif_player.py 抓下的 data/rif_players.json。
-    RIF 登记的国内赛事与本站成绩表是两套来源：同一场两边都有，所以赛事表里
-    给个「本站」的标记，让读者知道为什么下方对局记录里会再见到同一盘棋。
+    只取「人」这一层的数字：赛事清单与逐局记录本站另有成绩表页面，不在这儿
+    再铺一遍，免得同一盘棋两处口径对不上。
     """
     rec = RIF.get(name)
     if not rec:
         return []
     st = rec.get('stats') or {}
-    played = [e for e in rec.get('events') or [] if e.get('played')]
-    skipped = [e for e in rec.get('events') or [] if not e.get('played')]
-    games = sum(len(e['games']) for e in played)
-    if not played:
+    if not (rec.get('rating') or st.get('games')):
         return []
-
-    # 本站成绩表里的场次：日期相差两天以内就算同一场（RIF 记的是开赛日）
-    local = {}
-    for e in events:
-        d = e['t'].get('date') or ''
-        m = re.match(r'(\d{4})-(\d{2})-(\d{2})', d)
-        if m:
-            local[datetime.date(*map(int, m.groups()))] = e['tid']
-
-    def local_tid(rif_date):
-        m = re.match(r'(\d{4})-(\d{2})-(\d{2})', rif_date or '')
-        if not m:
-            return None
-        d0 = datetime.date(*map(int, m.groups()))
-        for d, tid in local.items():
-            if abs((d - d0).days) <= 2:
-                return tid
-        return None
 
     out = ['            <section class="p-rif">',
            '                <h2>RIF 国际档案</h2>',
@@ -556,8 +497,6 @@ def render_rif(name, events, index):
            % bz.esc(rec.get('id') or ''),
            '                    <span class="prif-name">%s</span>'
            % bz.esc(rec.get('name_en') or ''),
-           '                    <span class="prif-dan">RIF %s</span>'
-           % bz.esc(rif_rank_label(rec.get('rank'))),
            '                    <a class="prif-src" href="https://www.renju.net/people/%s/"'
            ' target="_blank" rel="noopener">renju.net 原页 ↗</a>'
            % bz.esc(rec.get('id') or ''),
@@ -581,10 +520,7 @@ def render_rif(name, events, index):
     out += ['                </div>',
             '                <p class="prif-note">上表是国际连珠联盟（RIF）在 renju.net 上的'
             '登记：等级分是 RIF 自己的一套分，与本站那份'
-            ' <a href="../rating.html">河南高校爱好者等级分</a> 各算各的，不能直接对比。'
-            'RIF 统计的是它库里有记录的对局，弃权、未赛的场次不计，所以它的局数'
-            '与下面成绩表逐轮条数不必相等。RIF 的级位（kyu）与段位（dan）是国际'
-            '连珠联盟自己的一套，跟中国棋院的专业段位不一一对应。</p>',
+            ' <a href="../rating.html">河南高校爱好者等级分</a> 各算各的，不能直接对比。</p>',
             '']
 
     ops = (rec.get('openings') or [])[:8]
@@ -601,96 +537,6 @@ def render_rif(name, events, index):
                 % (st.get('games') or 0),
                 '']
 
-    # 按日期倒序，国内赛事与海外赛事混排；窄屏下列表比表格好读，就不摆表了
-    out += ['                <h3 class="prif-h3">RIF 登记的赛事</h3>',
-            '                <ol class="prif-events">']
-    for e in played:
-        lvl = RIF_LEVEL.get(e.get('level') or '', e.get('level') or '')
-        meta = [x for x in (lvl, rif_place(e.get('place'))) if x]
-        rk = rif_rank_num(e.get('rank'))
-        if rk:
-            hot = rk.isdigit() and int(rk) <= 3
-            meta.append('<b class="prif-ev-rank%s">第 %s 名</b>'
-                        % ('' if hot else ' is-plain', bz.esc(rk)))
-        pts = (e.get('points') or '').strip()
-        if pts:
-            meta.append('%s 分' % bz.esc(pts))
-        tid = local_tid(e.get('date'))
-        if tid:
-            meta.append('<a class="prif-tag prif-tag-link" href="../../zayu/t%d.html"'
-                        ' title="本站成绩表里也有这一场">本站</a>' % tid)
-        out.append('                    <li class="prif-ev">'
-                   '<span class="prif-ev-date">%s</span>'
-                   '<span class="prif-ev-body">'
-                   '<a class="prif-ev-name" href="https://www.renju.net/tournament/%s/"'
-                   ' target="_blank" rel="noopener">%s</a>'
-                   '<span class="prif-ev-meta">%s</span></span></li>'
-                   % (bz.esc(e.get('date') or ''), bz.esc(e['tid']),
-                      bz.esc(e.get('name') or ''), ' · '.join(meta)))
-    out += ['                </ol>',
-            '                <p class="prif-note">名次与积分照 RIF 成绩表原样抄录；'
-            'RIF 上的赛事名是英文，日期记的是开赛日，可能与本站成绩表差一天。'
-            '标「本站」的场次在本站成绩表里另有页面，同一盘棋在下方「对局记录」里'
-            '可能再出现一次，两边口径不必一致。</p>',
-            '']
-
-    if skipped:
-        names = '、'.join('%s（%s）' % (bz.esc(e.get('name') or ''),
-                                      bz.esc(rif_place(e.get('place'))))
-                         for e in skipped)
-        note = 'RIF 另登记了 %d 场没有个人成绩表的赛事：%s。' % (len(skipped), names)
-        refs = [e for e in skipped
-                if rec.get('name_en') and rec['name_en'] in (e.get('chief_referee') or '')]
-        if refs:
-            note += '其中 %d 场他是裁判长，只报了名没有上场，故不计入上表。' % len(refs)
-        else:
-            note += '只报了名、没有上场，故不计入上表。'
-        out += ['                <p class="prif-note">%s</p>' % note, '']
-
-    if games:
-        out += ['                <details class="prif-games">',
-                '                    <summary>逐局记录（RIF 成绩表里的 %d 条）</summary>'
-                % games,
-                '                    <div class="table-scroll">',
-                '                    <table class="crosstab p-games prif-log">',
-                '                        <thead><tr>',
-                '                            <th class="c-tb">轮次</th>',
-                '                            <th class="c-tb">执位</th>',
-                '                            <th class="c-opp">对手</th>',
-                '                            <th class="c-rank">结果</th>',
-                '                        </tr></thead>',
-                '                        <tbody>']
-        for e in played:
-            rk = rif_rank_num(e.get('rank'))
-            head = '%s · <a href="https://www.renju.net/tournament/%s/"' \
-                   ' target="_blank" rel="noopener">%s</a>' % (
-                       bz.esc(e.get('date') or ''), bz.esc(e['tid']),
-                       bz.esc(e.get('name') or ''))
-            if rk:
-                head += (' <span class="prif-tag">第 %s 名 · %s 分</span>'
-                         % (bz.esc(rk), bz.esc(e.get('points') or '—')))
-            out += ['                        <tr class="prif-grp">'
-                    '<td colspan="4">%s</td></tr>' % head]
-            for g in sorted(e['games'], key=lambda x: x['round']):
-                cls, txt = RIF_RES.get(g.get('kind'), ('', g.get('res') or ''))
-                opp = bz.esc(g.get('opp') or '—')
-                if g.get('opp_id'):
-                    opp = ('<a href="https://www.renju.net/people/%s/" target="_blank"'
-                           ' rel="noopener">%s</a>' % (bz.esc(g['opp_id']), opp))
-                out.append('                        <tr>'
-                           '<td class="c-tb">R%d</td>'
-                           '<td class="c-tb">%s</td>'
-                           '<td class="c-opp">%s</td>'
-                           '<td class="c-rank %s">%s</td></tr>'
-                           % (g['round'],
-                              '执黑' if g['color'] == 'black' else '执白',
-                              opp, cls, bz.esc(txt)))
-        out += ['                        </tbody>',
-                '                    </table>',
-                '                    </div>',
-                '                </details>',
-                ''
-                ]
     out += ['            </section>', '']
     return out
 
@@ -801,7 +647,7 @@ def page(name, rec, events, games, reports, index, total_players, arts,
     if prof:
         body += render_renwu(prof)
 
-    body += render_rif(name, events, index)
+    body += render_rif(name)
 
     if reports:
         body += ['            <section class="mention-card">',
