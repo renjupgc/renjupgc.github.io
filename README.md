@@ -127,13 +127,15 @@ localStorage 里，按用户名分开（`zbxEn.users`、`zbxEn.p.<用户名>`）
 
 ## 连珠英语的阅读题型
 
-- **仔细阅读**（`type: careful`）：一篇 250–350 词短文配 4–5 道四选一，对应四级 Section C。
-- **长篇阅读·信息匹配**（`type: matching`）：一篇约 780 词的文章分 A–J 段，十个句子（36–45）
+- **仔细阅读**（`type: careful`）：一篇 300–375 词短文配 5 道四选一，对应四级 Section C。
+- **长篇阅读·信息匹配**（`type: matching`）：一篇 800 词以上的文章分 A–J 段，十个句子（36–45）
   各选一个段落，一次交卷判分，对应四级 Section B。
 
 文章写在 `data/english/reading.json`，改完跑 `python tools/build_english_words.py` 重建
-`assets/reading-articles.js`。题材以五子棋为主，其中 6 篇由本栏「杂论」的赛后记、棋评、
-裁判记改写（生成脚本：`tools/gen_reading_zalun.py`）。
+`assets/reading-articles.js`。共 18 篇 105 题：15 篇仔细阅读、3 篇长篇匹配，其中 11 篇由本栏
+「杂论」的赛后记、棋评、裁判记改写（生成脚本：`tools/gen_reading_zalun.py`，`--check`
+只校验长度不写盘）。脚本里的 `EXPAND` / `SECT_ADD` 负责把旧篇目补到规定长度并各补一道题，
+`NEW` 放新增篇目，重复运行不会产生重复条目。
 
 术语表与阅读文章中涉及规则的英文表述，参照 renju.net 上的
 [RIF 国际规则](https://www.renju.net/rifrules/)与 [What is Renju?](https://www.renju.net/rules/)。

@@ -967,7 +967,7 @@
                 + '<div class="en-read-intro">'
                 + '  <p class="en-kicker">READING PRACTICE</p>'
                 + '  <h2 class="en-gate-title">仔细阅读，也有长篇匹配</h2>'
-                + '  <p class="en-gate-sub">文章都写五子棋和连珠。前面几篇是四道选择题的仔细阅读，后面几篇是四级那套「长篇阅读·信息匹配」：一篇分成 A–J 段，十个句子要各自找到出处。做完立刻看答案和讲解。'
+                + '  <p class="en-gate-sub">文章都写五子棋和连珠。前面十几篇是五道选择题的仔细阅读（300–375 词），后面三篇是四级那套「长篇阅读·信息匹配」：八百词以上分成 A–J 段，十个句子要各自找到出处。做完立刻看答案和讲解。'
                 + '  已完成 ' + done + ' / ' + list.length + ' 篇。</p>'
                 + '</div>'
                 + (list.length
