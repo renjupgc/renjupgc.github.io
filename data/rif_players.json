@@ -1,0 +1,1195 @@
+{
+ "source": "https://www.renju.net",
+ "fetched": "2026-11-17",
+ "players": {
+  "潘冠臣": {
+   "id": "102247",
+   "name_en": "Pan Guanchen",
+   "native": "潘冠臣",
+   "flag": "CHN",
+   "city": "Linyi, China",
+   "gender": "Male",
+   "rank": "1 kyu",
+   "birth": "2006-04-11",
+   "rating": 2386,
+   "rating_pos": 215,
+   "rating_url": "https://rating.renju.net/player_102247.html",
+   "games_page": 83,
+   "photos": 4,
+   "stats": {
+    "games": 69,
+    "points": 53.5,
+    "score_rate": 77.5,
+    "wins": 52.0,
+    "wins_rate": 75.4,
+    "draws": 3.0,
+    "draws_rate": 4.3,
+    "losses": 14.0,
+    "losses_rate": 20.3,
+    "black_games": 32,
+    "black_share": 52.5,
+    "black_points": 27.0,
+    "black_points_rate": 84.4,
+    "black_wins": 27.0,
+    "black_wins_rate": 84.4,
+    "black_draws": 0.0,
+    "black_draws_rate": 0.0,
+    "black_losses": 5.0,
+    "black_losses_rate": 15.6,
+    "white_games": 29,
+    "white_share": 47.5,
+    "white_points": 22.0,
+    "white_points_rate": 75.9,
+    "white_wins": 21.0,
+    "white_wins_rate": 72.4,
+    "white_draws": 2.0,
+    "white_draws_rate": 6.9,
+    "white_losses": 6.0,
+    "white_losses_rate": 20.7
+   },
+   "openings": [
+    {
+     "code": "i10",
+     "jp": "明星",
+     "count": 15,
+     "pct": 24.6,
+     "score": 90.0
+    },
+    {
+     "code": "d3",
+     "jp": "疎星",
+     "count": 10,
+     "pct": 16.4,
+     "score": 80.0
+    },
+    {
+     "code": "d5",
+     "jp": "残月",
+     "count": 7,
+     "pct": 11.5,
+     "score": 85.7
+    },
+    {
+     "code": "i7",
+     "jp": "浦月",
+     "count": 6,
+     "pct": 9.8,
+     "score": 83.3
+    },
+    {
+     "code": "i9",
+     "jp": "銀月",
+     "count": 3,
+     "pct": 4.9,
+     "score": 100.0
+    },
+    {
+     "code": "d7",
+     "jp": "金星",
+     "count": 3,
+     "pct": 4.9,
+     "score": 100.0
+    },
+    {
+     "code": "d13",
+     "jp": "遊星",
+     "count": 3,
+     "pct": 4.9,
+     "score": 66.7
+    },
+    {
+     "code": "i8",
+     "jp": "嵐月",
+     "count": 2,
+     "pct": 3.3,
+     "score": 100.0
+    },
+    {
+     "code": "i13",
+     "jp": "彗星",
+     "count": 2,
+     "pct": 3.3,
+     "score": 50.0
+    },
+    {
+     "code": "d1",
+     "jp": "寒星",
+     "count": 2,
+     "pct": 3.3,
+     "score": 50.0
+    },
+    {
+     "code": "d9",
+     "jp": "丘月",
+     "count": 2,
+     "pct": 3.3,
+     "score": 25.0
+    },
+    {
+     "code": "i1",
+     "jp": "長星",
+     "count": 1,
+     "pct": 1.6,
+     "score": 100.0
+    },
+    {
+     "code": "i3",
+     "jp": "恒星",
+     "count": 1,
+     "pct": 1.6,
+     "score": 100.0
+    },
+    {
+     "code": "i6",
+     "jp": "雲月",
+     "count": 1,
+     "pct": 1.6,
+     "score": 100.0
+    },
+    {
+     "code": "d4",
+     "jp": "花月",
+     "count": 1,
+     "pct": 1.6,
+     "score": 100.0
+    },
+    {
+     "code": "i11",
+     "jp": "斜月",
+     "count": 1,
+     "pct": 1.6,
+     "score": 0.0
+    },
+    {
+     "code": "d6",
+     "jp": "雨月",
+     "count": 1,
+     "pct": 1.6,
+     "score": 0.0
+    }
+   ],
+   "events": [
+    {
+     "tid": "3609",
+     "name": "World Renju Youth Cup 2026 (online) AB Group",
+     "place": "Tallinn, Estonia",
+     "rule": "Taraguchi-10",
+     "level": "International Competition",
+     "system": "Swiss system",
+     "time_control": "30min + 5s/move",
+     "organizer": "RIF, vint.ee, Estonian Renju Union",
+     "chief_referee": "Ando Meritee",
+     "date": "2026-07-25",
+     "date_end": "2026-07-27",
+     "rated": "Yes",
+     "games_on_site": 60,
+     "rounds": 9,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Viktor Sokolov",
+       "opp_id": "021299",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Alois Mikeš",
+       "opp_id": "150263",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Tung Shih-Ting",
+       "opp_id": "110217",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Maksim Startsev",
+       "opp_id": "020975",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Liu Zhenghe",
+       "opp_id": "102754",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Kawamoto Shoma",
+       "opp_id": "010414",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Zhou Shijie",
+       "opp_id": "102702",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 8,
+       "color": "white",
+       "opp": "Pavel Noskov",
+       "opp_id": "020961",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 9,
+       "color": "white",
+       "opp": "Konstantin Kazantsev",
+       "opp_id": "020978",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "1",
+     "points": "8",
+     "buchholz": "45"
+    },
+    {
+     "tid": "3597",
+     "name": "Youth World Championship 2026 Group B",
+     "place": "Dalian, China",
+     "rule": "Taraguchi-10",
+     "level": "RIF Title Competition",
+     "system": "Swiss system",
+     "time_control": "60min + 30s/move",
+     "organizer": "Board and Card Games Administrative Center of the General Administration of Sport of China",
+     "chief_referee": "Yang Chunyan",
+     "date": "2026-07-05",
+     "date_end": "2026-07-08",
+     "rated": "Yes",
+     "games_on_site": 56,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Random Barinov",
+       "opp_id": "021042",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Zhong Yuyang",
+       "opp_id": "100963",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Mikhail Sidorov",
+       "opp_id": "020959",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Wang Xinyu",
+       "opp_id": "102574",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Ivan Vershinin",
+       "opp_id": "021171",
+       "res": "½",
+       "kind": "draw"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Li Jiajun",
+       "opp_id": "100889",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Yao Bofan",
+       "opp_id": "102459",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "14",
+     "points": "2.5",
+     "buchholz": "25"
+    },
+    {
+     "tid": "3577",
+     "name": "Youth World qualifying tournament 2026 Group B",
+     "place": "Anji, China",
+     "rule": "Taraguchi-10",
+     "level": "Federation Title/Top Competition",
+     "system": "Swiss system",
+     "time_control": "60min",
+     "organizer": "China Qiyuan",
+     "chief_referee": "Zhao Yan",
+     "date": "2026-05-29",
+     "date_end": "2026-06-01",
+     "rated": "Yes",
+     "games_on_site": 42,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Zhong Yuyang",
+       "opp_id": "100963",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Zhou Shijie",
+       "opp_id": "102702",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "white",
+       "opp": "Li Jiajun",
+       "opp_id": "100889",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Li Jinzhao",
+       "opp_id": "102704",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Cai Jiamu",
+       "opp_id": "102695",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Yao Bofan",
+       "opp_id": "102459",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Yu Zisheng",
+       "opp_id": "102703",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "5",
+     "points": "4",
+     "buchholz": "23.5"
+    },
+    {
+     "tid": "3431",
+     "name": "\"Lucky Cup\" Gomoku Open 2025",
+     "place": "Zhenjiang, China",
+     "rule": "Gomoku - Swap 2",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "30min",
+     "organizer": "Zhenjiang Chess Association",
+     "chief_referee": "Hou Jun",
+     "date": "2025-08-17",
+     "date_end": "2025-08-17",
+     "rated": "Yes",
+     "games_on_site": 143,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Yin Ming",
+       "opp_id": "102443",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Shi Hongyu",
+       "opp_id": "102617",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "white",
+       "opp": "Lan Xinlei",
+       "opp_id": "101490",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Zhu Ye",
+       "opp_id": "101446",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Xiao Yongqi",
+       "opp_id": "102618",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Wang Chen",
+       "opp_id": "100862",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Yang Bin",
+       "opp_id": "100515",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "15",
+     "points": "4",
+     "buchholz": "24.5"
+    },
+    {
+     "tid": "3434",
+     "name": "World Renju Youth Cup 2025 (online) AB Group",
+     "place": "Tallinn, Estonia",
+     "rule": "Taraguchi-10",
+     "level": "International Competition",
+     "system": "Swiss system",
+     "time_control": "30min + 5s/move",
+     "organizer": "RIF, vint.ee, Estonian Renju Union",
+     "chief_referee": "Ando Meritee",
+     "date": "2025-07-19",
+     "date_end": "2025-07-21",
+     "rated": "Yes",
+     "games_on_site": 102,
+     "rounds": 9,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Ai Gaoqiang",
+       "opp_id": "102388",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Wang Xinyu",
+       "opp_id": "102574",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Alois Mikeš",
+       "opp_id": "150263",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Fan Yutian",
+       "opp_id": "101526",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Zhan Kangcheng",
+       "opp_id": "102470",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Matěj Holub",
+       "opp_id": "150229",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Maksim Metreveli",
+       "opp_id": "020813",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 8,
+       "color": "black",
+       "opp": "Kawamoto Shoma",
+       "opp_id": "010414",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 9,
+       "color": "white",
+       "opp": "Shen Wei",
+       "opp_id": "102576",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "1",
+     "points": "8",
+     "buchholz": "42.5"
+    },
+    {
+     "tid": "3203",
+     "name": "2nd Commemorative competition in memory of Tunnet Taimla (online)",
+     "place": "Tallinn, Estonia",
+     "rule": "Taraguchi-10",
+     "level": "International Competition",
+     "system": "Swiss system",
+     "time_control": "30min + 5s/move",
+     "organizer": "Vint.ee and Estonian Renju Union",
+     "chief_referee": "Ants Soosõrv",
+     "date": "2024-12-28",
+     "date_end": "2024-12-29",
+     "rated": "Yes",
+     "games_on_site": 14,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Hao Tianyi",
+       "opp_id": "100753",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Alp Ali Kirkan",
+       "opp_id": "190018",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "white",
+       "opp": "Park Woong-bae",
+       "opp_id": "130068",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Inoue Fumiya",
+       "opp_id": "010349",
+       "res": "-",
+       "kind": "floss"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Ruslan Pereshivalov",
+       "opp_id": "021156",
+       "res": "-",
+       "kind": "floss"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Ruslan Pereshivalov",
+       "opp_id": "021156",
+       "res": "+",
+       "kind": "fwin"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Alois Mikeš",
+       "opp_id": "150263",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "2",
+     "points": "5",
+     "buchholz": "23"
+    },
+    {
+     "tid": "3331",
+     "name": "2024 Henan Renju Championship,Highest group",
+     "place": "Zhengzhou, China",
+     "rule": "Classic",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "30min",
+     "organizer": "Henan Qiyuan,Henan province chess association",
+     "chief_referee": "Zhao Yan",
+     "date": "2024-12-22",
+     "date_end": "2024-12-22",
+     "rated": "No",
+     "games_on_site": 40,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Yang Yihe",
+       "opp_id": "102438",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Liu Linjun",
+       "opp_id": "101906",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Li Hanyu",
+       "opp_id": "102436",
+       "res": "-",
+       "kind": "floss"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Wang Chenyang",
+       "opp_id": "102434",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Ren Shuxian",
+       "opp_id": "101909",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "black",
+       "opp": "Ma Xinyi",
+       "opp_id": "102435",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Zou Haofei",
+       "opp_id": "100900",
+       "res": "½",
+       "kind": "draw"
+      }
+     ],
+     "played": true,
+     "rank": "2",
+     "points": "5.5",
+     "buchholz": ""
+    },
+    {
+     "tid": "3326",
+     "name": "2024 Henan Renju Level 3 Referee Training Course Competition",
+     "place": "Zhengzhou, China",
+     "rule": "Classic",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "30min",
+     "organizer": "Henan Province Chess Association",
+     "chief_referee": "Wen Yongcai",
+     "date": "2024-11-30",
+     "date_end": "2024-12-01",
+     "rated": "No",
+     "games_on_site": 34,
+     "rounds": 3,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Zhu Aohan",
+       "opp_id": "102422",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Ren Liulin",
+       "opp_id": "102418",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Yan Yucan",
+       "opp_id": "102412",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "2",
+     "points": "3",
+     "buchholz": "5"
+    },
+    {
+     "tid": "3320",
+     "name": "2024 Beijing Renju Championship",
+     "place": "Beijing, China",
+     "rule": "Taraguchi-10",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "40min",
+     "organizer": "Beijing Chess and Card Sports Association",
+     "chief_referee": "Yao Zhiyong",
+     "date": "2024-11-16",
+     "date_end": "2024-11-17",
+     "rated": "Yes",
+     "games_on_site": 139,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Yu Junyi",
+       "opp_id": "101963",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Wang Chuan",
+       "opp_id": "102363",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Jin Xianyu",
+       "opp_id": "102362",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Qiao Mingtian",
+       "opp_id": "101403",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Lyu Yan",
+       "opp_id": "101110",
+       "res": "-",
+       "kind": "floss"
+      }
+     ],
+     "played": true,
+     "rank": "40a",
+     "points": "1",
+     "buchholz": ""
+    },
+    {
+     "tid": "3302",
+     "name": "2024 Henan College Chess Association Renju League, Final",
+     "place": "Zhengzhou, China",
+     "rule": "Classic",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "30min",
+     "organizer": "Henan college chess association",
+     "chief_referee": "Pan Guanchen",
+     "date": "2024-11-09",
+     "date_end": "2024-11-09",
+     "rated": "No",
+     "games_on_site": 60,
+     "rounds": 5,
+     "games": [],
+     "played": false,
+     "role": "entry_only"
+    },
+    {
+     "tid": "3290",
+     "name": "1st Mind Sports Games of Shaanxi, China, Final",
+     "place": "Ankang, China",
+     "rule": "Yamaguchi",
+     "level": "Local/Area Competition",
+     "system": "Single elimination",
+     "time_control": "40min + 30s/move",
+     "organizer": "Shaanxi Province Sports Bureau",
+     "chief_referee": "Yang Bo",
+     "date": "2024-10-27",
+     "date_end": "2024-10-28",
+     "rated": "No",
+     "games_on_site": 12,
+     "rounds": 3,
+     "games": [],
+     "played": false,
+     "role": "entry_only"
+    },
+    {
+     "tid": "3261",
+     "name": "Zhenjiang Gomoku Open 2024",
+     "place": "Zhenjiang, China",
+     "rule": "Gomoku - Swap 2",
+     "level": "",
+     "system": "Swiss system",
+     "time_control": "30min",
+     "organizer": "Hou Jun",
+     "chief_referee": "Hou Jun",
+     "date": "2024-08-18",
+     "date_end": "2024-08-18",
+     "rated": "Yes",
+     "games_on_site": 163,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Zhang Xintian",
+       "opp_id": "101493",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Zhan Zipeng",
+       "opp_id": "101966",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Zou Haofei",
+       "opp_id": "100900",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Chang Hongwei",
+       "opp_id": "102334",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "white",
+       "opp": "Li Yanxin",
+       "opp_id": "101677",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Sun Chongjie",
+       "opp_id": "101546",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 7,
+       "color": "white",
+       "opp": "Wang Boyue",
+       "opp_id": "102329",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "19b",
+     "points": "4",
+     "buchholz": "24"
+    },
+    {
+     "tid": "3260",
+     "name": "2024 Henan Renju Open Tourmament",
+     "place": "Zhengzhou, China",
+     "rule": "Taraguchi-10",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "30min + 5s/move",
+     "organizer": "Henan Provincial National Fitness Center",
+     "chief_referee": "Zhao Yan",
+     "date": "2024-07-20",
+     "date_end": "2024-07-21",
+     "rated": "No",
+     "games_on_site": 21,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Chen Tao",
+       "opp_id": "100281",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Xia Zhendong",
+       "opp_id": "100414",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Gao Yanfeng",
+       "opp_id": "102324",
+       "res": "+",
+       "kind": "fwin"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Zou Haofei",
+       "opp_id": "100900",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Zhao Hui",
+       "opp_id": "100629",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Liu Tianxiang",
+       "opp_id": "102323",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Qiao Shixin",
+       "opp_id": "102322",
+       "res": "1",
+       "kind": "win"
+      }
+     ],
+     "played": true,
+     "rank": "1",
+     "points": "7",
+     "buchholz": "23"
+    },
+    {
+     "tid": "3249",
+     "name": "World Renju Youth Cup 2024 (online) B Group",
+     "place": "Laagri, Estonia",
+     "rule": "Taraguchi-10",
+     "level": "",
+     "system": "Swiss system",
+     "time_control": "30min + 5s/move",
+     "organizer": "Huvikeskus Kullo, Eesti Rendžuliit, Laagri Kool, vint.ee, RIF",
+     "chief_referee": "Ando Meritee",
+     "date": "2024-07-13",
+     "date_end": "2024-07-15",
+     "rated": "Yes",
+     "games_on_site": 91,
+     "rounds": 7,
+     "games": [
+      {
+       "round": 1,
+       "color": "black",
+       "opp": "Yi Yuyang",
+       "opp_id": "102295",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "white",
+       "opp": "Vyacheslav Kuvaev",
+       "opp_id": "020903",
+       "res": "0",
+       "kind": "loss"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Xie Haoyang",
+       "opp_id": "102181",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "white",
+       "opp": "Zhong Yuyang",
+       "opp_id": "100963",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Kawamoto Shoma",
+       "opp_id": "010414",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 6,
+       "color": "white",
+       "opp": "Danila Gromov",
+       "opp_id": "020885",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 7,
+       "color": "black",
+       "opp": "Zhang Ziyi",
+       "opp_id": "101799",
+       "res": "½",
+       "kind": "draw"
+      }
+     ],
+     "played": true,
+     "rank": "2",
+     "points": "5.5",
+     "buchholz": "28.5"
+    },
+    {
+     "tid": "3274",
+     "name": "1st Mind Sports Games of Shandong, China, Men Group",
+     "place": "Tai'an, China",
+     "rule": "Classic",
+     "level": "Local/Area Competition",
+     "system": "Swiss system",
+     "time_control": "60min",
+     "organizer": "Shandong Provincial Sports Bureau",
+     "chief_referee": "Guo Song",
+     "date": "2023-07-18",
+     "date_end": "2023-07-21",
+     "rated": "No",
+     "games_on_site": 18,
+     "rounds": 5,
+     "games": [
+      {
+       "round": 1,
+       "color": "white",
+       "opp": "Chen Jianmin",
+       "opp_id": "102341",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 2,
+       "color": "black",
+       "opp": "Jiang Zhenze",
+       "opp_id": "102340",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 3,
+       "color": "black",
+       "opp": "Peng Zhonghai",
+       "opp_id": "102339",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 4,
+       "color": "black",
+       "opp": "Kong Lingfei",
+       "opp_id": "102248",
+       "res": "1",
+       "kind": "win"
+      },
+      {
+       "round": 5,
+       "color": "black",
+       "opp": "Jiao Zhengrui",
+       "opp_id": "100977",
+       "res": "0",
+       "kind": "loss"
+      }
+     ],
+     "played": true,
+     "rank": "1",
+     "points": "5",
+     "buchholz": ""
+    }
+   ]
+  }
+ }
+}

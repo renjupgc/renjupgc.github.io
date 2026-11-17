@@ -67,7 +67,8 @@ data/
   shanhai/2026-r1.json  山海杯第 1 轮的录入源文件（一轮一份）
   visits.ndjson       访问日志：一行一个事件，Actions 定时从通道归档
   english/            连珠英语素材：cet4.txt（四级大纲）＋ renju_terms.json（术语）
-                      ＋ reading.json（7 篇五子棋英语阅读、28 道题）
+                      ＋ reading.json（18 篇五子棋英语阅读、105 道题）
+  rif_players.json    renju.net 抓下来的 RIF 档案（编号、段位、等级分、开局偏好、逐局记录）
 
 tools/                构建脚本（见下）
 docs/ROADMAP.md       改进建议与创意清单
@@ -101,6 +102,14 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 
 ```bash
 python tools/build_english_words.py   # data/english/ -> assets/words-cet4.js、words-renju.js、reading-articles.js
+```
+
+棋手的 RIF 档案（国际连珠联盟那一套编号、段位、等级分与海外战绩）从 renju.net 抓：
+
+```bash
+python tools/fetch_rif_player.py 102247          # 按 RIF 编号抓，写进 data/rif_players.json
+python tools/fetch_rif_player.py --name Pan      # 只按英文名搜，列出候选编号
+python tools/build_players.py                    # 重跑棋手页，档案挂到「RIF 国际档案」一节
 ```
 
 后两个是「全站扫一遍」的脚本，可反复执行（幂等）：手写页面加了新文章、换了配图之后单独跑它们就行。
