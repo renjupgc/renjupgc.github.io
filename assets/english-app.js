@@ -2,7 +2,8 @@
  * ---------------------------------------------------------------------------
  * 数据：assets/words-cet4.js、assets/words-renju.js（tools/build_english_words.py 生成）
  * 账号：只存在本机浏览器。用户名明文，密码用 PBKDF2-SHA256 加盐取哈希后保存，
- *       不存明文；换设备靠「导出/导入」把进度带走。
+ *       不存明文。进度也存本机；换设备靠侧栏「备份进度 / 恢复进度」：
+ *       下载一个 json 文件带过去，导入时按「记得更牢」的分合并，不会互相覆盖。
  * 换页：全站是无刷新换页，这个脚本只会被注入一次，所以状态挂在 window.ZBX_EN 上，
  *       每次进入页面用 boot() 重建 DOM，监听器只绑一次（document 级委托）。
  */
@@ -19,10 +20,6 @@
     var K_USERS = 'zbxEn.users';
     var K_SESSION = 'zbxEn.session';
     var K_PROG = 'zbxEn.p.';
-    var K_SYNC = 'zbxEn.sync';
-    /* 同步专用固定盐（base64 of "zbx-sync-v1"）。登录密码经它派生出的 key
-       在同一账号的任意设备上都相同， unlike 每设备随机盐的登录 hash。 */
-    var SYNC_SALT = 'enZiLXN5bmMtdjE=';
 
     var STEPS = [0, 1, 2, 4, 8, 16, 32, 60];   // 第 n 盒的复习间隔（天）
     var MASTER = 5;                            // 第 5 盒以上算「掌握」
@@ -40,9 +37,7 @@
         listFilter: 'all',
         listQuery: '',
         listShown: 60,
-        read: { id: null, idx: 0, picked: -1, answers: [] },
-        gateSync: false,
-        sync: { busy: false, msg: '', at: null }
+        read: { id: null, idx: 0, picked: -1, answers: [], match: {}, done: false }
     };
 
     function $(sel, root) { return (root || document).querySelector(sel); }
@@ -146,13 +141,10 @@
     var saveTimer = null;
     var quotaWarned = false;
     function writeData(payload) {
-        if (storeSet(K_PROG + state.user, payload)) {
-            scheduleSync();
-            return;
-        }
+        if (storeSet(K_PROG + state.user, payload)) { return; }
         if (quotaWarned) { return; }
         quotaWarned = true;
-        alert('本机存储写不进去了，进度可能没有保存。\n先用「导出进度」备份一下，再清掉别的站点数据。');
+        alert('本机存储写不进去了，进度可能没有保存。\n先用侧栏「备份进度」下载一份，再清掉别的站点数据。');
     }
     function saveData(now) {
         if (!state.user || !state.data) { return; }
@@ -319,69 +311,31 @@
         if (u[name]) { return Promise.reject('这个用户名已经被注册了（就在这台设备上）'); }
         var salt = newSalt();
         return hashPw(pw, salt).then(function (h) {
-            return hashPw(pw, SYNC_SALT).then(function (sk) {
-                u[name] = { salt: salt, hash: h, sk: sk, weak: h.charAt(0) === 'w' ? 1 : 0, at: today() };
-                saveUsers(u);
-                storeSet(K_SESSION, name);
-                state.user = name;
-                state.data = loadData(name);
-                state.mode = 'study';
-                state.queue = buildQueue('study');
-                state.idx = 0;
-                state.flipped = false;
-                state.sess = { n: 0, ok: 0, bad: 0 };
-                saveData(true);
-                render();
-                syncNow('auto');
-            });
+            u[name] = { salt: salt, hash: h, weak: h.charAt(0) === 'w' ? 1 : 0, at: today() };
+            saveUsers(u);
+            storeSet(K_SESSION, name);
+            state.user = name;
+            state.data = loadData(name);
+            state.mode = 'study';
+            state.queue = buildQueue('study');
+            state.idx = 0;
+            state.flipped = false;
+            state.sess = { n: 0, ok: 0, bad: 0 };
+            saveData(true);
+            render();
         });
     }
 
     function doLogin(name, pw) {
         var u = users();
         var rec = u[name];
-        /* 新设备：本机没有这个账号，但云端有——用同一套账号钥匙把进度拉回来 */
         if (!rec) {
-            var cfg = syncCfg();
-            if (!cfg.provider) {
-                return Promise.reject(new Error('这台设备还没有这个账号；新设备请先在侧栏配好同步方式，再登录同一账号'));
-            }
-            var freshSalt = newSalt();
-            return hashPw(pw, freshSalt).then(function (h) {
-                return hashPw(pw, SYNC_SALT).then(function (sk) {
-                    return syncKeyFor(name, sk).then(function (key) {
-                        return remoteGet(cfg, key).then(function (remote) {
-                            if (!remote || remote.user !== name || !remote.data) {
-                                throw new Error('云端没有这个账号的进度，请先在一台设备上注册并同步');
-                            }
-                            u[name] = { salt: freshSalt, hash: h, sk: sk, weak: h.charAt(0) === 'w' ? 1 : 0, at: today() };
-                            saveUsers(u);
-                            storeSet(K_SESSION, name);
-                            state.user = name;
-                            state.data = mergeData(blankData(), remote.data);
-                            saveData(true);
-                            state.mode = 'study';
-                            state.queue = buildQueue('study');
-                            state.idx = 0;
-                            state.flipped = false;
-                            state.sess = { n: 0, ok: 0, bad: 0 };
-                            state.note = '';
-                            render();
-                            syncStatus('已从云端建好本机账号');
-                            return true;
-                        });
-                    });
-                });
-            });
+            return Promise.reject(new Error('这台设备上没有这个账号。进度存在各自设备的浏览器里：先在旧设备点「备份进度」，再到新设备登录后点「恢复进度」选那个文件。'));
         }
         return hashPw(pw, rec.salt).then(function (h) {
             if (h !== rec.hash) { throw new Error('bad'); }
-            return Promise.resolve(rec.sk || hashPw(pw, SYNC_SALT)).then(function (sk) {
-                rec.sk = sk;
-                saveUsers(u);
-                storeSet(K_SESSION, name);
-                enter(name);
-            });
+            storeSet(K_SESSION, name);
+            enter(name);
         }).catch(function () { throw new Error('密码不对'); });
     }
 
@@ -398,9 +352,8 @@
         state.flipped = false;
         state.sess = { n: 0, ok: 0, bad: 0 };
         state.note = '';
-        state.read = { id: null, idx: 0, picked: -1, answers: [] };
+        state.read = blankRead();
         render();
-        syncNow('auto');
     }
 
     function logout() {
@@ -489,26 +442,6 @@
         }
     }
 
-    function gateSyncHtml() {
-        var c = syncCfg();
-        return ''
-            + '<div class="en-gate-sync">'
-            + '  <button type="button" class="en-link" data-act="gate-sync">'
-            + (state.gateSync ? '收起同步设置' : '换设备了？先填同步设置，再登录同一账号') + '</button>'
-            + '  <div id="en-gate-sync-box"' + (state.gateSync ? '' : ' hidden') + '>'
-            + '    <p class="en-sync-status" id="en-g-sync-status">' + esc(state.sync.msg || '') + '</p>'
-            + '    <label class="en-sync-field"><span>同步方式</span><select id="en-g-sync-provider">'
-            + [['', '只存本机'], ['gist', 'GitHub Gist'], ['rest', '自定义接口']].map(function (o) {
-                return '<option value="' + o[0] + '"' + (c.provider === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
-            }).join('') + '</select></label>'
-            + '    <label class="en-sync-field"><span>Gist ID</span><input id="en-g-gist-id" type="text" spellcheck="false" placeholder="Gist 地址末尾那串" value="' + esc(c.gistId) + '"></label>'
-            + '    <label class="en-sync-field"><span>令牌</span><input id="en-g-token" type="password" spellcheck="false" placeholder="只需 gist 权限" value="' + esc(c.token) + '"></label>'
-            + '    <label class="en-sync-field"><span>接口地址</span><input id="en-g-sync-url" type="text" spellcheck="false" placeholder="https://…" value="' + esc(c.url) + '"></label>'
-            + '    <label class="en-row en-row-sw"><span>自动同步</span><input id="en-g-sync-auto" type="checkbox"' + (c.auto ? ' checked' : '') + '></label>'
-            + '    <div class="en-tools"><button type="button" class="en-btn en-btn-ghost" data-act="sync-save">保存同步设置</button></div>'
-            + '  </div>'
-            + '</div>';
-    }
 
     function renderGate() {
         var gate = el('en-gate');
@@ -521,7 +454,7 @@
             + '  <div class="en-gate-head">'
             + '    <p class="en-kicker">RENJU ENGLISH</p>'
             + '    <h2 class="en-gate-title">先登个记，再背词</h2>'
-            + '    <p class="en-gate-sub">进度跟着账号走。账号只存在这台设备的浏览器里，密码经加盐哈希后保存，不存明文；换设备用「导出 / 导入」带走。</p>'
+            + '    <p class="en-gate-sub">账号和进度都存在这台设备的浏览器里，关掉网页也不会丢。密码经加盐哈希后保存，不存明文。换手机或电脑时，在旧设备侧栏点「备份进度」下载一个文件，带到新设备登录后点「恢复进度」选它就行。</p>'
             + '  </div>'
             + '  <div class="en-tabs" role="tablist">'
             + '    <button type="button" class="en-tab' + (loginTab ? ' is-on' : '') + '" data-act="tab" data-tab="login">登录</button>'
@@ -540,7 +473,6 @@
             + '  <p class="en-gate-foot">词库：大学英语四级 ' + wordCounts().cet4 + ' 词 ＋ 连珠术语 ' + wordCounts().renju + ' 条；另有 ' + articles().length + ' 篇五子棋英语阅读。'
             + (names.length ? '本机已有账号：' + names.map(function (n) { return esc(n); }).join('、') : '还没有账号，注册一个就行。')
             + '</p>'
-            + gateSyncHtml()
             + '</div>';
         var nm = el('en-name');
         if (nm) { try { nm.focus(); } catch (err) { /* 忽略 */ } }
@@ -556,7 +488,7 @@
             ['study', '今日学习', '到期复习 + 新词'],
             ['review', '只复习', '把到期的再过一遍'],
             ['spell', '拼写', '看释义写单词'],
-            ['reading', '阅读', '五子棋短文与四道题'],
+            ['reading', '阅读', '仔细阅读 + 长篇匹配'],
             ['list', '词表', '检索与浏览']
         ];
         side.innerHTML = ''
@@ -588,41 +520,15 @@
             }).join('') + '</select></label>'
             + '  <label class="en-row en-row-sw"><span>发音</span><input type="checkbox" data-act="set" data-key="speech"' + (d.speech ? ' checked' : '') + '></label>'
             + '  <div class="en-tools">'
-            + '    <button type="button" class="en-btn en-btn-ghost" data-act="export">导出进度</button>'
-            + '    <button type="button" class="en-btn en-btn-ghost" data-act="import">导入</button>'
+            + '    <button type="button" class="en-btn en-btn-ghost" data-act="export">备份进度</button>'
+            + '    <button type="button" class="en-btn en-btn-ghost" data-act="import">恢复进度</button>'
             + '    <input type="file" id="en-file" accept="application/json,.json" hidden>'
             + '    <button type="button" class="en-btn en-btn-ghost en-btn-warn" data-act="reset">清空</button>'
             + '  </div>'
-            + '</div>'
-            + syncPanelHtml();
-    }
-
-    function syncPanelHtml() {
-        var c = syncCfg();
-        return ''
-            + '<div class="en-set en-sync-box">'
-            + '  <p class="en-set-title">多端同步</p>'
-            + '  <p class="en-sync-status' + (state.sync.msg && /失败|没填|不对|没开|先登录/.test(state.sync.msg) ? ' is-bad' : '') + '" id="en-sync-status">'
-            + esc(state.sync.msg || '只存本机，未开启同步') + '</p>'
-            + '  <label class="en-row"><span>同步方式</span><select id="en-sync-provider">'
-            + [['', '只存本机'], ['gist', 'GitHub Gist'], ['rest', '自定义接口']].map(function (o) {
-                return '<option value="' + o[0] + '"' + (c.provider === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
-            }).join('') + '</select></label>'
-            + '  <label class="en-sync-field"><span>Gist ID</span><input id="en-gist-id" type="text" spellcheck="false" placeholder="Gist 地址末尾那串" value="' + esc(c.gistId) + '"></label>'
-            + '  <label class="en-sync-field"><span>令牌</span><input id="en-token" type="password" spellcheck="false" placeholder="只需 gist 权限" value="' + esc(c.token) + '"></label>'
-            + '  <label class="en-sync-field"><span>接口地址</span><input id="en-sync-url" type="text" spellcheck="false" placeholder="https://…" value="' + esc(c.url) + '"></label>'
-            + '  <label class="en-row en-row-sw"><span>自动同步</span><input id="en-sync-auto" type="checkbox"' + (c.auto ? ' checked' : '') + '></label>'
-            + '  <div class="en-tools">'
-            + '    <button type="button" class="en-btn en-btn-ghost" data-act="sync-save">保存设置</button>'
-            + '    <button type="button" class="en-btn en-btn-ghost" data-act="sync-now">立即同步</button>'
-            + '  </div>'
-            + '  <textarea id="en-code" class="en-code" spellcheck="false" placeholder="同步码：一台设备点「生成」，另一台粘进来点「合并」"></textarea>'
-            + '  <div class="en-tools">'
-            + '    <button type="button" class="en-btn en-btn-ghost" data-act="sync-code-make">生成同步码</button>'
-            + '    <button type="button" class="en-btn en-btn-ghost" data-act="sync-code-use">用同步码合并</button>'
-            + '  </div>'
+            + '  <p class="en-tip">进度自动存在这台设备，关掉网页也不会丢。换手机或电脑：旧设备点「备份进度」下载一个文件，带到新设备登录后点「恢复进度」选中它，记录就回来了。</p>'
             + '</div>';
     }
+
 
     function numsHtml(due) {
         var d = day();
@@ -928,8 +834,8 @@
             URL.revokeObjectURL(a.href);
             if (a.parentNode) { a.parentNode.removeChild(a); }
         }, 0);
-        state.note = '已导出，文件里是这台设备上的全部练习进度';
-        alert('已导出进度文件：' + a.download + '\n\n换设备时用「导入」选这个文件即可。');
+        state.note = '已备份，文件里是这台设备上的全部练习进度';
+        alert('已备份进度文件：' + a.download + '\n\n换设备时用「恢复进度」选这个文件即可。');
     }
 
     function importData(file) {
@@ -945,7 +851,7 @@
             var inc = pack.data;
             if (!inc.cards) { alert('文件里没有练习记录。'); return; }
             var n = Object.keys(inc.cards).length;
-            if (!window.confirm('导入 ' + n + ' 条练习记录？\n同一条取「记得更牢」的那份，不会把已有的进度冲掉。')) { return; }
+            if (!window.confirm('恢复 ' + n + ' 条练习记录？\n同一条取「记得更牢」的那份，不会把已有的进度冲掉。')) { return; }
             var cards = state.data.cards;
             Object.keys(inc.cards).forEach(function (k) {
                 var a = cards[k];
@@ -976,14 +882,14 @@
             state.queue = buildQueue('study');
             state.idx = 0;
             render();
-            alert('导入完成，进度已合并。');
+            alert('恢复完成，进度已合并。');
         };
         reader.readAsText(file, 'utf-8');
     }
 
     function resetData() {
         if (!state.user) { return; }
-        if (!window.confirm('清空「' + state.user + '」的全部练习记录？\n这个操作不可撤销，导出过的话还能再导回来。')) { return; }
+        if (!window.confirm('清空「' + state.user + '」的全部练习记录？\n这个操作不可撤销，备份过的话还能再恢复回来。')) { return; }
         state.data = blankData();
         saveData(true);
         state.queue = buildQueue('study');
@@ -992,300 +898,12 @@
         render();
     }
 
-    /* ---------- 多端同步：Gist / 自定义 REST / 加密同步码 ---------- */
 
-    function syncCfg() {
-        var raw = storeGet(K_SYNC);
-        var c = null;
-        try { c = raw ? JSON.parse(raw) : null; } catch (err) { c = null; }
-        if (!c || typeof c !== 'object') { c = {}; }
-        return {
-            provider: c.provider || '',
-            gistId: c.gistId || '',
-            token: c.token || '',
-            url: c.url || '',
-            auto: c.auto === 0 ? 0 : 1
-        };
-    }
-
-    function saveSyncCfg(c) { return storeSet(K_SYNC, JSON.stringify(c)); }
-
-    function syncStatus(msg, bad) {
-        state.sync.msg = msg || '';
-        ['en-sync-status', 'en-g-sync-status'].forEach(function (id) {
-            var box = el(id);
-            if (box) {
-                box.textContent = msg || '只存本机，未开启同步';
-                box.className = 'en-sync-status' + (bad ? ' is-bad' : '');
-            }
-        });
-    }
-
-    function hex(bytes) {
-        var out = '';
-        for (var i = 0; i < bytes.length; i += 1) {
-            out += (bytes[i] < 16 ? '0' : '') + bytes[i].toString(16);
-        }
-        return out;
-    }
-
-    function simpleHex(str) {
-        var h1 = 2166136261, h2 = 5381, i;
-        for (i = 0; i < str.length; i += 1) {
-            h1 ^= str.charCodeAt(i); h1 = (h1 * 16777619) >>> 0;
-            h2 = (((h2 << 5) + h2) + str.charCodeAt(i)) >>> 0;
-        }
-        return h1.toString(16) + h2.toString(16);
-    }
-
-    /* 账号钥匙由用户名 + 固定盐下的密码派生，同一账号跨设备一致 */
-    function syncKey() {
-        var u = users()[state.user] || {};
-        return syncKeyFor(state.user, u.sk || u.hash || '');
-    }
-
-    function syncKeyFor(name, key) {
-        var seed = name + '|' + (key || '');
-        if (window.crypto && window.crypto.subtle && window.TextEncoder) {
-            return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed))
-                .then(function (buf) { return hex(new Uint8Array(buf)).slice(0, 16); })
-                .catch(function () { return simpleHex(seed).slice(0, 16); });
-        }
-        return Promise.resolve(simpleHex(seed).slice(0, 16));
-    }
-
-    function syncFile(key) { return 'zbx-english-' + key + '.json'; }
-
-    function checkRes(r, label) {
-        if (r.ok) { return Promise.resolve(r); }
-        return r.text().then(function (t) {
-            var m = '';
-            try { m = JSON.parse(t).message || ''; } catch (err) { m = String(t).slice(0, 80); }
-            throw new Error(label + '失败（' + r.status + '）' + (m ? '：' + m : ''));
-        });
-    }
-
-    function remoteGet(cfg, key) {
-        if (cfg.provider === 'gist') {
-            if (!/^[0-9a-f]{5,40}$/i.test(cfg.gistId)) { throw new Error('Gist ID 填得不对'); }
-            if (!cfg.token) { throw new Error('还没填 Gist 令牌'); }
-            return fetch('https://api.github.com/gists/' + cfg.gistId, {
-                headers: {
-                    'Accept': 'application/vnd.github+json',
-                    'Authorization': 'token ' + cfg.token,
-                    'X-GitHub-Api-Version': '2022-11-28'
-                }
-            }).then(function (r) {
-                if (r.status === 404) { return null; }
-                return checkRes(r, '读取 Gist').then(function (ok) { return ok.json(); });
-            }).then(function (j) {
-                if (!j) { return null; }
-                var f = j.files && j.files[syncFile(key)];
-                if (!f || f.truncated) { return null; }
-                try { return JSON.parse(f.content); } catch (err) { return null; }
-            });
-        }
-        if (cfg.provider === 'rest') {
-            if (cfg.url.indexOf('https://') !== 0 && cfg.url.indexOf('http://localhost') !== 0) {
-                throw new Error('自定义地址要用 https（本地调试可用 localhost）');
-            }
-            var u = cfg.url + (cfg.url.indexOf('?') >= 0 ? '&' : '?') + 'k=' + encodeURIComponent(key);
-            var h = { 'Accept': 'application/json' };
-            if (cfg.token) { h.Authorization = 'Bearer ' + cfg.token; }
-            return fetch(u, { headers: h }).then(function (r) {
-                if (r.status === 404) { return null; }
-                return checkRes(r, '读取同步接口').then(function (ok) { return ok.json(); });
-            }).then(function (j) { return j && j.data ? j : null; });
-        }
-        return Promise.resolve(null);
-    }
-
-    function remotePut(cfg, key, pack) {
-        var body = JSON.stringify(pack);
-        if (cfg.provider === 'gist') {
-            var files = {};
-            files[syncFile(key)] = { content: body };
-            return fetch('https://api.github.com/gists/' + cfg.gistId, {
-                method: 'PATCH',
-                headers: {
-                    'Accept': 'application/vnd.github+json',
-                    'Content-Type': 'application/json',
-                    'Authorization': 'token ' + cfg.token,
-                    'X-GitHub-Api-Version': '2022-11-28'
-                },
-                body: JSON.stringify({ files: files })
-            }).then(function (r) { return checkRes(r, '写入 Gist'); });
-        }
-        var u = cfg.url + (cfg.url.indexOf('?') >= 0 ? '&' : '?') + 'k=' + encodeURIComponent(key);
-        var h = { 'Content-Type': 'application/json' };
-        if (cfg.token) { h.Authorization = 'Bearer ' + cfg.token; }
-        return fetch(u, { method: 'PUT', headers: h, body: body })
-            .then(function (r) { return checkRes(r, '写入同步接口'); });
-    }
-
-    function betterCard(a, b) {
-        if (!a) { return b; }
-        if (!b) { return a; }
-        if ((a.b || 0) !== (b.b || 0)) { return (a.b || 0) > (b.b || 0) ? a : b; }
-        if ((a.t || '') !== (b.t || '')) { return (a.t || '') > (b.t || '') ? a : b; }
-        return (a.n || 0) >= (b.n || 0) ? a : b;
-    }
-
-    function mergeData(a, b) {
-        var out = JSON.parse(JSON.stringify(a));
-        var k;
-        for (k in b.cards || {}) {
-            if (Object.prototype.hasOwnProperty.call(b.cards, k)) { out.cards[k] = betterCard(out.cards[k], b.cards[k]); }
-        }
-        for (k in b.days || {}) {
-            if (!Object.prototype.hasOwnProperty.call(b.days, k)) { continue; }
-            var x = out.days[k] || (out.days[k] = { n: 0, r: 0, ok: 0, bad: 0 });
-            var y = b.days[k];
-            ['n', 'r', 'ok', 'bad'].forEach(function (f) { x[f] = Math.max(x[f] || 0, y[f] || 0); });
-        }
-        for (k in b.reading || {}) {
-            if (!Object.prototype.hasOwnProperty.call(b.reading, k)) { continue; }
-            var ra = out.reading[k] || { attempts: 0, best: -1, last: '' };
-            var rb = b.reading[k];
-            ra.attempts = Math.max(ra.attempts || 0, rb.attempts || 0);
-            ra.best = Math.max(ra.best == null ? -1 : ra.best, rb.best == null ? -1 : rb.best);
-            ra.last = (ra.last || '') > (rb.last || '') ? ra.last : rb.last;
-            out.reading[k] = ra;
-        }
-        var newer = (b.updatedMs || 0) > (a.updatedMs || 0) ? b : a;
-        ['book', 'dir', 'goal', 'speech'].forEach(function (f) {
-            if (newer[f] != null) { out[f] = newer[f]; }
-        });
-        out.created = a.created || b.created || today();
-        out.rev = Math.max(a.rev || 0, b.rev || 0);
-        out.updatedMs = Math.max(a.updatedMs || 0, b.updatedMs || 0);
-        out.updated = today();
-        return out;
-    }
-
-    var syncTimer = null;
-    function scheduleSync() {
-        if (!syncCfg().auto || !state.user || state.sync.busy) { return; }
-        clearTimeout(syncTimer);
-        syncTimer = setTimeout(function () { syncNow('auto'); }, 1200);
-    }
-
-    function syncNow(mode) {
-        if (!state.user || !state.data) {
-            if (mode !== 'auto') { syncStatus('先登录再同步', true); }
-            return Promise.resolve();
-        }
-        var cfg = syncCfg();
-        if (!cfg.provider) {
-            if (mode !== 'auto') { syncStatus('没开同步：先填 Gist 或接口地址', true); }
-            return Promise.resolve();
-        }
-        if (state.sync.busy) {
-            if (mode !== 'auto') { syncStatus('正在同步，稍等一下'); }
-            return Promise.resolve();
-        }
-        clearTimeout(syncTimer);
-        state.sync.busy = true;
-        syncStatus('同步中…');
-        return syncKey().then(function (key) {
-            return remoteGet(cfg, key).then(function (remote) {
-                if (remote && remote.data && remote.user === state.user) {
-                    var merged = mergeData(state.data, remote.data);
-                    var changed = (merged.rev || 0) > (state.data.rev || 0)
-                        || JSON.stringify(merged.cards) !== JSON.stringify(state.data.cards)
-                        || JSON.stringify(merged.reading) !== JSON.stringify(state.data.reading);
-                    if (changed) {
-                        state.data = merged;
-                        storeSet(K_PROG + state.user, JSON.stringify(merged));
-                        renderNums();
-                        if (state.mode === 'reading') { renderStage(); }
-                    }
-                }
-                var pack = {
-                    app: 'zbx-english', v: 2, user: state.user, key: key,
-                    rev: state.data.rev || 0, updatedMs: state.data.updatedMs || 0,
-                    updated: today(), data: state.data
-                };
-                return remotePut(cfg, key, pack);
-            }).then(function () {
-                state.sync.at = Date.now();
-                syncStatus('已同步 ' + new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }));
-            });
-        }).catch(function (err) {
-            syncStatus('同步失败：' + (err && err.message ? err.message : String(err)), true);
-        }).then(function () { state.sync.busy = false; });
-    }
-
-    function saveSyncSettings() {
-        var g = state.gateSync && el('en-gate-sync-box') && !el('en-gate-sync-box').hidden;
-        var p = function (id) { return el(g ? 'en-g-' + id : 'en-' + id); };
-        var cfg = {
-            provider: p('sync-provider') ? p('sync-provider').value : '',
-            gistId: p('gist-id') ? p('gist-id').value.trim() : '',
-            token: p('token') ? p('token').value.trim() : '',
-            url: p('sync-url') ? p('sync-url').value.trim() : '',
-            auto: p('sync-auto') && !p('sync-auto').checked ? 0 : 1
-        };
-        if (!saveSyncCfg(cfg)) { syncStatus('本机存储写不进去，设置没保存', true); return; }
-        syncStatus('设置已保存' + (g ? '，现在用同一账号登录就能拉回进度' : ''));
-        if (!g) { syncNow('manual'); }
-    }
-
-    function syncCodeKey() {
-        var u = users()[state.user] || {};
-        if (!window.crypto || !window.crypto.subtle || !(u.sk || u.hash)) {
-            return Promise.reject(new Error('这个浏览器不支持加密同步码'));
-        }
-        return window.crypto.subtle.importKey('raw', unb64(u.sk || u.hash), 'AES-GCM', false, ['encrypt', 'decrypt']);
-    }
-
-    function makeSyncCode() {
-        syncCodeKey().then(function (key) {
-            var iv = new Uint8Array(12);
-            window.crypto.getRandomValues(iv);
-            var text = JSON.stringify({ app: 'zbx-english-code', v: 1, user: state.user, data: state.data });
-            return window.crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(text))
-                .then(function (buf) { return 'ZBX1.' + b64(iv) + '.' + b64(buf); });
-        }).then(function (code) {
-            var box = el('en-code');
-            if (box) { box.value = code; }
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(code)
-                    .then(function () { syncStatus('同步码已生成并复制，粘到另一台设备即可'); })
-                    .catch(function () { syncStatus('同步码已生成，请手动复制'); });
-            } else {
-                syncStatus('同步码已生成，请手动复制');
-            }
-        }).catch(function (err) { syncStatus('生成失败：' + err.message, true); });
-    }
-
-    function useSyncCode() {
-        var box = el('en-code');
-        var code = box ? box.value.trim() : '';
-        if (!/^ZBX1\./.test(code)) { syncStatus('这不是连珠英语的同步码', true); return; }
-        var parts = code.split('.');
-        if (parts.length !== 3) { syncStatus('同步码不完整，请整段复制', true); return; }
-        syncCodeKey().then(function (key) {
-            return window.crypto.subtle.decrypt(
-                { name: 'AES-GCM', iv: unb64(parts[1]) }, key, unb64(parts[2])
-            );
-        }).then(function (buf) {
-            var pack = JSON.parse(new TextDecoder().decode(buf));
-            if (pack.app !== 'zbx-english-code' || !pack.data) { throw new Error('同步码内容不对'); }
-            if (pack.user !== state.user && !window.confirm('同步码属于「' + pack.user + '」，当前账号是「' + state.user + '」，仍要合并吗？')) { return; }
-            if (!window.confirm('把同步码里的进度合并进当前账号？同一条取记得更牢的那份。')) { return; }
-            state.data = mergeData(state.data, pack.data);
-            saveData(true);
-            state.queue = buildQueue(state.mode === 'review' ? 'review' : 'study');
-            state.idx = 0;
-            render();
-            syncStatus('同步码已合并');
-        }).catch(function (err) {
-            syncStatus('同步码用不了：' + (err && err.message ? err.message : '密码或内容不匹配'), true);
-        });
-    }
-
-    /* ---------- 五子棋主题阅读理解 ---------- */
+    /* ---------- 五子棋主题阅读理解 ----------
+     * 两种题型，按四级卷面来：
+     *   careful  —— 仔细阅读：一篇短文配四道四选一
+     *   matching —— 长篇阅读（信息匹配）：一篇分 A–J 段，十个句子各归哪一段
+     */
 
     var ARTICLES = null;
     function articles() {
@@ -1303,7 +921,43 @@
         return null;
     }
 
-    function wordCount(p) { return String(p.text.join(' ')).trim().split(/\s+/).length; }
+    function isMatch(p) { return !!(p && p.type === 'matching'); }
+
+    function blankRead() {
+        return { id: null, idx: 0, picked: -1, answers: [], match: {}, done: false };
+    }
+
+    function wordCount(p) {
+        var raw = isMatch(p)
+            ? p.sections.map(function (x) { return x.text; }).join(' ')
+            : String((p.text || []).join(' '));
+        return raw.trim().split(/\s+/).length;
+    }
+
+    function itemCount(p) { return isMatch(p) ? p.statements.length : p.questions.length; }
+
+    function scoreOf(p) {
+        if (isMatch(p)) {
+            return p.statements.filter(function (s, i) { return state.read.match[i] === s.a; }).length;
+        }
+        return state.read.answers.filter(function (a, i) { return a === p.questions[i].a; }).length;
+    }
+
+    function typeLabel(p) { return isMatch(p) ? '长篇阅读 · 信息匹配' : '仔细阅读'; }
+
+    function glossHtml(p) {
+        if (!p.gloss || !p.gloss.length) { return ''; }
+        return ''
+            + '<div class="en-gloss">'
+            + '  <span class="en-gloss-title">生词</span>'
+            + p.gloss.map(function (g) { return '<span class="en-gloss-item"><b>' + esc(g[0]) + '</b> ' + esc(g[1]) + '</span>'; }).join('')
+            + '  <button type="button" class="en-btn en-btn-ghost" data-act="read-words">加入背词</button>'
+            + '</div>';
+    }
+
+    function readFoot() {
+        return '<div class="en-read-foot"><button type="button" class="en-link" data-act="read-back">← 返回文章列表</button></div>';
+    }
 
     function renderReading(main) {
         var list = articles();
@@ -1312,18 +966,18 @@
             main.innerHTML = ''
                 + '<div class="en-read-intro">'
                 + '  <p class="en-kicker">READING PRACTICE</p>'
-                + '  <h2 class="en-gate-title">读一篇，再做四道题</h2>'
-                + '  <p class="en-gate-sub">文章都和五子棋、连珠有关，长篇短句按四级阅读的尺度写。做完立刻看答案和讲解，成绩会跟着账号一起同步。'
+                + '  <h2 class="en-gate-title">仔细阅读，也有长篇匹配</h2>'
+                + '  <p class="en-gate-sub">文章都写五子棋和连珠。前面几篇是四道选择题的仔细阅读，后面几篇是四级那套「长篇阅读·信息匹配」：一篇分成 A–J 段，十个句子要各自找到出处。做完立刻看答案和讲解。'
                 + '  已完成 ' + done + ' / ' + list.length + ' 篇。</p>'
                 + '</div>'
                 + (list.length
                     ? '<div class="en-read-grid">' + list.map(function (p) {
                         var rec = state.data.reading[p.id] || {};
-                        var best = rec.best == null ? '还没做' : ('最好 ' + rec.best + ' / ' + p.questions.length);
+                        var best = rec.best == null ? '还没做' : ('最好 ' + rec.best + ' / ' + itemCount(p));
                         return '<button type="button" class="en-read-card" data-act="read-open" data-id="' + esc(p.id) + '">'
-                            + '<span class="en-read-top"><span class="en-badge">' + esc(p.topic) + '</span><span class="en-box">' + esc(best) + '</span></span>'
+                            + '<span class="en-read-top"><span class="en-badge' + (isMatch(p) ? ' en-badge-alt' : '') + '">' + esc(p.topic) + '</span><span class="en-box">' + esc(best) + '</span></span>'
                             + '<b>' + esc(p.title) + '</b>'
-                            + '<span>' + wordCount(p) + ' 词 · ' + p.questions.length + ' 题' + (rec.attempts ? ' · 做过 ' + rec.attempts + ' 次' : '') + '</span>'
+                            + '<span>' + esc(typeLabel(p)) + ' · ' + wordCount(p) + ' 词 · ' + itemCount(p) + ' 题' + (rec.attempts ? ' · 做过 ' + rec.attempts + ' 次' : '') + '</span>'
                             + '</button>';
                     }).join('') + '</div>'
                     : '<p class="en-empty">阅读文章还没生成，先运行 tools/build_english_words.py。</p>');
@@ -1331,28 +985,16 @@
         }
 
         var p = currentArticle();
-        if (!p) { state.read.id = null; renderReading(main); return; }
+        if (!p) { state.read = blankRead(); renderReading(main); return; }
+
+        if (isMatch(p)) { renderMatching(main, p); return; }
+
         var q = p.questions[state.read.idx];
         var picked = state.read.picked;
         var total = p.questions.length;
         var pct = Math.round(state.read.idx / total * 100);
 
-        if (!q) {
-            var ok = state.read.answers.filter(function (a, i) { return a === p.questions[i].a; }).length;
-            main.innerHTML = ''
-                + '<div class="en-bar"><i style="width:100%"></i></div>'
-                + '<div class="en-done">'
-                + '  <p class="en-kicker">阅读完成</p>'
-                + '  <h2 class="en-done-num">' + ok + ' <small>/ ' + total + ' 题</small></h2>'
-                + '  <p class="en-done-line">' + esc(p.title) + '</p>'
-                + '  <p class="en-done-sub">正确率 ' + Math.round(ok / total * 100) + '% · 成绩已记进账号</p>'
-                + '  <div class="en-done-btns">'
-                + '    <button type="button" class="en-btn en-btn-main" data-act="read-retry">再做一次</button>'
-                + '    <button type="button" class="en-btn en-btn-ghost" data-act="read-back">返回文章列表</button>'
-                + '  </div>'
-                + '</div>';
-            return;
-        }
+        if (!q) { renderDone(main, p); return; }
 
         main.innerHTML = ''
             + '<div class="en-bar"><i style="width:' + pct + '%"></i></div>'
@@ -1360,11 +1002,7 @@
             + '<article class="en-article">'
             + p.text.map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('')
             + '</article>'
-            + '<div class="en-gloss">'
-            + '  <span class="en-gloss-title">生词</span>'
-            + p.gloss.map(function (g) { return '<span class="en-gloss-item"><b>' + esc(g[0]) + '</b> ' + esc(g[1]) + '</span>'; }).join('')
-            + '  <button type="button" class="en-btn en-btn-ghost" data-act="read-words">加入背词</button>'
-            + '</div>'
+            + glossHtml(p)
             + '<div class="en-quiz">'
             + '  <p class="en-qtitle">' + esc(q.q) + '</p>'
             + '  <div class="en-opts">' + q.options.map(function (o, i) {
@@ -1382,11 +1020,90 @@
                     + (state.read.idx + 1 >= total ? '看成绩' : '下一题') + '</button></div>'
                 : '')
             + '</div>'
-            + '<div class="en-read-foot"><button type="button" class="en-link" data-act="read-back">← 返回文章列表</button></div>';
+            + readFoot();
+    }
+
+    /* 长篇阅读：段落 A–J 连着排，十句各选一段，一次交卷 */
+    function renderMatching(main, p) {
+        var total = p.statements.length;
+        var done = state.read.done;
+        var pickedN = Object.keys(state.read.match).length;
+        var got = done ? scoreOf(p) : 0;
+
+        main.innerHTML = ''
+            + '<div class="en-bar"><i style="width:' + (done ? 100 : Math.round(pickedN / total * 100)) + '%"></i></div>'
+            + '<p class="en-count">' + esc(p.title) + ' · 长篇阅读 · 已选 ' + pickedN + ' / ' + total + '</p>'
+            + (done
+                ? '<div class="en-score"><b>' + got + '</b> / ' + total + ' 题 · 正确率 ' + Math.round(got / total * 100) + '%</div>'
+                : '')
+            + '<article class="en-article en-sections">'
+            + p.sections.map(function (x) {
+                return '<section class="en-sec"><b class="en-sec-l">' + esc(x.l) + '</b>'
+                    + (x.t ? '<span class="en-sec-t">' + esc(x.t) + '</span>' : '')
+                    + '<p>' + esc(x.text) + '</p></section>';
+            }).join('')
+            + '</article>'
+            + glossHtml(p)
+            + '<div class="en-quiz en-match">'
+            + '  <p class="en-qtitle">下面每句话出自哪一段？为每句选一个段落（可重复选同一段）。</p>'
+            + '  <ol class="en-mlist">'
+            + p.statements.map(function (s, i) {
+                var mine = state.read.match[i] || '';
+                var cls = 'en-mitem';
+                if (done) { cls += mine === s.a ? ' is-right' : ' is-wrong'; }
+                var opts = '<option value=""' + (mine ? '' : ' selected') + '>—</option>'
+                    + p.sections.map(function (x) {
+                        return '<option value="' + esc(x.l) + '"' + (mine === x.l ? ' selected' : '') + '>' + esc(x.l) + '</option>';
+                    }).join('');
+                return '<li class="' + cls + '">'
+                    + '<div class="en-mrow"><span class="en-mnum">' + (36 + i) + '</span>'
+                    + '<p class="en-mtext">' + esc(s.q) + '</p>'
+                    + '<select class="en-mpick" data-act="match-pick" data-i="' + i + '"' + (done ? ' disabled' : '') + '>' + opts + '</select></div>'
+                    + (done
+                        ? '<p class="en-mres">' + (mine === s.a ? '✓ 对了' : '✗ 应为 ' + esc(s.a) + (mine ? '，你选了 ' + esc(mine) : '，没选')) + '</p>'
+                            + '<p class="en-mwhy">' + esc(s.why) + '</p>'
+                        : '')
+                    + '</li>';
+            }).join('')
+            + '  </ol>'
+            + (done
+                ? '<div class="en-actions">'
+                    + '<button type="button" class="en-btn en-btn-main" data-act="read-retry">再做一次</button>'
+                    + '<button type="button" class="en-btn en-btn-ghost" data-act="read-back">返回文章列表</button>'
+                    + '</div>'
+                : '<div class="en-actions"><button type="button" class="en-btn en-btn-main" data-act="match-submit">交卷，看答案</button></div>')
+            + '</div>'
+            + readFoot();
+    }
+
+    function matchProgress(p) {
+        var n = Object.keys(state.read.match).length;
+        var cnt = document.querySelector('.en-count');
+        if (cnt) { cnt.textContent = p.title + ' · 长篇阅读 · 已选 ' + n + ' / ' + p.statements.length; }
+        var bar = document.querySelector('.en-bar i');
+        if (bar) { bar.style.width = Math.round(n / p.statements.length * 100) + '%'; }
+    }
+
+    function renderDone(main, p) {
+        var total = itemCount(p);
+        var ok = scoreOf(p);
+        main.innerHTML = ''
+            + '<div class="en-bar"><i style="width:100%"></i></div>'
+            + '<div class="en-done">'
+            + '  <p class="en-kicker">阅读完成</p>'
+            + '  <h2 class="en-done-num">' + ok + ' <small>/ ' + total + ' 题</small></h2>'
+            + '  <p class="en-done-line">' + esc(p.title) + '</p>'
+            + '  <p class="en-done-sub">' + esc(typeLabel(p)) + ' · 正确率 ' + Math.round(ok / total * 100) + '% · 成绩已记进账号</p>'
+            + '  <div class="en-done-btns">'
+            + '    <button type="button" class="en-btn en-btn-main" data-act="read-retry">再做一次</button>'
+            + '    <button type="button" class="en-btn en-btn-ghost" data-act="read-back">返回文章列表</button>'
+            + '  </div>'
+            + '</div>';
     }
 
     function openArticle(id) {
-        state.read = { id: id, idx: 0, picked: -1, answers: [] };
+        state.read = blankRead();
+        state.read.id = id;
         renderStage();
         try { window.scrollTo(0, 0); } catch (err) { /* 忽略 */ }
     }
@@ -1394,7 +1111,7 @@
     function finishReading() {
         var p = currentArticle();
         if (!p) { return; }
-        var ok = state.read.answers.filter(function (a, i) { return a === p.questions[i].a; }).length;
+        var ok = scoreOf(p);
         var rec = state.data.reading[p.id] || { attempts: 0, best: -1, last: '' };
         rec.attempts = (rec.attempts || 0) + 1;
         rec.best = Math.max(rec.best == null ? -1 : rec.best, ok);
@@ -1406,7 +1123,7 @@
 
     function addReadingWords() {
         var p = currentArticle();
-        if (!p) { return; }
+        if (!p || !p.gloss) { return; }
         var n = 0;
         p.gloss.forEach(function (g) {
             var w = String(g[0]).toLowerCase();
@@ -1456,7 +1173,7 @@
                 } else if (m === 'spell') {
                     startSpell();
                 } else if (m === 'reading') {
-                    state.read = { id: null, idx: 0, picked: -1, answers: [] };
+                    state.read = blankRead();
                 }
                 renderSide();
                 renderStage();
@@ -1518,22 +1235,24 @@
                 renderStage();
                 return;
             }
+            if (act === 'match-submit') {
+                var mp = currentArticle();
+                if (!mp || !isMatch(mp) || state.read.done) { return; }
+                var left = mp.statements.length - Object.keys(state.read.match).length;
+                if (left > 0 && !window.confirm('还有 ' + left + ' 句没选段落，直接交卷吗？')) { return; }
+                state.read.done = true;
+                finishReading();
+                renderStage();
+                try { window.scrollTo(0, 0); } catch (err) { /* 忽略 */ }
+                return;
+            }
             if (act === 'read-retry') { openArticle(state.read.id); return; }
             if (act === 'read-back') {
-                state.read = { id: null, idx: 0, picked: -1, answers: [] };
+                state.read = blankRead();
                 renderStage();
                 return;
             }
             if (act === 'read-words') { addReadingWords(); return; }
-            if (act === 'gate-sync') {
-                state.gateSync = !state.gateSync;
-                renderGate();
-                return;
-            }
-            if (act === 'sync-save') { saveSyncSettings(); return; }
-            if (act === 'sync-now') { syncNow('manual'); return; }
-            if (act === 'sync-code-make') { makeSyncCode(); return; }
-            if (act === 'sync-code-use') { useSyncCode(); return; }
             if (act === 'export') { exportData(); return; }
             if (act === 'import') {
                 var f = el('en-file');
@@ -1571,6 +1290,13 @@
         document.addEventListener('change', function (e) {
             var t = e.target;
             if (!t || !el('en-app')) { return; }
+            if (t.getAttribute && t.getAttribute('data-act') === 'match-pick') {
+                var mi = parseInt(t.getAttribute('data-i'), 10);
+                if (t.value) { state.read.match[mi] = t.value; } else { delete state.read.match[mi]; }
+                var art0 = currentArticle();
+                if (art0) { matchProgress(art0); }
+                return;
+            }
             if (t.id === 'en-file') {
                 if (t.files && t.files[0]) { importData(t.files[0]); }
                 t.value = '';
@@ -1610,22 +1336,26 @@
             var tag = (e.target && e.target.tagName) || '';
             var typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
             if (state.mode === 'reading') {
+                var cur = currentArticle();
+                if (e.key === 'Escape') {
+                    state.read = blankRead();
+                    renderStage();
+                    return;
+                }
+                /* 长篇匹配是选择题下拉，不接管数字键 */
+                if (isMatch(cur)) { return; }
                 if (e.key === 'Enter' && state.read.picked >= 0) {
                     e.preventDefault();
-                    var art = currentArticle();
-                    if (art) {
-                        if (state.read.idx + 1 >= art.questions.length) { finishReading(); }
+                    if (cur) {
+                        if (state.read.idx + 1 >= cur.questions.length) { finishReading(); }
                         state.read.idx += 1;
                         state.read.picked = -1;
                         renderStage();
                     }
-                } else if (/^[1-4]$/.test(e.key) && state.read.picked < 0) {
+                } else if (/^[1-4]$/.test(e.key) && state.read.picked < 0 && !typing) {
                     e.preventDefault();
                     state.read.picked = parseInt(e.key, 10) - 1;
                     state.read.answers[state.read.idx] = state.read.picked;
-                    renderStage();
-                } else if (e.key === 'Escape') {
-                    state.read = { id: null, idx: 0, picked: -1, answers: [] };
                     renderStage();
                 }
                 return;
@@ -1683,8 +1413,5 @@
     boot();
     document.addEventListener('zbx:navigate', function () {
         if (el('en-app')) { boot(); }
-    });
-    document.addEventListener('visibilitychange', function () {
-        if (!document.hidden && state.user && syncCfg().auto) { syncNow('auto'); }
     });
 })();
