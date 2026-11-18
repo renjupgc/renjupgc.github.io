@@ -252,7 +252,7 @@
                 <div class="pred-grid">
                     <label class="pred-field">
                         <span>比赛日期 time</span>
-                        <input type="date" id="pred-time" value="2026-11-17" required>
+                        <input type="date" id="pred-time" required>
                     </label>
                     <label class="pred-field">
                         <span>规则 rule</span>
@@ -275,8 +275,8 @@
                     <label class="pred-field">
                         <span>假先当前执色 tf_color</span>
                         <select id="pred-color">
-                            <option value="white" selected>白</option>
-                            <option value="black">黑</option>
+                            <option value="black" selected>黑</option>
+                            <option value="white">白</option>
                         </select>
                     </label>
                 </div>
@@ -563,8 +563,10 @@
             var pt = coordToXY(mv);
             if (!pt) { return; }
             var black = (idx % 2 === 0);
+            var isLast = (idx === moves.length - 1);
+            var numColor = isLast ? (black ? '#ff6b6b' : '#c0392b') : (black ? '#fffdf7' : '#1e1b16');
             s += '<circle cx="' + pt.x + '" cy="' + pt.y + '" r="' + (step * 0.46) + '" fill="' + (black ? '#1e1b16' : '#fffdf7') + '" stroke="#4a3a22" stroke-width="1.2"/>';
-            s += '<text x="' + pt.x + '" y="' + (pt.y + 4.5) + '" font-size="12" font-family="monospace" font-weight="bold" fill="' + (black ? '#fffdf7' : '#1e1b16') + '" text-anchor="middle">' + (idx + 1) + '</text>';
+            s += '<text x="' + pt.x + '" y="' + (pt.y + 4.5) + '" font-size="12" font-family="monospace" font-weight="bold" fill="' + numColor + '" text-anchor="middle">' + (idx + 1) + '</text>';
         });
         // 候选下一手：在对应点位标注走法概率
         var used = {};
@@ -737,6 +739,15 @@
         $(id).addEventListener('input', function () { searchPlayers(this.value.trim()); });
     });
 
+    // 日期默认本地当前日期
+    (function () {
+        var d = new Date();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        $('pred-time').value = d.getFullYear() + '-' + m + '-' + day;
+    })();
+    // 默认局面：黑1手 h8（网址带 moves 参数时会被覆盖）
+    if (!$('pred-moves').value.trim()) { $('pred-moves').value = 'h8'; }
     loadRules();
     setupInputBoard();
     fillFromUrl();
