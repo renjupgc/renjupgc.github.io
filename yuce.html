@@ -242,9 +242,7 @@
     <main>
 
         <header class="page-head">
-            <p class="eyebrow">杂技 · 工具</p>
             <h1 class="page-title">完全预测</h1>
-            <p class="page-desc">给出日期、规则、对局双方与已有手顺，让神经网络给出下一手的概率分布，以及双方的胜平负预期。</p>
         </header>
 
         <section>
@@ -265,11 +263,11 @@
                         </select>
                     </label>
                     <label class="pred-field">
-                        <span>假先 tf（姓名或编号）</span>
+                        <span>假先 tf</span>
                         <input id="pred-tf" list="pred-players" required>
                     </label>
                     <label class="pred-field">
-                        <span>假后 ts（姓名或编号）</span>
+                        <span>假后 ts</span>
                         <input id="pred-ts" list="pred-players" required>
                     </label>
                     <label class="pred-field">
@@ -284,7 +282,7 @@
 
                 <div class="pred-board-wrap">
                     <div class="pred-board-head">
-                        <span>已有手顺 · 点击棋盘落子</span>
+                        <span></span>
                         <span class="pred-board-hint" id="pred-move-count">0 手</span>
                     </div>
                     <svg class="pred-board" id="pred-input-board" viewBox="0 0 600 600" role="img" aria-label="点击交叉点落子"></svg>
@@ -293,7 +291,7 @@
                         <button class="pred-btn" type="button" id="pred-clear">清空</button>
                     </div>
                     <label class="pred-field pred-moves-field">
-                        <span>手顺文本 moves（空格分隔，a–o / 1–15，可直接编辑）</span>
+                        <span>手顺 moves</span>
                         <input class="pred-mono" id="pred-moves" required>
                     </label>
                 </div>
@@ -310,7 +308,6 @@
                 <div class="pred-board-panel">
                     <h2>当前局面</h2>
                     <svg class="pred-board" id="pred-board" viewBox="0 0 600 600" role="img" aria-label="对局棋盘"></svg>
-                    <p class="pred-board-cap" id="pred-board-cap"></p>
                 </div>
                 <div class="pred-meta" id="pred-meta"></div>
                 <div class="pred-duo" id="pred-players-cards"></div>
@@ -327,18 +324,6 @@
                 <pre id="pred-json"></pre>
                 <button class="pred-btn" type="button" id="pred-copy" style="margin-top:10px">复制 JSON</button>
             </details>
-        </section>
-
-        <section>
-            <h2>使用说明</h2>
-            <p class="pred-note">
-                在棋盘上依次点击交叉点即可落子，第 1、3、5… 手为黑，第 2、4、6… 手为白，子上数字是手顺；点击已有子会从该手起撤销，也可用“悔棋 / 清空”按钮。
-                手顺同步显示在下方文本框，坐标用 <code>a–o</code> 表示列、<code>1–15</code> 表示行，也可直接在框中编辑。
-                假先（tentative first）与假后（tentative second）可填棋手姓名或站内编号；中文名也能识别，返回结果中的姓名为英文标准名。
-                “假先当前执色”指开局摆子结束后谁执白、谁执黑，决定模型从哪一方视角计算胜率。
-                预测结果由 <code>renjuonline.top</code> 的神经网络接口实时返回，本页只负责展示；结果棋盘在每个候选空点上标注该走法的概率，金色实心并带虚线圈者为模型最可能的下一手。概率与胜平负数值均为模型估计，不构成对局结论。
-                参数会写进网址，方便把这一盘预测直接发给棋友。
-            </p>
         </section>
 
     </main>
@@ -598,11 +583,6 @@
             s += '<circle class="bd-hover" id="pred-hover" cx="0" cy="0" r="' + (step * 0.46) + '" fill="none" stroke="#b8862b" stroke-width="2" opacity="0"/>';
         }
         svg.innerHTML = s;
-        if (svgId === 'pred-board') {
-            var cap = '黑第 1、3、5…手，白第 2、4、6…手；子上数字为手顺。';
-            if (probs && probs.length) { cap += ' 空点上标注模型给出的该走法概率，金色实心为最可能的下一手。'; }
-            $('pred-board-cap').textContent = cap;
-        }
     }
 
     function setupInputBoard() {
@@ -677,7 +657,7 @@
             return '<div class="pred-row pred-move-row"><span class="pred-label">' + esc(x.move) + '</span>' +
                 '<span class="pred-track"><span class="pred-fill" style="display:block;width:' + w + '%"></span></span>' +
                 '<span class="pred-num">' + pct(x.prob) + '</span></div>';
-        }).join('') || '<p class="pred-note">接口未返回候选着法。</p>';
+        }).join('');
 
         $('pred-value-title').textContent = '对局结果预期';
         var valueRows = [
