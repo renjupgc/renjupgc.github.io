@@ -1,9 +1,8 @@
 /* 杂技 · 连珠英语：四级词汇与连珠术语的记忆卡。
  * ---------------------------------------------------------------------------
  * 数据：assets/words-cet4.js、assets/words-renju.js（tools/build_english_words.py 生成）
- * 账号：只存在本机浏览器。用户名明文，密码用 PBKDF2-SHA256 加盐取哈希后保存，
- *       不存明文。进度也存本机；换设备靠侧栏「备份进度 / 恢复进度」：
- *       下载一个 json 文件带过去，导入时按「记得更牢」的分合并，不会互相覆盖。
+ * 用户名：只填名字，和全站共用一个用户名（window.ZBX_PROGRESS.user()），没有密码。
+ *         背词进度按用户名单独存；换设备靠侧栏「备份进度 / 恢复进度」导出导入。
  * 换页：全站是无刷新换页，这个脚本只会被注入一次，所以状态挂在 window.ZBX_EN 上，
  *       每次进入页面用 boot() 重建 DOM，监听器只绑一次（document 级委托）。
  */
@@ -17,8 +16,6 @@
 
     /* ---------- 常量与存取 ---------- */
 
-    var K_USERS = 'zbxEn.users';
-    var K_SESSION = 'zbxEn.session';
     var K_PROG = 'zbxEn.p.';
 
     var STEPS = [0, 1, 2, 4, 8, 16, 32, 60];   // 第 n 盒的复习间隔（天）
@@ -31,7 +28,6 @@
         mode: 'study',
         queue: [], idx: 0, flipped: false,
         sess: { n: 0, ok: 0, bad: 0 },
-        tab: 'login',
         note: '',
         spell: null,
         listFilter: 'all',
@@ -54,9 +50,6 @@
     }
     function storeSet(k, v) {
         try { window.localStorage.setItem(k, v); return true; } catch (err) { return false; }
-    }
-    function storeDel(k) {
-        try { window.localStorage.removeItem(k); } catch (err) { /* 忽略 */ }
     }
     function hasStore() {
         try {
@@ -237,106 +230,24 @@
         return due.concat(newKeys(left));
     }
 
-    /* ---------- 账号 ---------- */
+    /* ---------- 用户名（全站共用，来自进度档案） ---------- */
 
-    function users() {
-        var raw = storeGet(K_USERS);
-        if (!raw) { return {}; }
-        try { return JSON.parse(raw) || {}; } catch (err) { return {}; }
+    function progMod() { return window.ZBX_PROGRESS || null; }
+
+    function validName(n) {
+        var gp = progMod();
+        if (gp && gp.validName) { return gp.validName(n); }
+        return /^[\u4e00-\u9fa5A-Za-z0-9_-]{1,16}$/.test(String(n || '').trim());
     }
 
-    function saveUsers(u) { storeSet(K_USERS, JSON.stringify(u)); }
-
-    function b64(buf) {
-        var bytes = new Uint8Array(buf);
-        var s = '';
-        for (var i = 0; i < bytes.length; i += 1) { s += String.fromCharCode(bytes[i]); }
-        return window.btoa(s);
-    }
-
-    function unb64(s) {
-        var raw = window.atob(s);
-        var out = new Uint8Array(raw.length);
-        for (var i = 0; i < raw.length; i += 1) { out[i] = raw.charCodeAt(i); }
-        return out;
-    }
-
-    /* PBKDF2-SHA256；老浏览器没有 crypto.subtle 时退化成慢速哈希，并在账号上标弱 */
-    function hashPw(pw, saltB64) {
-        var subtle = window.crypto && window.crypto.subtle;
-        if (subtle) {
-            var enc = new TextEncoder();
-            return subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits'])
-                .then(function (key) {
-                    return subtle.deriveBits({
-                        name: 'PBKDF2',
-                        salt: unb64(saltB64),
-                        iterations: 120000,
-                        hash: 'SHA-256'
-                    }, key, 256);
-                })
-                .then(function (bits) { return b64(bits); })
-                .catch(function () { return weakHash(pw, saltB64); });
-        }
-        return Promise.resolve(weakHash(pw, saltB64));
-    }
-
-    function weakHash(pw, saltB64) {
-        var s = saltB64 + '|' + pw;
-        var h1 = 2166136261;
-        var h2 = 5381;
-        for (var i = 0; i < s.length; i += 1) {
-            h1 ^= s.charCodeAt(i); h1 = (h1 * 16777619) >>> 0;
-            h2 = (((h2 << 5) + h2) + s.charCodeAt(i)) >>> 0;
-        }
-        return 'w' + h1.toString(36) + h2.toString(36);
-    }
-
-    function newSalt() {
-        var buf = new Uint8Array(16);
-        if (window.crypto && window.crypto.getRandomValues) {
-            window.crypto.getRandomValues(buf);
-        } else {
-            for (var i = 0; i < 16; i += 1) { buf[i] = Math.floor(Math.random() * 256); }
-        }
-        return b64(buf);
-    }
-
-    function validName(n) { return /^[\u4e00-\u9fa5A-Za-z0-9_]{2,16}$/.test(n); }
-
-    function doRegister(name, pw) {
-        if (!validName(name)) { return Promise.reject('用户名 2–16 位，可用中文、字母、数字、下划线'); }
-        if (!pw || pw.length < 6) { return Promise.reject('密码至少 6 位'); }
-        var u = users();
-        if (u[name]) { return Promise.reject('这个用户名已经被注册了（就在这台设备上）'); }
-        var salt = newSalt();
-        return hashPw(pw, salt).then(function (h) {
-            u[name] = { salt: salt, hash: h, weak: h.charAt(0) === 'w' ? 1 : 0, at: today() };
-            saveUsers(u);
-            storeSet(K_SESSION, name);
-            state.user = name;
-            state.data = loadData(name);
-            state.mode = 'study';
-            state.queue = buildQueue('study');
-            state.idx = 0;
-            state.flipped = false;
-            state.sess = { n: 0, ok: 0, bad: 0 };
-            saveData(true);
-            render();
-        });
-    }
-
-    function doLogin(name, pw) {
-        var u = users();
-        var rec = u[name];
-        if (!rec) {
-            return Promise.reject(new Error('这台设备上没有这个账号。进度存在各自设备的浏览器里：先在旧设备点「备份进度」，再到新设备登录后点「恢复进度」选那个文件。'));
-        }
-        return hashPw(pw, rec.salt).then(function (h) {
-            if (h !== rec.hash) { throw new Error('bad'); }
-            storeSet(K_SESSION, name);
-            enter(name);
-        }).catch(function () { throw new Error('密码不对'); });
+    function doEnter(name) {
+        name = String(name || '').trim();
+        if (!validName(name)) { return Promise.reject('用户名 1–16 位，可用中文、字母、数字、下划线或短横'); }
+        if (!hasStore()) { return Promise.reject('浏览器禁用了本地存储，进度存不下来'); }
+        enter(name);
+        var gp = progMod();
+        if (gp) { gp.setUser(name); }
+        return Promise.resolve();
     }
 
     function enter(name) {
@@ -358,12 +269,12 @@
 
     function logout() {
         saveData(true);
-        storeDel(K_SESSION);
+        var gp = progMod();
+        if (gp) { gp.setUser(''); }
         state.user = null;
         state.data = null;
         state.queue = [];
         state.spell = null;
-        state.tab = 'login';
         state.note = '';
         render();
     }
@@ -446,32 +357,24 @@
     function renderGate() {
         var gate = el('en-gate');
         if (!gate) { return; }
-        var loginTab = state.tab !== 'register';
-        var u = users();
-        var names = Object.keys(u);
+        var gp = progMod();
+        var names = gp && gp.userNames ? gp.userNames() : [];
+        var def = gp && gp.user ? gp.user() : '';
         gate.innerHTML = ''
             + '<div class="en-gate-in">'
             + '  <div class="en-gate-head">'
             + '    <p class="en-kicker">RENJU ENGLISH</p>'
-            + '    <h2 class="en-gate-title">先登个记，再背词</h2>'
-            + '    <p class="en-gate-sub">账号和进度都存在这台设备的浏览器里，关掉网页也不会丢。密码经加盐哈希后保存，不存明文。换手机或电脑时，在旧设备侧栏点「备份进度」下载一个文件，带到新设备登录后点「恢复进度」选它就行。</p>'
+            + '    <h2 class="en-gate-title">填个名字，开始背词</h2>'
+            + '    <p class="en-gate-sub">只要用户名，不用注册、不用密码。这个名字和全站通用：禁手找茬、棋形判断、VCF 的分数都记在它名下，各项分开算。本机进度自动保存，换设备用侧栏「备份进度 / 恢复进度」带过去。</p>'
             + '  </div>'
-            + '  <div class="en-tabs" role="tablist">'
-            + '    <button type="button" class="en-tab' + (loginTab ? ' is-on' : '') + '" data-act="tab" data-tab="login">登录</button>'
-            + '    <button type="button" class="en-tab' + (loginTab ? '' : ' is-on') + '" data-act="tab" data-tab="register">注册</button>'
-            + '  </div>'
-            + '  <form class="en-form" id="en-form" autocomplete="on">'
+            + '  <form class="en-form" id="en-form" autocomplete="off">'
             + '    <label class="en-field"><span>用户名</span>'
-            + '      <input id="en-name" name="username" type="text" inputmode="text" autocomplete="username" maxlength="16" placeholder="2–16 位，中文或字母" value="' + esc(names.length === 1 ? names[0] : '') + '"></label>'
-            + '    <label class="en-field"><span>密码</span>'
-            + '      <input id="en-pw" name="password" type="password" autocomplete="' + (loginTab ? 'current-password' : 'new-password') + '" placeholder="' + (loginTab ? '输入密码' : '至少 6 位') + '"></label>'
-            + (loginTab ? '' : '    <label class="en-field"><span>再输一次</span><input id="en-pw2" type="password" autocomplete="new-password" placeholder="确认密码"></label>')
+            + '      <input id="en-name" name="username" type="text" inputmode="text" autocomplete="username" maxlength="16" placeholder="1–16 位，中文或字母" value="' + esc(def) + '"></label>'
             + '    <p class="en-err" id="en-err" role="alert">' + esc(state.note || '') + '</p>'
-            + '    <button type="submit" class="en-btn en-btn-main" data-act="' + (loginTab ? 'login' : 'register') + '">'
-            + (loginTab ? '登录，接着上次背' : '注册并开始') + '</button>'
+            + '    <button type="submit" class="en-btn en-btn-main">进入，接着背</button>'
             + '  </form>'
             + '  <p class="en-gate-foot">词库：大学英语四级 ' + wordCounts().cet4 + ' 词 ＋ 连珠术语 ' + wordCounts().renju + ' 条；另有 ' + articles().length + ' 篇五子棋英语阅读。'
-            + (names.length ? '本机已有账号：' + names.map(function (n) { return esc(n); }).join('、') : '还没有账号，注册一个就行。')
+            + (names.length ? '本机已有档案：' + names.map(function (n) { return esc(n); }).join('、') : '')
             + '</p>'
             + '</div>';
         var nm = el('en-name');
@@ -525,7 +428,7 @@
             + '    <input type="file" id="en-file" accept="application/json,.json" hidden>'
             + '    <button type="button" class="en-btn en-btn-ghost en-btn-warn" data-act="reset">清空</button>'
             + '  </div>'
-            + '  <p class="en-tip">进度自动存在这台设备，关掉网页也不会丢。换手机或电脑：旧设备点「备份进度」下载一个文件，带到新设备登录后点「恢复进度」选中它，记录就回来了。</p>'
+            + '  <p class="en-tip">进度自动存在这台设备，关掉网页也不会丢。换手机或电脑：旧设备点「备份进度」下载一个文件，带到新设备填同一个用户名后点「恢复进度」选中它，记录就回来了。</p>'
             + '</div>';
     }
 
@@ -1165,13 +1068,6 @@
             if (!act) { return; }
             if (btn.tagName === 'SELECT' || btn.tagName === 'INPUT') { return; }
 
-            if (act === 'tab') {
-                state.tab = btn.getAttribute('data-tab') || 'login';
-                state.note = '';
-                renderGate();
-                return;
-            }
-            if (act === 'login' || act === 'register') { return; }
             if (act === 'logout') { logout(); return; }
             if (act === 'mode') {
                 var m = btn.getAttribute('data-mode');
@@ -1278,24 +1174,14 @@
             if (!form || form.id !== 'en-form' || !el('en-app')) { return; }
             e.preventDefault();
             var nameEl = el('en-name');
-            var pwEl = el('en-pw');
-            var pw2El = el('en-pw2');
             var name = nameEl ? nameEl.value.trim() : '';
-            var pw = pwEl ? pwEl.value : '';
             var err = el('en-err');
             function fail(msg) {
                 state.note = msg;
                 if (err) { err.textContent = msg; }
             }
-            if (!hasStore()) { fail('浏览器禁用了本地存储，进度存不下来'); return; }
-            if (state.tab === 'register') {
-                if (pw2El && pw2El.value !== pw) { fail('两次输入的密码不一样'); return; }
-                state.note = '';
-                doRegister(name, pw).catch(function (msg) { fail(typeof msg === 'string' ? msg : '注册失败'); });
-            } else {
-                state.note = '';
-                doLogin(name, pw).catch(function (msg) { fail(typeof msg === 'string' ? msg : '登录失败'); });
-            }
+            state.note = '';
+            doEnter(name).catch(function (msg) { fail(typeof msg === 'string' ? msg : '进入失败'); });
         });
 
         document.addEventListener('change', function (e) {
@@ -1404,25 +1290,35 @@
         if (!el('en-app')) { return; }
         buildWords();
         bindOnce();
-        var sess = storeGet(K_SESSION);
-        if (sess && users()[sess]) {
-            state.user = sess;
-            state.data = loadData(sess);
-            state.queue = buildQueue('study');
-            state.idx = 0;
-            state.flipped = false;
-            state.sess = { n: 0, ok: 0, bad: 0 };
+        var gp = progMod();
+        var name = gp && gp.user ? gp.user() : '';
+        if (name && validName(name)) {
+            enter(name);
         } else {
             state.user = null;
             state.data = null;
             state.queue = [];
+            render();
         }
-        render();
     }
 
     window.ZBX_EN = { boot: boot };
     boot();
     document.addEventListener('zbx:navigate', function () {
         if (el('en-app')) { boot(); }
+    });
+    /* 用户名在别处（进度面板或其他页）切换时，这边跟着切换 */
+    document.addEventListener('zbx:user', function (e) {
+        if (!el('en-app')) { return; }
+        var name = e && e.detail ? e.detail.user : '';
+        if (name && validName(name)) {
+            if (name !== state.user) { enter(name); }
+        } else if (state.user) {
+            saveData(true);
+            state.user = null;
+            state.data = null;
+            state.queue = [];
+            render();
+        }
     });
 })();

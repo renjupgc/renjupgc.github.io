@@ -180,8 +180,8 @@
             bar.style.transform = 'scaleX(' + Math.min(1, Math.max(0, done)) + ')';
         }
 
-        if (!window.ZBX_PROGRESS) {
-            window.ZBX_PROGRESS = 1;
+        if (!window.__zbxScrollBarInit) {
+            window.__zbxScrollBarInit = 1;
             window.addEventListener('scroll', sync, { passive: true });
             window.addEventListener('resize', sync);
         }

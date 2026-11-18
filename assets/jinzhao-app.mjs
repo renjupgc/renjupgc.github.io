@@ -481,7 +481,8 @@ function stat() {
     if ($('jz-done')) { $('jz-done').textContent = String(c.done); }
     if ($('jz-tries')) { $('jz-tries').textContent = String(c.tries); }
     if ($('jz-kind')) { $('jz-kind').textContent = s.kind || '—'; }
-    if ($('jz-score')) { $('jz-score').textContent = String(prog() ? prog().score(moduleKey(s)) : 1000); }
+    if ($('jz-score')) { $('jz-score').textContent = prog() && prog().ready() ? String(prog().score(moduleKey(s))) : '—'; }
+    if ($('jz-difficulty')) { $('jz-difficulty').textContent = '难度分 ' + (s.diff || 1000); }
     if ($('jz-done-k')) { $('jz-done-k').textContent = s.mode === 'shape' ? '已答对' : '已找出'; }
     /* 棋盘底下那行小字：要找几处、找到几处，一眼看得见 */
     if ($('jz-count') && s.puzzle) {
@@ -727,6 +728,7 @@ function hit(k) {
     const pr = prog();
     if (pr) { gain = pr.commit(moduleKey(s), { ok: true, ms: ms, diff: s.diff, par: s.par }); pr.changed(); }
     const gainText = gain ? '，分数 ' + (gain.delta >= 0 ? '+' : '') + gain.delta + '（现 ' + gain.after + '）' : '';
+    const saveTip = (pr && pr.ready()) ? '记得导出存档。' : '先在右侧填用户名，分数才记得住。';
     stat();
     paintTime();
     draw();
@@ -741,7 +743,7 @@ function hit(k) {
             ' · ' + subTime + (gain ? ' · ' + (gain.delta >= 0 ? '+' : '') + gain.delta + ' 分' : '');
         say(s.need > 1
             ? '全找齐了！' + s.need + ' 处都能做出' + s.puzzle.label + '（' + s.puzzle.def + '）：' + all +
-              '。' + s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，记得导出存档。'
+              '。' + s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，' + saveTip
             : '漂亮！' + last + ' 落下去正好是' + s.puzzle.label + '（' + s.puzzle.def + '）。' +
               s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，记得导出存档。', 'ok');
         celebrate(k, { stone: true, big: five || s.need > 1 });
@@ -754,9 +756,9 @@ function hit(k) {
         say(s.need > 1
             ? s.need + ' 处禁手都找到了：' +
               s.answers.map((q, i) => pname(q) + '（' + kinds[i] + '）').join('、') +
-              '。用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，记得导出存档。'
+              '。用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，' + saveTip
             : pname(k) + ' 对了：黑棋落在这里是' + s.puzzle.label + '禁手。用时 ' +
-              secs + ' 秒' + speed + gainText + '。点「下一题」继续，记得导出存档。', 'ok');
+              secs + ' 秒' + speed + gainText + '。点「下一题」继续，' + saveTip, 'ok');
         celebrate(k, { stone: true, big: s.need > 1 });
         chime(s.need > 1);
     }
@@ -866,7 +868,8 @@ function reveal() {
     let lose = null;
     const pr = prog();
     if (pr) { lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par }); pr.changed(); stat(); }
-    const loseText = lose ? ' 分数 ' + lose.delta + '（现 ' + lose.after + '）。' : '';
+    const loseText = lose ? ' 分数 ' + lose.delta + '（现 ' + lose.after + '）。' :
+        (pr && pr.ready() ? '' : ' 先填用户名才能记分。');
     s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
 
     const rest = s.answers.filter(k => !s.found.has(k));
@@ -977,6 +980,7 @@ export function boot() {
     if (!canvas.dataset.bound) {
         canvas.dataset.bound = '1';
         canvas.addEventListener('click', clickCell);
+        document.addEventListener('zbx:user', function () { stat(); });
         /* 切到后台就停表：数的是做题的那段时间，不是开着页面的时间 */
         document.addEventListener('visibilitychange', function () {
             if (document.hidden) { clockPause(); } else { clockResume(); }

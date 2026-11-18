@@ -300,7 +300,8 @@ function stat() {
     if ($('vcf-done')) { $('vcf-done').textContent = String(s.done); }
     if ($('vcf-tries')) { $('vcf-tries').textContent = String(s.tries); }
     if ($('vcf-level')) { $('vcf-level').textContent = s.level || '—'; }
-    if ($('vcf-score')) { $('vcf-score').textContent = String(prog() ? prog().score('vcf') : 1000); }
+    if ($('vcf-score')) { $('vcf-score').textContent = prog() && prog().ready() ? String(prog().score('vcf')) : '—'; }
+    if ($('vcf-difficulty')) { $('vcf-difficulty').textContent = '难度分 ' + difficulty(s.depth || 3); }
 }
 
 function turnLabel() {
@@ -333,7 +334,11 @@ function startChallenge() {
     const s = state();
     if (s.busy) { return; }
     const p = prog();
-    const base = p ? p.recommendLevel('vcf') : 1;
+    if (!p || !p.ready()) {
+        say('先在右侧填一个用户名，挑战的分数才记得住。', 'bad');
+        return;
+    }
+    const base = p.recommendLevel('vcf');
     /* 五题：从推荐档起步，逐题升档，封顶在「挑战」 */
     const levels = [];
     for (let i = 0; i < 5; i++) { levels.push(Math.min(LEVELS.length - 1, base + Math.floor(i / 2))); }
@@ -551,7 +556,7 @@ function finish(text) {
             (gain ? '分数 ' + d + '。' : '') + '点「下一题」继续。', 'ok');
     } else {
         say(text + (gain ? ' 用时 ' + secs + ' 秒，分数 ' + d + '（现 ' + gain.after + '）。' : '') +
-            ' 点「下一题」继续，记得导出存档。', 'ok');
+            ' 点「下一题」继续，' + (pr && pr.ready() ? '记得导出存档。' : '先在右侧填用户名，分数才记得住。'), 'ok');
     }
 }
 
@@ -609,6 +614,7 @@ export async function boot() {
     if (!canvas.dataset.bound) {
         canvas.dataset.bound = '1';
         canvas.addEventListener('click', clickCell);
+        document.addEventListener('zbx:user', function () { stat(); });
         /* 切到后台就停表：数的是做题的那段时间，不是开着页面的时间 */
         document.addEventListener('visibilitychange', function () {
             if (document.hidden) { clockPause(); } else { clockResume(); }

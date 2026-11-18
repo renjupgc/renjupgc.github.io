@@ -755,6 +755,16 @@ a.nt-item:focus-visible {
     font-variant-numeric: tabular-nums;
 }
 
+.vcf-difficulty,
+.jz-difficulty {
+    font-variant-numeric: tabular-nums;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(180, 140, 60, 0.12);
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+
 /* 本题计时：局面摆好起表，过关停表，换题/重来归零；切后台暂停 */
 .vcf-time {
     display: inline-flex;
