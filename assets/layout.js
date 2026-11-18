@@ -62,7 +62,6 @@
         { text: '杂想', href: 'zaxiang.html' },
         { text: '杂豫', href: 'zayu.html' },
         { text: '杂技', href: 'zaji.html' },
-        { text: '完全预测', href: 'yuce.html' },
         { text: '关于', href: 'index.html#about' }
     ];
 
