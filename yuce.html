@@ -114,6 +114,35 @@
     height: auto;
     margin: 0 auto;
 }
+.pred-board-wrap {
+    margin-top: 20px;
+    padding: 18px;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+.pred-board-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: .05em;
+    color: var(--muted);
+}
+.pred-board-hint { font-family: var(--mono); color: var(--gold-deep); }
+#pred-input-board { cursor: crosshair; }
+#pred-input-board .bd-hit { cursor: pointer; }
+#pred-input-board .bd-hover { pointer-events: none; }
+.pred-board-tools {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 12px 0 4px;
+}
+.pred-moves-field { margin-top: 16px; }
 .pred-board-cap {
     margin-top: 10px !important;
     text-align: center;
@@ -237,15 +266,11 @@
                     </label>
                     <label class="pred-field">
                         <span>假先 tf（姓名或编号）</span>
-                        <input id="pred-tf" list="pred-players" value="Ando Meritee" placeholder="如 Ando Meritee 或 6573" required>
+                        <input id="pred-tf" list="pred-players" placeholder="如 Ando Meritee 或 6573" required>
                     </label>
                     <label class="pred-field">
                         <span>假后 ts（姓名或编号）</span>
-                        <input id="pred-ts" list="pred-players" value="2" placeholder="如 王鑫宇 或 6731" required>
-                    </label>
-                    <label class="pred-field wide">
-                        <span>已有手顺 moves（空格分隔，a–o / 1–15）</span>
-                        <input class="pred-mono" id="pred-moves" value="h8 i9 i8" placeholder="如 h8 i9 j7" required>
+                        <input id="pred-ts" list="pred-players" placeholder="如 王鑫宇 或 6731" required>
                     </label>
                     <label class="pred-field">
                         <span>假先当前执色 tf_color</span>
@@ -257,10 +282,24 @@
                 </div>
                 <datalist id="pred-players"></datalist>
 
+                <div class="pred-board-wrap">
+                    <div class="pred-board-head">
+                        <span>已有手顺 · 点击棋盘落子</span>
+                        <span class="pred-board-hint" id="pred-move-count">0 手</span>
+                    </div>
+                    <svg class="pred-board" id="pred-input-board" viewBox="0 0 600 600" role="img" aria-label="点击交叉点落子"></svg>
+                    <div class="pred-board-tools">
+                        <button class="pred-btn" type="button" id="pred-undo">悔棋</button>
+                        <button class="pred-btn" type="button" id="pred-clear">清空</button>
+                    </div>
+                    <label class="pred-field pred-moves-field">
+                        <span>手顺文本 moves（空格分隔，a–o / 1–15，可直接编辑）</span>
+                        <input class="pred-mono" id="pred-moves" placeholder="如 h8 i9 j7" required>
+                    </label>
+                </div>
+
                 <div class="pred-actions">
                     <button class="pred-btn is-primary" type="submit" id="pred-submit">开始预测</button>
-                    <button class="pred-btn" type="button" id="pred-demo1">示例一</button>
-                    <button class="pred-btn" type="button" id="pred-demo2">示例二（中文名）</button>
                     <span class="pred-state" id="pred-state"></span>
                 </div>
             </form>
@@ -293,11 +332,11 @@
         <section>
             <h2>使用说明</h2>
             <p class="pred-note">
-                手顺按行棋先后填写，坐标用 <code>a–o</code> 表示列、<code>1–15</code> 表示行，例如 <code>h8 i9 i8</code>。
+                在棋盘上依次点击交叉点即可落子，第 1、3、5… 手为黑，第 2、4、6… 手为白，子上数字是手顺；点击已有子会从该手起撤销，也可用“悔棋 / 清空”按钮。
+                手顺同步显示在下方文本框，坐标用 <code>a–o</code> 表示列、<code>1–15</code> 表示行，也可直接在框中编辑。
                 假先（tentative first）与假后（tentative second）可填棋手姓名或站内编号；中文名也能识别，返回结果中的姓名为英文标准名。
-                棋盘按真实对局还原：第 1、3、5… 手为黑，第 2、4、6… 手为白，子上数字是手顺；金色虚线圈标出模型给出的最可能下一手。
                 “假先当前执色”指开局摆子结束后谁执白、谁执黑，决定模型从哪一方视角计算胜率。
-                预测结果由 <code>renjuonline.top</code> 的神经网络接口实时返回，本页只负责展示；胜平负数值为模型估计，不构成对局结论。
+                预测结果由 <code>renjuonline.top</code> 的神经网络接口实时返回，本页只负责展示；结果棋盘中金色虚线圈为模型最可能的下一手，胜平负数值为模型估计，不构成对局结论。
                 参数会写进网址，方便把这一盘预测直接发给棋友。
             </p>
         </section>
@@ -443,11 +482,11 @@
     function validate(p) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(p.time)) { return '请填写正确的日期（YYYY-MM-DD）。'; }
         if (!p.tf || !p.ts) { return '请填写对局双方。'; }
-        var mv = p.moves.split(/\s+/).filter(Boolean);
-        if (!mv.length) { return '请填写已有手顺。'; }
-        for (var i = 0; i < mv.length; i++) {
-            if (!/^[a-o]([1-9]|1[0-5])$/.test(mv[i])) {
-                return '手顺格式有误：“' + mv[i] + '”。应使用 a–o 列、1–15 行，如 h8。';
+        var tokens = p.moves.split(/[\s,，;；]+/).filter(Boolean);
+        if (!tokens.length) { return '请在棋盘上落子，或在手顺框中填写着法。'; }
+        for (var i = 0; i < tokens.length; i++) {
+            if (!/^[a-o]([1-9]|1[0-5])$/.test(tokens[i])) {
+                return '手顺格式有误：“' + tokens[i] + '”。应使用 a–o 列、1–15 行，如 h8。';
             }
         }
         return null;
@@ -472,10 +511,30 @@
         history.replaceState(null, '', location.pathname + '?' + q.toString());
     }
 
-    function drawBoard(moves, suggest, nextColor) {
-        var svg = $('pred-board');
-        var pad = 34;
-        var step = (600 - pad * 2) / 14;
+    var PAD = 34, STEP = (600 - 34 * 2) / 14, LETTERS = 'abcdefghijklmno';
+
+    function getMoves() {
+        var raw = $('pred-moves').value.trim();
+        return raw ? (raw.match(/[a-o](?:[1-9]|1[0-5])/g) || []) : [];
+    }
+
+    function setMoves(mv) {
+        $('pred-moves').value = mv.join(' ');
+        $('pred-move-count').textContent = mv.length + ' 手';
+        drawBoard('pred-input-board', mv, '', true);
+    }
+
+    function coordToXY(mv) {
+        var c = LETTERS.indexOf(mv.charAt(0));
+        var r = 15 - parseInt(mv.slice(1), 10);
+        if (c < 0 || r < 0 || c > 14 || r > 14) { return null; }
+        return { x: PAD + c * STEP, y: PAD + r * STEP };
+    }
+
+    function drawBoard(svgId, moves, suggest, interactive) {
+        var svg = $(svgId);
+        if (!svg) { return; }
+        var pad = PAD, step = STEP;
         var s = '';
         // 木质棋盘底
         s += '<rect x="0" y="0" width="600" height="600" rx="10" fill="#e8c98f"/>';
@@ -491,10 +550,9 @@
             s += '<circle cx="' + (pad + star[0] * step) + '" cy="' + (pad + star[1] * step) + '" r="4.5" fill="#6b4f2a" opacity=".85"/>';
         });
         // 坐标 a-o / 1-15
-        var letters = 'abcdefghijklmno';
         for (var c = 0; c < 15; c++) {
-            s += '<text x="' + (pad + c * step) + '" y="' + (pad - 14) + '" font-size="12" font-family="monospace" fill="#6b4f2a" text-anchor="middle">' + letters[c] + '</text>';
-            s += '<text x="' + (pad + c * step) + '" y="' + (600 - pad + 22) + '" font-size="12" font-family="monospace" fill="#6b4f2a" text-anchor="middle">' + letters[c] + '</text>';
+            s += '<text x="' + (pad + c * step) + '" y="' + (pad - 14) + '" font-size="12" font-family="monospace" fill="#6b4f2a" text-anchor="middle">' + LETTERS[c] + '</text>';
+            s += '<text x="' + (pad + c * step) + '" y="' + (600 - pad + 22) + '" font-size="12" font-family="monospace" fill="#6b4f2a" text-anchor="middle">' + LETTERS[c] + '</text>';
         }
         for (var r = 0; r < 15; r++) {
             s += '<text x="' + (pad - 14) + '" y="' + (pad + r * step + 4) + '" font-size="12" font-family="monospace" fill="#6b4f2a" text-anchor="middle">' + (15 - r) + '</text>';
@@ -502,27 +560,68 @@
         }
         // 棋子：按手顺奇偶决定黑白（第 1 手黑，第 2 手白……）
         moves.forEach(function (mv, idx) {
-            var col = letters.indexOf(mv.charAt(0));
-            var row = 15 - parseInt(mv.slice(1), 10);
-            if (col < 0 || row < 0 || col > 14 || row > 14) { return; }
-            var x = pad + col * step;
-            var y = pad + row * step;
+            var pt = coordToXY(mv);
+            if (!pt) { return; }
             var black = (idx % 2 === 0);
-            s += '<circle cx="' + x + '" cy="' + y + '" r="' + (step * 0.46) + '" fill="' + (black ? '#1e1b16' : '#fffdf7') + '" stroke="#4a3a22" stroke-width="1.2"/>';
-            s += '<text x="' + x + '" y="' + (y + 4.5) + '" font-size="12" font-family="monospace" font-weight="bold" fill="' + (black ? '#fffdf7' : '#1e1b16') + '" text-anchor="middle">' + (idx + 1) + '</text>';
+            s += '<circle cx="' + pt.x + '" cy="' + pt.y + '" r="' + (step * 0.46) + '" fill="' + (black ? '#1e1b16' : '#fffdf7') + '" stroke="#4a3a22" stroke-width="1.2"/>';
+            s += '<text x="' + pt.x + '" y="' + (pt.y + 4.5) + '" font-size="12" font-family="monospace" font-weight="bold" fill="' + (black ? '#fffdf7' : '#1e1b16') + '" text-anchor="middle">' + (idx + 1) + '</text>';
         });
         // 推荐下一手：金色虚线圈
         if (suggest && /^[a-o]([1-9]|1[0-5])$/.test(suggest)) {
-            var sc = letters.indexOf(suggest.charAt(0));
-            var sr = 15 - parseInt(suggest.slice(1), 10);
-            var sx = pad + sc * step;
-            var sy = pad + sr * step;
-            s += '<circle cx="' + sx + '" cy="' + sy + '" r="' + (step * 0.52) + '" fill="none" stroke="#b8862b" stroke-width="3" stroke-dasharray="6 4"/>';
+            var pt2 = coordToXY(suggest);
+            if (pt2) {
+                s += '<circle cx="' + pt2.x + '" cy="' + pt2.y + '" r="' + (step * 0.52) + '" fill="none" stroke="#b8862b" stroke-width="3" stroke-dasharray="6 4"/>';
+            }
+        }
+        // 输入棋盘：透明点击热区 + 落子预览圈
+        if (interactive) {
+            for (var rr = 0; rr < 15; rr++) {
+                for (var cc = 0; cc < 15; cc++) {
+                    s += '<circle class="bd-hit" data-c="' + cc + '" data-r="' + rr + '" cx="' + (pad + cc * step) + '" cy="' + (pad + rr * step) + '" r="' + (step * 0.48) + '" fill="transparent"/>';
+                }
+            }
+            s += '<circle class="bd-hover" id="pred-hover" cx="0" cy="0" r="' + (step * 0.46) + '" fill="none" stroke="#b8862b" stroke-width="2" opacity="0"/>';
         }
         svg.innerHTML = s;
-        var cap = '黑第 1、3、5…手，白第 2、4、6…手；端点数字为手顺。';
-        if (suggest) { cap += ' 金色虚线圈为模型最可能的下一手 ' + suggest + '。'; }
-        $('pred-board-cap').textContent = cap;
+        if (svgId === 'pred-board') {
+            var cap = '黑第 1、3、5…手，白第 2、4、6…手；端点数字为手顺。';
+            if (suggest) { cap += ' 金色虚线圈为模型最可能的下一手 ' + suggest + '。'; }
+            $('pred-board-cap').textContent = cap;
+        }
+    }
+
+    function setupInputBoard() {
+        var svg = $('pred-input-board');
+        svg.addEventListener('click', function (e) {
+            var t = e.target.closest ? e.target.closest('.bd-hit') : null;
+            if (!t) { return; }
+            var c = Number(t.getAttribute('data-c')), r = Number(t.getAttribute('data-r'));
+            var coord = LETTERS[c] + (15 - r);
+            var mv = getMoves();
+            var idx = mv.indexOf(coord);
+            if (idx >= 0) { mv = mv.slice(0, idx); } else { mv.push(coord); }
+            setMoves(mv);
+        });
+        svg.addEventListener('mousemove', function (e) {
+            var h = $('pred-hover');
+            if (!h || !svg.getScreenCTM) { return; }
+            var pt = svg.createSVGPoint();
+            pt.x = e.clientX; pt.y = e.clientY;
+            var loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+            var c = Math.round((loc.x - PAD) / STEP), r = Math.round((loc.y - PAD) / STEP);
+            if (c >= 0 && c <= 14 && r >= 0 && r <= 14) {
+                h.setAttribute('cx', PAD + c * STEP);
+                h.setAttribute('cy', PAD + r * STEP);
+                h.setAttribute('opacity', '.85');
+                h.setAttribute('stroke', getMoves().length % 2 === 0 ? '#1e1b16' : '#8a7550');
+            } else {
+                h.setAttribute('opacity', '0');
+            }
+        });
+        svg.addEventListener('mouseleave', function () {
+            var h = $('pred-hover');
+            if (h) { h.setAttribute('opacity', '0'); }
+        });
     }
 
     function render(data) {
@@ -530,9 +629,9 @@
         var tf = data.tentative_first || {};
         var ts = data.tentative_second || {};
         var val = data.value || {};
-        var moves = $('pred-moves').value.trim().split(/\s+/).filter(Boolean);
+        var moves = getMoves();
         var policy = data.policy_top_moves || [];
-        drawBoard(moves, policy.length ? policy[0].move : '', data.next_to_move);
+        drawBoard('pred-board', moves, policy.length ? policy[0].move : '', false);
         var meta = [
             ['日期', data.timestamp],
             ['规则', rule.name],
@@ -604,24 +703,14 @@
     }
 
     $('pred-form').addEventListener('submit', function (e) { e.preventDefault(); run(); });
-    $('pred-demo1').addEventListener('click', function () {
-        $('pred-time').value = '2026-11-17';
-        $('pred-rule').value = 'Taraguchi-10';
-        $('pred-tf').value = 'Ando Meritee';
-        $('pred-ts').value = '2';
-        $('pred-moves').value = 'h8 i9 i8';
-        $('pred-color').value = 'white';
-        run();
+    $('pred-moves').addEventListener('input', function () {
+        $('pred-move-count').textContent = getMoves().length + ' 手';
+        drawBoard('pred-input-board', getMoves(), '', true);
     });
-    $('pred-demo2').addEventListener('click', function () {
-        $('pred-time').value = '2026-11-17';
-        $('pred-rule').value = 'Taraguchi-10';
-        $('pred-tf').value = '药博凡';
-        $('pred-ts').value = '王鑫宇';
-        $('pred-moves').value = 'h8 i9 j7';
-        $('pred-color').value = 'white';
-        run();
+    $('pred-undo').addEventListener('click', function () {
+        var mv = getMoves(); mv.pop(); setMoves(mv);
     });
+    $('pred-clear').addEventListener('click', function () { setMoves([]); });
     $('pred-copy').addEventListener('click', function () {
         var text = $('pred-json').textContent;
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -636,11 +725,12 @@
     });
 
     loadRules();
-    var hasUrl = fillFromUrl();
-    if (hasUrl) {
+    setupInputBoard();
+    fillFromUrl();
+    setMoves(getMoves());
+    // 仅当网址带有完整参数时自动预测；否则留空由用户落子后自行触发
+    if (getMoves().length && $('pred-tf').value.trim() && $('pred-ts').value.trim()) {
         run();
-    } else {
-        run();   // 默认填入示例参数，打开页面即展示一次预测
     }
 })();
 </script>
