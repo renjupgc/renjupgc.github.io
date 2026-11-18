@@ -1,14 +1,16 @@
 /*
  * 禁手找茬 - 出题器
  * ------------------------------------------------------------
- * 造一盘黑棋局面，里面恰好有且只有一个「黑棋落子即违例」的点：
+ * 造一盘黑棋局面，里面恰好有 1–3 个「黑棋落子即违例」的点：
  * 三三 / 四四 / 长连。规则判定全部复用 vcf-gen.mjs 的 blackForbidden，
  * 与 VCF 做题那边同源，不另写一套。
  *
- * 流程：按类型搭出骨架（两根线各自成三 / 成四，或一线拉出长连）
- *      → 全盘扫一遍禁手点，必须只有骨架那一个
+ * 流程：按类型搭出骨架（两根线各自成三 / 成四，或一线拉出长连），一处一处地摆，
+ *      每摆一处就全盘扫一遍禁手点，确认只多出骨架这一个
  *      → 撒白子当干扰（白子会把活三压成眠三，正是最容易看错的地方）
- *      → 撒黑子把局面填得像真对局，每撒一颗都复扫一次，多出禁手点就撤回。
+ *      → 撒黑子把局面填得像真对局，每撒一颗都复扫一次，多出或少了禁手点就撤回。
+ *
+ * 难度靠「要找出几处」拉开：入门 / 常用 一处，密集 两处到三处。
  */
 
 import { BLACK, WHITE, px, py } from './quintet-core.mjs';
@@ -147,62 +149,83 @@ function skeleton(bd, x, y, kind, rng) {
 }
 
 /* ---------- 干扰子 ---------- */
-function scatter(bd, x, y, color, count, rng, answer) {
+function scatter(bd, wants, color, count, rng) {
     let placed = 0;
     for (let tries = 0; tries < count * 12 && placed < count; tries++) {
+        const base = wants[Math.floor(rng() * wants.length)];
         const r = 1 + Math.floor(rng() * 4);
-        const nx = x + Math.floor(rng() * (2 * r + 1)) - r;
-        const ny = y + Math.floor(rng() * (2 * r + 1)) - r;
+        const nx = px(base) + Math.floor(rng() * (2 * r + 1)) - r;
+        const ny = py(base) + Math.floor(rng() * (2 * r + 1)) - r;
         if (!inB(nx, ny)) { continue; }
         const k = at(nx, ny);
-        if (bd[k] || k === answer) { continue; }
+        if (bd[k] || wants.indexOf(k) >= 0) { continue; }
         bd[k] = color;
 
-        let ok = true;
-        if (makesFive(bd, k, color)) { ok = false; }
+        let ok = !makesFive(bd, k, color);
         if (ok) {
+            /* 禁手点必须仍然是刚摆的那几处：多一处少一处，题目就废了 */
             const pts = forbiddenPoints(bd);
-            if (pts.length !== 1 || pts[0] !== answer) { ok = false; }
+            ok = pts.length === wants.length && wants.every(q => pts.indexOf(q) >= 0);
         }
         if (ok && color === BLACK) {
             /* 手里不能已经有连五点，不然这盘棋早该结束了 */
-            if (fivePoints(bd, BLACK).length) { ok = false; }
+            ok = fivePoints(bd, BLACK).length === 0;
         }
         if (ok) { placed++; } else { bd[k] = 0; }
     }
     return placed;
 }
 
+/* 摆一处禁手骨架：找一块空地，摆完立刻全盘复扫，确认只多出这一个禁手点。
+   两处禁手要拉开距离，挨着摆会互相借子，看着也不像两处。 */
+function placeSkeleton(bd, wants, kind, rng) {
+    for (let t = 0; t < 36; t++) {
+        const x = 3 + Math.floor(rng() * 9);
+        const y = 3 + Math.floor(rng() * 9);
+        const k = at(x, y);
+        if (bd[k]) { continue; }
+        let near = false;
+        for (const q of wants) {
+            if (Math.abs(px(q) - x) < 3 && Math.abs(py(q) - y) < 3) { near = true; break; }
+        }
+        if (near) { continue; }
+
+        const snap = bd.slice();
+        const kk = kind === 'mix' ? ['33', '44', 'over'][Math.floor(rng() * 3)] : kind;
+        if (!skeleton(bd, x, y, kk, rng)) { bd.set(snap); continue; }
+        if (!blackForbidden(bd, k)) { bd.set(snap); continue; }
+        const pts = forbiddenPoints(bd);
+        if (pts.length !== wants.length + 1 || pts.indexOf(k) < 0) { bd.set(snap); continue; }
+        wants.push(k);
+        return true;
+    }
+    return false;
+}
+
 /* 一颗棋子的尝试；失败返回 null */
 function attempt(o, rng) {
-    const kind = o.kind === 'mix'
-        ? ['33', '44', 'over'][Math.floor(rng() * 3)]
-        : o.kind;
-
     const bd = new Int8Array(225);
-    const x = 3 + Math.floor(rng() * 9);
-    const y = 3 + Math.floor(rng() * 9);
-
-    if (!skeleton(bd, x, y, kind, rng)) { return null; }
-    const answer = at(x, y);
-
-    if (!blackForbidden(bd, answer)) { return null; }
-    let pts = forbiddenPoints(bd);
-    if (pts.length !== 1 || pts[0] !== answer) { return null; }
-
+    const wants = [];
     const d = o.density;
-    scatter(bd, x, y, WHITE, d.white, rng, answer);
-    scatter(bd, x, y, BLACK, d.black, rng, answer);
+    const need = d.needLo + Math.floor(rng() * (d.needHi - d.needLo + 1));
 
-    if (!blackForbidden(bd, answer)) { return null; }
-    pts = forbiddenPoints(bd);
-    if (pts.length !== 1 || pts[0] !== answer) { return null; }
-
-    /* 题面要干净：答案点必须是空的，双方手里都不能已经握着连五点 */
-    if (bd[answer]) { return null; }
+    for (let i = 0; i < need; i++) {
+        if (!placeSkeleton(bd, wants, o.kind, rng)) { return null; }
+    }
+    if (forbiddenPoints(bd).length !== need) { return null; }
     if (fivePoints(bd, BLACK).length || fivePoints(bd, WHITE).length) { return null; }
-    const info = describePoint(bd, answer);
-    if (!info || !info.bad) { return null; }
+
+    scatter(bd, wants, WHITE, d.white, rng);
+    scatter(bd, wants, BLACK, d.black, rng);
+
+    /* 终审：撒完子之后答案还得一处不少、一处不多 */
+    const pts = forbiddenPoints(bd);
+    if (pts.length !== need || wants.some(k => pts.indexOf(k) < 0)) { return null; }
+    if (wants.some(k => bd[k])) { return null; }
+    if (fivePoints(bd, BLACK).length || fivePoints(bd, WHITE).length) { return null; }
+
+    const infos = wants.map(k => describePoint(bd, k));
+    if (infos.some(x => !x || !x.bad)) { return null; }
 
     let stones = 0, whites = 0;
     for (let k = 0; k < 225; k++) {
@@ -210,20 +233,23 @@ function attempt(o, rng) {
     }
     return {
         board: bd,
-        answer: answer,
-        kind: info.over ? 'over' : (info.fours >= 2 ? '44' : '33'),
-        label: info.name,
-        dirs: info.dirs,
+        answers: wants,
+        answer: wants[0],
+        need: need,
+        kinds: infos.map(x => x.name),
+        label: need === 1 ? infos[0].name : '禁手×' + need,
+        dirs: infos[0].dirs,
         black: stones,
         white: whites
     };
 }
 
 /* ---------- 对外 ---------- */
+/* needLo..needHi 是这一档要找出几处禁手：入门 / 常用 一处，密集 两三处 */
 export const DENSITY = {
-    easy: { white: 2, black: 2 },
-    normal: { white: 4, black: 4 },
-    hard: { white: 7, black: 7 }
+    easy: { white: 2, black: 2, needLo: 1, needHi: 1 },
+    normal: { white: 4, black: 4, needLo: 1, needHi: 1 },
+    hard: { white: 7, black: 7, needLo: 2, needHi: 3 }
 };
 
 export function* generatePuzzle(opts) {

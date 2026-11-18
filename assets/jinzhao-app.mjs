@@ -2,19 +2,20 @@
  * 棋形判断与禁手找茬 - 页面逻辑
  * ------------------------------------------------------------
  * 两种玩法共用一块盘：
- *   禁手找茬：盘上只有一个点，黑棋落下去就违例，点出来就算过。
- *   棋形判断：题目点名要连五 / 活四 / 冲四 / 活三 / 眠三，点出能做出这一手的点。
+ *   禁手找茬：盘上一到三处「黑棋落下去就违例」的点，全点出来才算过。
+ *   棋形判断：题目点名要连五 / 活四 / 冲四 / 活三 / 眠三，盘上能做出这一手的
+ *             点不止一处（活三、冲四本身就两头都能补），要全找出来。
  * 判定都只查规则（成五 / 成四 / 成三 / 长连），不跑搜索，所以秒回；
  * 规则与 VCF 做题同源（vcf-gen 的 classify / blackForbidden），没有第二套判定。
  *
- * 答对之后：棋子按弹入落盘、成形的几条线被圈出，金色碎屑从落点炸开，
- * 连五另外给一份更大的响动。动效全在 canvas 上画，不依赖外部库。
+ * 每点中一处：那一点标个勾、成形的几条线被圈出，金色碎屑从那里炸开；
+ * 全部找齐才落子成功，给一份更大的响动。动效全在 canvas 上画，不依赖外部库。
  */
 
 import { BLACK, px, py, pname } from './quintet-core.mjs';
 import { generatePuzzle, describePoint, DENSITY } from './jinzhao-gen.mjs';
 import {
-    generateShapePuzzle, evaluate, DENSITY as SHAPE_DENSITY, DIR_NAME
+    generateShapePuzzle, evaluate, DENSITY as SHAPE_DENSITY
 } from './qixing-gen.mjs';
 
 const N = 15;
@@ -42,7 +43,10 @@ function state() {
         mode: 'forbid',
         puzzle: null,
         board: new Int8Array(225),
-        marks: [],          /* {k, kind:'bad'|'hint'|'ans'|'line'} */
+        marks: [],          /* {k, kind:'bad'|'hint'|'ans'|'got'|'line'} */
+        answers: [],        /* 本题所有答案点 */
+        need: 0,
+        found: new Set(),   /* 已经标出来的答案点 */
         no: 0,
         /* 两种玩法各记各的账，切换过来不会看见对方的数字 */
         count: { forbid: { done: 0, tries: 0 }, shape: { done: 0, tries: 0 } },
@@ -232,12 +236,51 @@ function draw() {
 
     s.marks.forEach(function (m) {
         const x = cx(s, px(m.k)), y = cy(s, py(m.k));
-        if (m.kind === 'ans') {
+        /* 刚点中的那一处从 0.5 倍弹回原大，和棋子落盘的节奏一致 */
+        const pop = (fx && fx.stone === m.k && ft < 0.45) ? popScale(ft) : 1;
+        if (m.kind === 'got') {
+            if (m.tone === 'ok') {
+                /* 半透明的棋子：这一手真下在这儿就是这个样子，但只是标记，不是落子 */
+                ctx.save();
+                ctx.globalAlpha = 0.5;
+                drawStone(ctx, x, y, cell * 0.44, BLACK, pop);
+                ctx.restore();
+            }
+            ctx.beginPath();
+            ctx.arc(x, y, cell * 0.56 * pop, 0, Math.PI * 2);
+            ctx.strokeStyle = m.tone === 'ok' ? '#a8834a' : '#b33a2b';
+            ctx.lineWidth = 2.4;
+            ctx.stroke();
+            /* 勾：棋形题是压在深色棋子上，用米白加一点描边才看得清 */
+            const r = cell * 0.44;
+            ctx.beginPath();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(x - r * 0.42, y + r * 0.02);
+            ctx.lineTo(x - r * 0.1, y + r * 0.36);
+            ctx.lineTo(x + r * 0.46, y - r * 0.36);
+            if (m.tone === 'ok') {
+                ctx.strokeStyle = 'rgba(40, 32, 20, 0.5)';
+                ctx.lineWidth = Math.max(3, cell * 0.17);
+                ctx.stroke();
+                ctx.strokeStyle = '#fbf3e2';
+                ctx.lineWidth = Math.max(1.8, cell * 0.11);
+                ctx.stroke();
+            } else {
+                ctx.strokeStyle = '#b33a2b';
+                ctx.lineWidth = Math.max(1.8, cell * 0.1);
+                ctx.stroke();
+            }
+            ctx.lineCap = 'butt';
+            ctx.lineJoin = 'miter';
+        } else if (m.kind === 'ans') {
             ctx.beginPath();
             ctx.arc(x, y, cell * 0.56, 0, Math.PI * 2);
             ctx.strokeStyle = '#b33a2b';
-            ctx.lineWidth = 2.4;
+            ctx.lineWidth = 2.2;
+            ctx.setLineDash([5, 4]);
             ctx.stroke();
+            ctx.setLineDash([]);
         } else if (m.kind === 'hint') {
             ctx.beginPath();
             ctx.arc(x, y, cell * 0.5, 0, Math.PI * 2);
@@ -316,9 +359,13 @@ function stat() {
     if ($('jz-tries')) { $('jz-tries').textContent = String(c.tries); }
     if ($('jz-kind')) { $('jz-kind').textContent = s.kind || '—'; }
     if ($('jz-done-k')) { $('jz-done-k').textContent = s.mode === 'shape' ? '已答对' : '已找出'; }
-    /* 棋盘底下那行小字：答完之后换成结果，不必再回头瞟右边的数字 */
+    /* 棋盘底下那行小字：要找几处、找到几处，一眼看得见 */
     if ($('jz-count') && s.puzzle) {
-        $('jz-count').textContent = '第 ' + s.no + ' 题 · ' + (s.cleared ? '已答对' : '黑先');
+        let t = '第 ' + s.no + ' 题';
+        if (s.cleared) { t += ' · 已答对'; }
+        else if (s.need > 1) { t += ' · 找到 ' + s.found.size + '/' + s.need; }
+        else { t += ' · 黑先'; }
+        $('jz-count').textContent = t;
     }
 }
 
@@ -435,28 +482,44 @@ function load(p, levelName) {
     const s = state();
     s.puzzle = p;
     s.board = Int8Array.from(p.board);
+    s.answers = (p.answers && p.answers.length) ? p.answers.slice() : [p.answer];
+    s.need = s.answers.length;
+    s.found = new Set();
     s.marks = [];
     s.fx = null;
     s.over = false;
     s.cleared = false;
     s.level = levelName || '—';
-    s.kind = p.label;
+    s.kind = (s.mode === 'shape' && s.need > 1) ? p.label + '×' + s.need : p.label;
     if ($('jz-ask')) {
-        $('jz-ask').textContent = s.mode === 'shape'
-            ? '黑先 · 下出「' + p.label + '」'
-            : '黑先 · 找出禁手点';
+        if (s.mode === 'shape') {
+            $('jz-ask').textContent = s.need > 1
+                ? '黑先 · 找全 ' + s.need + ' 处「' + p.label + '」'
+                : '黑先 · 下出「' + p.label + '」';
+        } else {
+            $('jz-ask').textContent = s.need > 1
+                ? '黑先 · 找出 ' + s.need + ' 处禁手'
+                : '黑先 · 找出禁手点';
+        }
     }
     stat();
-    say(s.mode === 'shape'
-        ? '题目要的是「' + p.label + '」：' + p.tip + ' 点出那一点。'
-        : '黑棋该走。盘上只有一个点落下就违例，点它。', '');
+    if (s.mode === 'shape') {
+        say(s.need > 1
+            ? '题目要的是「' + p.label + '」：' + p.tip + ' 盘上有 ' + s.need +
+              ' 处能做出它，全部点出来才算过。'
+            : '题目要的是「' + p.label + '」：' + p.tip + ' 点出那一点。', '');
+    } else {
+        say(s.need > 1
+            ? '黑棋该走。盘上有 ' + s.need + ' 处落下就违例，一处一处点出来。'
+            : '黑棋该走。盘上只有一个点落下就违例，点它。', '');
+    }
     draw();
 }
 
 /* ---------- 走子 ---------- */
 function clickCell(ev) {
     const s = state();
-    if (s.busy || s.over || !s.ctx) { return; }
+    if (s.busy || s.over || !s.ctx || !s.puzzle) { return; }
     const canvas = $('jz-board');
     const r = canvas.getBoundingClientRect();
     const mx = (ev.clientX - r.left) * (s.size / r.width);
@@ -467,128 +530,15 @@ function clickCell(ev) {
     if (Math.abs(mx - (s.pad + gx * s.cell)) > s.cell * 0.55) { return; }
     if (Math.abs(my - (s.pad + gy * s.cell)) > s.cell * 0.55) { return; }
     const k = gx * 15 + (14 - gy);
-    if (s.mode === 'shape') { probeShape(k); } else { probe(k); }
+    if (s.board[k]) { return; }          /* 已经有子的地方不用点 */
+    if (s.answers.indexOf(k) >= 0) { hit(k); } else { miss(k); }
 }
 
-/* ---------- 禁手找茬 ---------- */
-function probe(k) {
+/* 把某一点成形的几条线上的黑子圈出来 */
+function ringLines(k, dirs) {
     const s = state();
-    if (!s.puzzle || s.board[k]) { return; }
-    const info = describePoint(s.board, k);
-
-    if (info && info.bad) {
-        s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
-        s.marks.push({ k: k, kind: 'ans' });
-        /* 把构成禁手的那几条线牵出来的棋子圈一下 */
-        const seen = new Set();
-        info.dirs.forEach(function (d) {
-            const dx = [1, 0, 1, 1][d], dy = [0, 1, 1, -1][d];
-            for (let t = -4; t <= 4; t++) {
-                if (!t) { continue; }
-                const nx = px(k) + t * dx, ny = py(k) + t * dy;
-                if (nx < 0 || nx > 14 || ny < 0 || ny > 14) { continue; }
-                const q = nx * 15 + ny;
-                if (s.board[q] !== BLACK || seen.has(q)) { continue; }
-                seen.add(q);
-                s.marks.push({ k: q, kind: 'line' });
-            }
-        });
-        finish(k, info);
-        return;
-    }
-
-    cnt().tries++;
-    s.streak = 0;
-    stat();
-    s.marks = s.marks.filter(m => m.kind !== 'bad');
-    s.marks.push({ k: k, kind: 'bad' });
-    let why;
-    if (!info || info.name === '没成型') {
-        why = '这里什么也做不出来。';
-    } else if (info.fours === 1 && info.threes >= 1) {
-        why = '这里是四三（一根线成四、一根线成活三），四三不违例。';
-    } else if (info.fours === 1 && info.threes === 0) {
-        why = '这里只是一个冲四，不违例。';
-    } else if (info.threes === 1) {
-        why = '这里只成一根活三，单三不违例。';
-    } else {
-        why = '这里只是 ' + info.name + '，不违例。';
-    }
-    say(pname(k) + '：' + why + ' 再找找。', 'bad');
-    draw();
-}
-
-function finish(k, info) {
-    const s = state();
-    s.over = true;
-    if (!s.cleared) { s.cleared = true; cnt().done++; s.streak++; }
-    stat();
-    draw();
-    const dirs = info.dirs.map(d => DIR_NAME[d]).join(' + ');
-    say(pname(k) + ' 对了：黑棋落在这里是' + info.name + '禁手（' + dirs +
-        '）。点「下一题」继续。', 'ok');
-    const btn = $('jz-next');
-    if (btn) { btn.classList.add('is-hot'); }
-    celebrate(k, {});
-    flash('找到了！', info.name + '禁手', 'ok', k);
-    chime(false);
-    try { if (navigator.vibrate) { navigator.vibrate(14); } } catch (e) { /* ignore */ }
-}
-
-/* ---------- 棋形判断 ---------- */
-function probeShape(k) {
-    const s = state();
-    if (!s.puzzle || s.board[k]) { return; }
-    const target = s.puzzle.shape;
-    const ev = evaluate(s.board, k, BLACK);
-    if (!ev) { return; }
-
-    if (ev.over) {
-        cnt().tries++;
-        s.streak = 0;
-        stat();
-        s.marks = s.marks.filter(m => m.kind !== 'bad');
-        s.marks.push({ k: k, kind: 'bad' });
-        say(pname(k) + ' 落下连成六子以上，这是长连，黑棋违例——题目要的是恰好五子连成一线。', 'bad');
-        draw();
-        return;
-    }
-    if (ev.forbidden) {
-        cnt().tries++;
-        s.streak = 0;
-        stat();
-        s.marks = s.marks.filter(m => m.kind !== 'bad');
-        s.marks.push({ k: k, kind: 'bad' });
-        say(pname(k) + ' 这一手是禁手（三三或四四），黑棋不能走，得换个点。', 'bad');
-        draw();
-        return;
-    }
-
-    if (ev.shape && ev.shape.key === target) {
-        rightShape(k, ev);
-        return;
-    }
-
-    cnt().tries++;
-    s.streak = 0;
-    stat();
-    s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
-    s.marks.push({ k: k, kind: 'bad' });
-    say(pname(k) + ' 落下是' + ev.name + '（' + ev.short + '），题目要的是' +
-        s.puzzle.label + '（' + s.puzzle.tip.replace(/。$/, '') + '）。再找找。', 'bad');
-    draw();
-}
-
-function rightShape(k, ev) {
-    const s = state();
-    s.over = true;
-    s.board[k] = BLACK;             /* 落子真摆上去，让人看见棋形成立 */
-    s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
-    s.marks.push({ k: k, kind: 'ans' });
-
-    /* 把成形的线上那几颗子圈出来 */
     const seen = new Set();
-    ev.dirs.forEach(function (d) {
+    dirs.forEach(function (d) {
         const dx = [1, 0, 1, 1][d], dy = [0, 1, 1, -1][d];
         for (let t = -4; t <= 4; t++) {
             if (!t) { continue; }
@@ -600,22 +550,114 @@ function rightShape(k, ev) {
             s.marks.push({ k: q, kind: 'line' });
         }
     });
+}
 
-    if (!s.cleared) { s.cleared = true; cnt().done++; s.streak++; }
+/* 点中了答案：禁手题标红勾，棋形题标成半透明的「这一手」 */
+function hit(k) {
+    const s = state();
+    if (s.found.has(k)) {
+        say(pname(k) + ' 这处已经标出来了，还有 ' + (s.need - s.found.size) + ' 处没找到。', '');
+        return;
+    }
+    s.found.add(k);
+    s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint' && m.kind !== 'line');
+    s.marks.push({ k: k, kind: 'got', tone: s.mode === 'shape' ? 'ok' : 'no' });
+
+    if (s.mode === 'shape') {
+        const ev = evaluate(s.puzzle.board, k, BLACK);
+        if (ev) { ringLines(k, ev.dirs); }
+    } else {
+        const info = describePoint(s.puzzle.board, k);
+        if (info) { ringLines(k, info.dirs); }
+    }
+
+    const left = s.need - s.found.size;
     stat();
 
-    const five = s.puzzle.shape === 'five';
-    say('漂亮！' + pname(k) + ' 落下去正好是' + s.puzzle.label + '：' +
-        s.puzzle.tip + ' 点「下一题」继续。', 'ok');
+    if (left > 0) {
+        celebrate(k, { stone: true });
+        chime(false);
+        try { if (navigator.vibrate) { navigator.vibrate(10); } } catch (e) { /* ignore */ }
+        say('找到 ' + s.found.size + '/' + s.need + '，' + pname(k) + ' 这一处成立。' +
+            '还有 ' + left + ' 处，接着找。', 'ok');
+        draw();
+        return;
+    }
+
+    /* 全找齐了 */
+    s.over = true;
+    if (!s.cleared) { s.cleared = true; cnt().done++; s.streak++; }
+    stat();
+    draw();
+
+    const last = pname(k);
+    const all = s.answers.map(pname).join('、');
+    let title, sub;
+    if (s.mode === 'shape') {
+        const five = s.need === 1 && s.puzzle.shape === 'five';
+        title = five ? '连五！赢了' : (s.need > 1 ? s.need + ' 处全中！' : '漂亮！' + s.puzzle.label);
+        sub = s.streak >= 2 ? '连对 ' + s.streak + ' 题' : (s.need > 1 ? s.puzzle.label + '，全找齐' : '正解');
+        say(s.need > 1
+            ? '全找齐了！' + s.need + ' 处都能做出' + s.puzzle.label + '：' + all +
+              '。' + s.puzzle.tip + ' 点「下一题」继续。'
+            : '漂亮！' + last + ' 落下去正好是' + s.puzzle.label + '：' + s.puzzle.tip +
+              ' 点「下一题」继续。', 'ok');
+        celebrate(k, { stone: true, big: five || s.need > 1 });
+        chime(five || s.need > 1);
+    } else {
+        const kinds = s.puzzle.kinds || [s.puzzle.label];
+        title = s.need > 1 ? '全找到了！' : '找到了！';
+        sub = s.need > 1 ? s.need + ' 处禁手' : s.puzzle.label + '禁手';
+        say(s.need > 1
+            ? s.need + ' 处禁手都找到了：' +
+              s.answers.map((q, i) => pname(q) + '（' + kinds[i] + '）').join('、') +
+              '。点「下一题」继续。'
+            : pname(k) + ' 对了：黑棋落在这里是' + s.puzzle.label + '禁手。点「下一题」继续。', 'ok');
+        celebrate(k, { stone: true, big: s.need > 1 });
+        chime(s.need > 1);
+    }
+
+    flash(title, sub, s.mode === 'shape' && s.need === 1 && s.puzzle.shape === 'five' ? 'five' : 'ok', k);
     const btn = $('jz-next');
     if (btn) { btn.classList.add('is-hot'); }
+    try { if (navigator.vibrate) { navigator.vibrate(s.need > 1 ? [12, 40, 18] : 14); } } catch (e) { /* ignore */ }
+}
 
-    celebrate(k, { stone: true, big: five });
-    flash(five ? '连五！赢了' : '漂亮！' + s.puzzle.label,
-        s.streak >= 2 ? '连对 ' + s.streak + ' 题' : '正解',
-        five ? 'five' : 'ok', k);
-    chime(five);
-    try { if (navigator.vibrate) { navigator.vibrate(five ? [12, 40, 18] : 12); } } catch (e) { /* ignore */ }
+/* 点错了：说清这一手到底做出了什么，别让人猜 */
+function miss(k) {
+    const s = state();
+    cnt().tries++;
+    s.streak = 0;
+    stat();
+    s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
+    s.marks.push({ k: k, kind: 'bad' });
+
+    const left = s.need - s.found.size;
+    const tail = left > 1 ? '（还剩 ' + left + ' 处没找到）' : '';
+    let why;
+
+    if (s.mode === 'shape') {
+        const ev = evaluate(s.board, k, BLACK);
+        if (!ev) { why = '这一点走不了。'; }
+        else if (ev.over) {
+            why = '落下连成六子以上，这是长连，黑棋违例——题目要的是恰好五子连成一线。';
+        } else if (ev.forbidden) {
+            why = '这一手是禁手（三三或四四），黑棋不能走，得换个点。';
+        } else {
+            why = '落下是' + ev.name + '（' + ev.short + '），题目要的是' +
+                s.puzzle.label + '（' + s.puzzle.tip.replace(/。$/, '') + '）。';
+        }
+    } else {
+        const info = describePoint(s.board, k);
+        if (!info || info.name === '没成型') { why = '这里什么也做不出来。'; }
+        else if (info.fours === 1 && info.threes >= 1) { why = '这里是四三（一根线成四、一根线成活三），四三不违例。'; }
+        else if (info.fours === 1 && info.threes === 0) { why = '这里只是一个冲四，不违例。'; }
+        else if (info.threes === 1) { why = '这里只成一根活三，单三不违例。'; }
+        else { why = '这里只是 ' + info.name + '，不违例。'; }
+    }
+
+    say(pname(k) + '：' + why + tail + ' 再找找。', 'bad');
+    draw();
 }
 
 /* ---------- 提示 ---------- */
@@ -624,16 +666,18 @@ function showHint() {
     if (s.busy || s.over || !s.puzzle) { return; }
     if (s.mode === 'shape') { hintShape(); return; }
 
-    const marked = new Set(s.marks.filter(m => m.kind !== 'line').map(m => m.k));
+    /* 禁手题的提示指一个「看着像、其实不是」的点，讲解为什么不算 */
+    const skip = new Set(s.answers.concat(s.marks.map(m => m.k)));
     const cands = [];
     for (let k = 0; k < 225; k++) {
-        if (s.board[k] || marked.has(k) || k === s.puzzle.answer) { continue; }
+        if (s.board[k] || skip.has(k)) { continue; }
         const info = describePoint(s.board, k);
         if (!info) { continue; }
         if (info.fours >= 1 || info.threes >= 1) { cands.push({ k: k, info: info }); }
     }
+    const left = s.need - s.found.size;
     if (!cands.length) {
-        say('盘上没有别的成型点了，就那一处，慢慢看。', '');
+        say('盘上没有别的成型点了，就那 ' + left + ' 处，慢慢看。', '');
         return;
     }
     const pickOne = cands[Math.floor(Math.random() * cands.length)];
@@ -641,34 +685,20 @@ function showHint() {
     s.marks.push({ k: pickOne.k, kind: 'hint' });
     draw();
     say('提示：' + pname(pickOne.k) + ' 落下是' + pickOne.info.name +
-        '，看着热闹，但不违例——这盘只有一处禁手。', '');
+        '，看着热闹，但不违例——盘上还有 ' + left + ' 处真禁手没找出来。', '');
 }
 
-/* 棋形题不分对错，只看这一手做出了什么，所以提示拿「差一档」的点来讲 */
+/* 棋形题的提示直接挑一处还没找到的答案：要全找出来，指个「差一档」的点没意义 */
 function hintShape() {
     const s = state();
-    const target = s.puzzle.shape;
-    const order = { five: 5, open4: 4, four: 3, open3: 2, sleep3: 1 };
-    const want = order[target];
-    const marked = new Set(s.marks.map(m => m.k));
-    let best = null;
-    for (let k = 0; k < 225; k++) {
-        if (s.board[k] || marked.has(k)) { continue; }
-        const ev = evaluate(s.board, k, BLACK);
-        if (!ev || !ev.shape || ev.over || ev.forbidden) { continue; }
-        const gap = Math.abs(order[ev.shape.key] - want);
-        if (gap !== 1) { continue; }
-        if (!best || gap < best.gap) { best = { k: k, ev: ev, gap: gap }; }
-    }
-    if (!best) {
-        say('提示：跟着三子、四子的两头看，哪一头补上还能再长一格，就是它。', '');
-        return;
-    }
+    const rest = s.answers.filter(k => !s.found.has(k));
+    if (!rest.length) { return; }
+    const k = rest[0];
     s.marks = s.marks.filter(m => m.kind !== 'hint' && m.kind !== 'bad');
-    s.marks.push({ k: best.k, kind: 'hint' });
+    s.marks.push({ k: k, kind: 'hint' });
     draw();
-    say('提示：' + pname(best.k) + ' 落下是' + best.ev.name + '，就差一档——' +
-        '再想想另一头是不是还空着。', '');
+    say('提示：' + pname(k) + ' 落下去就是' + s.puzzle.label + '。' +
+        (rest.length > 1 ? '另外还有 ' + (rest.length - 1) + ' 处。' : ''), '');
 }
 
 /* ---------- 看答案 / 重来 ---------- */
@@ -679,21 +709,18 @@ function reveal() {
     s.over = true;
     s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
 
-    if (s.mode === 'shape') {
-        const list = s.puzzle.answers.slice(0, 6);
-        list.forEach(function (k) { s.marks.push({ k: k, kind: 'ans' }); });
-        const extra = s.puzzle.answers.length > list.length
-            ? '等 ' + s.puzzle.answers.length + ' 处' : '';
-        say('这盘能做出' + s.puzzle.label + '的有 ' + s.puzzle.answers.length + ' 处：' +
-            s.puzzle.answers.map(pname).join('、') + (extra ? '（图上圈出前 ' + list.length + ' 处）' : '') +
-            '。点「下一题」换一盘。', 'bad');
-        draw();
-        return;
-    }
+    const rest = s.answers.filter(k => !s.found.has(k));
+    rest.forEach(function (k) { s.marks.push({ k: k, kind: 'ans' }); });
+    const all = s.answers.map(pname).join('、');
 
-    s.marks.push({ k: s.puzzle.answer, kind: 'ans' });
-    say('答案在 ' + pname(s.puzzle.answer) + '，' + s.puzzle.label +
-        '禁手。点「下一题」换一盘。', 'bad');
+    if (s.mode === 'shape') {
+        say('这盘能做出' + s.puzzle.label + '的有 ' + s.need + ' 处：' + all +
+            '（红圈是还没找到的）。点「下一题」换一盘。', 'bad');
+    } else {
+        say((s.need > 1 ? s.need + ' 处禁手在：' : '答案在 ') + all +
+            (s.need > 1 ? '' : '，' + s.puzzle.label + '禁手') + '。点「下一题」换一盘。', 'bad');
+    }
+    stat();
     draw();
 }
 
@@ -706,6 +733,7 @@ function reset() {
     s.fx = null;
     s.over = false;
     s.cleared = false;
+    s.found = new Set();
     s.board = Int8Array.from(s.puzzle.board);
     say(s.mode === 'shape' ? '回到本题开局，重新点。' : '回到本题开局。', '');
     draw();

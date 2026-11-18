@@ -55,9 +55,9 @@ assets/
   words-cet4.js  words-renju.js   连珠英语词库（脚本生成）
   reading-articles.js 五子棋英语阅读文章与题目（脚本生成）
   english-app.js      连珠英语：账号、记忆排期、学习/复习/拼写/阅读/词表、进度备份
-  jinzhao-app.mjs     棋形判断与禁手找茬：出题、判点、答对动效（canvas 粒子）
-  jinzhao-gen.mjs     禁手找茬出题器（骨架 + 干扰子，复用 vcf-gen 的规则）
-  qixing-gen.mjs      棋形判断出题器（连五 / 活四 / 冲四 / 活三 / 眠三）
+  jinzhao-app.mjs     棋形判断与禁手找茬：出题、判点、找全判定、答对动效（canvas 粒子）
+  jinzhao-gen.mjs     禁手找茬出题器（骨架 + 干扰子，密集档摆两三处禁手，复用 vcf-gen 的规则）
+  qixing-gen.mjs      棋形判断出题器（连五 / 活四 / 冲四 / 活三 / 眠三，按档位收 1–5 处答案）
   engine/             Rapfi 引擎 wasm
   vendor/sqljs/       浏览器端 SQLite
   img/  audio/        配图与音乐

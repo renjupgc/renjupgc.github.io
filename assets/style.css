@@ -1054,7 +1054,8 @@ a.nt-item:focus-visible {
 
 .jz-stats {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    /* 「本题」那格要放得下「禁手×3」「冲四×4」，给它宽一点 */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr);
     gap: 8px;
     margin: 0 0 14px;
 }

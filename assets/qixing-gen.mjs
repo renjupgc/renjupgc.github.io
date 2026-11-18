@@ -7,8 +7,9 @@
  * 黑棋禁手同样复用 blackForbidden，与禁手找茬、VCF 做题同源。
  *
  * 流程：按目标棋形摆骨架（含堵头白子） → 验证「落子后的最高线型」正是所求
- *      → 全盘扫一遍，确认这样的点只有骨架那一处（不然题目有第二个答案）
- *      → 撒白子黑子当干扰，每撒一颗复验一次，破坏了就撤回。
+ *      → 全盘扫一遍，数出能做出这个棋形的所有点（活三、冲四天然不止一处）
+ *      → 不够本档要求的处数就再摆一处骨架，直到落进区间
+ *      → 撒白子黑子当干扰，每撒一颗复验一次，答案变了或跳出区间就撤回。
  */
 
 import { BLACK, WHITE, px, py } from './quintet-core.mjs';
@@ -24,13 +25,15 @@ const at = (x, y) => x * 15 + y;
 
 export const DIR_NAME = ['横线', '竖线', '撇捺斜线', '捺撇斜线'];
 
-/* 五种题型。rank 就是 vcf-gen 的线型码，题目与判定都按它比大小。 */
+/* 五种题型。rank 就是 vcf-gen 的线型码，题目与判定都按它比大小。
+   min 是这种棋形「最少也得找出几处」——活三、冲四这类，一串子两头都能补，
+   天然就不止一处，这不是题目出坏了，是棋形本身如此。 */
 export const SHAPES = [
-    { key: 'five', name: '连五', rank: FIVE, tip: '五子连成一线，直接赢棋。' },
-    { key: 'open4', name: '活四', rank: OPEN_FOUR, tip: '四子连成一线、两端都空，白棋堵哪头都漏。' },
-    { key: 'four', name: '冲四', rank: FOUR, tip: '四子只差一子成五，但只有一处能成五。' },
-    { key: 'open3', name: '活三', rank: OPEN_THREE, tip: '三子两端都空，再补一子就是活四。' },
-    { key: 'sleep3', name: '眠三', rank: SLEEP_THREE, tip: '三子被白子堵住一头，补一子只能成冲四。' }
+    { key: 'five', name: '连五', rank: FIVE, min: 1, tip: '五子连成一线，直接赢棋。' },
+    { key: 'open4', name: '活四', rank: OPEN_FOUR, min: 1, tip: '四子连成一线、两端都空，白棋堵哪头都漏。' },
+    { key: 'four', name: '冲四', rank: FOUR, min: 2, tip: '四子只差一子成五，但只有一处能成五。' },
+    { key: 'open3', name: '活三', rank: OPEN_THREE, min: 3, tip: '三子两端都空，再补一子就是活四。' },
+    { key: 'sleep3', name: '眠三', rank: SLEEP_THREE, min: 2, tip: '三子被白子堵住一头，补一子只能成冲四。' }
 ];
 
 const BY_RANK = new Map(SHAPES.map(s => [s.rank, s]));
@@ -127,9 +130,12 @@ export function answerPoints(bd, color, rank) {
     return out;
 }
 
-/* 盘上是否已经有连五点（除了答案那一处），有的话这盘棋早该结束了 */
-function strayFive(bd, color, answer) {
-    return fivePoints(bd, color).some(k => k !== answer);
+/* 盘上是否已经有连五点，有的话这盘棋早该结束了。
+   keep 是本该有的那些答案：连五题的答案本身就是一个连五点，不能算「早该结束」。 */
+function strayFive(bd, color, keep) {
+    const pts = fivePoints(bd, color);
+    if (!pts.length) { return false; }
+    return pts.some(k => !keep || keep.indexOf(k) < 0);
 }
 
 /* ---------- 骨架 ----------
@@ -176,7 +182,7 @@ function build(bd, x, y, d, sign, v) {
 }
 
 /* ---------- 干扰子 ---------- */
-function scatter(bd, x, y, color, count, rng, answer, rank, cap) {
+function scatter(bd, x, y, color, count, rng, answer, rank, lo, hi) {
     let placed = 0;
     for (let tries = 0; tries < count * 14 && placed < count; tries++) {
         const r = 1 + Math.floor(rng() * 4);
@@ -188,19 +194,50 @@ function scatter(bd, x, y, color, count, rng, answer, rank, cap) {
         bd[k] = color;
 
         let ok = !makesFive(bd, k, color);
-        if (ok) { ok = !strayFive(bd, color, answer); }
         if (ok) {
             const ev = evaluate(bd, answer, BLACK);
             ok = !!ev && ev.rank === rank && !ev.over && !ev.forbidden;
         }
         if (ok) {
-            /* 答案不能满地都是：撒完这一颗，能做出该棋形的点仍在可数的几处之内 */
-            const n = answerPoints(bd, BLACK, rank).length;
-            ok = n >= 1 && n <= cap;
+            /* 答案数要仍在本题该有的区间里：少了白送，多了点不完 */
+            const list = answerPoints(bd, BLACK, rank);
+            const n = list.length;
+            ok = n >= lo && n <= hi;
+            if (ok) { ok = !strayFive(bd, color, color === BLACK ? list : null); }
         }
         if (ok) { placed++; } else { bd[k] = 0; }
     }
     return placed;
+}
+
+/* 再摆一处骨架，把答案数往上抬。抬不动就撤回：新骨架要是贴着旧的摆，
+   两边会共用同一串子，答案数不增反减，那不算多出来一处。
+   返回新的答案数，摆不成返回 0。 */
+function addSkeleton(bd, shape, rng, hi, before) {
+    const list = VARIANTS[shape.key];
+    for (let t = 0; t < 14; t++) {
+        const x = 2 + Math.floor(rng() * 11);
+        const y = 2 + Math.floor(rng() * 11);
+        const k = at(x, y);
+        if (bd[k]) { continue; }
+        const d = Math.floor(rng() * 4);
+        const sign = rng() < 0.5 ? 1 : -1;
+        const v = list[Math.floor(rng() * list.length)];
+
+        const snap = bd.slice();
+        if (!build(bd, x, y, d, sign, v)) { bd.set(snap); continue; }
+        const ev = evaluate(bd, k, BLACK);
+        if (!ev || ev.rank !== shape.rank || ev.over || ev.forbidden) {
+            bd.set(snap);
+            continue;
+        }
+        const got = answerPoints(bd, BLACK, shape.rank);
+        const n = got.length;
+        if (n > hi || n <= before) { bd.set(snap); continue; }
+        if (strayFive(bd, BLACK, got) || strayFive(bd, WHITE, null)) { bd.set(snap); continue; }
+        return n;
+    }
+    return 0;
 }
 
 function attempt(o, rng) {
@@ -209,6 +246,10 @@ function attempt(o, rng) {
         : o.shape;
     const shape = BY_KEY.get(key);
     if (!shape) { return null; }
+
+    const den = o.density;
+    const band = bandOf(shape, den);
+    const lo = band[0], hi = band[1];
 
     const bd = new Int8Array(225);
     /* 骨架最长五个偏移，落点留出五格余量，四种方向都不会出界 */
@@ -224,20 +265,28 @@ function attempt(o, rng) {
 
     const ev = evaluate(bd, answer, BLACK);
     if (!ev || ev.rank !== shape.rank || ev.over || ev.forbidden) { return null; }
-    if (strayFive(bd, BLACK, answer) || strayFive(bd, WHITE, answer)) { return null; }
 
-    const den = o.density;
-    const cap = den.cap || 8;
-    if (answerPoints(bd, BLACK, shape.rank).length > cap) { return null; }
-    scatter(bd, x, y, WHITE, den.white, rng, answer, shape.rank, cap);
-    scatter(bd, x, y, BLACK, den.black, rng, answer, shape.rank, cap);
+    /* 骨架本身常常只给一两处答案，不够本档要求的就再摆一处 */
+    let n = answerPoints(bd, BLACK, shape.rank).length;
+    if (n > hi) { return null; }
+    if (strayFive(bd, BLACK, answerPoints(bd, BLACK, shape.rank)) ||
+        strayFive(bd, WHITE, null)) { return null; }
+    for (let t = 0; t < 4 && n < lo; t++) {
+        const m = addSkeleton(bd, shape, rng, hi, n);
+        if (!m) { return null; }
+        n = m;
+    }
+    if (n < lo) { return null; }
 
-    /* 终审：撒完子之后题面还得立得住 */
+    scatter(bd, x, y, WHITE, den.white, rng, answer, shape.rank, lo, hi);
+    scatter(bd, x, y, BLACK, den.black, rng, answer, shape.rank, lo, hi);
+
+    /* 终审：撒完子之后题面还得立得住，答案数也仍在区间里 */
     const fin = evaluate(bd, answer, BLACK);
     if (!fin || fin.rank !== shape.rank || fin.over || fin.forbidden) { return null; }
-    if (strayFive(bd, BLACK, answer) || strayFive(bd, WHITE, answer)) { return null; }
     const answers = answerPoints(bd, BLACK, shape.rank);
-    if (!answers.length || answers.length > cap) { return null; }
+    if (answers.length < lo || answers.length > hi) { return null; }
+    if (strayFive(bd, BLACK, answers) || strayFive(bd, WHITE, null)) { return null; }
     /* 摆骨架那一处排在最前：看答案先圈它，页面上的「答案」也指它 */
     const at0 = answers.indexOf(answer);
     if (at0 > 0) { answers.unshift(answers.splice(at0, 1)[0]); }
@@ -249,23 +298,31 @@ function attempt(o, rng) {
     return {
         board: bd,
         answer: answer,
+        answers: answers,
+        need: answers.length,
         shape: shape.key,
         label: shape.name,
         tip: shape.tip,
         dirs: fin.dirs,
-        answers: answers,
         black: stones,
         white: whites
     };
 }
 
 /* ---------- 对外 ---------- */
-/* cap 是「这一手不止一处」的上限：能做出该棋形的点超过这个数，题目就太水了 */
+/* add 是这一档在「该棋形最少几处」之上再加几处：
+   入门 0、常用 1、密集 2，区间取 [min+add, min+add+1]，最多 5 处
+   （再多就该满盘找了，手指比眼睛先累）。干扰子也随档位加密。 */
 export const DENSITY = {
-    easy: { white: 2, black: 1, cap: 3 },
-    normal: { white: 4, black: 3, cap: 5 },
-    hard: { white: 6, black: 5, cap: 8 }
+    easy: { white: 2, black: 1, add: 0 },
+    normal: { white: 4, black: 3, add: 1 },
+    hard: { white: 6, black: 5, add: 2 }
 };
+
+export function bandOf(shape, den) {
+    const lo = Math.min(shape.min + (den.add || 0), 5);
+    return [lo, Math.min(lo + 1, 5)];
+}
 
 export function* generateShapePuzzle(opts) {
     const o = {

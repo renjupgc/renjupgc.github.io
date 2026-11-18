@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>棋形判断与禁手找茬 - 连珠杂箱</title>
-<meta name="description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那一点，或者点出能做出连五、活四、冲四、活三、眠三的那一手。答对了棋子会弹上盘，金色碎屑炸开。">
+<meta name="description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那几点，或者找全能做出连五、活四、冲四、活三、眠三的那几手。点中一处金色碎屑炸开，全找齐才算过。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/zaji/jinzhao.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
 <meta property="og:title" content="棋形判断与禁手找茬">
-<meta property="og:description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那一点，或者点出能做出连五、活四、冲四、活三、眠三的那一手。答对了棋子会弹上盘，金色碎屑炸开。">
+<meta property="og:description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那几点，或者找全能做出连五、活四、冲四、活三、眠三的那几手。点中一处金色碎屑炸开，全找齐才算过。">
 <meta property="og:url" content="https://renjupgc.github.io/zaji/jinzhao.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="棋形判断与禁手找茬">
-<meta name="twitter:description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那一点，或者点出能做出连五、活四、冲四、活三、眠三的那一手。答对了棋子会弹上盘，金色碎屑炸开。">
+<meta name="twitter:description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那几点，或者找全能做出连五、活四、冲四、活三、眠三的那几手。点中一处金色碎屑炸开，全找齐才算过。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
@@ -34,7 +34,7 @@
         <header class="page-head">
             <p class="eyebrow">杂技</p>
             <h1 class="page-title">棋形判断与禁手找茬</h1>
-            <p class="page-desc">同一块盘，两种读法：一种问「哪一点黑棋不能走」，一种问「哪一手能做出这个棋形」。答对了棋子会自己弹上盘。</p>
+            <p class="page-desc">同一块盘，两种读法：一种问「哪几点黑棋不能走」，一种问「哪几手能做出这个棋形」。都要全找出来才算过，点中一处就有碎屑炸开。</p>
         </header>
 
         <div class="jz-tabs" role="tablist" aria-label="玩法">
@@ -56,11 +56,11 @@
 
             <aside class="jz-side">
                 <label class="jz-level">
-                    <span>局面</span>
+                    <span>难度</span>
                     <select id="jz-level">
-                        <option value="0">入门（子少，一眼能看出来）</option>
+                        <option value="0">入门（子少）</option>
                         <option value="1" selected>常用（有干扰子）</option>
-                        <option value="2">密集（干扰子多，最费眼）</option>
+                        <option value="2">密集（子最多，要全找齐）</option>
                     </select>
                 </label>
 
@@ -100,6 +100,7 @@
                     <p><b>四四</b>：落子之后同时出现两个四（两根线都只差一子成五）。冲四加活三的「四三」是合法的，这正是最容易看错的地方。</p>
                     <p><b>长连</b>：黑棋连成六子以上。注意连成五子黑棋就赢了，所以长连的题面都是两串分开的子，中间落下才连过头。</p>
                     <p>另外，黑棋成五优先于禁手：落子直接成五的那一手，即使同时带出三三，也按赢算。</p>
+                    <p><b>难题里一盘可能有两三处禁手</b>：不是只有一处，得一处一处找出来，全找齐才算过。点中一处只说明这一处成立，别以为就完了。</p>
                 </details>
 
                 <details class="jz-help" id="jz-help-shape" hidden>
@@ -109,13 +110,14 @@
                     <p><b>冲四</b>：四子只差一子成五，但只有一处能成五——另一头被白子封死了，白棋跟着挡掉就没事。</p>
                     <p><b>活三</b>：三子两端都空，再补一子就是活四。被白子堵住一头就降成眠三。</p>
                     <p><b>眠三</b>：三子被堵住一头，补一子只能成冲四，威胁小得多。</p>
-                    <p>两点说明：一手可能同时让几个方向成型，页面按<b>最高那一档</b>算，比如同时成冲四和活二，就算冲四；黑棋的三三、四四是禁手，那一手不算能做出棋形。而活三、活四这类棋形天然不止一处能做成，所以点中<b>任何</b>一处都算对，看答案时会把它们一起圈出来。</p>
+                    <p>两点说明：一手可能同时让几个方向成型，页面按<b>最高那一档</b>算，比如同时成冲四和活二，就算冲四；黑棋的三三、四四是禁手，那一手不算能做出棋形。</p>
+                    <p><b>要全找出来才算过。</b>活三、冲四这类棋形天然不止一处能做成——一串三子，两头都能再补一子成四，那两头都是答案。盘上能做出这个棋形的地方有几处，题目就有几处，点齐了才算答对；盘下的「找到 2/3」会跟着走。</p>
                 </details>
 
                 <details class="jz-help" id="jz-help-src">
                     <summary>题目是怎么来的</summary>
-                    <p>禁手题先按类型搭骨架：两根线各摆两颗子，落下就成双活三；或者各摆三颗，落下成双四；长连则是两侧各一串，中间落下连成六。骨架摆好，全盘扫一遍禁手点，只有骨架那一个才算数。接着撒白子当干扰——白子会把活三压成眠三，也会把某一根线堵废，看着像禁手的位置就多起来了。</p>
-                    <p>棋形题反过来：先按目标棋形摆一串黑子，该堵的头用白子堵上，再验「落子后的最高线型」正是题目要的那一档；然后撒白子黑子把局面填得像真对局，每撒一颗都复验一次，一旦把答案改掉、或者让盘上到处都能做出这个棋形，就撤回这一颗。</p>
+                    <p>禁手题先按类型搭骨架：两根线各摆两颗子，落下就成双活三；或者各摆三颗，落下成双四；长连则是两侧各一串，中间落下连成六。摆好一处就全盘扫一遍，确认盘上只多出这一个禁手点；密集档再摆第二、第三处，每摆一处都要重新扫一遍，别让两处互相借子。接着撒白子当干扰——白子会把活三压成眠三，也会把某一根线堵废，看着像禁手的位置就多起来了。</p>
+                    <p>棋形题反过来：先按目标棋形摆一串黑子，该堵的头用白子堵上，再验「落子后的最高线型」正是题目要的那一档；一处不够本档要求的处数，就再摆一处，直到答案数落进这一档的区间。然后撒白子黑子把局面填得像真对局，每撒一颗都复验一次，一旦把答案改掉、或者答案数跳出区间，就撤回这一颗。</p>
                     <p>判定用的是和 VCF 做题同一套代码：线型一律表述成「再填一子会变成什么」，活三 / 活四都是递归算出来的，没有手写的棋型表。</p>
                 </details>
             </aside>
