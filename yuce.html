@@ -336,7 +336,7 @@
                 手顺同步显示在下方文本框，坐标用 <code>a–o</code> 表示列、<code>1–15</code> 表示行，也可直接在框中编辑。
                 假先（tentative first）与假后（tentative second）可填棋手姓名或站内编号；中文名也能识别，返回结果中的姓名为英文标准名。
                 “假先当前执色”指开局摆子结束后谁执白、谁执黑，决定模型从哪一方视角计算胜率。
-                预测结果由 <code>renjuonline.top</code> 的神经网络接口实时返回，本页只负责展示；结果棋盘中金色虚线圈为模型最可能的下一手，胜平负数值为模型估计，不构成对局结论。
+                预测结果由 <code>renjuonline.top</code> 的神经网络接口实时返回，本页只负责展示；结果棋盘在每个候选空点上标注该走法的概率，金色实心并带虚线圈者为模型最可能的下一手。概率与胜平负数值均为模型估计，不构成对局结论。
                 参数会写进网址，方便把这一盘预测直接发给棋友。
             </p>
         </section>
@@ -531,7 +531,7 @@
         return { x: PAD + c * STEP, y: PAD + r * STEP };
     }
 
-    function drawBoard(svgId, moves, suggest, interactive) {
+    function drawBoard(svgId, moves, suggest, interactive, probs) {
         var svg = $(svgId);
         if (!svg) { return; }
         var pad = PAD, step = STEP;
@@ -566,11 +566,24 @@
             s += '<circle cx="' + pt.x + '" cy="' + pt.y + '" r="' + (step * 0.46) + '" fill="' + (black ? '#1e1b16' : '#fffdf7') + '" stroke="#4a3a22" stroke-width="1.2"/>';
             s += '<text x="' + pt.x + '" y="' + (pt.y + 4.5) + '" font-size="12" font-family="monospace" font-weight="bold" fill="' + (black ? '#fffdf7' : '#1e1b16') + '" text-anchor="middle">' + (idx + 1) + '</text>';
         });
-        // 推荐下一手：金色虚线圈
+        // 候选下一手：在对应点位标注走法概率
+        var used = {};
+        moves.forEach(function (m) { used[m] = true; });
+        (probs || []).forEach(function (x) {
+            if (!x || used[x.move]) { return; }
+            var pp = coordToXY(x.move);
+            if (!pp) { return; }
+            var isTop = (x.move === suggest);
+            var label = (Number(x.prob) * 100).toFixed(1) + '%';
+            var badgeR = step * 0.5;
+            s += '<circle cx="' + pp.x + '" cy="' + pp.y + '" r="' + badgeR + '" fill="' + (isTop ? '#b8862b' : '#fffdf7') + '" fill-opacity="0.95" stroke="' + (isTop ? '#7a5a1e' : '#b8862b') + '" stroke-width="' + (isTop ? 2.2 : 1.4) + '"/>';
+            s += '<text x="' + pp.x + '" y="' + (pp.y + 3.5) + '" font-size="10.5" font-family="monospace" font-weight="bold" fill="' + (isTop ? '#fffdf7' : '#6b4f2a') + '" text-anchor="middle">' + label + '</text>';
+        });
+        // 推荐下一手：金色虚线圈（画在概率徽章外）
         if (suggest && /^[a-o]([1-9]|1[0-5])$/.test(suggest)) {
             var pt2 = coordToXY(suggest);
             if (pt2) {
-                s += '<circle cx="' + pt2.x + '" cy="' + pt2.y + '" r="' + (step * 0.52) + '" fill="none" stroke="#b8862b" stroke-width="3" stroke-dasharray="6 4"/>';
+                s += '<circle cx="' + pt2.x + '" cy="' + pt2.y + '" r="' + (step * 0.66) + '" fill="none" stroke="#b8862b" stroke-width="2.6" stroke-dasharray="6 4"/>';
             }
         }
         // 输入棋盘：透明点击热区 + 落子预览圈
@@ -584,8 +597,8 @@
         }
         svg.innerHTML = s;
         if (svgId === 'pred-board') {
-            var cap = '黑第 1、3、5…手，白第 2、4、6…手；端点数字为手顺。';
-            if (suggest) { cap += ' 金色虚线圈为模型最可能的下一手 ' + suggest + '。'; }
+            var cap = '黑第 1、3、5…手，白第 2、4、6…手；子上数字为手顺。';
+            if (probs && probs.length) { cap += ' 空点上标注模型给出的该走法概率，金色实心为最可能的下一手。'; }
             $('pred-board-cap').textContent = cap;
         }
     }
@@ -631,7 +644,7 @@
         var val = data.value || {};
         var moves = getMoves();
         var policy = data.policy_top_moves || [];
-        drawBoard('pred-board', moves, policy.length ? policy[0].move : '', false);
+        drawBoard('pred-board', moves, policy.length ? policy[0].move : '', false, policy);
         var meta = [
             ['日期', data.timestamp],
             ['规则', rule.name],
