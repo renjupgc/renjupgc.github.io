@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>完全预测 - 连珠杂箱</title>
+<meta name="description" content="按日期、规则、对局双方与手顺，调用连珠神经网络预测下一手分布与胜平负概率。">
+<!-- zbx:seo -->
+<link rel="canonical" href="https://renjupgc.github.io/yuce.html">
+<meta property="og:site_name" content="连珠杂箱">
+<meta property="og:type" content="website">
+<meta property="og:title" content="完全预测">
+<meta property="og:description" content="按日期、规则、对局双方与手顺，调用连珠神经网络预测下一手分布与胜平负概率。">
+<meta property="og:url" content="https://renjupgc.github.io/yuce.html">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="完全预测">
+<meta name="twitter:description" content="按日期、规则、对局双方与手顺，调用连珠神经网络预测下一手分布与胜平负概率。">
+<meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<!-- /zbx:seo -->
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+/* 完全预测 —— 仅本页使用的表单与结果样式 */
+.pred-form {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 26px 28px 22px;
+    box-shadow: var(--shadow-sm);
+}
+.pred-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 20px;
+}
+.pred-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pred-field.wide { grid-column: 1 / -1; }
+.pred-field > span {
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: .06em;
+    color: var(--muted);
+}
+.pred-field input,
+.pred-field select {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    font-family: var(--sans);
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    outline: none;
+    transition: border-color .18s ease, background .18s ease;
+}
+.pred-field input:focus,
+.pred-field select:focus {
+    border-color: var(--gold);
+    background: var(--surface);
+}
+.pred-mono { font-family: var(--mono) !important; letter-spacing: .04em; }
+.pred-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 22px;
+}
+.pred-btn {
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 9px 18px;
+    color: var(--gold-deep);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .18s ease;
+}
+.pred-btn:hover { border-color: var(--gold); color: var(--gold-deep); background: var(--gold-tint); }
+.pred-btn.is-primary { background: var(--gold-deep); border-color: var(--gold-deep); color: #fffdf7; }
+.pred-btn.is-primary:hover { background: #6f5530; }
+.pred-btn:disabled { opacity: .55; cursor: wait; }
+.pred-state { font-family: var(--sans); font-size: 12px; color: var(--muted); }
+.pred-state.is-busy { color: var(--gold-deep); }
+.pred-error {
+    margin-top: 18px;
+    padding: 14px 18px;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--win);
+    background: #fbefec;
+    border: 1px solid #e8c9c4;
+    border-radius: 10px;
+}
+.pred-result { margin-top: 26px; }
+.pred-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 22px;
+}
+.pred-meta div {
+    padding: 12px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+}
+.pred-meta b {
+    display: block;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: .05em;
+    color: var(--muted);
+    font-weight: 500;
+}
+.pred-meta span { font-family: var(--mono); font-size: 15px; color: var(--ink); }
+.pred-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.pred-player {
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+.pred-player .pred-role {
+    font-family: var(--sans); font-size: 11px; letter-spacing: .08em; color: var(--gold-deep);
+}
+.pred-player h3 { margin: 4px 0 8px; font-size: 20px; line-height: 1.4; }
+.pred-player p { margin: 0; font-family: var(--sans); font-size: 13px; color: var(--muted); }
+.pred-bars h2 { margin-top: 4px; }
+.pred-row {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr) 62px;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 9px;
+    font-family: var(--sans);
+    font-size: 13px;
+}
+.pred-row .pred-label { font-family: var(--mono); color: var(--ink); font-size: 14px; }
+.pred-track { height: 9px; background: var(--paper-deep); border-radius: 99px; overflow: hidden; }
+.pred-fill { height: 100%; background: var(--gold); border-radius: 99px; transition: width .45s ease; }
+.pred-row .pred-num { text-align: right; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pred-fill.is-win { background: var(--win); }
+.pred-fill.is-draw { background: var(--draw); }
+.pred-fill.is-loss { background: var(--loss); }
+.pred-raw { margin-top: 26px; font-family: var(--sans); font-size: 14px; }
+.pred-raw summary { cursor: pointer; color: var(--gold-deep); }
+.pred-raw pre {
+    overflow: auto;
+    max-height: 420px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+.pred-note {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.8;
+}
+.pred-note code { font-family: var(--mono); background: var(--paper-deep); padding: 1px 5px; border-radius: 4px; }
+@media (max-width: 620px) {
+    .pred-form { padding: 20px 18px; }
+    .pred-grid, .pred-duo { grid-template-columns: 1fr; }
+    .pred-row { grid-template-columns: 62px minmax(0, 1fr) 54px; gap: 8px; }
+}
+</style>
+</head>
+
+<body data-nav="完全预测">
+
+<div class="container">
+
+    <div id="site-header"></div>
+
+    <main>
+
+        <header class="page-head">
+            <p class="eyebrow">杂技 · 工具</p>
+            <h1 class="page-title">完全预测</h1>
+            <p class="page-desc">给出日期、规则、对局双方与已有手顺，让神经网络给出下一手的概率分布，以及双方的胜平负预期。</p>
+        </header>
+
+        <section>
+            <form class="pred-form" id="pred-form" autocomplete="off">
+                <div class="pred-grid">
+                    <label class="pred-field">
+                        <span>比赛日期 time</span>
+                        <input type="date" id="pred-time" value="2026-11-17" required>
+                    </label>
+                    <label class="pred-field">
+                        <span>规则 rule</span>
+                        <select id="pred-rule">
+                            <option value="Taraguchi-10" selected>Taraguchi-10</option>
+                            <option value="Taraguchi">Taraguchi</option>
+                            <option value="Yamaguchi">Yamaguchi</option>
+                            <option value="Soosyrv-10">Soosyrv-10</option>
+                            <option value="Sakata">Sakata</option>
+                        </select>
+                    </label>
+                    <label class="pred-field">
+                        <span>先手候选 tf（姓名或编号）</span>
+                        <input id="pred-tf" list="pred-players" value="Ando Meritee" placeholder="如 Ando Meritee 或 6573" required>
+                    </label>
+                    <label class="pred-field">
+                        <span>后手候选 ts（姓名或编号）</span>
+                        <input id="pred-ts" list="pred-players" value="2" placeholder="如 王鑫宇 或 6731" required>
+                    </label>
+                    <label class="pred-field wide">
+                        <span>已有手顺 moves（空格分隔，a–o / 1–15）</span>
+                        <input class="pred-mono" id="pred-moves" value="h8 i9 i8" placeholder="如 h8 i9 j7" required>
+                    </label>
+                    <label class="pred-field">
+                        <span>先手当前执色 tf_color</span>
+                        <select id="pred-color">
+                            <option value="white" selected>白</option>
+                            <option value="black">黑</option>
+                        </select>
+                    </label>
+                </div>
+                <datalist id="pred-players"></datalist>
+
+                <div class="pred-actions">
+                    <button class="pred-btn is-primary" type="submit" id="pred-submit">开始预测</button>
+                    <button class="pred-btn" type="button" id="pred-demo1">示例一</button>
+                    <button class="pred-btn" type="button" id="pred-demo2">示例二（中文名）</button>
+                    <span class="pred-state" id="pred-state"></span>
+                </div>
+            </form>
+
+            <div class="pred-error" id="pred-error" hidden></div>
+
+            <div class="pred-result" id="pred-result" hidden>
+                <div class="pred-meta" id="pred-meta"></div>
+                <div class="pred-duo" id="pred-players-cards"></div>
+                <div class="pred-bars">
+                    <h2>下一手分布</h2>
+                    <div id="pred-policy"></div>
+                    <h2>胜平负预期</h2>
+                    <div id="pred-value"></div>
+                </div>
+            </div>
+
+            <details class="pred-raw" id="pred-raw" hidden>
+                <summary>查看原始 JSON</summary>
+                <pre id="pred-json"></pre>
+                <button class="pred-btn" type="button" id="pred-copy" style="margin-top:10px">复制 JSON</button>
+            </details>
+        </section>
+
+        <section>
+            <h2>使用说明</h2>
+            <p class="pred-note">
+                手顺按行棋先后填写，坐标用 <code>a–o</code> 表示列、<code>1–15</code> 表示行，例如 <code>h8 i9 i8</code>。
+                先手候选与后手候选可填棋手姓名或站内编号；中文名也能识别，返回结果中的姓名为英文标准名。
+                “先手当前执色”指游戏中由谁先摆三手，决定模型从哪一方视角计算胜率。
+                预测结果由 <code>renjuonline.top</code> 的神经网络接口实时返回，本页只负责展示；胜平负数值为模型估计，不构成对局结论。
+                参数会写进网址，方便把这一盘预测直接发给棋友。
+            </p>
+        </section>
+
+    </main>
+
+</div>
+
+<script src="assets/layout.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    var API = 'https://renjuonline.top';
+    var ENDPOINTS = [
+        function (url) { return 'https://r.jina.ai/' + url; },            // 静态站点主通道：带 CORS 的只读代理
+        function (url) { return url; },                                   // 接口若已开放跨域则直连
+        function (url) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url); }
+    ];
+    var $ = function (id) { return document.getElementById(id); };
+
+    function buildUrl(path, params) {
+        var q = new URLSearchParams();
+        Object.keys(params || {}).forEach(function (k) {
+            if (params[k] !== '' && params[k] !== null && params[k] !== undefined) {
+                q.append(k, params[k]);
+            }
+        });
+        return API + path + '?' + q.toString();
+    }
+
+    function parseJson(text) {
+        try { return JSON.parse(text); } catch (e) { /* 代理可能包一层文本说明 */ }
+        var ob = text.indexOf('{'), ab = text.indexOf('[');
+        var start = ob < 0 ? ab : (ab < 0 ? ob : Math.min(ob, ab));
+        var cb = text.lastIndexOf('}'), ab2 = text.lastIndexOf(']');
+        var end = Math.max(cb, ab2);
+        if (start >= 0 && end > start) {
+            try { return JSON.parse(text.slice(start, end + 1)); } catch (e2) { /* 继续报错 */ }
+        }
+        throw new Error('返回内容不是有效 JSON');
+    }
+
+    function fetchViaProxy(url) {
+        var lastErr;
+        function attempt(i) {
+            if (i >= ENDPOINTS.length) {
+                return Promise.reject(lastErr || new Error('接口不可用'));
+            }
+            var ctrl = new AbortController();
+            var timer = setTimeout(function () { ctrl.abort(); }, 20000);
+            return fetch(ENDPOINTS[i](url), { signal: ctrl.signal, cache: 'no-store' })
+                .then(function (r) {
+                    if (!r.ok) { throw new Error('HTTP ' + r.status); }
+                    return r.text();
+                })
+                .then(function (text) {
+                    clearTimeout(timer);
+                    var data = parseJson(text);
+                    if (data && data.detail) { throw new Error(JSON.stringify(data.detail)); }
+                    return data;
+                })
+                .catch(function (e) {
+                    clearTimeout(timer);
+                    lastErr = e;
+                    return attempt(i + 1);
+                });
+        }
+        return attempt(0);
+    }
+
+    function esc(s) {
+        return String(s === null || s === undefined ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function pct(x) {
+        var n = Number(x || 0);
+        return (n * 100).toFixed(1) + '%';
+    }
+
+    function setState(text, busy) {
+        var el = $('pred-state');
+        el.textContent = text || '';
+        el.className = 'pred-state' + (busy ? ' is-busy' : '');
+    }
+
+    function showError(msg) {
+        var box = $('pred-error');
+        box.textContent = msg;
+        box.hidden = false;
+        $('pred-result').hidden = true;
+        $('pred-raw').hidden = true;
+    }
+
+    function loadRules() {
+        fetchViaProxy(buildUrl('/rules', {})).then(function (list) {
+            if (!Array.isArray(list) || !list.length) { return; }
+            var sel = $('pred-rule');
+            var current = sel.value;
+            sel.innerHTML = '';
+            list.forEach(function (r) {
+                var op = document.createElement('option');
+                op.value = r.name;
+                op.textContent = r.name;
+                sel.appendChild(op);
+            });
+            if (list.some(function (r) { return r.name === current; })) { sel.value = current; }
+        }).catch(function () { /* 保留内置规则选项 */ });
+    }
+
+    var playerTimer;
+    function searchPlayers(q) {
+        clearTimeout(playerTimer);
+        if (!q || q.length < 1) { return; }
+        playerTimer = setTimeout(function () {
+            fetchViaProxy(buildUrl('/players', { q: q })).then(function (list) {
+                if (!Array.isArray(list)) { return; }
+                var dl = $('pred-players');
+                dl.innerHTML = '';
+                list.slice(0, 40).forEach(function (p) {
+                    var op = document.createElement('option');
+                    op.value = p.name;
+                    op.label = (p.disp_id || p.id) + (p.country === '5' ? ' · 中国' : '');
+                    dl.appendChild(op);
+                });
+            }).catch(function () { /* 搜索失败不影响手填 */ });
+        }, 260);
+    }
+
+    function paramsFromForm() {
+        return {
+            time: $('pred-time').value.trim(),
+            rule: $('pred-rule').value.trim(),
+            tf: $('pred-tf').value.trim(),
+            ts: $('pred-ts').value.trim(),
+            moves: $('pred-moves').value.trim(),
+            tf_color: $('pred-color').value
+        };
+    }
+
+    function validate(p) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(p.time)) { return '请填写正确的日期（YYYY-MM-DD）。'; }
+        if (!p.tf || !p.ts) { return '请填写对局双方。'; }
+        var mv = p.moves.split(/\s+/).filter(Boolean);
+        if (!mv.length) { return '请填写已有手顺。'; }
+        for (var i = 0; i < mv.length; i++) {
+            if (!/^[a-o]([1-9]|1[0-5])$/.test(mv[i])) {
+                return '手顺格式有误：“' + mv[i] + '”。应使用 a–o 列、1–15 行，如 h8。';
+            }
+        }
+        return null;
+    }
+
+    function fillFromUrl() {
+        var q = new URLSearchParams(location.search);
+        if (!q.toString()) { return false; }
+        var map = {
+            time: 'pred-time', rule: 'pred-rule', tf: 'pred-tf',
+            ts: 'pred-ts', moves: 'pred-moves', tf_color: 'pred-color'
+        };
+        Object.keys(map).forEach(function (k) {
+            if (q.has(k)) { $(map[k]).value = q.get(k); }
+        });
+        return true;
+    }
+
+    function syncUrl(p) {
+        var q = new URLSearchParams();
+        Object.keys(p).forEach(function (k) { q.set(k, p[k]); });
+        history.replaceState(null, '', location.pathname + '?' + q.toString());
+    }
+
+    function render(data) {
+        var rule = data.rule || {};
+        var tf = data.tentative_first || {};
+        var ts = data.tentative_second || {};
+        var val = data.value || {};
+        var meta = [
+            ['日期', data.timestamp],
+            ['规则', rule.name],
+            ['手数', data.move_count],
+            ['下一手', data.next_to_move],
+            ['先手执色', data.tf_current_color]
+        ];
+        $('pred-meta').innerHTML = meta.map(function (m) {
+            return '<div><b>' + esc(m[0]) + '</b><span>' + esc(m[1]) + '</span></div>';
+        }).join('');
+
+        $('pred-players-cards').innerHTML =
+            '<article class="pred-player">' +
+            '<div class="pred-role">先手候选 · TENTATIVE FIRST</div>' +
+            '<h3>' + esc(tf.name) + '</h3>' +
+            '<p>编号 ' + esc(tf.id) + ' · 等级分 ' + esc(tf.rating) + ' · RD ' + esc(tf.rd) + '</p>' +
+            '</article>' +
+            '<article class="pred-player">' +
+            '<div class="pred-role">后手候选 · TENTATIVE SECOND</div>' +
+            '<h3>' + esc(ts.name) + '</h3>' +
+            '<p>编号 ' + esc(ts.id) + ' · 等级分 ' + esc(ts.rating) + ' · RD ' + esc(ts.rd) + '</p>' +
+            '</article>';
+
+        var policy = data.policy_top_moves || [];
+        var maxProb = policy.reduce(function (m, x) { return Math.max(m, Number(x.prob) || 0); }, 0) || 1;
+        $('pred-policy').innerHTML = policy.map(function (x) {
+            var w = Math.max(2, (Number(x.prob) || 0) / maxProb * 100);
+            return '<div class="pred-row"><span class="pred-label">' + esc(x.move) + '</span>' +
+                '<span class="pred-track"><span class="pred-fill" style="display:block;width:' + w + '%"></span></span>' +
+                '<span class="pred-num">' + pct(x.prob) + '</span></div>';
+        }).join('') || '<p class="pred-note">接口未返回候选着法。</p>';
+
+        var valueRows = [
+            ['先手胜', val.tf_win, 'is-win'],
+            ['和棋', val.draw, 'is-draw'],
+            ['后手胜', val.ts_win, 'is-loss']
+        ];
+        $('pred-value').innerHTML = valueRows.map(function (r) {
+            var w = Math.max(2, (Number(r[1]) || 0) * 100);
+            return '<div class="pred-row"><span class="pred-label">' + r[0] + '</span>' +
+                '<span class="pred-track"><span class="pred-fill ' + r[2] + '" style="display:block;width:' + w + '%"></span></span>' +
+                '<span class="pred-num">' + pct(r[1]) + '</span></div>';
+        }).join('');
+
+        $('pred-json').textContent = JSON.stringify(data, null, 2);
+        $('pred-result').hidden = false;
+        $('pred-raw').hidden = false;
+    }
+
+    function run() {
+        var p = paramsFromForm();
+        var err = validate(p);
+        if (err) { showError(err); return; }
+        $('pred-error').hidden = true;
+        setState('正在调用预测接口…', true);
+        $('pred-submit').disabled = true;
+
+        syncUrl(p);
+        fetchViaProxy(buildUrl('/predict_board', p)).then(function (data) {
+            render(data);
+            setState('预测完成', false);
+        }).catch(function (e) {
+            showError('预测失败：' + (e && e.message ? e.message : e) + '。请检查网络后重试。');
+            setState('', false);
+        }).then(function () {
+            $('pred-submit').disabled = false;
+        });
+    }
+
+    $('pred-form').addEventListener('submit', function (e) { e.preventDefault(); run(); });
+    $('pred-demo1').addEventListener('click', function () {
+        $('pred-time').value = '2026-11-17';
+        $('pred-rule').value = 'Taraguchi-10';
+        $('pred-tf').value = 'Ando Meritee';
+        $('pred-ts').value = '2';
+        $('pred-moves').value = 'h8 i9 i8';
+        $('pred-color').value = 'white';
+        run();
+    });
+    $('pred-demo2').addEventListener('click', function () {
+        $('pred-time').value = '2026-11-17';
+        $('pred-rule').value = 'Taraguchi-10';
+        $('pred-tf').value = '药博凡';
+        $('pred-ts').value = '王鑫宇';
+        $('pred-moves').value = 'h8 i9 j7';
+        $('pred-color').value = 'white';
+        run();
+    });
+    $('pred-copy').addEventListener('click', function () {
+        var text = $('pred-json').textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+                $('pred-copy').textContent = '已复制 ✓';
+                setTimeout(function () { $('pred-copy').textContent = '复制 JSON'; }, 1800);
+            });
+        }
+    });
+    ['pred-tf', 'pred-ts'].forEach(function (id) {
+        $(id).addEventListener('input', function () { searchPlayers(this.value.trim()); });
+    });
+
+    loadRules();
+    var hasUrl = fillFromUrl();
+    if (hasUrl) {
+        run();
+    } else {
+        run();   // 默认填入示例参数，打开页面即展示一次预测
+    }
+})();
+</script>
+
+</body>
+</html>
