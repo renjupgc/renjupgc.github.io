@@ -587,15 +587,48 @@
 
     function setupInputBoard() {
         var svg = $('pred-input-board');
-        svg.addEventListener('click', function (e) {
+        var pending = null;
+        var clickDelay = 260;
+
+        function hitCoord(e) {
             var t = e.target.closest ? e.target.closest('.bd-hit') : null;
-            if (!t) { return; }
-            var c = Number(t.getAttribute('data-c')), r = Number(t.getAttribute('data-r'));
-            var coord = LETTERS[c] + (15 - r);
+            if (!t) { return null; }
+            return LETTERS[Number(t.getAttribute('data-c'))] + (15 - Number(t.getAttribute('data-r')));
+        }
+
+        function singleClick(coord) {
+            var mv = getMoves();
+            if (mv.indexOf(coord) < 0) { mv.push(coord); setMoves(mv); }
+        }
+
+        function doubleClick(coord) {
             var mv = getMoves();
             var idx = mv.indexOf(coord);
-            if (idx >= 0) { mv = mv.slice(0, idx); } else { mv.push(coord); }
-            setMoves(mv);
+            if (idx >= 0) { setMoves(mv.slice(0, idx + 1)); }
+        }
+
+        svg.addEventListener('click', function (e) {
+            var coord = hitCoord(e);
+            if (!coord) { return; }
+            // 同一坐标的第二次点击 → 双击，取消待执行的单击
+            if (pending && pending.coord === coord) {
+                clearTimeout(pending.timer);
+                pending = null;
+                doubleClick(coord);
+                return;
+            }
+            // 不同坐标的快速连点：先兑现上一次单击
+            if (pending) {
+                clearTimeout(pending.timer);
+                var prev = pending.coord;
+                pending = null;
+                singleClick(prev);
+            }
+            var p = { coord: coord, timer: null };
+            p.timer = setTimeout(function () {
+                if (pending === p) { pending = null; singleClick(coord); }
+            }, clickDelay);
+            pending = p;
         });
         svg.addEventListener('mousemove', function (e) {
             var h = $('pred-hover');
