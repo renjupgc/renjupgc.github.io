@@ -3,25 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>完全预测 - 连珠杂箱</title>
-<meta name="description" content="按日期、规则、对局双方与手顺，调用连珠神经网络预测下一手分布与胜平负概率。">
+<title>胜率与落子预测 - 连珠杂箱</title>
+<meta name="description" content="胜率预测按等级分、交手记录与战绩推算胜平负与赔率；落子预测按日期、规则、双方与手顺，用神经网络给出下一手分布与胜平负。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/yuce.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
-<meta property="og:title" content="完全预测">
-<meta property="og:description" content="按日期、规则、对局双方与手顺，调用连珠神经网络预测下一手分布与胜平负概率。">
+<meta property="og:title" content="胜率与落子预测">
+<meta property="og:description" content="胜率预测按等级分、交手记录与战绩推算胜平负与赔率；落子预测按日期、规则、双方与手顺，用神经网络给出下一手分布与胜平负。">
 <meta property="og:url" content="https://renjupgc.github.io/yuce.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="完全预测">
-<meta name="twitter:description" content="按日期、规则、对局双方与手顺，调用连珠神经网络预测下一手分布与胜平负概率。">
+<meta name="twitter:title" content="胜率与落子预测">
+<meta name="twitter:description" content="胜率预测按等级分、交手记录与战绩推算胜平负与赔率；落子预测按日期、规则、双方与手顺，用神经网络给出下一手分布与胜平负。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
 <link rel="stylesheet" href="assets/style.css">
 <style>
+/* 胜率与落子预测 —— 页内切换 */
+.pc-tabs {
+    display: inline-flex;
+    gap: 4px;
+    margin: 0 0 20px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .6);
+}
+.pc-tab {
+    padding: 8px 18px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: .04em;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background-color .18s ease, color .18s ease;
+}
+.pc-tab:hover { color: var(--gold-deep); }
+.pc-tab.is-on {
+    color: var(--gold-deep);
+    background: var(--gold-tint);
+    box-shadow: inset 0 0 0 1px rgba(176, 141, 87, .32);
+}
+.pc-pane[hidden] { display: none !important; }
+.pc-hint {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.8;
+    margin: 0 0 18px;
+}
 /* 完全预测 —— 仅本页使用的表单与结果样式 */
 .pred-form {
     background: var(--surface);
@@ -233,7 +269,7 @@
 </style>
 </head>
 
-<body data-nav="完全预测">
+<body data-nav="杂技">
 
 <div class="container">
 
@@ -242,10 +278,43 @@
     <main>
 
         <header class="page-head">
-            <h1 class="page-title">完全预测</h1>
+            <p class="eyebrow">杂技</p>
+            <h1 class="page-title">胜率与落子预测</h1>
+            <p class="page-desc">胜率预测按等级分、交手记录与各自战绩推算两位棋手的胜平负与赔率；落子预测按日期、规则、双方与手顺，用神经网络给出下一手概率分布与胜平负。</p>
         </header>
 
-        <section>
+        <div class="pc-tabs" role="tablist" aria-label="预测方式">
+            <button type="button" class="pc-tab is-on" data-pane="rate" role="tab" aria-selected="true">胜率预测</button>
+            <button type="button" class="pc-tab" data-pane="move" role="tab" aria-selected="false">落子预测</button>
+        </div>
+
+        <section class="pc-pane" id="pc-rate">
+            <div class="wp">
+                <div class="wp-pick">
+                    <label class="wp-slot wp-slot-a">
+                        <span class="wp-tag">左侧 · 甲</span>
+                        <input class="wp-input" id="wp-a" list="wp-names" placeholder="输入棋手姓名" autocomplete="off">
+                    </label>
+                    <button type="button" class="wp-swap" id="wp-swap" title="左右交换">⇄</button>
+                    <label class="wp-slot wp-slot-b">
+                        <span class="wp-tag">右侧 · 乙</span>
+                        <input class="wp-input" id="wp-b" list="wp-names" placeholder="输入棋手姓名" autocomplete="off">
+                    </label>
+                </div>
+                <datalist id="wp-names"></datalist>
+
+                <div class="wp-result" id="wp-result"></div>
+
+                <div class="wp-cards">
+                    <article class="wp-card" id="wp-card-a"></article>
+                    <article class="wp-card" id="wp-card-b"></article>
+                </div>
+
+                <div class="wp-h2h" id="wp-h2h"></div>
+            </div>
+        </section>
+
+        <section class="pc-pane" id="pc-move" hidden>
             <form class="pred-form" id="pred-form" autocomplete="off">
                 <div class="pred-grid">
                     <label class="pred-field">
@@ -331,6 +400,31 @@
 </div>
 
 <script src="assets/layout.js"></script>
+<script src="assets/predict.js"></script>
+<script src="assets/predict-app.js"></script>
+<script>
+(function () {
+    'use strict';
+    /* 胜率与落子预测：页签切换。本段是内联脚本，SPA 换页每次进入都会重跑，
+     * 因此在这里重新绑定胜率预测（外部脚本只注入一次，不会重跑）。 */
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.pc-tab'));
+    var panes = { rate: document.getElementById('pc-rate'), move: document.getElementById('pc-move') };
+    if (!tabs.length || !panes.rate || !panes.move) { return; }
+    function activate(key) {
+        tabs.forEach(function (b) {
+            var on = b.getAttribute('data-pane') === key;
+            b.classList.toggle('is-on', on);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        Object.keys(panes).forEach(function (k) { panes[k].hidden = (k !== key); });
+    }
+    tabs.forEach(function (b) {
+        b.addEventListener('click', function () { activate(b.getAttribute('data-pane')); });
+    });
+    activate('rate');
+    if (window.ZBX_WP_INIT) { window.ZBX_WP_INIT(); }
+})();
+</script>
 <script>
 (function () {
     'use strict';

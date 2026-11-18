@@ -1,5 +1,7 @@
-/* 杂技 · 胜率预测：读 assets/predict.js 里的数据，在页面上算胜平负与赔率。 */
-(function () {
+/* 杂技 · 胜率预测：读 assets/predict.js 里的数据，在页面上算胜平负与赔率。
+ * 包成具名函数并暴露 ZBX_WP_INIT：SPA 换页只换 <main>，外部脚本不会重跑，
+ * 由页面内联脚本在进入时再次调用，重新绑定新 DOM。 */
+function zbxWinRateInit() {
     var D = window.ZBX_PREDICT;
     if (!D) { return; }
 
@@ -14,6 +16,10 @@
     var ia = $('wp-a'), ib = $('wp-b');
     var cardA = $('wp-card-a'), cardB = $('wp-card-b');
     var boxH2H = $('wp-h2h'), boxRes = $('wp-result'), list = $('wp-names');
+    if (!list) { return; }
+    /* 整页加载时本函数已跑过一次，内联脚本再调一次要跳过，避免重复绑定事件 */
+    if (list.getAttribute('data-wp-ready')) { return; }
+    list.setAttribute('data-wp-ready', '1');
 
     var names = Object.keys(D.players).sort(function (a, b) {
         return (D.players[b].r - D.players[a].r) || a.localeCompare(b, 'zh');
@@ -21,6 +27,7 @@
     var order = {};
     names.forEach(function (n, i) { order[n] = i; });
 
+    list.innerHTML = '';
     names.forEach(function (n) {
         var o = document.createElement('option');
         o.value = n;
@@ -200,4 +207,6 @@
     ia.value = names[0] || '';
     ib.value = names[1] || '';
     render();
-})();
+}
+window.ZBX_WP_INIT = zbxWinRateInit;
+zbxWinRateInit();
