@@ -22,8 +22,77 @@ const LEVELS = [
 
 let S = null;
 let resized = false;
+let clockId = 0;
 
 const $ = id => document.getElementById(id);
+
+/* ---------- 计时 ----------
+ * 每题一个表：局面摆好起表，过关停表，换题 / 重来归零；切后台暂停。
+ * tAcc 是之前几段累计的毫秒，tMark 是这一段开始走的时刻（0＝停着）。 */
+function fmtTime(ms) {
+    const t = Math.max(0, ms) / 1000;
+    const m = Math.floor(t / 60);
+    const sec = t - m * 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec.toFixed(1);
+}
+
+const elapsed = s => s.tAcc + (s.tMark ? performance.now() - s.tMark : 0);
+
+function paintTime() {
+    const s = state();
+    const num = $('vcf-time');
+    if (!num) { return; }
+    num.textContent = fmtTime(elapsed(s));
+    const box = $('vcf-time-box');
+    if (box) { box.classList.toggle('is-done', !!(s.puzzle && s.cleared)); }
+    const k = $('vcf-time-k');
+    if (k) { k.textContent = (s.puzzle && s.over) ? '用时' : '计时'; }
+}
+
+function clockRun() {
+    window.clearInterval(clockId);
+    clockId = window.setInterval(paintTime, 100);
+}
+
+function clockIdle() {
+    window.clearInterval(clockId);
+    clockId = 0;
+    const s = state();
+    s.tAcc = 0;
+    s.tMark = 0;
+    paintTime();
+}
+
+function clockStart() {
+    clockIdle();
+    if (!document.hidden) {
+        const s = state();
+        s.tMark = performance.now();
+        clockRun();
+    }
+}
+
+function clockPause() {
+    const s = state();
+    if (!s.tMark) { return; }
+    s.tAcc += performance.now() - s.tMark;
+    s.tMark = 0;
+    window.clearInterval(clockId);
+    clockId = 0;
+    paintTime();
+}
+
+function clockResume() {
+    const s = state();
+    if (s.tMark || !s.puzzle || s.busy || s.over) { return; }
+    s.tMark = performance.now();
+    clockRun();
+}
+
+function clockStop() {
+    clockPause();
+    paintTime();
+}
 
 function state() {
     if (S) { return S; }
@@ -42,6 +111,8 @@ function state() {
         genId: 0,
         level: '',
         depth: 0,
+        tAcc: 0,
+        tMark: 0,
         ctx: null, cell: 0, pad: 0, size: 0
     };
     return S;
@@ -192,6 +263,7 @@ function cancelGen() {
 function newPuzzle() {
     const s = state();
     if (s.busy) { return; }
+    clockIdle();
     s.busy = true;
     s.over = false;
     s.cleared = false;
@@ -251,6 +323,7 @@ function load(p, levelName) {
     turnLabel();
     stat();
     say('轮到你走。每一手都要冲四，对方会跟着挡。', '');
+    clockStart();
     draw();
 }
 
@@ -347,6 +420,7 @@ function finish(text) {
         s.cleared = true;
         s.done++;
     }
+    clockStop();
     stat();
     draw();
     say(text + ' 点「下一题」继续。', 'ok');
@@ -383,7 +457,8 @@ function reset() {
     if (s.busy || !s.puzzle) { return; }
     s.played = [];
     rebuild(s);
-    say('回到本题开局。', '');
+    say('回到本题开局，表也从头开始走。', '');
+    clockStart();
     draw();
 }
 
@@ -401,11 +476,16 @@ export async function boot() {
 
     s.hint = -1;
     s.played = s.played || [];
+    paintTime();
     draw();
 
     if (!canvas.dataset.bound) {
         canvas.dataset.bound = '1';
         canvas.addEventListener('click', clickCell);
+        /* 切到后台就停表：数的是做题的那段时间，不是开着页面的时间 */
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) { clockPause(); } else { clockResume(); }
+        });
         const diff = $('vcf-diff');
         if (diff) {
             diff.addEventListener('change', function () {

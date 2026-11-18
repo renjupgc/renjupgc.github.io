@@ -43,6 +43,7 @@
                 <div class="vcf-bar">
                     <span class="vcf-turn" id="vcf-turn"><i class="vcf-dot"></i>黑先 · 你执黑</span>
                     <span class="vcf-count" id="vcf-count"></span>
+                    <span class="vcf-time" id="vcf-time-box" role="timer" aria-live="off" title="本题计时"><i id="vcf-time-k">计时</i><b id="vcf-time">0:00.0</b></span>
                 </div>
             </div>
 
@@ -73,12 +74,6 @@
                     <button type="button" id="vcf-next" class="is-primary">下一题</button>
                 </div>
 
-                <details class="vcf-help">
-                    <summary>题目和答案是怎么来的</summary>
-                    <p>点「下一题」时，程序先让黑白双方「安静」地自对弈铺出一盘真局面——每一手都按线型打分，但自己造出四的着法会被重罚，所以双方都退一步铺二铺三，局面密集却没有现成的杀。从第 16 手起，每次轮到攻方，就满深度查一次这里藏不藏着 VCF，手数落在所选区间就当场截下。</p>
-                    <p>截下的局面还会成对删掉与解法无关的棋子（保持黑白交替），每删一对都复算一次深度，仍落在区间内才永久删除。最后过一遍终审：深度、子数、轮走方、棋谱合法性、开局四手的框，以及逐手重演——攻方每一手都必须是冲四，守方的挡点必须唯一。</p>
-                    <p>求解不设手数上限：先用 225 手（等价于无穷）满深度搜出一条杀法，得到深度 D 后再对 1..D 迭代加深，第一个有解的就是最短手数。所以「几手胜」是真最短，不是随便一条线。</p>
-                </details>
                 <details class="vcf-help">
                     <summary>怎么算过关</summary>
                     <p>轮到你走，每一手都要走出一个冲四（或直接成五）。对方只有唯一的挡点，会自动替你走掉；走出双四、活四这种两个补五是点，对方堵不住，同样算赢。</p>
