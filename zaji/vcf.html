@@ -37,6 +37,12 @@
             <p class="page-desc">题目现场生成。每一手都必须冲四，对方只有一个挡点，跟着挡下去直到成五。</p>
         </header>
 
+        <div class="vcf-chal-banner" id="vcf-chal-banner" hidden></div>
+
+        <div class="vcf-topline">
+            <button type="button" id="vcf-next" class="vcf-next-top is-primary">下一题</button>
+        </div>
+
         <section class="vcf">
             <div class="vcf-main">
                 <div class="vcf-boardwrap">
@@ -52,8 +58,6 @@
             </div>
 
             <aside class="vcf-side">
-                <div data-zbx-user></div>
-
                 <label class="vcf-diff">
                     <span>难度</span>
                     <select id="vcf-diff">
@@ -83,7 +87,6 @@
                     <button type="button" id="vcf-undo">撤销</button>
                     <button type="button" id="vcf-hint">提示</button>
                     <button type="button" id="vcf-reset">重来</button>
-                    <button type="button" id="vcf-next" class="is-primary">下一题</button>
                 </div>
 
                 <details class="vcf-help">

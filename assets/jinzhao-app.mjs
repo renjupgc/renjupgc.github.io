@@ -40,10 +40,13 @@ const $ = id => document.getElementById(id);
 /* ---------- 进度档案 ---------- */
 function prog() { return window.ZBX_PROGRESS || null; }
 function moduleKey(s) { return s.mode === 'shape' ? 'jz_shape' : 'jz_forbid'; }
-/* 难度分：档位越难、要找的处数越多，分越高；最低 1000。
+/* 难度分：档位、要找的处数、盘上子数、白子干扰、类型混合都算进去，
+ * 同类题也会因局面不同而分数参差。最低 1000。
  * par 是「满分时间线」，题越难给的时间越宽，慢也能拿满分。 */
-function setDifficulty(s, idx) {
-    s.diff = 1000 + (idx || 0) * 150 + Math.max(0, s.need - 1) * 120;
+function setDifficulty(s, idx, p) {
+    const pr = prog();
+    s.diff = pr && pr.jzDifficulty ? pr.jzDifficulty(idx, p || {})
+        : 1000 + (idx || 0) * 150 + Math.max(0, s.need - 1) * 120;
     s.par = 12000 + (idx || 0) * 6000 + Math.max(0, s.need - 1) * 8000;
 }
 
@@ -102,6 +105,8 @@ function state() {
         tMark: 0,
         lastMs: 0,
         best: readBest(),
+        /* 习题挑战：10 题一组，按分数配难度，逐题变难 */
+        chal: null,
         diff: 1000,
         par: 12000,
         ctx: null, cell: 0, pad: 0, size: 0
@@ -565,6 +570,88 @@ function chime(big) {
     } catch (e) { /* 没有音频就当没这回事 */ }
 }
 
+/* ---------- 习题挑战：10 题一组，按分数配难度，逐题变难 ---------- */
+function updateChalTip(html) {
+    const el = $('jz-chal-tip');
+    if (el) { el.innerHTML = html; }
+}
+
+function paintChallenge() {
+    const s = state();
+    const banner = $('jz-chal-banner');
+    if (banner) {
+        banner.hidden = !s.chal;
+        if (s.chal) {
+            banner.innerHTML = '<b>习题挑战</b> 第 ' + (s.chal.i + 1) + ' / ' + s.chal.total +
+                ' 题 · 难度「' + (LEVELS[s.mode][s.chal.levels[s.chal.i]] || {}).name + '」' +
+                ' · 已答对 ' + s.chal.results.filter(function (r) { return r.ok; }).length + ' 题';
+        }
+    }
+    const sec = document.querySelector('.jz');
+    if (sec) { sec.classList.toggle('is-challenge', !!s.chal); }
+}
+
+function chalProgress() {
+    const s = state();
+    if (!s.chal) { return; }
+    const done = s.chal.results.filter(function (r) { return r.ok; }).length;
+    updateChalTip('习题挑战进行中 · <b>第 ' + Math.min(s.chal.i + 1, s.chal.total) + '/' + s.chal.total +
+        ' 题</b> · 已答对 <b>' + done + '</b> 题。');
+    paintChallenge();
+}
+
+function startChallenge() {
+    const s = state();
+    if (s.busy) { return; }
+    const pr = prog();
+    if (!pr || !pr.ready()) {
+        say('先在右上角填一个用户名，挑战的分数才记得住。', 'bad');
+        return;
+    }
+    const key = moduleKey(s);
+    const base = Math.min(2, pr.recommendLevel(key));
+    /* 十题：从推荐档稍下方起步，逐档往上爬，封顶「密集」 */
+    const levels = [];
+    for (let i = 0; i < 10; i++) { levels.push(Math.min(2, Math.max(0, base - 1 + Math.floor(i * 3 / 10)))); }
+    s.chal = { i: 0, total: 10, levels: levels, results: [], score0: pr.score(key) };
+    const btn = $('jz-chal-start');
+    if (btn) { btn.disabled = true; }
+    updateChalTip('习题挑战进行中 · <b>第 1/10 题</b>，从「' + LEVELS[s.mode][levels[0]].name + '」起步，逐题加难。');
+    paintChallenge();
+    s.genId++;
+    s.no = 0;
+    newPuzzle();
+}
+
+function endChallenge() {
+    const s = state();
+    const pr = prog();
+    const key = moduleKey(s);
+    const ok = s.chal.results.filter(function (r) { return r.ok; });
+    const avg = ok.length ? Math.round(ok.reduce(function (a, r) { return a + r.ms; }, 0) / ok.length) : 0;
+    const delta = s.chal.results.reduce(function (a, r) { return a + r.delta; }, 0);
+    const before = s.chal.score0;
+    const after = pr ? pr.score(key) : before + delta;
+    updateChalTip('挑战完成：答对 <b>' + ok.length + '/' + s.chal.total + '</b> 题 · 平均 ' +
+        (avg / 1000).toFixed(1) + ' 秒 · 分数 <b>' + before + ' → ' + after + '</b>（' +
+        (delta >= 0 ? '+' : '') + delta + '）。记得导出存档。');
+    const btn = $('jz-chal-start');
+    if (btn) { btn.disabled = false; btn.textContent = '再来一组 · 10 题'; }
+    s.chal = null;
+    paintChallenge();
+    if (pr) { pr.saved(); }
+}
+
+function exitChallenge() {
+    const s = state();
+    if (!s.chal) { return; }
+    s.chal = null;
+    const btn = $('jz-chal-start');
+    if (btn) { btn.disabled = false; }
+    updateChalTip('按你的分数配难度，十题一组，越做越难；做完给平均用时和分数变化。');
+    paintChallenge();
+}
+
 /* ---------- 出题 ---------- */
 function newPuzzle() {
     const s = state();
@@ -577,7 +664,11 @@ function newPuzzle() {
     s.fx = null;
     const id = ++s.genId;
 
-    const idx = $('jz-level') ? Number($('jz-level').value) : 1;
+    let idx = $('jz-level') ? Number($('jz-level').value) : 1;
+    if (s.chal) {
+        idx = s.chal.levels[s.chal.i];
+        if ($('jz-level')) { $('jz-level').value = String(idx); }
+    }
     const ladder = LEVELS[s.mode] || LEVELS.forbid;
     const lv = ladder[idx] || ladder[1];
     const shapeKey = ($('jz-shape') && $('jz-shape').value) || 'mix';
@@ -617,7 +708,7 @@ function load(p, levelName, levelIdx) {
     s.cleared = false;
     s.level = levelName || '—';
     s.kind = (s.mode === 'shape' && s.need > 1) ? p.label + '×' + s.need : p.label;
-    setDifficulty(s, levelIdx);
+    setDifficulty(s, levelIdx, p);
     if ($('jz-ask')) {
         if (s.mode === 'shape') {
             $('jz-ask').textContent = s.need > 1
@@ -727,6 +818,7 @@ function hit(k) {
     let gain = null;
     const pr = prog();
     if (pr) { gain = pr.commit(moduleKey(s), { ok: true, ms: ms, diff: s.diff, par: s.par }); pr.changed(); }
+    if (s.chal) { s.chal.results.push({ ok: true, ms: ms, delta: gain ? gain.delta : 0 }); chalProgress(); }
     const gainText = gain ? '，分数 ' + (gain.delta >= 0 ? '+' : '') + gain.delta + '（现 ' + gain.after + '）' : '';
     const saveTip = (pr && pr.ready()) ? '记得导出存档。' : '先在右侧填用户名，分数才记得住。';
     stat();
@@ -769,30 +861,27 @@ function hit(k) {
     try { if (navigator.vibrate) { navigator.vibrate(s.need > 1 ? [12, 40, 18] : 14); } } catch (e) { /* ignore */ }
 }
 
-/* 点错了：说清这一手到底做出了什么，别让人猜 */
+/* 点错了：直接扣分、终止本题，把正确答案摆出来 */
 function miss(k) {
     const s = state();
+    if (s.over) { return; }
     cnt().tries++;
     s.streak = 0;
-    stat();
-    s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
-    s.marks.push({ k: k, kind: 'bad' });
+    s.over = true;
+    clearFlash();
+    const ms = clockStop();
+    const secs = (ms / 1000).toFixed(1);
 
-    const left = s.need - s.found.size;
-    const tail = left > 1 ? '（还剩 ' + left + ' 处没找到）' : '';
     let why;
-
     if (s.mode === 'shape') {
         const ev = evaluate(s.board, k, BLACK);
         if (!ev) { why = '这一点走不了。'; }
         else if (ev.over) {
             why = '落下连成六子以上，这是长连，黑棋违例——题目要的是五连：任意一条线上 5 个同色棋子不间隔相连。';
         } else if (ev.forbidden) {
-            why = '这一手同时做出两个活三（或两个四），按规则第 8 条是禁手，' +
-                '黑棋不能走，也不算做出棋形。';
+            why = '这一手同时做出两个活三（或两个四），按规则第 8 条是禁手，黑棋不能走，也不算做出棋形。';
         } else if (ev.name === '没成型') {
-            why = '这一手什么形也没做出来，题目要的是' +
-                s.puzzle.label + '（' + s.puzzle.def + '）。';
+            why = '这一手什么形也没做出来，题目要的是' + s.puzzle.label + '（' + s.puzzle.def + '）。';
         } else {
             why = '落下是' + ev.name + '（' + ev.short + '），题目要的是' +
                 s.puzzle.label + '（' + s.puzzle.def + '）。';
@@ -804,15 +893,38 @@ function miss(k) {
         else if (info.fours === 1 && info.threes >= 2) {
             why = '这里是四三三（一个四加两根活三）：两根活三已经够三三禁手了，四不抵消它。';
         } else if (info.fours === 1 && info.threes === 1) {
-            why = '这里是四三（一根线成四、一根线成活三）。禁手只数「两个活三」和「两个四」，' +
-                '四三不违例。';
+            why = '这里是四三（一根线成四、一根线成活三）。禁手只数「两个活三」和「两个四」，四三不违例。';
         } else if (info.fours === 1) { why = '这里只是一个' + info.name + '，不违例。'; }
         else if (info.threes === 1) { why = '这里只成一根活三，单三不违例。'; }
         else { why = '这里只是 ' + info.name + '，不违例。'; }
     }
 
-    say(pname(k) + '：' + why + tail + ' 再找找。', 'bad');
+    /* 本题就此结束：红圈标出所有正确答案 */
+    s.marks = s.marks.filter(m => m.kind === 'got' || m.kind === 'line');
+    s.marks.push({ k: k, kind: 'bad' });
+    s.answers.forEach(function (q) { if (!s.found.has(q)) { s.marks.push({ k: q, kind: 'ans' }); } });
+
+    let lose = null;
+    const pr = prog();
+    if (pr) { lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par }); pr.changed(); }
+    if (s.chal) { s.chal.results.push({ ok: false, ms: ms, delta: lose ? lose.delta : 0 }); chalProgress(); }
+    const loseText = lose
+        ? '分数 ' + lose.delta + '（现 ' + lose.after + '）。'
+        : (pr && pr.ready() ? '' : '先在右上角填用户名，分数才记得住。');
+
+    const all = s.answers.map(pname).join('、');
+    const answerText = s.mode === 'shape'
+        ? '这盘能做出' + s.puzzle.label + '的在 ' + all + '（红圈）。'
+        : (s.need > 1 ? '答案是 ' + all : '答案在 ' + all + '，' + s.puzzle.label + '禁手') + '（红圈）。';
+    flash('答错了', (lose ? '' + lose.delta + ' 分 · ' : '') + secs + ' 秒', 'bad', k);
+    say(pname(k) + '：' + why + ' ' + answerText + ' 用时 ' + secs + ' 秒，' + loseText +
+        ' 点「下一题」继续' + (s.chal ? '，挑战接着走。' : '，记得导出存档。'), 'bad');
+    stat();
+    paintTime();
     draw();
+    const btn = $('jz-next');
+    if (btn) { btn.classList.add('is-hot'); }
+    try { if (navigator.vibrate) { navigator.vibrate([30, 50, 30]); } } catch (e) { /* ignore */ }
 }
 
 /* ---------- 提示 ---------- */
@@ -868,6 +980,7 @@ function reveal() {
     let lose = null;
     const pr = prog();
     if (pr) { lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par }); pr.changed(); stat(); }
+    if (s.chal) { s.chal.results.push({ ok: false, ms: ms, delta: lose ? lose.delta : 0 }); chalProgress(); }
     const loseText = lose ? ' 分数 ' + lose.delta + '（现 ' + lose.after + '）。' :
         (pr && pr.ready() ? '' : ' 先填用户名才能记分。');
     s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
@@ -892,6 +1005,8 @@ function reveal() {
 function reset() {
     const s = state();
     if (s.busy || !s.puzzle) { return; }
+    /* 已经判完的题不原盘重做（否则可以重复刷同一题的分），直接换一盘 */
+    if (s.over) { newPuzzle(); return; }
     clearFlash();
     s.genId++;
     s.marks = [];
@@ -909,7 +1024,7 @@ function reset() {
 function setMode(mode, fresh) {
     const s = state();
     if (mode !== 'shape' && mode !== 'forbid') { mode = 'forbid'; }
-    if (s.mode !== mode) { s.streak = 0; }
+    if (s.mode !== mode) { s.streak = 0; exitChallenge(); }
     s.mode = mode;
     document.querySelectorAll('.jz-tab').forEach(function (tab) {
         const on = tab.dataset.mode === mode;
@@ -988,6 +1103,7 @@ export function boot() {
         const lv = $('jz-level');
         if (lv) {
             lv.addEventListener('change', function () {
+                exitChallenge();
                 state().genId++;
                 newPuzzle();
             });
@@ -995,6 +1111,7 @@ export function boot() {
         const sp = $('jz-shape');
         if (sp) {
             sp.addEventListener('change', function () {
+                exitChallenge();
                 state().genId++;
                 newPuzzle();
             });
@@ -1006,6 +1123,7 @@ export function boot() {
         bind('jz-hint', showHint);
         bind('jz-reveal', reveal);
         bind('jz-reset', reset);
+        bind('jz-chal-start', startChallenge);
         bind('jz-sound', function () {
             try {
                 window.localStorage.setItem(K_SOUND, soundOn() ? 'off' : 'on');
@@ -1016,6 +1134,12 @@ export function boot() {
         bind('jz-next', function () {
             const btn = $('jz-next');
             if (btn) { btn.classList.remove('is-hot'); }
+            const s = state();
+            if (s.chal) {
+                s.chal.i++;
+                if (s.chal.i >= s.chal.total) { endChallenge(); return; }
+                chalProgress();
+            }
             newPuzzle();
         });
         if (!resized) {
@@ -1030,6 +1154,7 @@ export function boot() {
 
     bootTabs();
     syncSoundBtn();
+    paintChallenge();
     const q = new URLSearchParams(location.search).get('m');
     setMode(q === 'shape' ? 'shape' : s.mode, false);
     newPuzzle();

@@ -88,6 +88,7 @@
             '      </span>\n' +
             '    </a>\n' +
             '    <nav class="site-nav">' + navHtml + '</nav>\n' +
+            '    <div class="site-user-slot" data-zbx-user="global" aria-label="用户名"></div>\n' +
             '  </div>\n' +
             '</header>';
 

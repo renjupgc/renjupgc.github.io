@@ -37,6 +37,8 @@
             <p class="page-desc">同一块盘，两种读法：一种问「哪几点黑棋不能走」，一种问「哪几手能做出这个棋形」。都要全找出来才算过，点中一处就有碎屑炸开。</p>
         </header>
 
+        <div class="jz-chal-banner" id="jz-chal-banner" hidden></div>
+
         <div class="jz-topline">
             <div class="jz-tabs" role="tablist" aria-label="玩法">
                 <button type="button" class="jz-tab is-on" data-mode="forbid" role="tab" aria-selected="true">禁手找茬</button>
@@ -60,8 +62,6 @@
             </div>
 
             <aside class="jz-side">
-                <div data-zbx-user></div>
-
                 <label class="jz-level">
                     <span>难度</span>
                     <select id="jz-level">
@@ -89,6 +89,11 @@
                     <div><dt>本题</dt><dd id="jz-kind">—</dd></div>
                     <div><dt>我的分</dt><dd id="jz-score">1000</dd></div>
                 </dl>
+
+                <div class="jz-challenge" id="jz-challenge">
+                    <button type="button" id="jz-chal-start">习题挑战 · 10 题</button>
+                    <p class="jz-chal-tip" id="jz-chal-tip">按你的分数配难度，十题一组，越做越难；做完给平均用时和分数变化。</p>
+                </div>
 
                 <p class="jz-msg" id="jz-msg" role="status" aria-live="polite">黑棋该走。盘上只有一个点落下就违例，点它。</p>
 

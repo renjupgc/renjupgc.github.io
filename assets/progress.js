@@ -212,6 +212,41 @@
         return Math.max(0, Math.min(4, i));
     }
 
+    /* ---------- 难度分：同一类型也按局面实际难度给分 ----------
+     * 只看档位会让同档题分都一样；这里把处数、子数、白子干扰、类型混合、
+     * 取胜手数、生成尝试次数都算进去，题与题之间自然拉开。 */
+    function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+    function round10(n) { return Math.round(n / 10) * 10; }
+
+    function jzDifficulty(levelIdx, p) {
+        p = p || {};
+        var stones = Math.max(0, (Number(p.black) || 0) + (Number(p.white) || 0));
+        var white = Math.max(0, Number(p.white) || 0);
+        var need = Math.max(1, Number(p.need) || 1);
+        var idx = clamp(Math.round(Number(levelIdx) || 0), 0, 2);
+        var d = 1000 + idx * 130 + (need - 1) * 110;
+        d += clamp((stones - 8) * 9, 0, 260);
+        d += clamp(white * 7, 0, 180);
+        var kinds = p.kinds;
+        if (Array.isArray(kinds) && kinds.length > 1) { d += clamp((kinds.length - 1) * 35, 0, 105); }
+        if (p.shape === 'sleep3') { d += 60; }
+        else if (p.shape === 'open3') { d += 30; }
+        else if (p.shape === 'four') { d += 15; }
+        return clamp(round10(d), 1000, 2200);
+    }
+
+    function vcfDifficulty(depth, p) {
+        p = p || {};
+        var dep = clamp(Math.round(Number(depth) || 3), 1, 15);
+        var moves = Math.max(0, Number(p.moves ? p.moves.length : p.stones) || 0);
+        var att = clamp(Math.round(Number(p.attempts) || 0), 0, 40);
+        var d = 1000 + (dep - 3) * 95;
+        d += clamp((moves - 16) * 11, 0, 240);
+        if (p.attacker === 1) { d += 60; }   /* 黑方进攻受禁手约束，更难 */
+        d += clamp(att * 3, 0, 90);
+        return clamp(round10(d), 1000, 2200);
+    }
+
     function snapshot() {
         var p = normalizeStore(D);
         p.at = Date.now();
@@ -397,6 +432,17 @@
             '.zbx-user button{cursor:pointer;border:1px solid var(--zp-line);border-radius:8px;padding:4px 9px;background:#fffdf7;color:var(--zp-ink);font-size:12px;font-weight:600}' +
             '.zbx-user button:hover{background:#fff6df}' +
             '.zbx-user b{color:var(--zp-ink);font-weight:700}' +
+            '.zbx-user.is-global{position:relative;flex-wrap:nowrap;gap:0}' +
+            '.zbx-user.is-global .zu-login,.zbx-user.is-global .zu-face{border:1px solid rgba(176,141,87,.42);border-radius:999px;' +
+            'background:rgba(176,141,87,.1);color:var(--gold-deep,#7a5c22);font-size:12.5px;font-weight:600;padding:5px 12px;display:flex;align-items:center;gap:6px;white-space:nowrap}' +
+            '.zbx-user.is-global .zu-face i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-style:normal;' +
+            'background:var(--gold-deep,#7a5c22);color:#fff7e6;font-size:11px}' +
+            '.zbx-user.is-global .zu-face em{font-style:normal;opacity:.6;font-size:10px}' +
+            '.zbx-user.is-global .zu-edit{position:absolute;right:0;top:calc(100% + 8px);z-index:80;display:flex;gap:6px;' +
+            'align-items:center;background:#fffdf7;border:1px solid var(--zp-line);border-radius:10px;padding:8px;' +
+            'box-shadow:0 12px 28px rgba(60,44,18,.18)}' +
+            '.zbx-user.is-global .zu-edit[hidden]{display:none}' +
+            '.zbx-user.is-global .zu-edit input{width:130px}' +
             '@media(prefers-color-scheme:dark){.zbx-prog{--zp-line:#5c4e3c;--zp-ink:#efe4cd;--zp-sub:#b6a688;background:rgba(40,34,26,.55)}' +
             '.zbx-prog-cell,.zbx-prog-user button,.zbx-prog-user input,.zbx-prog-btns button,.zbx-prog-btns label,.zbx-user input,.zbx-user button{background:rgba(255,255,255,.06)}}';
         var st = document.createElement('style');
@@ -433,6 +479,17 @@
                 var act = b.getAttribute('data-act');
                 if (act === 'export') { exportFile(); }
                 else if (act === 'reset') { reset(); }
+                else if (act === 'toggleuser') {
+                    var ed = box.querySelector('.zu-edit');
+                    if (ed) {
+                        var open = ed.hidden;
+                        ed.hidden = !open;
+                        if (open) {
+                            var inp = ed.querySelector('[data-act="username"]');
+                            if (inp) { inp.focus(); inp.select(); }
+                        }
+                    }
+                }
                 else if (act === 'setuser') {
                     var inp = box.querySelector('[data-act="username"]');
                     if (inp) { setUser(inp.value); }
@@ -441,6 +498,9 @@
             box.addEventListener('keydown', function (ev) {
                 if (ev.key === 'Enter' && ev.target && ev.target.getAttribute('data-act') === 'username') {
                     setUser(ev.target.value);
+                } else if (ev.key === 'Escape' && ev.target && ev.target.getAttribute('data-act') === 'username') {
+                    var ed = box.querySelector('.zu-edit');
+                    if (ed) { ed.hidden = true; }
                 }
             });
             box.addEventListener('change', function (ev) {
@@ -452,7 +512,21 @@
         });
     }
 
-    function userChipHtml() {
+    function userChipHtml(compact) {
+        if (compact) {
+            if (!curUser) {
+                return '<button type="button" class="zu-login" data-act="toggleuser">＋ 用户名</button>' +
+                    '<span class="zu-edit" hidden>' +
+                    '<input type="text" maxlength="16" data-act="username" placeholder="填名字" value="">' +
+                    '<button type="button" data-act="setuser">进入</button></span>';
+            }
+            var initial = curUser.charAt(0);
+            return '<button type="button" class="zu-face" data-act="toggleuser" title="点击切换用户名">' +
+                '<i>' + escHtml(initial) + '</i>' + escHtml(curUser) + '<em>▾</em></button>' +
+                '<span class="zu-edit" hidden>' +
+                '<input type="text" maxlength="16" data-act="username" placeholder="填名字" value="' + escHtml(curUser) + '">' +
+                '<button type="button" data-act="setuser">切换</button></span>';
+        }
         return '<span>用户名</span>' +
             '<input type="text" maxlength="16" data-act="username" placeholder="填名字" value="' + escHtml(curUser) + '">' +
             '<button type="button" data-act="setuser">' + (curUser ? '切换' : '进入') + '</button>' +
@@ -462,8 +536,9 @@
     function render() {
         injectStyle();
         Array.prototype.forEach.call(document.querySelectorAll('[data-zbx-user]'), function (chip) {
-            chip.className = 'zbx-user';
-            chip.innerHTML = userChipHtml();
+            var compact = chip.getAttribute('data-zbx-user') === 'global';
+            chip.className = (compact ? 'site-user-slot ' : '') + 'zbx-user' + (compact ? ' is-global' : '');
+            chip.innerHTML = userChipHtml(compact);
         });
         Array.prototype.forEach.call(document.querySelectorAll('[data-zbx-progress]'), function (box) {
             var P = profile();
@@ -480,9 +555,8 @@
             box.className = 'zbx-prog' + (dirty ? ' is-dirty' : '');
             box.innerHTML = '<h3>我的进度 <small>四项分数各自独立 · 初始 1000 分</small></h3>' +
                 '<div class="zbx-prog-user">' +
-                '<label>用户名 <input type="text" maxlength="16" data-act="username" placeholder="填中文或字母，1–16 位" value="' + escHtml(curUser) + '"></label>' +
-                '<button type="button" data-act="setuser">切换 / 建立</button>' +
-                '<span class="zbx-prog-names">' + namesHtml + '</span>' +
+                '<span class="zbx-prog-names">当前用户：<b>' + (curUser ? escHtml(curUser) : '未设置') + '</b>' +
+                '　<span style="opacity:.75">（在右上角用户名处切换 / 建立）</span></span>' +
                 '</div>' +
                 (curUser ? '<div class="zbx-prog-grid">' + cells + '</div>' :
                     '<p class="zbx-prog-tip">填好用户名并按「切换 / 建立」，就能开始记分。</p>') +
@@ -543,9 +617,9 @@
         render: render,
         snapshot: snapshot,
         base: BASE,
-        diffForDepth: function (depth) {
-            return 1000 + Math.max(0, Math.min(4, Math.floor((depth - 3) / 2))) * 200;
-        },
+        jzDifficulty: jzDifficulty,
+        vcfDifficulty: vcfDifficulty,
+        diffForDepth: function (depth) { return vcfDifficulty(depth, null); },
         parForDepth: function (depth) { return (2 + Math.max(1, depth) * 2) * 1000; }
     };
 })();

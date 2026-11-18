@@ -28,9 +28,11 @@ const $ = id => document.getElementById(id);
 
 /* ---------- 进度档案 ---------- */
 function prog() { return window.ZBX_PROGRESS || null; }
-/* 难度分/满分时间线按取胜手数算：手数越多分越高、给的满分时间也越宽 */
-function difficulty(depth) {
+/* 难度分：以取胜手数为主，再算落子数、攻方颜色、生成尝试次数，
+ * 同档题也按局面拉开。满分时间线仍只看手数，保证 4 手胜 10 秒内满分。 */
+function difficulty(depth, puzzle) {
     const p = prog();
+    if (p && p.vcfDifficulty) { return p.vcfDifficulty(depth, puzzle || state().puzzle); }
     return p ? p.diffForDepth(depth) : 1000;
 }
 function parTime(depth) {
@@ -301,7 +303,7 @@ function stat() {
     if ($('vcf-tries')) { $('vcf-tries').textContent = String(s.tries); }
     if ($('vcf-level')) { $('vcf-level').textContent = s.level || '—'; }
     if ($('vcf-score')) { $('vcf-score').textContent = prog() && prog().ready() ? String(prog().score('vcf')) : '—'; }
-    if ($('vcf-difficulty')) { $('vcf-difficulty').textContent = '难度分 ' + difficulty(s.depth || 3); }
+    if ($('vcf-difficulty')) { $('vcf-difficulty').textContent = '难度分 ' + difficulty(s.depth || 3, s.puzzle); }
 }
 
 function turnLabel() {
@@ -330,6 +332,22 @@ function updateChalTip(html) {
     if (el) { el.innerHTML = html; }
 }
 
+function paintChallenge() {
+    const s = state();
+    const banner = $('vcf-chal-banner');
+    if (banner) {
+        banner.hidden = !s.chal;
+        if (s.chal) {
+            const ok = s.chal.results.filter(function (x) { return x.ok; }).length;
+            banner.innerHTML = '<b>习题挑战</b> 第 ' + (s.chal.i + 1) + ' / ' + s.chal.total +
+                ' 题 · 难度「' + LEVELS[s.chal.levels[s.chal.i]].name + '」' +
+                ' · 已答对 ' + ok + ' 题';
+        }
+    }
+    const sec = document.querySelector('.vcf');
+    if (sec) { sec.classList.toggle('is-challenge', !!s.chal); }
+}
+
 function startChallenge() {
     const s = state();
     if (s.busy) { return; }
@@ -346,6 +364,7 @@ function startChallenge() {
     const startBtn = $('vcf-chal-start');
     if (startBtn) { startBtn.disabled = true; }
     updateChalTip('习题挑战进行中 · <b>第 1/5 题</b>，从「' + LEVELS[levels[0]].name + '」起步，逐题加难。');
+    paintChallenge();
     cancelGen();
     newPuzzle();
 }
@@ -366,6 +385,7 @@ function endChallenge() {
     const startBtn = $('vcf-chal-start');
     if (startBtn) { startBtn.disabled = false; startBtn.textContent = '再来一组 · 5 题'; }
     s.chal = null;
+    paintChallenge();
     if (p) { p.saved(); }
 }
 
@@ -540,7 +560,7 @@ function finish(text) {
     /* 记分：做对加分，快（<=par）拿满；难题 par 宽 */
     let gain = null;
     const pr = prog();
-    if (pr) { gain = pr.commit('vcf', { ok: true, ms: ms, diff: difficulty(s.depth), par: parTime(s.depth) }); pr.changed(); }
+    if (pr) { gain = pr.commit('vcf', { ok: true, ms: ms, diff: difficulty(s.depth, s.puzzle), par: parTime(s.depth) }); pr.changed(); }
     const d = gain ? (gain.delta >= 0 ? '+' : '') + gain.delta : '';
     stat();
     draw();
@@ -552,6 +572,7 @@ function finish(text) {
 
     if (s.chal) {
         s.chal.results.push({ ok: true, ms: ms, depth: s.depth, delta: gain ? gain.delta : 0 });
+        paintChallenge();
         say(text + ' 第 ' + s.chal.results.length + '/' + s.chal.total + ' 题。' +
             (gain ? '分数 ' + d + '。' : '') + '点「下一题」继续。', 'ok');
     } else {
@@ -628,6 +649,7 @@ export async function boot() {
                     const startBtn = $('vcf-chal-start');
                     if (startBtn) { startBtn.disabled = false; }
                     updateChalTip('按你的分数配难度，五题一组，越做越难；做完给平均用时和分数变化。');
+                    paintChallenge();
                 }
                 newPuzzle();
             });
@@ -649,6 +671,7 @@ export async function boot() {
                 if (s.chal.i >= s.chal.total) { endChallenge(); return; }
                 updateChalTip('习题挑战进行中 · <b>第 ' + (s.chal.i + 1) + '/' + s.chal.total +
                     ' 题</b>，难度「' + LEVELS[s.chal.levels[s.chal.i]].name + '」。');
+                paintChallenge();
             }
             newPuzzle();
         });
@@ -663,6 +686,7 @@ export async function boot() {
         }
     }
 
+    paintChallenge();
     say('正在加载求解引擎…', 'wait');
     try {
         await init();

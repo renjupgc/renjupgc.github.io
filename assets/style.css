@@ -232,6 +232,14 @@ main.is-entering > * {
     gap: 2px;
 }
 
+/* 用户名：全站右上角，进度模块往这里渲染可切换的登录 chip */
+.site-user-slot {
+    flex: none;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
 .site-nav a {
     position: relative;
     padding: 8px 13px;
@@ -680,6 +688,36 @@ a.nt-item:focus-visible {
     color: var(--muted);
 }
 
+/* 下一题放在棋盘上方：手机上不用往下翻就能点 */
+.vcf-topline {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 0 12px;
+}
+
+.vcf-next-top {
+    padding: 9px 20px;
+    border: 1px solid rgba(176, 141, 87, 0.5);
+    border-radius: 12px;
+    background: var(--gold-tint);
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--gold-deep);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.vcf-next-top:hover {
+    border-color: rgba(176, 141, 87, 0.6);
+    background: #fffdf7;
+}
+
+.vcf-next-top:active { transform: translateY(1px); }
+
+.vcf-next-top.is-hot { box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.2); }
+
 .vcf-challenge {
     margin: 10px 0 0;
     padding: 10px 12px;
@@ -707,6 +745,36 @@ a.nt-item:focus-visible {
     font: 11.5px/1.55 var(--sans);
     color: var(--muted);
 }
+
+.jz-challenge {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.jz-challenge button {
+    width: 100%;
+    cursor: pointer;
+    border: 1px solid var(--gold-deep);
+    border-radius: 9px;
+    padding: 8px 12px;
+    background: var(--gold-deep);
+    color: #fff;
+    font: 600 13px var(--sans);
+}
+
+.jz-challenge button:hover { filter: brightness(1.06); }
+.jz-challenge button:disabled { opacity: 0.55; cursor: default; }
+
+.jz-chal-tip {
+    margin: 7px 0 0;
+    font: 11.5px/1.55 var(--sans);
+    color: var(--muted);
+}
+
+.jz-chal-tip b { color: var(--gold-deep); }
 
 .vcf-chal-tip b { color: var(--gold-deep); }
 
@@ -912,7 +980,7 @@ a.nt-item:focus-visible {
 
 .vcf-btns {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
 }
 
@@ -1141,6 +1209,46 @@ a.nt-item:focus-visible {
 .jz-flash-chip.is-five b {
     color: var(--win);
     font-size: 22px;
+}
+
+.jz-flash-chip.is-bad {
+    border-color: rgba(179, 58, 43, 0.46);
+    background: rgba(255, 244, 240, 0.97);
+    box-shadow: 0 12px 30px rgba(150, 60, 40, 0.22);
+}
+
+.jz-flash-chip.is-bad b {
+    color: #b33a2b;
+}
+
+/* 习题挑战：进挑战整块盘面加暖色底和金色描边，和随机练习一眼分得开 */
+.jz-chal-banner,
+.vcf-chal-banner {
+    margin: 0 0 12px;
+    padding: 10px 16px;
+    border: 1px solid rgba(179, 58, 43, 0.4);
+    border-radius: 12px;
+    background: linear-gradient(100deg, rgba(179, 58, 43, 0.12), rgba(200, 160, 60, 0.16));
+    color: #8c3323;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.jz-chal-banner b,
+.vcf-chal-banner b {
+    color: #a32f1f;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+}
+
+.jz-chal-banner[hidden],
+.vcf-chal-banner[hidden] { display: none; }
+
+.jz.is-challenge .jz-main,
+.vcf.is-challenge .vcf-main {
+    border-color: rgba(179, 58, 43, 0.42);
+    box-shadow: 0 0 0 2px rgba(179, 58, 43, 0.09), inset 0 0 0 1px rgba(200, 160, 60, 0.16);
 }
 
 @keyframes jz-pop {
@@ -4522,6 +4630,23 @@ table.ratings .r-name a:hover {
 
     .brand-sub {
         display: none;
+    }
+
+    /* 手机上用户名浮到右上角，导航保持整行横滑 */
+    .site-head-inner {
+        position: relative;
+    }
+
+    .brand {
+        padding-right: 104px;
+    }
+
+    .site-head-inner .site-user-slot {
+        position: absolute !important;
+        top: 8px;
+        right: 0;
+        margin-left: 0;
+        width: auto;
     }
 
     /* 导航横滑，不换行、不挤压 */
