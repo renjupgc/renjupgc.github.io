@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>禁手找茬 - 连珠杂箱</title>
-<meta name="description" content="连珠禁手小游戏：盘上恰好有一个点，黑棋落下去就违例，找出那处三三、四四或长连。">
+<title>棋形判断与禁手找茬 - 连珠杂箱</title>
+<meta name="description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那一点，或者点出能做出连五、活四、冲四、活三、眠三的那一手。答对了棋子会弹上盘，金色碎屑炸开。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/zaji/jinzhao.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
-<meta property="og:title" content="禁手找茬">
-<meta property="og:description" content="连珠禁手小游戏：盘上恰好有一个点，黑棋落下去就违例，找出那处三三、四四或长连。">
+<meta property="og:title" content="棋形判断与禁手找茬">
+<meta property="og:description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那一点，或者点出能做出连五、活四、冲四、活三、眠三的那一手。答对了棋子会弹上盘，金色碎屑炸开。">
 <meta property="og:url" content="https://renjupgc.github.io/zaji/jinzhao.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="禁手找茬">
-<meta name="twitter:description" content="连珠禁手小游戏：盘上恰好有一个点，黑棋落下去就违例，找出那处三三、四四或长连。">
+<meta name="twitter:title" content="棋形判断与禁手找茬">
+<meta name="twitter:description" content="一块盘，两种读盘练法：找出黑棋落下就违例的那一点，或者点出能做出连五、活四、冲四、活三、眠三的那一手。答对了棋子会弹上盘，金色碎屑炸开。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
@@ -33,15 +33,23 @@
 
         <header class="page-head">
             <p class="eyebrow">杂技</p>
-            <h1 class="page-title">禁手找茬</h1>
-            <p class="page-desc">每一盘都藏着一个点：黑棋落下去就是三三、四四或者长连。点出来就算过。</p>
+            <h1 class="page-title">棋形判断与禁手找茬</h1>
+            <p class="page-desc">同一块盘，两种读法：一种问「哪一点黑棋不能走」，一种问「哪一手能做出这个棋形」。答对了棋子会自己弹上盘。</p>
         </header>
+
+        <div class="jz-tabs" role="tablist" aria-label="玩法">
+            <button type="button" class="jz-tab is-on" data-mode="forbid" role="tab" aria-selected="true">禁手找茬</button>
+            <button type="button" class="jz-tab" data-mode="shape" role="tab" aria-selected="false">棋形判断</button>
+        </div>
 
         <section class="jz">
             <div class="jz-main">
-                <canvas id="jz-board"></canvas>
+                <div class="jz-boardwrap">
+                    <canvas id="jz-board"></canvas>
+                    <div class="jz-flash" id="jz-flash" aria-hidden="true"></div>
+                </div>
                 <div class="jz-bar">
-                    <span class="jz-turn"><i class="jz-dot"></i>黑先 · 找出禁手点</span>
+                    <span class="jz-turn"><i class="jz-dot"></i><span id="jz-ask">黑先 · 找出禁手点</span></span>
                     <span class="jz-count" id="jz-count"></span>
                 </div>
             </div>
@@ -51,18 +59,30 @@
                     <span>局面</span>
                     <select id="jz-level">
                         <option value="0">入门（子少，一眼能看出来）</option>
-                        <option value="1" selected>常用（有白子干扰）</option>
+                        <option value="1" selected>常用（有干扰子）</option>
                         <option value="2">密集（干扰子多，最费眼）</option>
                     </select>
                 </label>
 
+                <label class="jz-level" id="jz-shape-row" hidden>
+                    <span>题型</span>
+                    <select id="jz-shape">
+                        <option value="mix" selected>混着来（每题随机）</option>
+                        <option value="five">连五</option>
+                        <option value="open4">活四</option>
+                        <option value="four">冲四</option>
+                        <option value="open3">活三</option>
+                        <option value="sleep3">眠三</option>
+                    </select>
+                </label>
+
                 <dl class="jz-stats">
-                    <div><dt>已找出</dt><dd id="jz-done">0</dd></div>
+                    <div><dt id="jz-done-k">已找出</dt><dd id="jz-done">0</dd></div>
                     <div><dt>点错</dt><dd id="jz-tries">0</dd></div>
                     <div><dt>本题</dt><dd id="jz-kind">—</dd></div>
                 </dl>
 
-                <p class="jz-msg" id="jz-msg">黑棋该走。盘上只有一个点落下就违例，点它。</p>
+                <p class="jz-msg" id="jz-msg" role="status" aria-live="polite">黑棋该走。盘上只有一个点落下就违例，点它。</p>
 
                 <div class="jz-btns">
                     <button type="button" id="jz-hint">提示</button>
@@ -71,7 +91,9 @@
                     <button type="button" id="jz-next" class="is-primary">下一题</button>
                 </div>
 
-                <details class="jz-help">
+                <button type="button" class="jz-sound" id="jz-sound" aria-pressed="true">音效 开</button>
+
+                <details class="jz-help" id="jz-help-forbid">
                     <summary>什么算禁手</summary>
                     <p>连珠里黑棋有三条限制，白棋没有：</p>
                     <p><b>三三</b>：落子之后同一点上出现两根活三，也就是两处「再补一子就成活四」的三。活三才算，被白子堵住一头的眠三不算。</p>
@@ -80,10 +102,20 @@
                     <p>另外，黑棋成五优先于禁手：落子直接成五的那一手，即使同时带出三三，也按赢算。</p>
                 </details>
 
-                <details class="jz-help">
+                <details class="jz-help" id="jz-help-shape" hidden>
+                    <summary>五种棋形怎么认</summary>
+                    <p><b>连五</b>：五子连成一线，直接赢棋。</p>
+                    <p><b>活四</b>：四子相连、两端都空。白棋挡一头，另一头还能成五，所以挡不住。</p>
+                    <p><b>冲四</b>：四子只差一子成五，但只有一处能成五——另一头被白子封死了，白棋跟着挡掉就没事。</p>
+                    <p><b>活三</b>：三子两端都空，再补一子就是活四。被白子堵住一头就降成眠三。</p>
+                    <p><b>眠三</b>：三子被堵住一头，补一子只能成冲四，威胁小得多。</p>
+                    <p>两点说明：一手可能同时让几个方向成型，页面按<b>最高那一档</b>算，比如同时成冲四和活二，就算冲四；黑棋的三三、四四是禁手，那一手不算能做出棋形。而活三、活四这类棋形天然不止一处能做成，所以点中<b>任何</b>一处都算对，看答案时会把它们一起圈出来。</p>
+                </details>
+
+                <details class="jz-help" id="jz-help-src">
                     <summary>题目是怎么来的</summary>
-                    <p>先按类型搭骨架：两根线各摆两颗子，落下就成双活三；或者各摆三颗，落下成双四；长连则是两侧各一串，中间落下连成六。</p>
-                    <p>骨架摆好，全盘扫一遍禁手点，只有骨架那一个才算数。接着撒白子当干扰——白子会把活三压成眠三，也会把某一根线堵废，看着像禁手的位置就多起来了。最后撒黑子把局面填得像真对局，每撒一颗都复扫一次，一旦多出禁手点就撤回。</p>
+                    <p>禁手题先按类型搭骨架：两根线各摆两颗子，落下就成双活三；或者各摆三颗，落下成双四；长连则是两侧各一串，中间落下连成六。骨架摆好，全盘扫一遍禁手点，只有骨架那一个才算数。接着撒白子当干扰——白子会把活三压成眠三，也会把某一根线堵废，看着像禁手的位置就多起来了。</p>
+                    <p>棋形题反过来：先按目标棋形摆一串黑子，该堵的头用白子堵上，再验「落子后的最高线型」正是题目要的那一档；然后撒白子黑子把局面填得像真对局，每撒一颗都复验一次，一旦把答案改掉、或者让盘上到处都能做出这个棋形，就撤回这一颗。</p>
                     <p>判定用的是和 VCF 做题同一套代码：线型一律表述成「再填一子会变成什么」，活三 / 活四都是递归算出来的，没有手写的棋型表。</p>
                 </details>
             </aside>

@@ -79,8 +79,9 @@ export function classify(m, e, color) {
 
 const DX = [1, 0, 1, 1], DY = [0, 1, 1, -1];
 
-/* 以 (x,y) 为中心、某方向的 9 格窗口；color 指定中心那格算谁的子（0 表示算空点） */
-function windowAt(bd, x, y, d, color) {
+/* 以 (x,y) 为中心、某方向的 9 格窗口；color 指定中心那格算谁的子（0 表示算空点）。
+   禁手找茬与棋形判断都靠它取线型，不另写一套窗口。 */
+export function windowAt(bd, x, y, d, color) {
     let m = 0, e = 0;
     for (let t = -4; t <= 4; t++) {
         const bit = 1 << (t + 4);

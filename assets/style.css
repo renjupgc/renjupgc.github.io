@@ -831,9 +831,44 @@ a.nt-item:focus-visible {
     margin: 8px 0 0;
 }
 
-/* ---------- 禁手找茬 ---------- */
+/* ---------- 棋形判断与禁手找茬 ---------- */
+
+.jz-tabs {
+    display: inline-flex;
+    gap: 4px;
+    margin: 0 0 14px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.jz-tab {
+    padding: 7px 16px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.jz-tab:hover {
+    color: var(--gold-deep);
+}
+
+.jz-tab.is-on {
+    color: var(--gold-deep);
+    background: var(--gold-tint);
+    box-shadow: inset 0 0 0 1px rgba(176, 141, 87, 0.32);
+}
 
 .jz {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 250px;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 250px;
     gap: 18px;
@@ -853,12 +888,95 @@ a.nt-item:focus-visible {
     padding: 16px 16px 12px;
 }
 
+/* 棋子弹入的动效画在 canvas 上，答对的那块牌子叠在棋盘正中 */
+.jz-boardwrap {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
 #jz-board {
     display: block;
-    margin: 0 auto;
     border-radius: 8px;
     cursor: pointer;
     touch-action: manipulation;
+}
+
+.jz-flash {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.16s ease;
+}
+
+.jz-flash.is-on {
+    opacity: 1;
+}
+
+.jz-flash.is-top {
+    align-items: start;
+    padding-top: 12px;
+}
+
+.jz-flash.is-bottom {
+    align-items: end;
+    padding-bottom: 12px;
+}
+
+.jz-flash-chip {
+    padding: 12px 20px;
+    border: 1px solid rgba(176, 141, 87, 0.5);
+    border-radius: 14px;
+    background: rgba(255, 252, 244, 0.94);
+    box-shadow: 0 10px 26px rgba(90, 68, 30, 0.18);
+    font-family: var(--sans);
+    text-align: center;
+    animation: jz-pop 1.5s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+.jz-flash-chip b {
+    display: block;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--gold-deep);
+}
+
+.jz-flash-chip i {
+    display: block;
+    margin-top: 3px;
+    font-style: normal;
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+}
+
+.jz-flash-chip.is-five {
+    border-color: rgba(179, 58, 43, 0.42);
+    background: rgba(255, 246, 240, 0.96);
+    box-shadow: 0 12px 30px rgba(150, 60, 40, 0.22);
+}
+
+.jz-flash-chip.is-five b {
+    color: var(--win);
+    font-size: 22px;
+}
+
+@keyframes jz-pop {
+    0% { transform: scale(0.55) translateY(6px); opacity: 0; }
+    22% { transform: scale(1.06) translateY(0); opacity: 1; }
+    36% { transform: scale(1) translateY(0); opacity: 1; }
+    78% { transform: scale(1) translateY(-2px); opacity: 1; }
+    100% { transform: scale(1) translateY(-12px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .jz-flash-chip {
+        animation-duration: 1.2s;
+    }
 }
 
 .jz-bar {
@@ -922,6 +1040,11 @@ a.nt-item:focus-visible {
     font-size: 13px;
     color: var(--ink-2);
     cursor: pointer;
+}
+
+.jz-level[hidden],
+.jz-help[hidden] {
+    display: none;
 }
 
 .jz-level select:focus {
@@ -1046,6 +1169,29 @@ a.nt-item:focus-visible {
 
 .jz-help p {
     margin: 8px 0 0;
+}
+
+.jz-sound {
+    width: 100%;
+    margin-top: 10px;
+    padding: 7px 10px;
+    border: 1px dashed var(--line);
+    border-radius: 9px;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.jz-sound:hover {
+    color: var(--gold-deep);
+    border-color: rgba(176, 141, 87, 0.6);
+}
+
+.jz-sound.is-off {
+    color: var(--faint);
 }
 
 /* ---------- 列表 ---------- */

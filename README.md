@@ -28,7 +28,7 @@ zaji/                 杂技：工具页
   dapu.html           打谱（含开局命名、同型局、图片认谱）
   molun.html          末轮计算器（含成绩单 OCR）
   predict.html        胜率预测
-  jinzhao.html        禁手找茬
+  jinzhao.html        棋形判断与禁手找茬（两种玩法共用一块盘，答对有动效）
   vcf.html            VCF 做题
   english.html        连珠英语：四级词汇 + 连珠术语、五子棋阅读题，进度可备份
 bisai/index.html      单届选拔赛成绩表，浏览器里用 sql.js 读 bisai.db
@@ -53,6 +53,9 @@ assets/
   words-cet4.js  words-renju.js   连珠英语词库（脚本生成）
   reading-articles.js 五子棋英语阅读文章与题目（脚本生成）
   english-app.js      连珠英语：账号、记忆排期、学习/复习/拼写/阅读/词表、进度备份
+  jinzhao-app.mjs     棋形判断与禁手找茬：出题、判点、答对动效（canvas 粒子）
+  jinzhao-gen.mjs     禁手找茬出题器（骨架 + 干扰子，复用 vcf-gen 的规则）
+  qixing-gen.mjs      棋形判断出题器（连五 / 活四 / 冲四 / 活三 / 眠三）
   engine/             Rapfi 引擎 wasm
   vendor/sqljs/       浏览器端 SQLite
   img/  audio/        配图与音乐
