@@ -485,7 +485,7 @@
         var tokens = p.moves.split(/[\s,，;；]+/).filter(Boolean);
         if (!tokens.length) { return '请在棋盘上落子，或在手顺框中填写着法。'; }
         for (var i = 0; i < tokens.length; i++) {
-            if (!/^[a-o]([1-9]|1[0-5])$/.test(tokens[i])) {
+            if (!/^[a-o](1[0-5]|[1-9])$/.test(tokens[i])) {
                 return '手顺格式有误：“' + tokens[i] + '”。应使用 a–o 列、1–15 行，如 h8。';
             }
         }
@@ -515,7 +515,7 @@
 
     function getMoves() {
         var raw = $('pred-moves').value.trim();
-        return raw ? (raw.match(/[a-o](?:[1-9]|1[0-5])/g) || []) : [];
+        return raw ? (raw.match(/[a-o](?:1[0-5]|[1-9])(?!\d)/g) || []) : [];
     }
 
     function setMoves(mv) {
@@ -582,7 +582,7 @@
             s += '<text x="' + pp.x + '" y="' + (pp.y + 3.5) + '" font-size="10.5" font-family="monospace" font-weight="bold" fill="' + (isTop ? '#fffdf7' : '#6b4f2a') + '" text-anchor="middle">' + label + '</text>';
         });
         // 推荐下一手：金色虚线圈（画在概率徽章外）
-        if (suggest && /^[a-o]([1-9]|1[0-5])$/.test(suggest)) {
+        if (suggest && /^[a-o](1[0-5]|[1-9])$/.test(suggest)) {
             var pt2 = coordToXY(suggest);
             if (pt2) {
                 s += '<circle cx="' + pt2.x + '" cy="' + pt2.y + '" r="' + (step * 0.66) + '" fill="none" stroke="#b8862b" stroke-width="2.6" stroke-dasharray="6 4"/>';
