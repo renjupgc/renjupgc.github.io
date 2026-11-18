@@ -44,7 +44,7 @@ RE_LASTMOD = re.compile(r'<span class="date">(\d{4}-\d{2}-\d{2})</span>')
 
 # 不参与 sitemap 的页面。时光机只在等级分表的角落里挂一个入口，不单独列出，
 # 也不进搜索（页头另有 noindex）。
-SKIP_SITEMAP = {'404.html', 'zayu/shiguang.html'}
+SKIP_SITEMAP = {'404.html', 'zayu/shiguang.html', 'zaji/duoguan.html'}
 
 # 暗门页（录入赛果、看访问统计用）：不链在导航上，不进 sitemap，也不做 SEO 注入。
 ADMIN_PAGES = {'admin/duiju.html', 'admin/index.html'}

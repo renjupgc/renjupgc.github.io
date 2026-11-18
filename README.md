@@ -30,6 +30,8 @@ zaji/                 杂技：工具页
   predict.html        胜率预测
   jinzhao.html        棋形判断与禁手找茬（两种玩法共用一块盘，答对有动效）
   vcf.html            VCF 做题
+  duoguan.html        绝对冠感：十人单循环的夺冠概率与现场出题的小测验
+                      暗门，只敲地址（不进导航、不进 sitemap，页头 noindex）
   english.html        连珠英语：四级词汇 + 连珠术语、五子棋阅读题，进度可备份
 bisai/index.html      单届选拔赛成绩表，浏览器里用 sql.js 读 bisai.db
 api/duiju/            只读 JSON 接口（Actions 定时生成并提交，Pages 直接发）

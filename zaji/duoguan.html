@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>绝对冠感 - 连珠杂箱</title>
+<meta name="description" content="十人单循环的夺冠概率求解器，与一个现场出题、只问一号选手的小测验。">
+<!-- zbx:seo -->
+<link rel="canonical" href="https://renjupgc.github.io/zaji/duoguan.html">
+<meta property="og:site_name" content="连珠杂箱">
+<meta property="og:type" content="website">
+<meta property="og:title" content="绝对冠感">
+<meta property="og:description" content="十人单循环的夺冠概率求解器，与一个现场出题、只问一号选手的小测验。">
+<meta property="og:url" content="https://renjupgc.github.io/zaji/duoguan.html">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="绝对冠感">
+<meta name="twitter:description" content="十人单循环的夺冠概率求解器，与一个现场出题、只问一号选手的小测验。">
+<meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<!-- /zbx:seo -->
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+/* 本页专用，全站样式不动。 */
+
+.dg-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px 22px;
+    margin: 0 0 22px;
+    box-shadow: var(--shadow-sm);
+}
+
+.dg-card > h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.dg-step {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--gold-deep);
+    background: var(--gold-tint);
+    border-radius: 999px;
+    padding: 2px 9px;
+    transform: translateY(-1px);
+}
+
+.dg-sub {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--muted);
+    margin: 0 0 14px;
+}
+
+.dg-sub b { color: var(--ink-2); font-weight: 600; }
+
+.dg-barline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+}
+
+.dg-barline .dg-spacer { flex: 1; }
+
+.dg-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1;
+    padding: 8px 15px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease;
+    white-space: nowrap;
+}
+
+.dg-btn:hover { border-color: var(--gold); color: var(--gold-deep); background: var(--gold-tint); }
+
+.dg-btn.is-primary {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #fffdf7;
+}
+
+.dg-btn.is-primary:hover { background: var(--gold-deep); border-color: var(--gold-deep); color: #fffdf7; }
+
+.dg-btn.is-quiet { border-color: transparent; background: transparent; color: var(--muted); }
+
+.dg-btn.is-quiet:hover { color: var(--gold-deep); background: var(--gold-tint); }
+
+.dg-meta {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin: 10px 0 0;
+}
+
+.dg-gridwrap {
+    overflow-x: auto;
+    margin: 0 0 10px;
+    padding: 0 0 6px;
+    -webkit-overflow-scrolling: touch;
+}
+
+table.dg-grid {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 604px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    min-width: 560px;
+}
+
+table.dg-grid th,
+table.dg-grid td {
+    height: 30px;
+    padding: 0;
+    text-align: center;
+    border: 1px solid var(--line-soft);
+}
+
+table.dg-grid thead th {
+    background: var(--surface-2);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.dg-corner {
+    font-size: 10px !important;
+    letter-spacing: 0.06em;
+    color: var(--faint) !important;
+}
+
+.dg-diag { background: var(--surface-2); color: var(--faint); }
+
+.dg-td { background: var(--surface); }
+
+.dg-in {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: center;
+    font: inherit;
+    color: inherit;
+}
+
+.dg-in:focus { outline: none; background: var(--gold-tint); }
+
+.dg-cell, .dg-mirror { font-variant-numeric: tabular-nums; }
+
+.dg-mirror { background: var(--surface-2); color: var(--faint); font-size: 11px; }
+
+.is-win { color: var(--win); font-weight: 600; }
+.is-loss { color: var(--loss); font-weight: 600; }
+.is-open { color: var(--gold-deep); font-weight: 600; }
+.is-blank { color: var(--faint); }
+
+table.dg-grid tr.is-focus th { background: var(--gold-tint); color: var(--gold-deep); }
+table.dg-grid td.is-focus { background: rgba(176, 141, 87, 0.13); }
+
+.dg-list { display: grid; gap: 5px; margin: 8px 0 0; }
+
+.dg-row {
+    display: grid;
+    grid-template-columns: 28px 60px minmax(0, 1fr) 52px 54px;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: var(--ink-2);
+}
+
+.dg-no { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.dg-no.is-me { color: var(--gold-deep); font-weight: 700; }
+.dg-exp { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.dg-bar {
+    height: 7px;
+    border-radius: 99px;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    overflow: hidden;
+}
+
+.dg-bar i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #ddc596, var(--gold-deep));
+}
+
+.dg-pm { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.dg-tag {
+    font-size: 11px;
+    text-align: center;
+    border-radius: 999px;
+    padding: 1px 0;
+    border: 1px solid var(--line);
+}
+
+.dg-tag.is-lock { color: #7a5a20; background: var(--gold-tint); border-color: #e6d3ad; }
+.dg-tag.is-live { color: var(--ink-3); background: var(--surface-2); }
+.dg-tag.is-out { color: var(--faint); background: transparent; }
+
+.dg-ask {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0 0;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.dg-ans {
+    width: 92px;
+    padding: 7px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    text-align: center;
+}
+
+.dg-ans:focus { outline: none; border-color: var(--gold); background: var(--surface); }
+.dg-ans:disabled { color: var(--muted); }
+
+.dg-verdict {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin: 14px 0 8px;
+    padding: 10px 13px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-family: var(--sans);
+}
+
+.dg-verdict.is-good { background: #eef3ea; border-color: #cfdcc6; }
+.dg-verdict.is-ok { background: var(--gold-tint); border-color: #e6d3ad; }
+.dg-verdict.is-bad { background: #f7ecea; border-color: #e5c9c5; }
+
+.dg-v-k { font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
+.dg-verdict b { font-size: 21px; line-height: 1.2; }
+.dg-v-sub { font-size: 12px; color: var(--muted); }
+.dg-v-me { margin-left: auto; font-size: 13px; color: var(--ink-2); }
+
+.dg-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--muted);
+}
+
+.dg-stats b { color: var(--ink-2); font-weight: 600; }
+
+.dg-quiet {
+    margin: 6px 0;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--muted);
+    word-break: break-all;
+}
+
+@media (max-width: 640px) {
+    table.dg-grid { width: 520px; min-width: 520px; font-size: 11px; }
+    table.dg-grid th, table.dg-grid td { height: 28px; }
+    .dg-row { grid-template-columns: 22px 54px minmax(0, 1fr) 44px 46px; font-size: 11.5px; }
+    .dg-v-me { margin-left: 0; }
+}
+</style>
+</head>
+
+<body data-nav="杂技" data-base="../">
+
+<div class="container">
+
+    <div id="site-header"></div>
+
+    <main>
+
+        <header class="page-head">
+            <p class="eyebrow">杂技</p>
+            <h1 class="page-title">绝对冠感</h1>
+            <p class="page-desc">十人单循环：上面算，下面练。</p>
+        </header>
+
+        <section class="dg-card" id="dg-calc">
+            <h2><span class="dg-step">01</span>求解器</h2>
+            <p class="dg-sub">上三角填 <b>胜 / 负</b> 或 <b>0–1000</b> 千分胜率；空着按五五开，下三角自动镜像。</p>
+
+            <div class="dg-barline">
+                <button class="dg-btn" id="dg-rand" type="button">随机一题</button>
+                <button class="dg-btn is-quiet" id="dg-clear" type="button">清空</button>
+            </div>
+
+            <div class="dg-gridwrap"><table class="dg-grid" id="dg-grid"></table></div>
+
+            <div class="dg-list" id="dg-out"></div>
+            <p class="dg-meta" id="dg-meta"></p>
+        </section>
+
+        <section class="dg-card" id="dg-quiz">
+            <h2><span class="dg-step">02</span>小测验</h2>
+            <p class="dg-sub">现场出题，十场未定；填一号选手的夺冠概率（千分比）。</p>
+
+            <div class="dg-barline">
+                <button class="dg-btn" id="dg-next" type="button">换一题</button>
+                <button class="dg-btn is-quiet" id="dg-copy" type="button">复制链接</button>
+                <span class="dg-spacer"></span>
+                <span class="dg-meta" id="dg-qmeta" style="margin:0"></span>
+            </div>
+
+            <div class="dg-gridwrap"><table class="dg-grid" id="dg-qgrid"></table></div>
+
+            <div class="dg-ask">
+                <label for="dg-ans">一号选手（‰）</label>
+                <input class="dg-ans" id="dg-ans" type="text" inputmode="numeric" maxlength="4" autocomplete="off">
+                <button class="dg-btn is-primary" id="dg-submit" type="button">交卷</button>
+            </div>
+
+            <div id="dg-fb"></div>
+            <div class="dg-stats" id="dg-stats"></div>
+            <div style="margin-top:10px">
+                <button class="dg-btn is-quiet" id="dg-reset" type="button">清零</button>
+            </div>
+        </section>
+
+        <p class="dg-meta">冠军＝胜场最多，并列均分；最大流判定出局 / 有戏 / 已锁定，概率按未定场展开。</p>
+
+        <p class="back-link"><a href="../zaji.html">← 返回杂技</a> · <a href="../index.html">返回首页</a></p>
+
+    </main>
+
+</div>
+
+<script src="../assets/layout.js"></script>
+<script src="../assets/duoguan.js"></script>
+<script src="../assets/duoguan-app.js"></script>
+
+</body>
+</html>
