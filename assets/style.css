@@ -833,6 +833,45 @@ a.nt-item:focus-visible {
 
 /* ---------- 棋形判断与禁手找茬 ---------- */
 
+.jz-topline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 14px;
+}
+
+.jz-topline .jz-tabs {
+    margin: 0;
+}
+
+.jz-next-top {
+    margin-left: auto;
+    padding: 9px 20px;
+    border: 1px solid rgba(176, 141, 87, 0.5);
+    border-radius: 12px;
+    background: var(--gold-tint);
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--gold-deep);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.jz-next-top:hover {
+    border-color: rgba(176, 141, 87, 0.6);
+    background: #fffdf7;
+}
+
+.jz-next-top:active {
+    transform: translateY(1px);
+}
+
+.jz-next-top.is-hot {
+    box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.2);
+}
+
 .jz-tabs {
     display: inline-flex;
     gap: 4px;

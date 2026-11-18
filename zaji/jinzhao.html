@@ -37,9 +37,12 @@
             <p class="page-desc">同一块盘，两种读法：一种问「哪几点黑棋不能走」，一种问「哪几手能做出这个棋形」。都要全找出来才算过，点中一处就有碎屑炸开。</p>
         </header>
 
-        <div class="jz-tabs" role="tablist" aria-label="玩法">
-            <button type="button" class="jz-tab is-on" data-mode="forbid" role="tab" aria-selected="true">禁手找茬</button>
-            <button type="button" class="jz-tab" data-mode="shape" role="tab" aria-selected="false">棋形判断</button>
+        <div class="jz-topline">
+            <div class="jz-tabs" role="tablist" aria-label="玩法">
+                <button type="button" class="jz-tab is-on" data-mode="forbid" role="tab" aria-selected="true">禁手找茬</button>
+                <button type="button" class="jz-tab" data-mode="shape" role="tab" aria-selected="false">棋形判断</button>
+            </div>
+            <button type="button" id="jz-next" class="jz-next-top is-primary">下一题</button>
         </div>
 
         <section class="jz">
@@ -89,7 +92,6 @@
                     <button type="button" id="jz-hint">提示</button>
                     <button type="button" id="jz-reveal">看答案</button>
                     <button type="button" id="jz-reset">重来</button>
-                    <button type="button" id="jz-next" class="is-primary">下一题</button>
                 </div>
 
                 <button type="button" class="jz-sound" id="jz-sound" aria-pressed="true">音效 开</button>
