@@ -336,7 +336,7 @@
                 手顺同步显示在下方文本框，坐标用 <code>a–o</code> 表示列、<code>1–15</code> 表示行，也可直接在框中编辑。
                 假先（tentative first）与假后（tentative second）可填棋手姓名或站内编号；中文名也能识别，返回结果中的姓名为英文标准名。
                 “假先当前执色”指开局摆子结束后谁执白、谁执黑，决定模型从哪一方视角计算胜率。
-                预测结果由 <code>renjuonline.top</code> 的神经网络接口实时返回，本页只负责展示；结果棋盘在每个候选空点上标注该走法的概率，金色实心并带虚线圈者为模型最可能的下一手。概率与胜平负数值均为模型估计，不构成对局结论。
+                预测结果由 <code>renjuonline.top</code> 的神经网络接口实时返回，本页只负责展示；结果棋盘在每个候选空点上标注该走法的概率，金色实心并带虚线圈者为模型最可能的下一手；棋盘中央的半透明文字为双方胜率与和棋率。概率与胜平负数值均为模型估计，不构成对局结论。
                 参数会写进网址，方便把这一盘预测直接发给棋友。
             </p>
         </section>
@@ -531,7 +531,7 @@
         return { x: PAD + c * STEP, y: PAD + r * STEP };
     }
 
-    function drawBoard(svgId, moves, suggest, interactive, probs) {
+    function drawBoard(svgId, moves, suggest, interactive, probs, value) {
         var svg = $(svgId);
         if (!svg) { return; }
         var pad = PAD, step = STEP;
@@ -549,6 +549,19 @@
         [[3,3],[3,11],[7,7],[11,3],[11,11]].forEach(function (star) {
             s += '<circle cx="' + (pad + star[0] * step) + '" cy="' + (pad + star[1] * step) + '" r="4.5" fill="#6b4f2a" opacity=".85"/>';
         });
+        // 胜平负概率：半透明水印，叠在网格之上、棋子之下
+        if (value) {
+            var vlines = [
+                [esc(value.tfName) + ' 胜 ' + pct(value.tf_win), '#a8453f'],
+                ['和棋 ' + pct(value.draw), '#8d8574'],
+                [esc(value.tsName) + ' 胜 ' + pct(value.ts_win), '#4d7256']
+            ];
+            s += '<g font-family="sans-serif" font-weight="bold" font-size="30" text-anchor="middle" opacity="0.32">';
+            vlines.forEach(function (ln, i) {
+                s += '<text x="300" y="' + (300 + (i - 1) * 52) + '" fill="' + ln[1] + '">' + ln[0] + '</text>';
+            });
+            s += '</g>';
+        }
         // 坐标 a-o / 1-15
         for (var c = 0; c < 15; c++) {
             s += '<text x="' + (pad + c * step) + '" y="' + (pad - 14) + '" font-size="12" font-family="monospace" fill="#6b4f2a" text-anchor="middle">' + LETTERS[c] + '</text>';
@@ -601,6 +614,7 @@
         if (svgId === 'pred-board') {
             var cap = '黑第 1、3、5…手，白第 2、4、6…手；子上数字为手顺。';
             if (probs && probs.length) { cap += ' 空点上标注模型给出的该走法概率，金色实心为最可能的下一手。'; }
+            if (value) { cap += ' 半透明文字为胜平负预期。'; }
             $('pred-board-cap').textContent = cap;
         }
     }
@@ -646,7 +660,10 @@
         var val = data.value || {};
         var moves = getMoves();
         var policy = data.policy_top_moves || [];
-        drawBoard('pred-board', moves, policy.length ? policy[0].move : '', false, policy);
+        drawBoard('pred-board', moves, policy.length ? policy[0].move : '', false, policy, {
+            tfName: tf.name || '假先', tsName: ts.name || '假后',
+            tf_win: val.tf_win, draw: val.draw, ts_win: val.ts_win
+        });
         var meta = [
             ['日期', data.timestamp],
             ['规则', rule.name],
