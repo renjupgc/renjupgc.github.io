@@ -1,0 +1,29 @@
+/* 连珠杂箱 · 管理后台共用顶栏
+ * 只定义 .admin-nav 一类，配色沿用各页自己的 CSS 变量，不碰原有样式。
+ */
+.admin-nav {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  margin: 0 0 20px; padding: 0 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.admin-nav .an-brand {
+  font-size: 15px; font-weight: 600; color: var(--fg);
+  text-decoration: none; letter-spacing: .02em; white-space: nowrap;
+}
+.admin-nav .an-brand b { color: var(--accent); font-weight: 600; }
+.admin-nav .an-links { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.admin-nav .an-links a {
+  font-size: 13px; color: var(--muted); text-decoration: none;
+  padding: 5px 10px; border-radius: 7px; border: 1px solid transparent;
+  white-space: nowrap;
+}
+.admin-nav .an-links a:hover { color: var(--fg); background: var(--chip); }
+.admin-nav .an-links a.on {
+  color: var(--accent); background: var(--chip);
+  border-color: var(--line); font-weight: 600;
+}
+@media (max-width: 620px) {
+  .admin-nav { gap: 8px; margin-bottom: 16px; }
+  .admin-nav .an-links { margin-left: 0; width: 100%; }
+  .admin-nav .an-links a { padding: 4px 8px; font-size: 12px; }
+}

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>运维控制台 · 连珠杂箱</title>
+<link rel="stylesheet" href="admin.css">
+<style>
+  :root {
+    --bg: #f6f4ef; --fg: #23211d; --muted: #77726a; --card: #fff;
+    --line: #e2ded6; --accent: #3a5a78; --chip: #f1eee7;
+    --ok: #2f6f4f; --warn: #a03a2e; --warm: #a8791f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181a; --fg: #e8e6e1; --muted: #9a958c; --card: #1e2124;
+      --line: #2f3337; --accent: #8fb6d6; --chip: #262a2e;
+      --ok: #6fbf8f; --warn: #e08a7a; --warm: #d9b45f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 18px 64px;
+    background: var(--bg); color: var(--fg);
+    font: 15px/1.6 "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: .02em; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .sub code, .card code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px; margin-bottom: 14px; }
+  .card > .sub { margin: 0 0 14px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .row2 { grid-template-columns: 1fr; } }
+
+  input[type=password] {
+    font: inherit; font-size: 13px; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; width: 100%;
+  }
+  .btn {
+    font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.ghost { background: transparent; }
+  .tk { display: flex; gap: 8px; align-items: center; }
+  .tk input { flex: 1 1 auto; min-width: 0; }
+
+  .wf { display: flex; gap: 12px; align-items: flex-start; padding: 13px 0; border-top: 1px solid var(--line); }
+  .wf:first-of-type { border-top: 0; }
+  .wf-main { flex: 1 1 auto; min-width: 0; }
+  .wf-main .name { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  .wf-main .desc { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .wf-ops { flex: none; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+
+  .status { font-size: 12px; min-height: 18px; color: var(--muted); }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--warn); }
+  .status.run { color: var(--warm); }
+  .status a { color: var(--accent); }
+
+  .checks { list-style: none; margin: 0; padding: 0; }
+  .checks li { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .checks li:last-child { border-bottom: 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; margin-top: 6px; }
+  .dot.ok { background: var(--ok); }
+  .dot.err { background: var(--warn); }
+  .checks .k { font-weight: 600; }
+  .checks .v { color: var(--muted); margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 9px; }
+  .links a { display: block; padding: 11px 13px; border: 1px solid var(--line); border-radius: 9px;
+             background: var(--bg); color: var(--fg); text-decoration: none; font-size: 13px; }
+  .links a:hover { border-color: var(--accent); }
+  .links a small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  .msg { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.9; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="admin-nav">
+    <a class="an-brand" href="index.html"><b>连珠杂箱</b> · 管理后台</a>
+    <div class="an-links">
+      <a href="index.html">访问统计</a>
+      <a href="duiju.html">赛果录入</a>
+      <a class="on" href="ops.html">运维</a>
+      <a href="../index.html" target="_blank" rel="noopener">看站点 ↗</a>
+    </div>
+  </nav>
+
+  <h1>运维控制台</h1>
+  <div class="sub">手动触发数据工作流、检查接口是否正常、快速跳转常用入口。</div>
+
+  <section class="card">
+    <h2>GitHub 凭证</h2>
+    <p class="sub">与「赛果录入」共用同一 token，填一次即可。fine-grained token 需 <code>Actions: Read and write</code>；classic 需 <code>repo</code>。</p>
+    <div class="tk">
+      <input type="password" id="token" placeholder="GitHub token" autocomplete="off" spellcheck="false">
+      <button class="btn" id="save-token" type="button">记住</button>
+    </div>
+    <div class="status" id="token-msg"></div>
+  </section>
+
+  <section class="card">
+    <h2>数据工作流</h2>
+    <p class="sub">触发后等待 GitHub Actions 跑完，通常几十秒到几分钟。</p>
+
+    <div class="wf">
+      <div class="wf-main">
+        <div class="name">snapshot-visits.yml</div>
+        <div class="desc">把访问埋点从 ntfy 通道归档进 <code>data/visits.ndjson</code>，并补查 IP 归属地。统计页的数据靠它更新。</div>
+      </div>
+      <div class="wf-ops">
+        <button class="btn primary" data-dispatch="snapshot-visits.yml" type="button">立即运行</button>
+        <button class="btn ghost" data-runs="snapshot-visits.yml" type="button">运行记录</button>
+        <div class="status" data-status="snapshot-visits.yml"></div>
+      </div>
+    </div>
+
+    <div class="wf">
+      <div class="wf-main">
+        <div class="name">update-duiju.yml</div>
+        <div class="desc">重出对局接口与积分榜。改赛果请用「赛果录入」页，那里可以带参数提交；这里只做无参刷新。</div>
+      </div>
+      <div class="wf-ops">
+        <button class="btn" data-dispatch="update-duiju.yml" type="button">无参刷新</button>
+        <button class="btn ghost" data-runs="update-duiju.yml" type="button">运行记录</button>
+        <div class="status" data-status="update-duiju.yml"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="row2">
+    <section class="card">
+      <h2>接口自检</h2>
+      <p class="sub">检查线上数据文件是否可取、是否过期。</p>
+      <ul class="checks" id="checks"></ul>
+      <button class="btn" id="recheck" type="button" style="margin-top:10px">重新检查</button>
+    </section>
+
+    <section class="card">
+      <h2>快捷入口</h2>
+      <p class="sub">常用后台与外部链接。</p>
+      <div class="links">
+        <a href="index.html">访问统计<small>访客、地区、明细</small></a>
+        <a href="duiju.html">赛果录入<small>改对局结果</small></a>
+        <a href="https://github.com/renjupgc/renjupgc.github.io/actions" target="_blank" rel="noopener">Actions<small>查看工作流运行</small></a>
+        <a href="https://github.com/renjupgc/renjupgc.github.io" target="_blank" rel="noopener">仓库<small>源码与提交</small></a>
+        <a href="../feed.xml" target="_blank" rel="noopener">feed.xml<small>站点订阅源</small></a>
+        <a href="../sitemap.xml" target="_blank" rel="noopener">sitemap.xml<small>搜索引擎地图</small></a>
+      </div>
+    </section>
+  </div>
+
+  <p class="note">
+    本站是 GitHub Pages 静态站点，没有常驻服务端；运维动作都通过 GitHub Actions 完成，
+    token 只保存在本机浏览器，不会上传到别处。触发工作流会写入仓库，请确认参数与作用后再点。
+  </p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var REPO = 'renjupgc/renjupgc.github.io';
+  var GH = 'https://api.github.com/repos/' + REPO;
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { token: '' };
+
+  function loadToken() {
+    try { state.token = localStorage.getItem('duiju_token') || ''; } catch (e) { state.token = ''; }
+    $('token').value = state.token;
+    tokenMsg(state.token ? '已保存 token（与赛果录入共用）' : '未保存 token', state.token ? 'ok' : '');
+    syncButtons();
+  }
+  function tokenMsg(text, cls) {
+    var el = $('token-msg');
+    el.textContent = text || '';
+    el.className = 'status' + (cls ? ' ' + cls : '');
+  }
+  function syncButtons() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-dispatch]'), function (b) { b.disabled = !state.token; });
+  }
+  function sStatus(wf, text, cls, html) {
+    var el = document.querySelector('[data-status="' + wf + '"]');
+    if (!el) { return; }
+    el.className = 'status' + (cls ? ' ' + cls : '');
+    if (html) { el.innerHTML = html; } else { el.textContent = text || ''; }
+  }
+
+  /* ---------- 工作流 ---------- */
+  function dispatch(wf, btn) {
+    if (!state.token) { tokenMsg('请先填写并记住 token', 'err'); return; }
+    btn.disabled = true;
+    sStatus(wf, '正在触发…', 'run');
+    fetch(GH + '/actions/workflows/' + wf + '/dispatches', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + state.token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ref: 'main' })
+    }).then(function (r) {
+      if (r.status === 204) {
+        sStatus(wf, '已触发，等待运行…', 'run');
+        return poll(wf, 0);
+      }
+      return r.text().then(function (t) {
+        var why = r.status === 401 ? 'token 无效或没有 Actions 权限'
+          : r.status === 404 ? '找不到工作流'
+          : r.status === 422 ? '参数被拒'
+          : 'HTTP ' + r.status + ' ' + t.slice(0, 100);
+        sStatus(wf, why, 'err');
+      });
+    }).catch(function (e) {
+      sStatus(wf, '网络错误：' + e.message, 'err');
+    }).then(function () { syncButtons(); });
+  }
+
+  function poll(wf, tries) {
+    if (tries > 20) { sStatus(wf, '仍在运行，点「运行记录」看进度', 'run'); return; }
+    return fetch(GH + '/actions/workflows/' + wf + '/runs?event=workflow_dispatch&per_page=1', {
+      headers: { 'Authorization': 'Bearer ' + state.token, 'Accept': 'application/vnd.github+json' }
+    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+      var run = data && data.workflow_runs && data.workflow_runs[0];
+      if (!run) { sStatus(wf, '看不到运行记录（token 可能需要 Actions: read）', 'err'); return; }
+      if (run.status !== 'completed') {
+        sStatus(wf, '运行中：' + run.status + '…', 'run');
+        return new Promise(function (res) { setTimeout(function () { res(poll(wf, tries + 1)); }, 4000); });
+      }
+      var ok = run.conclusion === 'success';
+      sStatus(wf, '', ok ? 'ok' : 'err',
+        (ok ? '✓ 已完成' : '✗ ' + run.conclusion) +
+        ' · <a href="' + run.html_url + '" target="_blank" rel="noopener">日志</a>');
+    }).catch(function (e) { sStatus(wf, '查询失败：' + e.message, 'err'); });
+  }
+
+  function runs(wf) {
+    window.open('https://github.com/' + REPO + '/actions/workflows/' + wf, '_blank', 'noopener');
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-dispatch]'), function (b) {
+    b.addEventListener('click', function () { dispatch(b.getAttribute('data-dispatch'), b); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-runs]'), function (b) {
+    b.addEventListener('click', function () { runs(b.getAttribute('data-runs')); });
+  });
+
+  $('save-token').addEventListener('click', function () {
+    state.token = $('token').value.trim();
+    try {
+      if (state.token) { localStorage.setItem('duiju_token', state.token); }
+      else { localStorage.removeItem('duiju_token'); }
+    } catch (e) { /* 存不了就只在本次生效 */ }
+    tokenMsg(state.token ? 'token 已记住' : 'token 已清空', state.token ? 'ok' : 'err');
+    syncButtons();
+  });
+  $('token').addEventListener('input', function () {
+    state.token = $('token').value.trim();
+    syncButtons();
+  });
+
+  /* ---------- 接口自检 ---------- */
+  var CHECKS = [
+    { name: '首页', url: '../index.html', kind: 'html' },
+    { name: '赛程接口 index.json', url: '../api/duiju/index.json', kind: 'json' },
+    { name: '访问归档 visits.ndjson', url: '../data/visits.ndjson', kind: 'text' },
+    { name: 'IP 归属地 ip_geo.json', url: '../data/ip_geo.json', kind: 'json' },
+    { name: '订阅源 feed.xml', url: '../feed.xml', kind: 'text' },
+    { name: '地图 sitemap.xml', url: '../sitemap.xml', kind: 'text' }
+  ];
+
+  function checkAll() {
+    var host = $('checks');
+    host.innerHTML = CHECKS.map(function (c) {
+      return '<li data-check="' + c.name + '"><i class="dot"></i>' +
+        '<span class="k">' + c.name + '</span><span class="v">检查中…</span></li>';
+    }).join('');
+    CHECKS.forEach(function (c) {
+      var li = host.querySelector('[data-check="' + c.name + '"]');
+      var dot = li.querySelector('.dot');
+      var v = li.querySelector('.v');
+      var t0 = performance.now();
+      fetch(c.url + '?_=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) {
+          var ms = Math.round(performance.now() - t0);
+          if (!r.ok) { throw new Error('HTTP ' + r.status); }
+          return r.text().then(function (txt) {
+            var info = ms + ' ms · ' + fmtSize(new Blob([txt]).size);
+            if (c.kind === 'json') {
+              try { var o = JSON.parse(txt); info += ' · ' + jsonHint(c.name, o); }
+              catch (e) { throw new Error('JSON 解析失败'); }
+            } else if (c.kind === 'text' && txt.trim()) {
+              var lines = txt.trim().split('\n').length;
+              info += ' · ' + lines + ' 行';
+            }
+            dot.className = 'dot ok';
+            v.textContent = info;
+          });
+        })
+        .catch(function (e) {
+          dot.className = 'dot err';
+          v.textContent = e.message;
+        });
+    });
+  }
+  function fmtSize(n) {
+    return n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB'
+      : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+  }
+  function jsonHint(name, o) {
+    if (name.indexOf('index.json') >= 0) {
+      var ts = (o.tournaments || [])[0];
+      return ts ? (ts.name + ' · ' + ((ts.rounds || []).length) + ' 轮') : '无赛事';
+    }
+    if (name.indexOf('ip_geo') >= 0) { return Object.keys(o).length + ' 条'; }
+    return '正常';
+  }
+  $('recheck').addEventListener('click', checkAll);
+
+  loadToken();
+  checkAll();
+})();
+</script>
+</body>
+</html>

@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
-<title>赛果录入</title>
+<title>赛果录入 · 连珠杂箱</title>
+<link rel="stylesheet" href="admin.css">
 <style>
   :root {
     --bg: #f6f4ef; --fg: #23211d; --muted: #77726a; --card: #fff;
@@ -78,6 +79,16 @@
 </head>
 <body>
 <div class="wrap">
+  <nav class="admin-nav">
+    <a class="an-brand" href="index.html"><b>连珠杂箱</b> · 管理后台</a>
+    <div class="an-links">
+      <a href="index.html">访问统计</a>
+      <a class="on" href="duiju.html">赛果录入</a>
+      <a href="ops.html">运维</a>
+      <a href="../index.html" target="_blank" rel="noopener">看站点 ↗</a>
+    </div>
+  </nav>
+
   <h1>赛果录入</h1>
   <div class="sub">改完点提交，页面触发 <code>update-duiju</code> 工作流把结果写进 duiju.db 并重出接口。</div>
 
