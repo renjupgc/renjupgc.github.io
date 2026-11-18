@@ -982,8 +982,9 @@ a.nt-item:focus-visible {
 .jz-bar {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px 10px;
     margin-top: 12px;
     padding-top: 10px;
     border-top: 1px solid var(--line-soft);
@@ -1007,7 +1008,71 @@ a.nt-item:focus-visible {
 }
 
 .jz-count {
+    margin-right: auto;
     font-variant-numeric: tabular-nums;
+}
+
+/* 本题计时：做题速度直接看这个数，停表后换个颜色。
+   窄屏这一行会折下去，靠 margin-left 让它自己贴右边。 */
+.jz-time {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-left: auto;
+    padding: 2px 9px;
+    border: 1px solid var(--line-soft);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.62);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.jz-time i {
+    font-style: normal;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: var(--faint);
+}
+
+.jz-time b {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+}
+
+.jz-time.is-done {
+    border-color: rgba(176, 141, 87, 0.45);
+    background: var(--gold-tint);
+}
+
+.jz-time.is-done i {
+    color: var(--gold-deep);
+}
+
+.jz-time.is-done b {
+    color: var(--gold-deep);
+}
+
+/* 窄屏把「计时」两个字收起来、字号收小一点，只留数字：
+   这样一栏正好放得下三样，不用折行，也不会撞到右下角那个固定的播放器 */
+@media (max-width: 600px) {
+    .jz-bar {
+        font-size: 11.5px;
+        gap: 6px 8px;
+    }
+
+    .jz-dot {
+        display: none;
+    }
+
+    .jz-time {
+        padding: 2px 8px;
+    }
+
+    .jz-time i {
+        display: none;
+    }
 }
 
 .jz-side {

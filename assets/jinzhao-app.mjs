@@ -37,6 +37,34 @@ let resized = false;
 
 const $ = id => document.getElementById(id);
 
+/* ---------- 计时 ----------
+ * 每题一个表：局面摆好开始走，点齐最后一处停表，换题 / 重来归零。
+ * 切到后台就停，回来接着算——不然切个标签页回来数字就虚高了。
+ * 每档玩法各记一个最快用时，存在本机。 */
+const K_BEST = 'zbx.jz.speed';
+let clockId = 0;
+
+function readBest() {
+    try {
+        const v = JSON.parse(window.localStorage.getItem(K_BEST) || '{}') || {};
+        return { forbid: v.forbid || 0, shape: v.shape || 0 };
+    } catch (e) { return { forbid: 0, shape: 0 }; }
+}
+
+function saveBest(b) {
+    try { window.localStorage.setItem(K_BEST, JSON.stringify(b)); } catch (e) { /* 存不了就只管这一次 */ }
+}
+
+/* 0:12.4 —— 做题速度看的是秒，分位只在前头挡着 */
+function fmtTime(ms) {
+    const t = Math.max(0, ms) / 1000;
+    const m = Math.floor(t / 60);
+    const sec = t - m * 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec.toFixed(1);
+}
+
+const elapsed = s => s.tAcc + (s.tMark ? performance.now() - s.tMark : 0);
+
 function state() {
     if (S) { return S; }
     S = {
@@ -59,9 +87,92 @@ function state() {
         kind: '',
         fx: null,
         raf: 0,
+        /* 计时：tAcc 是之前几段累计的毫秒，tMark 是这一段开始走的时刻（0＝停着） */
+        tAcc: 0,
+        tMark: 0,
+        lastMs: 0,
+        best: readBest(),
         ctx: null, cell: 0, pad: 0, size: 0
     };
     return S;
+}
+
+function paintTime() {
+    const s = state();
+    const num = $('jz-time');
+    if (!num) { return; }
+    num.textContent = fmtTime(elapsed(s));
+    const box = $('jz-time-box');
+    if (box) {
+        box.classList.toggle('is-done', !!(s.puzzle && s.cleared));
+        const b = s.best[s.mode] || 0;
+        box.title = b ? '本题最快 ' + fmtTime(b) : '本题计时';
+    }
+    const k = $('jz-time-k');
+    if (k) { k.textContent = (s.puzzle && s.over) ? '用时' : '计时'; }
+}
+
+function clockRun() {
+    const s = state();
+    window.clearInterval(clockId);
+    clockId = window.setInterval(paintTime, 100);
+}
+
+/* 换题时先把表清零停住，等局面摆好再起表 */
+function clockIdle() {
+    const s = state();
+    window.clearInterval(clockId);
+    clockId = 0;
+    s.tAcc = 0;
+    s.tMark = 0;
+    s.lastMs = 0;
+    paintTime();
+}
+
+/* 新题：归零，页面在后台就先不走 */
+function clockStart() {
+    const s = state();
+    clockIdle();
+    if (!document.hidden) {
+        s.tMark = performance.now();
+        clockRun();
+    }
+}
+
+function clockPause() {
+    const s = state();
+    if (!s.tMark) { return; }
+    s.tAcc += performance.now() - s.tMark;
+    s.tMark = 0;
+    window.clearInterval(clockId);
+    clockId = 0;
+    paintTime();
+}
+
+function clockResume() {
+    const s = state();
+    if (s.tMark || !s.puzzle || s.busy || s.over) { return; }
+    s.tMark = performance.now();
+    clockRun();
+}
+
+/* 停表并给出本题用时（毫秒） */
+function clockStop() {
+    const s = state();
+    clockPause();
+    s.lastMs = Math.round(s.tAcc);
+    paintTime();
+    return s.lastMs;
+}
+
+/* 记最快：返回 {ms, best, rec}，rec 表示这一把快过之前的记录 */
+function recordTime(ms) {
+    const s = state();
+    const b = readBest();
+    const old = b[s.mode] || 0;
+    const rec = !old || ms < old;
+    if (rec) { b[s.mode] = Math.round(ms); saveBest(b); s.best = b; }
+    return { ms: ms, best: b[s.mode] || 0, old: old, rec: rec };
 }
 
 /* ---------- 画布 ---------- */
@@ -444,6 +555,7 @@ function chime(big) {
 function newPuzzle() {
     const s = state();
     clearFlash();
+    clockIdle();
     s.busy = true;
     s.over = false;
     s.cleared = false;
@@ -505,14 +617,15 @@ function load(p, levelName) {
     stat();
     if (s.mode === 'shape') {
         say(s.need > 1
-            ? '题目要的是「' + p.label + '」：' + p.tip + ' 盘上有 ' + s.need +
-              ' 处能做出它，全部点出来才算过。'
-            : '题目要的是「' + p.label + '」：' + p.tip + ' 点出那一点。', '');
+            ? '题目要的是「' + p.label + '」：' + p.def + '（规则 ' + p.cite + '）。' +
+              '盘上有 ' + s.need + ' 处能做出它，全部点出来才算过。'
+            : '题目要的是「' + p.label + '」：' + p.def + '（规则 ' + p.cite + '）。点出那一点。', '');
     } else {
         say(s.need > 1
             ? '黑棋该走。盘上有 ' + s.need + ' 处落下就违例，一处一处点出来。'
             : '黑棋该走。盘上只有一个点落下就违例，点它。', '');
     }
+    clockStart();
     draw();
 }
 
@@ -586,8 +699,17 @@ function hit(k) {
 
     /* 全找齐了 */
     s.over = true;
+    const ms = clockStop();
+    const rec = recordTime(ms);
+    const secs = (ms / 1000).toFixed(1);
+    /* 破了记录才提记录，没破就把本档最快摆出来当参照 */
+    const speed = rec.rec
+        ? (rec.old ? '，刷新最快 ' + fmtTime(rec.ms) : '')
+        : '，最快 ' + fmtTime(rec.best);
+    const subTime = (rec.rec && rec.old) ? '新纪录 ' + secs + ' 秒' : secs + ' 秒';
     if (!s.cleared) { s.cleared = true; cnt().done++; s.streak++; }
     stat();
+    paintTime();
     draw();
 
     const last = pname(k);
@@ -596,23 +718,25 @@ function hit(k) {
     if (s.mode === 'shape') {
         const five = s.need === 1 && s.puzzle.shape === 'five';
         title = five ? '连五！赢了' : (s.need > 1 ? s.need + ' 处全中！' : '漂亮！' + s.puzzle.label);
-        sub = s.streak >= 2 ? '连对 ' + s.streak + ' 题' : (s.need > 1 ? s.puzzle.label + '，全找齐' : '正解');
+        sub = (s.streak >= 2 ? '连对 ' + s.streak + ' 题' : (s.need > 1 ? s.puzzle.label + '，全找齐' : '正解')) +
+            ' · ' + subTime;
         say(s.need > 1
-            ? '全找齐了！' + s.need + ' 处都能做出' + s.puzzle.label + '：' + all +
-              '。' + s.puzzle.tip + ' 点「下一题」继续。'
-            : '漂亮！' + last + ' 落下去正好是' + s.puzzle.label + '：' + s.puzzle.tip +
-              ' 点「下一题」继续。', 'ok');
+            ? '全找齐了！' + s.need + ' 处都能做出' + s.puzzle.label + '（' + s.puzzle.def + '）：' + all +
+              '。' + s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + '。点「下一题」继续。'
+            : '漂亮！' + last + ' 落下去正好是' + s.puzzle.label + '（' + s.puzzle.def + '）。' +
+              s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + '。点「下一题」继续。', 'ok');
         celebrate(k, { stone: true, big: five || s.need > 1 });
         chime(five || s.need > 1);
     } else {
         const kinds = s.puzzle.kinds || [s.puzzle.label];
         title = s.need > 1 ? '全找到了！' : '找到了！';
-        sub = s.need > 1 ? s.need + ' 处禁手' : s.puzzle.label + '禁手';
+        sub = (s.need > 1 ? s.need + ' 处禁手' : s.puzzle.label + '禁手') + ' · ' + subTime;
         say(s.need > 1
             ? s.need + ' 处禁手都找到了：' +
               s.answers.map((q, i) => pname(q) + '（' + kinds[i] + '）').join('、') +
-              '。点「下一题」继续。'
-            : pname(k) + ' 对了：黑棋落在这里是' + s.puzzle.label + '禁手。点「下一题」继续。', 'ok');
+              '。用时 ' + secs + ' 秒' + speed + '。点「下一题」继续。'
+            : pname(k) + ' 对了：黑棋落在这里是' + s.puzzle.label + '禁手。用时 ' +
+              secs + ' 秒' + speed + '。点「下一题」继续。', 'ok');
         celebrate(k, { stone: true, big: s.need > 1 });
         chime(s.need > 1);
     }
@@ -640,12 +764,15 @@ function miss(k) {
         const ev = evaluate(s.board, k, BLACK);
         if (!ev) { why = '这一点走不了。'; }
         else if (ev.over) {
-            why = '落下连成六子以上，这是长连，黑棋违例——题目要的是恰好五子连成一线。';
+            why = '落下连成六子以上，这是长连，黑棋违例——题目要的是五连：任意一条线上 5 个同色棋子不间隔相连。';
         } else if (ev.forbidden) {
             why = '这一手是禁手（三三或四四），黑棋不能走，得换个点。';
+        } else if (ev.name === '没成型') {
+            why = '这一手什么形也没做出来，题目要的是' +
+                s.puzzle.label + '（' + s.puzzle.def + '）。';
         } else {
             why = '落下是' + ev.name + '（' + ev.short + '），题目要的是' +
-                s.puzzle.label + '（' + s.puzzle.tip.replace(/。$/, '') + '）。';
+                s.puzzle.label + '（' + s.puzzle.def + '）。';
         }
     } else {
         const info = describePoint(s.board, k);
@@ -707,6 +834,8 @@ function reveal() {
     if (s.busy || s.over || !s.puzzle) { return; }
     clearFlash();
     s.over = true;
+    const ms = clockStop();
+    const secs = (ms / 1000).toFixed(1);
     s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
 
     const rest = s.answers.filter(k => !s.found.has(k));
@@ -715,10 +844,12 @@ function reveal() {
 
     if (s.mode === 'shape') {
         say('这盘能做出' + s.puzzle.label + '的有 ' + s.need + ' 处：' + all +
-            '（红圈是还没找到的）。点「下一题」换一盘。', 'bad');
+            '（红圈是还没找到的）。看了答案，这一步用时 ' + secs + ' 秒，不计入最快。' +
+            ' 点「下一题」换一盘。', 'bad');
     } else {
         say((s.need > 1 ? s.need + ' 处禁手在：' : '答案在 ') + all +
-            (s.need > 1 ? '' : '，' + s.puzzle.label + '禁手') + '。点「下一题」换一盘。', 'bad');
+            (s.need > 1 ? '' : '，' + s.puzzle.label + '禁手') +
+            '。看了答案，这一步用时 ' + secs + ' 秒，不计入最快。点「下一题」换一盘。', 'bad');
     }
     stat();
     draw();
@@ -735,7 +866,8 @@ function reset() {
     s.cleared = false;
     s.found = new Set();
     s.board = Int8Array.from(s.puzzle.board);
-    say(s.mode === 'shape' ? '回到本题开局，重新点。' : '回到本题开局。', '');
+    say(s.mode === 'shape' ? '回到本题开局，重新点。表也从头开始走。' : '回到本题开局，表也从头开始走。', '');
+    clockStart();
     draw();
 }
 
@@ -808,11 +940,16 @@ export function boot() {
     s.fx = null;
     if (!layout(s)) { return; }
     canvas.dataset.booted = '1';
+    paintTime();
     draw();
 
     if (!canvas.dataset.bound) {
         canvas.dataset.bound = '1';
         canvas.addEventListener('click', clickCell);
+        /* 切到后台就停表：数的是做题的那段时间，不是开着页面的时间 */
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) { clockPause(); } else { clockResume(); }
+        });
         const lv = $('jz-level');
         if (lv) {
             lv.addEventListener('change', function () {

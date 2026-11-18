@@ -2,6 +2,8 @@
  * 棋形判断 - 出题器
  * ------------------------------------------------------------
  * 造一盘「只差一手就能做出某种棋形」的局面：连五 / 活四 / 冲四 / 活三 / 眠三。
+ * 五种棋形的定义与条款号取自《中国五子棋竞赛规则》第 7 条「棋形」，页面上
+ * 讲棋形只引这一份原文，不另写一套（见下面 SHAPES 的 def / cite）。
  * 用户要在盘上点出那一手。判定与出题都用 vcf-gen 的 classify：线型一律表述成
  * 「再填一子会变成什么」，活三 / 活四都是递归算出来的，没有手写的棋型表；
  * 黑棋禁手同样复用 blackForbidden，与禁手找茬、VCF 做题同源。
@@ -14,7 +16,7 @@
 
 import { BLACK, WHITE, px, py } from './quintet-core.mjs';
 import {
-    classify, windowAt, blackForbidden, makesFive, fivePoints,
+    blackForbidden, makesFive, fivePoints,
     FIVE, OPEN_FOUR, FOUR, OPEN_THREE, SLEEP_THREE, OPEN_TWO, SLEEP_TWO, NONE
 } from './vcf-gen.mjs';
 
@@ -27,33 +29,62 @@ export const DIR_NAME = ['横线', '竖线', '撇捺斜线', '捺撇斜线'];
 
 /* 五种题型。rank 就是 vcf-gen 的线型码，题目与判定都按它比大小。
    min 是这种棋形「最少也得找出几处」——活三、冲四这类，一串子两头都能补，
-   天然就不止一处，这不是题目出坏了，是棋形本身如此。 */
+   天然就不止一处，这不是题目出坏了，是棋形本身如此。
+
+   def / cite 是《中国五子棋竞赛规则》第 7 条「棋形」的原文定义与条款号，
+   页面上讲棋形一律引这两项，不再自己另写一套说法；tip 只讲这一手有什么用，
+   不承担定义。判定那边（vcf-gen 的 classify）本来就是照条文算的：
+   活四＝两个空点都能成五、冲四＝只有一个、活三＝补一子成活四、眠三＝补一子只成冲四。 */
 export const SHAPES = [
-    { key: 'five', name: '连五', rank: FIVE, min: 1, tip: '五子连成一线，直接赢棋。' },
-    { key: 'open4', name: '活四', rank: OPEN_FOUR, min: 1, tip: '四子连成一线、两端都空，白棋堵哪头都漏。' },
-    { key: 'four', name: '冲四', rank: FOUR, min: 2, tip: '四子只差一子成五，但只有一处能成五。' },
-    { key: 'open3', name: '活三', rank: OPEN_THREE, min: 3, tip: '三子两端都空，再补一子就是活四。' },
-    { key: 'sleep3', name: '眠三', rank: SLEEP_THREE, min: 2, tip: '三子被白子堵住一头，补一子只能成冲四。' }
+    {
+        key: 'five', name: '连五', rank: FIVE, min: 1, cite: '7.2',
+        def: '任意一条线上，5 个同色棋子不间隔相连',
+        tip: '五连即胜，这一手落下去这盘就结束了。'
+    },
+    {
+        key: 'open4', name: '活四', rank: OPEN_FOUR, min: 1, cite: '7.3.1',
+        def: '有两个点可以形成五连的四',
+        tip: '两处都能成五，白棋挡哪一头都漏。'
+    },
+    {
+        key: 'four', name: '冲四', rank: FOUR, min: 2, cite: '7.3.2',
+        def: '只有一个点可以形成五连的四',
+        tip: '只剩一处成五，白棋跟着挡掉就没事。'
+    },
+    {
+        key: 'open3', name: '活三', rank: OPEN_THREE, min: 3, cite: '7.4.1',
+        def: '再走一着可以形成活四的三',
+        tip: '补一子成的是活四，白棋必须应。'
+    },
+    {
+        key: 'sleep3', name: '眠三', rank: SLEEP_THREE, min: 2, cite: '7.4.2',
+        def: '只能形成冲四的三',
+        tip: '补一子只到冲四，威胁比活三小得多。'
+    }
 ];
 
 const BY_RANK = new Map(SHAPES.map(s => [s.rank, s]));
 const BY_KEY = new Map(SHAPES.map(s => [s.key, s]));
 
 /* 低线型也给个中文名，答错时好说话 */
+/* 规则第 7 条只定义到三，二在规则里没有条文，所以这里只说「二」，
+   不叫活二 / 眠二，免得把俗称当成规则。 */
 const LOW_NAME = new Map([
-    [OPEN_TWO, '活二'], [SLEEP_TWO, '眠二'], [NONE, '什么也没连上']
+    [OPEN_TWO, '二'], [SLEEP_TWO, '二'], [NONE, '没成型']
 ]);
 
-/* 一句话说清这种棋形长什么样，页面上的对错提示直接取用 */
+/* 一句话说清这种棋形长什么样，页面上的对错提示直接取用。
+   五连 / 四 / 三 一律用规则第 7 条的措辞；「二」规则里没有定义，
+   只作描述，别处也不要把它当条文引用。 */
 const SHORT = {
-    [FIVE]: '五子连成一线',
-    [OPEN_FOUR]: '四子两端都空',
-    [FOUR]: '四子只有一处能成五',
-    [OPEN_THREE]: '三子两端都空',
-    [SLEEP_THREE]: '三子被堵了一头',
-    [OPEN_TWO]: '两子两端都空',
-    [SLEEP_TWO]: '两子被堵了一头',
-    [NONE]: '什么也没连上'
+    [FIVE]: '5 个同色棋子不间隔相连',
+    [OPEN_FOUR]: '有两个点可以形成五连',
+    [FOUR]: '只有一个点可以形成五连',
+    [OPEN_THREE]: '再走一着可以形成活四',
+    [SLEEP_THREE]: '只能形成冲四',
+    [OPEN_TWO]: '两子，还够不上三',
+    [SLEEP_TWO]: '两子，还够不上三',
+    [NONE]: '一条线上都没连成'
 };
 
 export const shortOf = rank => SHORT[rank] || '什么也没连上';
@@ -85,8 +116,83 @@ function runAt(bd, k, d, color) {
 }
 
 /*
+ * 线型判定：照《中国五子棋竞赛规则》第 7 条，只在这条线上数，不截 9 格窗口。
+ *   五连：这条线上、含落点在内连成 5 子（黑棋 6 子以上是长连，不算成五）；
+ *   活四：有两个点可以补成含落点在内的五连；冲四：只有一个点；
+ *   活三：补一子能成活四；眠三：补一子只能成冲四。
+ * 只认「含落点」的那一串，是因为落子之后的四 / 三一定是含它的那一串；
+ * 窗口判定在这里会出错——窗口外一头再有一颗黑子，本该是长连的六子会被
+ * 当成「补一子成四」，白送一个假眠三。
+ */
+
+/* 这条线上、离落点 t 格的交叉点（越界返回 -1） */
+function shift(k, d, t) {
+    const nx = px(k) + t * DX[d], ny = py(k) + t * DY[d];
+    return inB(nx, ny) ? at(nx, ny) : -1;
+}
+
+/* 这条线上落点之外有几颗同色子：少于两颗，连三都凑不出来，不用往下算 */
+function lineStones(bd, k, d, color) {
+    let n = 0;
+    for (let t = -4; t <= 4; t++) {
+        if (!t) { continue; }
+        const q = shift(k, d, t);
+        if (q >= 0 && bd[q] === color) { n++; }
+    }
+    return n;
+}
+
+/* 这条线上，能补成「含落点在内的五连」的空点有几个——就是条文说的「可以形成五连的点」 */
+function fiveLine(bd, k, d, color) {
+    let n = 0;
+    for (let t = -4; t <= 4; t++) {
+        if (!t) { continue; }
+        const q = shift(k, d, t);
+        if (q < 0 || bd[q]) { continue; }
+        bd[q] = color;
+        const r = runAt(bd, k, d, color);
+        bd[q] = 0;
+        if (color === BLACK ? r === 5 : r >= 5) { n++; }
+    }
+    return n;
+}
+
+/* 单方向的线型（落点已经落在盘上） */
+function kindLine(bd, k, d, color) {
+    const r = runAt(bd, k, d, color);
+    if (color === BLACK) {
+        if (r > 5) { return NONE; }          /* 长连，由 evaluate 另记 */
+        if (r === 5) { return FIVE; }
+    } else if (r >= 5) {
+        return FIVE;                          /* 白棋长连视同五连 */
+    }
+
+    const stones = lineStones(bd, k, d, color);
+    if (stones < 2) { return stones ? OPEN_TWO : NONE; }
+
+    const n = fiveLine(bd, k, d, color);
+    if (n >= 2) { return OPEN_FOUR; }
+    if (n === 1) { return FOUR; }
+
+    let open4 = false, four = false;
+    for (let t = -4; t <= 4; t++) {
+        if (!t) { continue; }
+        const q = shift(k, d, t);
+        if (q < 0 || bd[q]) { continue; }
+        bd[q] = color;
+        const m = fiveLine(bd, k, d, color);
+        bd[q] = 0;
+        if (m >= 2) { open4 = true; break; }  /* 补这一子成活四 → 活三 */
+        if (m === 1) { four = true; }         /* 补这一子只成冲四 → 眠三 */
+    }
+    if (open4) { return OPEN_THREE; }
+    if (four) { return SLEEP_THREE; }
+    return OPEN_TWO;
+}
+
+/*
  * 落一子之后，这一点上的最高线型。
- * 四个方向各取一个 9 格窗口分类，取最高的那个；同高就把方向都收进来，
+ * 四个方向各判一次，取最高的那个；同高就把方向都收进来，
  * 好让页面把成形的几条线一起圈出来。
  */
 export function evaluate(bd, k, color) {
@@ -96,11 +202,10 @@ export function evaluate(bd, k, color) {
     let dirs = [];
     let over = false;
     for (let d = 0; d < 4; d++) {
-        const w = windowAt(bd, px(k), py(k), d, color);
-        const c = classify(w.m, w.e, color);
+        if (color === BLACK && runAt(bd, k, d, BLACK) >= 6) { over = true; }
+        const c = kindLine(bd, k, d, color);
         if (c > best) { best = c; dirs = [d]; }
         else if (c === best && c > NONE) { dirs.push(d); }
-        if (color === BLACK && runAt(bd, k, d, BLACK) >= 6) { over = true; }
     }
     bd[k] = 0;
     const forbidden = color === BLACK ? blackForbidden(bd, k) : false;
@@ -302,6 +407,8 @@ function attempt(o, rng) {
         need: answers.length,
         shape: shape.key,
         label: shape.name,
+        def: shape.def,
+        cite: shape.cite,
         tip: shape.tip,
         dirs: fin.dirs,
         black: stones,
