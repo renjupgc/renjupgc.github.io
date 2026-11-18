@@ -2,8 +2,9 @@
  * 禁手找茬 - 出题器
  * ------------------------------------------------------------
  * 造一盘黑棋局面，里面恰好有 1–3 个「黑棋落子即违例」的点：
- * 三三 / 四四 / 长连。规则判定全部复用 vcf-gen.mjs 的 blackForbidden，
- * 与 VCF 做题那边同源，不另写一套。
+ * 三三 / 四四 / 长连，照《中国五子棋竞赛规则》（2025 年版）第 8 条。
+ * 规则判定全部复用 vcf-gen.mjs 的 blackForbidden，与 VCF 做题那边同源，
+ * 不另写一套；四三三按三三禁手、四四三按四四禁手，成五优先（19.1.2 C）。
  *
  * 流程：按类型搭出骨架（两根线各自成三 / 成四，或一线拉出长连），一处一处地摆，
  *      每摆一处就全盘扫一遍禁手点，确认只多出骨架这一个
@@ -37,7 +38,7 @@ function mulberry32(a) {
 export function moveShapes(bd, k) {
     if (bd[k]) { return null; }
     bd[k] = BLACK;
-    let fours = 0, threes = 0, over = 0;
+    let fours = 0, open4 = 0, threes = 0, over = 0, five = 0;
     const dirs = [];
     for (let d = 0; d < 4; d++) {
         let run = 1;
@@ -52,6 +53,8 @@ export function moveShapes(bd, k) {
             run++;
         }
         if (run >= 6) { over++; dirs.push(d); continue; }
+        /* 成五：按 19.1.2 C 优先判五连，这一手不再论禁手 */
+        if (run === 5) { five++; dirs.push(d); continue; }
         const x = px(k), y = py(k);
         let m = 0, e = 0;
         for (let t = -4; t <= 4; t++) {
@@ -62,27 +65,39 @@ export function moveShapes(bd, k) {
             if (v === BLACK) { m |= bit; } else if (!v) { e |= bit; }
         }
         const c = classify(m, e, BLACK);
-        if (c === OPEN_FOUR || c === FOUR) { fours++; dirs.push(d); }
+        if (c === OPEN_FOUR) { fours++; open4++; dirs.push(d); }
+        else if (c === FOUR) { fours++; dirs.push(d); }
         else if (c === OPEN_THREE) { threes++; dirs.push(d); }
     }
     bd[k] = 0;
-    return { fours, threes, over, dirs };
+    return { fours, open4, threes, over, five, dirs };
 }
 
-/* 一句话说清这个点：禁手 / 不是禁手 */
+/*
+ * 一句话说清这个点：禁手 / 不是禁手。
+ * 判违例照第 8 条：两个活三、两个四、一个长连；四不抵消三三，
+ * 所以「一四两三」按三三禁手（俗称四三三）、「两四一三」按四四禁手（四四三）。
+ * 成五的手按 19.1.2 C 优先判五连，不列禁手。
+ */
 export function describePoint(bd, k) {
     const s = moveShapes(bd, k);
     if (!s) { return null; }
-    const bad = s.over > 0 || s.fours >= 2 || (s.fours === 0 && s.threes >= 2);
+    const bad = !s.five && (s.over > 0 || s.fours >= 2 || s.threes >= 2);
     let name;
-    if (s.over > 0) { name = '长连'; }
-    else if (s.fours >= 2) { name = '四四'; }
-    else if (s.fours === 0 && s.threes >= 2) { name = '三三'; }
+    if (s.five) { name = '五连'; }
+    else if (s.over > 0) { name = '长连'; }
+    else if (s.fours >= 2) { name = s.threes ? '四四三' : '四四'; }
+    else if (s.threes >= 2) { name = s.fours ? '四三三' : '三三'; }
     else if (s.fours && s.threes) { name = '四三'; }
-    else if (s.fours === 1 && s.threes === 0) { name = '冲四'; }
-    else if (s.fours === 0 && s.threes === 1) { name = '单活三'; }
+    else if (s.fours === 1 && s.open4) { name = '活四'; }
+    else if (s.fours === 1) { name = '冲四'; }
+    else if (s.threes === 1) { name = '单活三'; }
     else { name = '没成型'; }
-    return { bad, name, fours: s.fours, threes: s.threes, over: s.over, dirs: s.dirs };
+    return {
+        bad, name, fours: s.fours, open4: s.open4, threes: s.threes, over: s.over,
+        five: s.five,
+        dirs: s.dirs
+    };
 }
 
 /* 全盘扫禁手点（找茬的答案必须整盘唯一） */

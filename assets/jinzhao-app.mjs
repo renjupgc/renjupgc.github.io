@@ -766,7 +766,8 @@ function miss(k) {
         else if (ev.over) {
             why = '落下连成六子以上，这是长连，黑棋违例——题目要的是五连：任意一条线上 5 个同色棋子不间隔相连。';
         } else if (ev.forbidden) {
-            why = '这一手是禁手（三三或四四），黑棋不能走，得换个点。';
+            why = '这一手同时做出两个活三（或两个四），按规则第 8 条是禁手，' +
+                '黑棋不能走，也不算做出棋形。';
         } else if (ev.name === '没成型') {
             why = '这一手什么形也没做出来，题目要的是' +
                 s.puzzle.label + '（' + s.puzzle.def + '）。';
@@ -777,8 +778,13 @@ function miss(k) {
     } else {
         const info = describePoint(s.board, k);
         if (!info || info.name === '没成型') { why = '这里什么也做不出来。'; }
-        else if (info.fours === 1 && info.threes >= 1) { why = '这里是四三（一根线成四、一根线成活三），四三不违例。'; }
-        else if (info.fours === 1 && info.threes === 0) { why = '这里只是一个冲四，不违例。'; }
+        else if (info.five) { why = '这里落下就成五了——成五优先，题目问的是禁手点。'; }
+        else if (info.fours === 1 && info.threes >= 2) {
+            why = '这里是四三三（一个四加两根活三）：两根活三已经够三三禁手了，四不抵消它。';
+        } else if (info.fours === 1 && info.threes === 1) {
+            why = '这里是四三（一根线成四、一根线成活三）。禁手只数「两个活三」和「两个四」，' +
+                '四三不违例。';
+        } else if (info.fours === 1) { why = '这里只是一个' + info.name + '，不违例。'; }
         else if (info.threes === 1) { why = '这里只成一根活三，单三不违例。'; }
         else { why = '这里只是 ' + info.name + '，不违例。'; }
     }

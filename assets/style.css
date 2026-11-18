@@ -1237,6 +1237,13 @@ a.nt-item:focus-visible {
     margin: 8px 0 0;
 }
 
+/* 规则原文单独排一条，和本页的说明分开，免得把解读当条文 */
+.jz-help .quo {
+    padding: 2px 0 2px 10px;
+    border-left: 2px solid var(--line);
+    color: var(--ink-2);
+}
+
 .jz-sound {
     width: 100%;
     margin-top: 10px;

@@ -127,17 +127,24 @@ export function fivePoints(bd, color) {
     return out;
 }
 
-/* 黑棋禁手：长连 / 四四 / 三三（三三按「该线是活三」计数，标准做法） */
+/*
+ * 黑棋禁手，照《中国五子棋竞赛规则》（2025 年版）第 8 条：三三 / 四四 / 长连。
+ * 三条口径：
+ * - 五连优先（19.1.2 C）：这一手同时成五，按黑胜算，不再论禁手；
+ * - 三三只数活三，但四不抵消它：一四加两活三（俗称四三三）那两根活三照样成立，
+ *   仍按三三禁手判；同理两个四再加一根活三（四四三）仍是四四禁手；
+ * - 长连按 7.1 认 6 子及以上，黑棋长连不算成五（19.1.1），所以单独判违例。
+ */
 export function blackForbidden(bd, k) {
     if (bd[k]) { return true; }
     bd[k] = BLACK;
-    let fours = 0, threes = 0, over = false;
+    let fours = 0, threes = 0, over = false, five = false;
     for (let d = 0; d < 4; d++) {
         const w = windowAt(bd, px(k), py(k), d, BLACK);
         const c = classify(w.m, w.e, BLACK);
         if (c === OPEN_FOUR || c === FOUR) { fours++; }
 
-        /* 长连单独数：过该点这条线上的连子长度 */
+        /* 五连 / 长连按连子长度单独数：过该点这条线上连了几颗 */
         const x = px(k), y = py(k);
         let run = 1;
         for (let s = 1; s <= 5; s++) {
@@ -151,14 +158,15 @@ export function blackForbidden(bd, k) {
             run++;
         }
         if (run >= 6) { over = true; }
+        else if (run === 5) { five = true; }
     }
     for (let d = 0; d < 4; d++) {
         const w = windowAt(bd, px(k), py(k), d, BLACK);
         if (classify(w.m, w.e, BLACK) === OPEN_THREE) { threes++; }
     }
     bd[k] = 0;
-    /* 四三 / 四三三 都算合法：只有在没做出四的时候才数三三 */
-    return over || fours >= 2 || (fours === 0 && threes >= 2);
+    if (five) { return false; }             /* 19.1.2 C：五连压过禁手 */
+    return over || fours >= 2 || threes >= 2;
 }
 
 /*
