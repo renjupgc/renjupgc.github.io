@@ -26,6 +26,18 @@ let clockId = 0;
 
 const $ = id => document.getElementById(id);
 
+/* ---------- 进度档案 ---------- */
+function prog() { return window.ZBX_PROGRESS || null; }
+/* 难度分/满分时间线按取胜手数算：手数越多分越高、给的满分时间也越宽 */
+function difficulty(depth) {
+    const p = prog();
+    return p ? p.diffForDepth(depth) : 1000;
+}
+function parTime(depth) {
+    const p = prog();
+    return p ? p.parForDepth(depth) : 10000;
+}
+
 /* ---------- 计时 ----------
  * 每题一个表：局面摆好起表，过关停表，换题 / 重来归零；切后台暂停。
  * tAcc 是之前几段累计的毫秒，tMark 是这一段开始走的时刻（0＝停着）。 */
@@ -113,6 +125,8 @@ function state() {
         depth: 0,
         tAcc: 0,
         tMark: 0,
+        /* 习题挑战：5 题一组，按分数配难度，逐题变难 */
+        chal: null,
         ctx: null, cell: 0, pad: 0, size: 0
     };
     return S;
@@ -233,11 +247,60 @@ function say(text, kind) {
     el.className = 'vcf-msg' + (kind ? ' is-' + kind : '');
 }
 
+/* 过关弹牌：和禁手找茬/棋形判定一致的那一套 */
+let flashTimer = 0;
+function flash(title, sub) {
+    const el = $('vcf-flash');
+    if (!el) { return; }
+    el.innerHTML = '';
+    const chip = document.createElement('div');
+    chip.className = 'vcf-flash-chip';
+    const b = document.createElement('b');
+    b.textContent = title;
+    chip.appendChild(b);
+    if (sub) {
+        const i = document.createElement('i');
+        i.textContent = sub;
+        chip.appendChild(i);
+    }
+    el.appendChild(chip);
+    el.classList.add('is-on');
+    window.clearTimeout(flashTimer);
+    flashTimer = window.setTimeout(function () {
+        el.classList.remove('is-on');
+        el.innerHTML = '';
+    }, 1600);
+}
+
+let AC = null;
+function chime() {
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) { return; }
+        if (!AC) { AC = new Ctx(); }
+        if (AC.state === 'suspended') { AC.resume(); }
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        const t0 = AC.currentTime;
+        notes.forEach(function (f, i) {
+            const o = AC.createOscillator(), g = AC.createGain();
+            o.type = 'triangle';
+            o.frequency.value = f;
+            const a = t0 + i * 0.085;
+            g.gain.setValueAtTime(0, a);
+            g.gain.linearRampToValueAtTime(0.16, a + 0.015);
+            g.gain.exponentialRampToValueAtTime(0.001, a + 0.42);
+            o.connect(g); g.connect(AC.destination);
+            o.start(a); o.stop(a + 0.45);
+        });
+    } catch (e) { /* ignore */ }
+}
+
 function stat() {
     const s = state();
     if ($('vcf-done')) { $('vcf-done').textContent = String(s.done); }
     if ($('vcf-tries')) { $('vcf-tries').textContent = String(s.tries); }
     if ($('vcf-level')) { $('vcf-level').textContent = s.level || '—'; }
+    if ($('vcf-score')) { $('vcf-score').textContent = String(prog() ? prog().score('vcf') : 1000); }
 }
 
 function turnLabel() {
@@ -260,6 +323,47 @@ function cancelGen() {
     s.busy = false;
 }
 
+/* ---------- 习题挑战：5 题一组，按分数配难度，逐题变难 ---------- */
+function updateChalTip(html) {
+    const el = $('vcf-chal-tip');
+    if (el) { el.innerHTML = html; }
+}
+
+function startChallenge() {
+    const s = state();
+    if (s.busy) { return; }
+    const p = prog();
+    const base = p ? p.recommendLevel('vcf') : 1;
+    /* 五题：从推荐档起步，逐题升档，封顶在「挑战」 */
+    const levels = [];
+    for (let i = 0; i < 5; i++) { levels.push(Math.min(LEVELS.length - 1, base + Math.floor(i / 2))); }
+    s.chal = { i: 0, total: 5, levels: levels, results: [] };
+    const startBtn = $('vcf-chal-start');
+    if (startBtn) { startBtn.disabled = true; }
+    updateChalTip('习题挑战进行中 · <b>第 1/5 题</b>，从「' + LEVELS[levels[0]].name + '」起步，逐题加难。');
+    cancelGen();
+    newPuzzle();
+}
+
+function endChallenge() {
+    const s = state();
+    const p = prog();
+    const r = s.chal.results.filter(x => x.ok);
+    const totalMs = r.reduce((a, x) => a + x.ms, 0);
+    const avg = r.length ? Math.round(totalMs / r.length) : 0;
+    const delta = s.chal.results.reduce((a, x) => a + x.delta, 0);
+    const before = s.chal.score0;
+    const after = p ? p.score('vcf') : before + delta;
+    const secs = (avg / 1000).toFixed(1);
+    updateChalTip('挑战完成：答对 <b>' + r.length + '/' + s.chal.total + '</b> 题 · 平均 ' +
+        secs + ' 秒 · 分数 <b>' + before + ' → ' + after + '</b>（' +
+        (delta >= 0 ? '+' : '') + delta + '）。记得导出存档。');
+    const startBtn = $('vcf-chal-start');
+    if (startBtn) { startBtn.disabled = false; startBtn.textContent = '再来一组 · 5 题'; }
+    s.chal = null;
+    if (p) { p.saved(); }
+}
+
 function newPuzzle() {
     const s = state();
     if (s.busy) { return; }
@@ -270,7 +374,12 @@ function newPuzzle() {
     s.hint = -1;
     const id = ++s.genId;
 
-    const idx = $('vcf-diff') ? Number($('vcf-diff').value) : 1;
+    let idx = $('vcf-diff') ? Number($('vcf-diff').value) : 1;
+    if (s.chal) {
+        idx = s.chal.levels[s.chal.i];
+        if ($('vcf-diff')) { $('vcf-diff').value = String(idx); }
+        if (s.chal.i === 0) { s.chal.score0 = prog() ? prog().score('vcf') : 1000; }
+    }
     const lv = LEVELS[idx] || LEVELS[1];
     const gen = generatePuzzle({
         minMoves: lv.min,
@@ -421,11 +530,29 @@ function finish(text) {
         s.done++;
     }
     clockStop();
+    const ms = Math.round(s.tAcc);
+    const secs = (ms / 1000).toFixed(1);
+    /* 记分：做对加分，快（<=par）拿满；难题 par 宽 */
+    let gain = null;
+    const pr = prog();
+    if (pr) { gain = pr.commit('vcf', { ok: true, ms: ms, diff: difficulty(s.depth), par: parTime(s.depth) }); pr.changed(); }
+    const d = gain ? (gain.delta >= 0 ? '+' : '') + gain.delta : '';
     stat();
     draw();
-    say(text + ' 点「下一题」继续。', 'ok');
+    flash('赢了！', (s.depth + ' 手胜 · ' + secs + ' 秒') + (d ? ' · ' + d + ' 分' : ''));
+    chime();
+    try { if (navigator.vibrate) { navigator.vibrate([12, 40, 18]); } } catch (e) { /* ignore */ }
     const btn = $('vcf-next');
     if (btn) { btn.classList.add('is-hot'); }
+
+    if (s.chal) {
+        s.chal.results.push({ ok: true, ms: ms, depth: s.depth, delta: gain ? gain.delta : 0 });
+        say(text + ' 第 ' + s.chal.results.length + '/' + s.chal.total + ' 题。' +
+            (gain ? '分数 ' + d + '。' : '') + '点「下一题」继续。', 'ok');
+    } else {
+        say(text + (gain ? ' 用时 ' + secs + ' 秒，分数 ' + d + '（现 ' + gain.after + '）。' : '') +
+            ' 点「下一题」继续，记得导出存档。', 'ok');
+    }
 }
 
 function undo() {
@@ -490,6 +617,12 @@ export async function boot() {
         if (diff) {
             diff.addEventListener('change', function () {
                 cancelGen();
+                if (state().chal) {
+                    state().chal = null;
+                    const startBtn = $('vcf-chal-start');
+                    if (startBtn) { startBtn.disabled = false; }
+                    updateChalTip('按你的分数配难度，五题一组，越做越难；做完给平均用时和分数变化。');
+                }
                 newPuzzle();
             });
         }
@@ -500,9 +633,17 @@ export async function boot() {
         bind('vcf-undo', undo);
         bind('vcf-hint', showHint);
         bind('vcf-reset', reset);
+        bind('vcf-chal-start', startChallenge);
         bind('vcf-next', function () {
             const btn = $('vcf-next');
             if (btn) { btn.classList.remove('is-hot'); }
+            const s = state();
+            if (s.chal) {
+                s.chal.i++;
+                if (s.chal.i >= s.chal.total) { endChallenge(); return; }
+                updateChalTip('习题挑战进行中 · <b>第 ' + (s.chal.i + 1) + '/' + s.chal.total +
+                    ' 题</b>，难度「' + LEVELS[s.chal.levels[s.chal.i]].name + '」。');
+            }
             newPuzzle();
         });
         if (!resized) {

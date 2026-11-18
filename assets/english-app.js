@@ -586,11 +586,22 @@
         }
         if (state.idx >= q.length) {
             var acc = state.sess.n ? Math.round(state.sess.ok / state.sess.n * 100) : 0;
+            /* 进度档案：按这一轮的正确率记一次分，一轮只记一次 */
+            try {
+                var gp = window.ZBX_PROGRESS;
+                if (gp && state.sess.n && !state.sess.scored) {
+                    var ok = acc >= 60;
+                    gp.commit('english', { ok: ok, ms: 0, diff: 1000 + Math.round(acc / 10) * 40, par: 0 });
+                    gp.changed();
+                    state.sess.scored = true;
+                }
+            } catch (err) { /* 进度模块没加载也不影响练习 */ }
             main.innerHTML = ''
                 + '<div class="en-done">'
                 + '  <p class="en-kicker">' + (state.mode === 'review' ? '复习完成' : '这一轮走完了') + '</p>'
                 + '  <h2 class="en-done-num">' + state.sess.n + ' <small>词</small></h2>'
                 + '  <p class="en-done-line">答对 ' + state.sess.ok + '，没记住 ' + state.sess.bad + '，正确率 ' + acc + '%</p>'
+                + '  <p class="en-done-line">进度分已记入档案，记得在下方「导出进度」存一份。</p>'
                 + '  <div class="en-done-btns">'
                 + '    <button type="button" class="en-btn en-btn-main" data-act="mode" data-mode="study">再来一轮</button>'
                 + '    <button type="button" class="en-btn en-btn-ghost" data-act="mode" data-mode="review">只复习</button>'

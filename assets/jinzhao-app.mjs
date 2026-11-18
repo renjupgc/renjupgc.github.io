@@ -37,6 +37,16 @@ let resized = false;
 
 const $ = id => document.getElementById(id);
 
+/* ---------- 进度档案 ---------- */
+function prog() { return window.ZBX_PROGRESS || null; }
+function moduleKey(s) { return s.mode === 'shape' ? 'jz_shape' : 'jz_forbid'; }
+/* 难度分：档位越难、要找的处数越多，分越高；最低 1000。
+ * par 是「满分时间线」，题越难给的时间越宽，慢也能拿满分。 */
+function setDifficulty(s, idx) {
+    s.diff = 1000 + (idx || 0) * 150 + Math.max(0, s.need - 1) * 120;
+    s.par = 12000 + (idx || 0) * 6000 + Math.max(0, s.need - 1) * 8000;
+}
+
 /* ---------- 计时 ----------
  * 每题一个表：局面摆好开始走，点齐最后一处停表，换题 / 重来归零。
  * 切到后台就停，回来接着算——不然切个标签页回来数字就虚高了。
@@ -92,6 +102,8 @@ function state() {
         tMark: 0,
         lastMs: 0,
         best: readBest(),
+        diff: 1000,
+        par: 12000,
         ctx: null, cell: 0, pad: 0, size: 0
     };
     return S;
@@ -469,6 +481,7 @@ function stat() {
     if ($('jz-done')) { $('jz-done').textContent = String(c.done); }
     if ($('jz-tries')) { $('jz-tries').textContent = String(c.tries); }
     if ($('jz-kind')) { $('jz-kind').textContent = s.kind || '—'; }
+    if ($('jz-score')) { $('jz-score').textContent = String(prog() ? prog().score(moduleKey(s)) : 1000); }
     if ($('jz-done-k')) { $('jz-done-k').textContent = s.mode === 'shape' ? '已答对' : '已找出'; }
     /* 棋盘底下那行小字：要找几处、找到几处，一眼看得见 */
     if ($('jz-count') && s.puzzle) {
@@ -580,7 +593,7 @@ function newPuzzle() {
             const r = gen.next();
             if (r.done) {
                 s.busy = false;
-                if (r.value) { s.no++; load(r.value, lv.name); }
+                if (r.value) { s.no++; load(r.value, lv.name, idx); }
                 else { say('这次没摆出来，再点一次「下一题」。', 'bad'); }
                 return;
             }
@@ -590,7 +603,7 @@ function newPuzzle() {
     window.setTimeout(step, 0);
 }
 
-function load(p, levelName) {
+function load(p, levelName, levelIdx) {
     const s = state();
     s.puzzle = p;
     s.board = Int8Array.from(p.board);
@@ -603,6 +616,7 @@ function load(p, levelName) {
     s.cleared = false;
     s.level = levelName || '—';
     s.kind = (s.mode === 'shape' && s.need > 1) ? p.label + '×' + s.need : p.label;
+    setDifficulty(s, levelIdx);
     if ($('jz-ask')) {
         if (s.mode === 'shape') {
             $('jz-ask').textContent = s.need > 1
@@ -708,6 +722,11 @@ function hit(k) {
         : '，最快 ' + fmtTime(rec.best);
     const subTime = (rec.rec && rec.old) ? '新纪录 ' + secs + ' 秒' : secs + ' 秒';
     if (!s.cleared) { s.cleared = true; cnt().done++; s.streak++; }
+    /* 记分：答对加分，快（<=par）拿满；写完提示导出存档 */
+    let gain = null;
+    const pr = prog();
+    if (pr) { gain = pr.commit(moduleKey(s), { ok: true, ms: ms, diff: s.diff, par: s.par }); pr.changed(); }
+    const gainText = gain ? '，分数 ' + (gain.delta >= 0 ? '+' : '') + gain.delta + '（现 ' + gain.after + '）' : '';
     stat();
     paintTime();
     draw();
@@ -719,24 +738,25 @@ function hit(k) {
         const five = s.need === 1 && s.puzzle.shape === 'five';
         title = five ? '连五！赢了' : (s.need > 1 ? s.need + ' 处全中！' : '漂亮！' + s.puzzle.label);
         sub = (s.streak >= 2 ? '连对 ' + s.streak + ' 题' : (s.need > 1 ? s.puzzle.label + '，全找齐' : '正解')) +
-            ' · ' + subTime;
+            ' · ' + subTime + (gain ? ' · ' + (gain.delta >= 0 ? '+' : '') + gain.delta + ' 分' : '');
         say(s.need > 1
             ? '全找齐了！' + s.need + ' 处都能做出' + s.puzzle.label + '（' + s.puzzle.def + '）：' + all +
-              '。' + s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + '。点「下一题」继续。'
+              '。' + s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，记得导出存档。'
             : '漂亮！' + last + ' 落下去正好是' + s.puzzle.label + '（' + s.puzzle.def + '）。' +
-              s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + '。点「下一题」继续。', 'ok');
+              s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，记得导出存档。', 'ok');
         celebrate(k, { stone: true, big: five || s.need > 1 });
         chime(five || s.need > 1);
     } else {
         const kinds = s.puzzle.kinds || [s.puzzle.label];
         title = s.need > 1 ? '全找到了！' : '找到了！';
-        sub = (s.need > 1 ? s.need + ' 处禁手' : s.puzzle.label + '禁手') + ' · ' + subTime;
+        sub = (s.need > 1 ? s.need + ' 处禁手' : s.puzzle.label + '禁手') + ' · ' + subTime +
+            (gain ? ' · ' + (gain.delta >= 0 ? '+' : '') + gain.delta + ' 分' : '');
         say(s.need > 1
             ? s.need + ' 处禁手都找到了：' +
               s.answers.map((q, i) => pname(q) + '（' + kinds[i] + '）').join('、') +
-              '。用时 ' + secs + ' 秒' + speed + '。点「下一题」继续。'
+              '。用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，记得导出存档。'
             : pname(k) + ' 对了：黑棋落在这里是' + s.puzzle.label + '禁手。用时 ' +
-              secs + ' 秒' + speed + '。点「下一题」继续。', 'ok');
+              secs + ' 秒' + speed + gainText + '。点「下一题」继续，记得导出存档。', 'ok');
         celebrate(k, { stone: true, big: s.need > 1 });
         chime(s.need > 1);
     }
@@ -842,6 +862,11 @@ function reveal() {
     s.over = true;
     const ms = clockStop();
     const secs = (ms / 1000).toFixed(1);
+    /* 看答案按放弃算，扣一次分 */
+    let lose = null;
+    const pr = prog();
+    if (pr) { lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par }); pr.changed(); stat(); }
+    const loseText = lose ? ' 分数 ' + lose.delta + '（现 ' + lose.after + '）。' : '';
     s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
 
     const rest = s.answers.filter(k => !s.found.has(k));
@@ -851,11 +876,11 @@ function reveal() {
     if (s.mode === 'shape') {
         say('这盘能做出' + s.puzzle.label + '的有 ' + s.need + ' 处：' + all +
             '（红圈是还没找到的）。看了答案，这一步用时 ' + secs + ' 秒，不计入最快。' +
-            ' 点「下一题」换一盘。', 'bad');
+            ' 点「下一题」换一盘。' + loseText, 'bad');
     } else {
         say((s.need > 1 ? s.need + ' 处禁手在：' : '答案在 ') + all +
             (s.need > 1 ? '' : '，' + s.puzzle.label + '禁手') +
-            '。看了答案，这一步用时 ' + secs + ' 秒，不计入最快。点「下一题」换一盘。', 'bad');
+            '。看了答案，这一步用时 ' + secs + ' 秒，不计入最快。点「下一题」换一盘。' + loseText, 'bad');
     }
     stat();
     draw();

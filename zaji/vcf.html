@@ -39,7 +39,10 @@
 
         <section class="vcf">
             <div class="vcf-main">
-                <canvas id="vcf-board"></canvas>
+                <div class="vcf-boardwrap">
+                    <canvas id="vcf-board"></canvas>
+                    <div class="vcf-flash" id="vcf-flash" aria-hidden="true"></div>
+                </div>
                 <div class="vcf-bar">
                     <span class="vcf-turn" id="vcf-turn"><i class="vcf-dot"></i>黑先 · 你执黑</span>
                     <span class="vcf-count" id="vcf-count"></span>
@@ -63,7 +66,13 @@
                     <div><dt>已过关</dt><dd id="vcf-done">0</dd></div>
                     <div><dt>走错</dt><dd id="vcf-tries">0</dd></div>
                     <div><dt>本题</dt><dd id="vcf-level">—</dd></div>
+                    <div><dt>我的分</dt><dd id="vcf-score">1000</dd></div>
                 </dl>
+
+                <div class="vcf-challenge" id="vcf-challenge">
+                    <button type="button" id="vcf-chal-start">习题挑战 · 5 题</button>
+                    <p class="vcf-chal-tip" id="vcf-chal-tip">按你的分数配难度，五题一组，越做越难；做完给平均用时和分数变化。</p>
+                </div>
 
                 <p class="vcf-msg" id="vcf-msg">轮到你走。</p>
 
@@ -83,11 +92,14 @@
             </aside>
         </section>
 
+        <div data-zbx-progress></div>
+
     </main>
 
 </div>
 
 <script src="../assets/layout.js"></script>
+<script src="../assets/progress.js"></script>
 <script src="../assets/vcf.js"></script>
 
 </body>
