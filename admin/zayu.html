@@ -5,73 +5,116 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <title>杂豫内容管理 · 连珠杂箱</title>
-<link rel="stylesheet" href="admin.css">
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="../assets/style.css">
 <link rel="stylesheet" href="zayu-admin.css">
 </head>
 <body data-base="../">
 
-<div class="admin-head">
-  <a href="index.html"><b>连珠杂箱</b> · 管理后台</a>
-  <div class="an-links">
-    <a href="index.html">访问统计</a>
-    <a href="duiju.html">赛果录入</a>
-    <a href="ops.html">运维</a>
-    <a href="zayu.html" class="on">杂豫内容</a>
-    <a href="../zayu.html" target="_blank" rel="noopener">看站点 ↗</a>
-  </div>
-  <div class="site-user-slot" data-zbx-user="global" aria-label="账号"></div>
-</div>
+<div class="container admin-container">
 
-<div class="wrap">
-
-  <div id="gate">
-    <h1>杂豫内容管理</h1>
-    <p id="gate-msg">请用管理员账号登录后继续。</p>
-    <button type="button" class="btn primary" data-act="login">管理员登录</button>
-  </div>
-
-  <div id="panel" hidden>
-    <div class="pagehead">
-      <h1>杂豫内容管理</h1>
-      <p class="sub">比赛、台次、棋谱、人物、个人主页、等级分——都用表单和棋盘直接改，不用写代码。改完刷新站点即生效。</p>
+  <header class="site-head">
+    <div class="site-head-inner">
+      <a class="brand" href="../index.html">
+        <span class="brand-mark">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <path d="M11 3v26M21 3v26M3 11h26M3 21h26" fill="none" stroke="#c9a86f" stroke-width="1.3" opacity="0.72"/>
+            <circle cx="16" cy="16" r="4.7" fill="#f2d9a8"/>
+            <circle cx="16" cy="16" r="4.7" fill="none" stroke="#17150f" stroke-width="0.9" opacity="0.28"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">连珠杂箱</span>
+          <span class="brand-sub">连珠 · 五子棋</span>
+        </span>
+      </a>
+      <nav class="site-nav">
+        <a href="../index.html">首页</a>
+        <a href="../zalun.html">杂论</a>
+        <a href="../zashi.html">杂史</a>
+        <a href="../zaxiang.html">杂想</a>
+        <a href="../zayu.html" class="active">杂豫</a>
+        <a href="../zaji.html">杂技</a>
+        <a href="../index.html#about">关于</a>
+      </nav>
+      <div class="site-user-slot" data-zbx-user="global" aria-label="账号"></div>
     </div>
+    <nav class="admin-bar" aria-label="管理后台导航">
+      <span class="ab-tag">管理后台</span>
+      <a href="index.html">访问统计</a>
+      <a href="duiju.html">赛果录入</a>
+      <a href="ops.html">运维</a>
+      <a href="zayu.html" class="on">杂豫内容</a>
+      <a href="../zayu.html" class="ab-side" target="_blank" rel="noopener">看站点 ↗</a>
+    </nav>
+  </header>
+
+  <main class="admin-main">
+
+    <header class="page-head">
+      <p class="eyebrow">内容管理</p>
+      <h1 class="page-title">杂豫内容</h1>
+      <p class="page-desc">比赛、台次、棋谱、人物与等级分，都在这里点着改。保存后访客刷新站点即可看到。</p>
+    </header>
 
     <div id="msg" role="status" aria-live="polite"></div>
 
-    <div class="toolbar">
-      <button type="button" class="btn" data-act="refresh">重新读取</button>
-      <button type="button" class="btn primary" data-act="recalc">更新等级分</button>
-    </div>
-    <div class="tipbox">打开即可编辑：内容已在云端，选中左侧任意一条，改完点「保存修改」，访客刷新站点就能看到最新内容。棋手个人主页共 <b>595</b> 位，可用左侧搜索框按姓名快速找到。</div>
-
-    <div class="stat" id="stat"></div>
-
-    <div class="tabs" id="tabs">
-      <button type="button" class="on" data-kind="competition">比赛与台次</button>
-      <button type="button" data-kind="qipu">棋谱</button>
-      <button type="button" data-kind="person">人物介绍</button>
-      <button type="button" data-kind="person_page">棋手个人主页</button>
-      <button type="button" data-kind="rating">等级分</button>
+    <div id="gate">
+      <h2>需要管理员登录</h2>
+      <p id="gate-msg">请用管理员账号登录后继续。</p>
+      <button type="button" class="btn primary" data-act="login">管理员登录</button>
     </div>
 
-    <div class="workspace">
-      <div class="sidebar">
-        <h2 id="list-title">文档列表</h2>
-        <input type="text" id="search" class="search" placeholder="搜索…">
-        <div class="doclist" id="doclist"></div>
-        <div class="addbar">
-          <input type="text" id="new-id" placeholder="新内容 ID">
-          <button type="button" class="btn sm primary" data-act="add">＋ 新建</button>
-        </div>
+    <div id="panel" hidden>
+
+      <div class="toolbar">
+        <button type="button" class="btn" data-act="refresh">重新读取</button>
+        <button type="button" class="btn primary" data-act="recalc">更新等级分</button>
       </div>
-      <div class="pane" id="pane"></div>
+
+      <div class="stat" id="stat"></div>
+
+      <div class="tipbox">
+        打开即可编辑：内容已在云端，选中左侧任意一条，改完点「保存修改」，访客刷新站点就能看到最新内容。
+        下棋的对局可直接在成绩表里点「＋棋谱」落子录入，不用另外建文档。
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button type="button" class="on" data-kind="competition">比赛与台次</button>
+        <button type="button" data-kind="qipu">棋谱</button>
+        <button type="button" data-kind="person">人物介绍</button>
+        <button type="button" data-kind="person_page">棋手个人主页</button>
+        <button type="button" data-kind="rating">等级分</button>
+      </div>
+
+      <div class="workspace">
+        <aside class="sidebar">
+          <p class="side-title"><b id="list-title">文档列表</b></p>
+          <input type="text" id="search" class="search" placeholder="搜索姓名、比赛或轮次…">
+          <div class="doclist" id="doclist"></div>
+          <div class="addbar">
+            <input type="text" id="new-id" placeholder="新内容 ID">
+            <button type="button" class="btn sm primary" data-act="add">＋ 新建</button>
+          </div>
+        </aside>
+        <div class="pane" id="pane"></div>
+      </div>
+
     </div>
 
-  </div>
+  </main>
+
+  <footer class="site-footer">
+    <p class="sf-copy">2026 由潘冠臣创作</p>
+  </footer>
+
 </div>
+
+<div id="rec-host"></div>
 
 <script src="../assets/cloud.js"></script>
 <script src="../assets/account.js"></script>
+<script src="../assets/board.js"></script>
 <script src="zayu-admin.js"></script>
 </body>
 </html>
