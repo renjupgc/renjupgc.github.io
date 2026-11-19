@@ -196,9 +196,12 @@
         var a = account();
         var token = a && typeof a.token === 'function' ? a.token() : '';
         if (!curUser || !token) { render(); return Promise.resolve(false); }
+        var localEnglish = E && typeof E === 'object' ? E : null;
         return cloudRpc('zbx_progress_load', { p_token: token }).then(function (res) {
-            if (!res || !res.ok) { render(); return false; }
-            var data = res.data;
+            if (!res || res.ok === false) { render(); return false; }
+            /* 正常返回是 {ok,data:{v,at,progress,english}}；account.rpc 的 unwrap
+               剥掉信封后，res 本身就是档案对象，两种形状都要认。 */
+            var data = res.data && typeof res.data === 'object' && !res.progress ? res.data : res;
             if (data && typeof data === 'object' && data.progress) {
                 D = normalizeStore(data.progress);
                 E = data.english && typeof data.english === 'object' ? data.english : null;
@@ -210,6 +213,8 @@
                 if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
                 return saveCloud(true).then(function () { render(); return true; });
             }
+            /* 云端若还没有连珠英语那段（老档案），别把本机已有背词记录清空 */
+            if (!E && localEnglish) { E = localEnglish; }
             if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
             writeLocal();
             render();
