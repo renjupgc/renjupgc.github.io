@@ -25,7 +25,12 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function clone(o) { return JSON.parse(JSON.stringify(o == null ? {} : o)); }
-  function num(v, d) { var n = parseInt(v, 10); return isFinite(n) ? n : (d || 0); }
+  /* 主页链接在数据里是 URL 编码的，直接显示一长串 %E5 没法看，转成能读的形式 */
+  function friendlyHref(href) {
+    var s = String(href || '');
+    if (!s) { return ''; }
+    try { return decodeURIComponent(s); } catch (e) { return s; }
+  }  function num(v, d) { var n = parseInt(v, 10); return isFinite(n) ? n : (d || 0); }
   function msg(text, kind) {
     var el = $('msg'); if (!el) { return; }
     el.textContent = text || ''; el.className = kind || '';
@@ -230,9 +235,14 @@
   function docSub(kind, d) {
     var x = d.data || {};
     if (kind === 'competition') {
+      var qn = 0;
+      (x.rows || []).forEach(function (r) {
+        (r.games || []).forEach(function (g) { if (g && g.qipu) { qn++; } });
+      });
       return [x.date, Array.isArray(x.rows) ? x.rows.length + ' 人' : '',
         Array.isArray(x.rows) && x.rows[0] && Array.isArray(x.rows[0].games)
-          ? x.rows[0].games.length + ' 轮' : ''].filter(Boolean).join(' · ');
+          ? x.rows[0].games.length + ' 轮' : '',
+        qn ? qn + ' 局有棋谱' : '暂无棋谱'].filter(Boolean).join(' · ');
     }
     if (kind === 'qipu') {
       return [x.event, Array.isArray(x.moves) ? x.moves.length + ' 手' : '',
@@ -274,6 +284,8 @@
     Array.prototype.forEach.call($('tabs').querySelectorAll('button'), function (b) {
       b.classList.toggle('on', b.getAttribute('data-kind') === kind);
     });
+    var sid = suggestId(kind);
+    $('new-id').placeholder = sid ? ('新 ID，留空即 ' + sid) : '新内容 ID（姓名）';
     renderList(); renderPane();
   }
 
@@ -281,8 +293,10 @@
   function renderPane() {
     var pane = $('pane');
     if (!S.work) {
-      pane.innerHTML = '<div class="empty"><b>从左侧选择一条内容</b>' +
-        '点左侧列表里的条目来修改，或点「＋ 新建一条」添加新内容。</div>';
+      pane.innerHTML = '<div class="empty"><b>从左侧选一条，或直接新建</b>' +
+        '左侧列表里点一条即可修改；也可以新建一条。' +
+        '<div style="margin-top:18px"><button type="button" class="btn primary" data-act="addnew">' +
+        '＋ 新建一条</button></div></div>';
       return;
     }
     var head = '<div class="pane-head">' +
@@ -378,22 +392,22 @@
     var thead = '<tr><th>编号</th><th>姓名 / 主页</th>';
     for (var r = 0; r < nRound; r++) { thead += '<th>' + esc(rounds[start + r] || ('R' + (r + 1))) + '</th>'; }
     thead += '<th>积分</th><th>对手分</th><th>中间对手分</th><th>胜局数</th><th>名次</th><th>操作</th></tr>';
-    var qopts = [['', '无棋谱']].concat((S.docs.qipu || []).map(function (d) {
-      return [d.doc_id, '#' + d.doc_id + ' ' + (d.data.p1 || '') + '对' + (d.data.p2 || '')];
-    }));
     var rowsHtml = w.rows.map(function (row, ri) {
       row.games = row.games || []; row.tb = row.tb || [];
       var tds = '<td><input class="wpt" data-bind="rows.' + ri + '.no" value="' + esc(row.no || '') + '"></td>' +
         '<td class="namein"><input data-bind="rows.' + ri + '.name" value="' + esc(row.name || '') + '" placeholder="姓名">' +
-        '<input data-bind="rows.' + ri + '.href" value="' + esc(row.href || '') + '" placeholder="主页链接（可留空）"></td>';
+        '<input class="hrefin" data-bind="rows.' + ri + '.href" value="' + esc(friendlyHref(row.href)) +
+        '" placeholder="主页链接（可留空）" title="' + esc(row.href || '') + '"></td>';
       for (var g = 0; g < nRound; g++) {
         var c = row.games[g] || {};
+        var oppName = c.opp ? nameOfNo(c.opp) : '';
         tds += '<td><div class="gcell">' +
-          '<input class="wopp" data-bind="rows.' + ri + '.games.' + g + '.opp" value="' + esc(c.opp || '') + '" placeholder="对手">' +
+          '<input class="wopp" data-bind="rows.' + ri + '.games.' + g + '.opp" value="' + esc(c.opp || '') +
+          '" placeholder="对手" title="' + esc(oppName ? '对手：' + oppName : '对手的编号') + '">' +
           selectField('', 'rows.' + ri + '.games.' + g + '.res', c.res || '',
             [['', '—'], ['1', '胜'], ['0', '负'], ['0.5', '和']]).replace('<div class="field"><label></label>', '<span>').replace('</select></div>', '</select></span>') +
           '<span class="first-lab' + (c.first ? ' on' : '') + '" data-act="togglefirst" data-r="' + ri + '" data-g="' + g + '" title="先手（黑）">先</span>' +
-          selectField('', 'rows.' + ri + '.games.' + g + '.qipu', c.qipu || '', qopts).replace('<div class="field"><label></label>', '<span>').replace('</select></div>', '</select></span>') +
+          qipuChip(ri, g, c) +
           '</div></td>';
       }
       tds += '<td><input class="wpt" data-bind="rows.' + ri + '.pt" value="' + esc(row.pt || '') + '"></td>';
@@ -404,7 +418,10 @@
         '<td><div class="rowops"><button type="button" class="btn icon warn" data-act="delplayer" data-i="' + ri + '">×</button></div></td>';
       return '<tr>' + tds + '</tr>';
     }).join('');
-    var table = '<h3>台次成绩表<span class="badge">直接在格子里填，先手点「先」，有棋谱就从下拉里选</span></h3>' +
+    var table = '<h3>台次成绩表<span class="badge">格子里点「＋棋谱」就能直接在棋盘上录这一局</span></h3>' +
+      '<div class="tipbox">每格依次是：对手编号、「胜 / 负 / 和」、「先」手标记、棋谱。' +
+      '点「＋棋谱」会弹出棋盘，落子顺序点完点保存，棋谱自动编号并挂到这一台，胜负和先后手一起对上。' +
+      '已经录过的显示为「#编号」，点它可以继续改。</div>' +
       '<div class="tblwrap"><table class="editgrid"><thead>' + thead + '</thead><tbody>' +
       rowsHtml + '</tbody></table></div>' +
       '<button type="button" class="btn sm" data-act="addplayer" style="margin-top:8px">＋ 添加棋手</button>';
@@ -443,22 +460,20 @@
       '<div class="steps"><span><b>1</b> 填好双方姓名</span><span><b>2</b> 点棋盘落子</span>' +
       '<span><b>3</b> 选交换与胜负</span><span><b>4</b> 点「保存修改」</span></div>' +
       '<div class="chess-layout"><div class="chess-board-wrap">' +
-      '<div id="chess-host"></div>' +
+      '<div class="board" id="chess-host"></div>' +
       '<div class="chess-ctrl">' +
       '<button type="button" class="btn sm" data-act="chess-undo">悔一步</button>' +
       '<button type="button" class="btn sm" data-act="chess-clear">清空重摆</button>' +
-      '<button type="button" class="btn sm" data-act="chess-prev">◀ 上一手</button>' +
-      '<button type="button" class="btn sm" data-act="chess-next">下一手 ▶</button>' +
-      '<button type="button" class="btn sm" data-act="chess-last">到最新</button>' +
       '</div><div class="moves-str" id="moves-str"></div></div>' +
-      '<div><div class="tipbox">落子会按顺序记录，输出的坐标与站点复盘完全一致。摆错时可「悔一步」，或点「清空重摆」从头来。' +
-      '回放按钮用来检查；检查完记得点右上角「到最新」，再保存。</div>' +
+      '<div><div class="tipbox">落子会按顺序记录，坐标与站点复盘完全一致。双击棋盘上的某颗子可回退到那一手，' +
+      '也可以点「悔一步」；摆错就「清空重摆」从头来。棋盘上方的 &lt; &gt; 用来回看检查。</div>' +
       '<div class="field"><label>本局手数（自动生成）</label><input id="move-count" value="' + w.moves.length + '" readonly></div>' +
       field('胜者姓名（选胜负后自动填，一般不用改）', 'winner', w.winner || '') +
+      '<div class="tipbox">更省事的做法：到比赛的「台次成绩表」里点这一格的「＋棋谱」，' +
+      '比赛、轮次、台次、双方姓名都会自动带上，棋谱也会自动挂到成绩表上。</div>' +
       '</div></div>';
     var link = '<h3>关联到成绩表</h3><div class="tipbox">这局的棋谱编号是 <b>#' + esc(S.cur) +
-      '</b>。要到对应比赛的「台次成绩表」里，找到这一对棋手那一格，在棋谱下拉里选中「#' + esc(S.cur) +
-      '」，访客才能在成绩表里点开它。</div>';
+      '</b>。回到对应比赛的「台次成绩表」，找到这一对棋手那一格，点「＋棋谱」或「#编号」即可关联。</div>';
     return base + info + board + link;
   }
   function resultKey(w) {
@@ -512,7 +527,8 @@
       '</div><div class="rt-content" id="rt-content" contenteditable="true" data-ph="在这里写这位棋手的介绍……">' +
       (w.bioHtml || esc(w.bio) || '') + '</div></div>' +
       '<p class="hint" style="color:var(--muted);font-size:12px">选中文字再点工具栏按钮即可加粗、设标题、加链接。支持直接粘贴网页文字。</p>';
-    var note = '<div class="tipbox">左侧共 595 位棋手，可用搜索框按姓名快速定位。保存后，访客打开这位棋手的个人主页就能看到新内容。' +
+    var note = '<div class="tipbox">左侧共 ' + (S.docs.person_page || []).length +
+      ' 位棋手，可用搜索框按姓名快速定位。保存后，访客打开这位棋手的个人主页就能看到新内容。' +
       '文档 ID 与页面文件绑定，请勿修改 ID。</div>';
     return head + stats + rt + note;
   }
@@ -530,104 +546,328 @@
       '</div><div class="tipbox">名次可直接改；要按分数重新排名，请用页面顶部的「更新等级分」按钮。</div>';
   }
 
-  /* ---------- 棋盘组件（自绘 SVG，点击落子） ---------- */
+  /* ---------- 棋盘：直接用前台的 assets/board.js ----------
+   * 外观、坐标、手数标记与访客复盘时看到的完全一样。 */
   var COLS = 'ABCDEFGHIJKLMNO';
   function coord(i, j) { return COLS.charAt(i) + (15 - j); }
-  function svgEl(tag, attrs) {
-    var n = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for (var k in attrs) { if (attrs.hasOwnProperty(k)) { n.setAttribute(k, attrs[k]); } }
-    return n;
+  function movesOfBoard(b) {
+    if (!b) { return []; }
+    return b.getMoves().map(function (m) { return coord(m.i, m.j); });
   }
+  function mountBoard(hostId, moves, onChange) {
+    var host = $(hostId);
+    if (!host || !window.GomokuBoard) { return null; }
+    host.setAttribute('data-ready', '1');   /* 自己挂载，别让观察器再挂一次 */
+    var b = window.GomokuBoard.mount(host, {
+      editable: true,
+      moves: window.GomokuBoard.parse((moves || []).join(' '))
+    });
+    if (onChange) {
+      b.onChange(function () { onChange(movesOfBoard(b)); });
+      onChange(movesOfBoard(b));
+    }
+    return b;
+  }
+
+  /* 棋谱编辑页的棋盘 */
   function mountChess() {
-    var host = $('chess-host');
-    if (!host) { return; }
-    var M = 20, C = 26, SZ = M * 2 + C * 14;
-    var svg = svgEl('svg', {
-      viewBox: '0 0 ' + SZ + ' ' + SZ, class: 'chess-svg', role: 'img',
-      'aria-label': '15 路棋盘，点击交叉点落子'
+    var b = mountBoard('chess-host', S.work.moves || [], function (arr) {
+      S.work.moves = arr;
+      var str = $('moves-str');
+      if (str) { str.textContent = arr.join(' ') || '（还没有落子，点棋盘开始）'; }
+      var cnt = $('move-count');
+      if (cnt) { cnt.value = String(arr.length); }
     });
-    var i, j;
-    for (i = 0; i < 15; i++) {
-      svg.appendChild(svgEl('line', { x1: M, y1: M + i * C, x2: M + 14 * C, y2: M + i * C, class: 'ln' }));
-      svg.appendChild(svgEl('line', { x1: M + i * C, y1: M, x2: M + i * C, y2: M + 14 * C, class: 'ln' }));
-    }
-    [[3, 3], [3, 11], [11, 3], [11, 11], [7, 7]].forEach(function (p) {
-      svg.appendChild(svgEl('circle', { cx: M + p[0] * C, cy: M + p[1] * C, r: 1.6, class: 'star' }));
-    });
-    for (i = 0; i < 15; i++) {
-      var t1 = svgEl('text', { x: M + i * C, y: M - 11, class: 'lbl' }); t1.textContent = COLS.charAt(i); svg.appendChild(t1);
-      var t2 = svgEl('text', { x: M - 12, y: M + i * C, class: 'lbl' }); t2.textContent = String(15 - i); svg.appendChild(t2);
-    }
-    var pieces = svgEl('g', {});
-    var hits = svgEl('g', {});
-    svg.appendChild(pieces); svg.appendChild(hits);
-    for (i = 0; i < 15; i++) {
-      for (j = 0; j < 15; j++) {
-        (function (ci, cj) {
-          var h = svgEl('circle', {
-            cx: M + ci * C, cy: M + cj * C, r: C * 0.46,
-            class: 'hit', fill: 'transparent'
-          });
-          h.addEventListener('click', function () { placeMove(ci, cj); });
-          hits.appendChild(h);
-        })(i, j);
-      }
-    }
-    host.innerHTML = ''; host.appendChild(svg);
-    S.chess = { svg: svg, pieces: pieces, cursor: 0 };
-    S.chess.cursor = S.work.moves.length;
-    drawChess();
-  }
-  function placeMove(i, j) {
-    var coords = S.work.moves || (S.work.moves = []);
-    var at = coords.indexOf(coord(i, j));
-    if (at >= 0) { return; }
-    if (S.chess.cursor < coords.length) { coords.length = S.chess.cursor; }
-    coords.push(coord(i, j));
-    S.chess.cursor = coords.length;
-    drawChess();
-  }
-  function drawChess() {
-    if (!S.chess || !S.chess.pieces) { return; }
-    var M = 20, C = 26, coords = S.work.moves || [], cursor = S.chess.cursor;
-    var g = S.chess.pieces;
-    while (g.firstChild) { g.removeChild(g.firstChild); }
-    var n = Math.min(cursor, coords.length);
-    for (var k = 0; k < n; k++) {
-      var m = /^([A-O])(\d{1,2})$/.exec(coords[k]); if (!m) { continue; }
-      var i = COLS.indexOf(m[1]), j = 15 - num(m[2], 1);
-      if (i < 0 || j < 0 || i > 14 || j > 14) { continue; }
-      var color = (k % 2 === 0) ? 'b' : 'w';
-      g.appendChild(svgEl('circle', { cx: M + i * C, cy: M + j * C, r: C * 0.42, class: 'stone ' + color }));
-      var numT = svgEl('text', { x: M + i * C, y: M + j * C, class: 'num ' + color });
-      numT.textContent = String(k + 1); g.appendChild(numT);
-    }
-    if (n > 0) {
-      var lm = /^([A-O])(\d{1,2})$/.exec(coords[n - 1]);
-      if (lm) {
-        var li = COLS.indexOf(lm[1]), lj = 15 - num(lm[2], 1);
-        g.appendChild(svgEl('circle', {
-          cx: M + li * C, cy: M + lj * C, r: C * 0.42, class: 'last'
-        }));
-      }
-    }
-    var str = $('moves-str'); if (str) { str.textContent = coords.join(' ') || '（还没有落子，点棋盘开始）'; }
-    var cnt = $('move-count'); if (cnt) { cnt.value = String(coords.length); }
+    if (b) { S.chess = { board: b }; }
   }
   function chessUndo() {
-    var coords = S.work.moves || [];
-    if (!coords.length) { return; }
-    if (S.chess.cursor > coords.length) { S.chess.cursor = coords.length; }
-    coords.pop(); S.chess.cursor = coords.length; drawChess();
+    if (!S.chess || !S.chess.board) { return; }
+    S.chess.board.undo();
   }
   function chessClear() {
+    if (!S.chess || !S.chess.board) { return; }
     if (!window.confirm('清空棋盘上所有落子，重新摆？')) { return; }
-    S.work.moves = []; S.chess.cursor = 0; drawChess();
+    S.chess.board.clear();
   }
-  function chessMove(delta) {
-    var coords = S.work.moves || [];
-    S.chess.cursor = Math.max(0, Math.min(coords.length, S.chess.cursor + delta));
-    drawChess();
+
+  /* ---------- 成绩表里的「＋棋谱」：就地录落子 ---------- */
+  var REC = null;
+
+  function findDoc(kind, id) {
+    var list = S.docs[kind] || [];
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].doc_id) === String(id)) { return list[i]; }
+    }
+    return null;
+  }
+  function nextQipuId() {
+    var max = 0;
+    (S.docs.qipu || []).forEach(function (d) {
+      var n = num(d.doc_id, 0);
+      if (n > max) { max = n; }
+    });
+    return String(max + 1);
+  }
+  function nameOfNo(no) {
+    var rows = (S.work && S.work.rows) || [];
+    for (var i = 0; i < rows.length; i++) {
+      if (String(rows[i].no) === String(no)) { return String(rows[i].name || '').trim(); }
+    }
+    return '';
+  }
+  /* 成绩表明细里的一个小按钮：没棋谱显示「＋棋谱」，有则显示编号 */
+  function qipuChip(ri, gi, c) {
+    var id = c && c.qipu ? String(c.qipu) : '';
+    if (!id) {
+      return '<button type="button" class="qchip" data-act="rec" data-r="' + ri + '" data-g="' + gi +
+        '" title="在棋盘上录入这一局的落子">＋ 棋谱</button>';
+    }
+    var doc = findDoc('qipu', id);
+    var turns = doc && Array.isArray(doc.data.moves) ? doc.data.moves.length : 0;
+    return '<button type="button" class="qchip on" data-act="rec" data-r="' + ri + '" data-g="' + gi +
+      '" title="' + (turns ? '已录 ' + turns + ' 手，点开继续编辑' : '已关联棋谱，点开录入落子') + '">#' + esc(id) +
+      (turns ? ' · ' + turns + '手' : ' · 空') + '</button>';
+  }
+
+  function ruleOptions(v) {
+    return [['', '无交换'], ['五手两打', '五手两打'], ['三手交换', '三手交换'],
+      ['三手交换五手两打', '三手交换 + 五手两打'], ['自由开局', '自由开局']]
+      .map(function (o) {
+        return '<option value="' + esc(o[0]) + '"' + (o[0] === v ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+      }).join('');
+  }
+  function resultOptions(v) {
+    return [['p1', '黑方（先手）胜'], ['p2', '白方（后手）胜'], ['draw', '和棋'], ['', '未定']]
+      .map(function (o) {
+        return '<option value="' + o[0] + '"' + (o[0] === v ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('');
+  }
+
+  /*
+   * 打开录入棋谱弹窗。
+   * mode 不传：沿用这一格里已关联的棋谱；传 'new'：强制新建；传编号：改用那份棋谱。
+   */
+  function openRecorder(ri, gi, mode) {
+    var rows = (S.work && S.work.rows) || [];
+    var row = rows[ri];
+    if (!row) { return; }
+    row.games = row.games || [];
+    var game = row.games[gi] || (row.games[gi] = {});
+    var me = String(row.name || '').trim();
+    var oppName = nameOfNo(game.opp);
+
+    var docRec = null;
+    if (mode === 'new') { docRec = null; }
+    else if (mode) { docRec = findDoc('qipu', mode); }
+    else if (game.qipu) { docRec = findDoc('qipu', game.qipu); }
+    var doc = docRec ? clone(docRec.data) : null;
+
+    var black = me, white = oppName;
+    if (doc) {
+      black = doc.p1 || me;
+      white = doc.p2 || oppName;
+    } else if (game.first === false) {
+      black = oppName;
+      white = me;
+    }
+
+    var rk = '';
+    if (doc) {
+      rk = resultKey(doc);
+    } else if (game.res === '1') {
+      rk = (game.first === false) ? 'p2' : 'p1';
+    } else if (game.res === '0') {
+      rk = (game.first === false) ? 'p1' : 'p2';
+    } else if (game.res === '0.5') {
+      rk = 'draw';
+    }
+
+    REC = {
+      ri: ri, gi: gi, me: me,
+      id: docRec ? String(docRec.doc_id) : '',
+      doc: doc,
+      board: null
+    };
+
+    var roundNo = gi + 1;
+    var oppShow = oppName || '待填';
+    var links = [['', '（新建一份棋谱 #' + nextQipuId() + '）']].concat(
+      (S.docs.qipu || []).map(function (d) {
+        var t = '#' + d.doc_id + ' ' + (d.data.p1 || '?') + '对' + (d.data.p2 || '?');
+        return [String(d.doc_id), t];
+      }));
+    var curLink = docRec ? String(docRec.doc_id) : '';
+
+    var html =
+      '<div class="modal-mask" data-act="rec-mask">' +
+      '<div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="rec-title">' +
+      '<div class="modal-head"><div>' +
+      '<p class="modal-eyebrow">录入棋谱</p>' +
+      '<h2 class="modal-title" id="rec-title">第 ' + roundNo + ' 轮 · 第 ' + (ri + 1) + ' 台</h2>' +
+      '<p class="modal-sub">' + esc(S.work.title || ('比赛 ' + S.cur)) + ' · ' +
+      esc(me || '待填') + ' 对 ' + esc(oppShow) + '</p>' +
+      '</div><button type="button" class="btn icon" data-act="rec-close" aria-label="关闭">×</button></div>' +
+      '<div class="modal-body">' +
+      '<div>' +
+      '<div class="board" id="rec-board"></div>' +
+      '<div class="chess-ctrl">' +
+      '<button type="button" class="btn sm" data-act="rec-undo">悔一步</button>' +
+      '<button type="button" class="btn sm" data-act="rec-clear">清空重摆</button>' +
+      '<span class="rec-count" id="rec-count">0 手</span>' +
+      '</div>' +
+      '<div class="moves-str" id="rec-moves"></div>' +
+      '</div>' +
+      '<div class="rec-side">' +
+      '<div class="field"><label>黑方（先手）</label><input type="text" id="rec-p1" value="' + esc(black) + '" placeholder="先手姓名"></div>' +
+      '<div class="field"><label>白方（后手）</label><input type="text" id="rec-p2" value="' + esc(white) + '" placeholder="后手姓名"></div>' +
+      '<div class="swap-line"><button type="button" class="btn sm" data-act="rec-swap">⇅ 交换先后手</button>' +
+      '<span class="vs">黑先白后</span></div>' +
+      '<div class="grid2">' +
+      '<div class="field"><label>胜负</label><select id="rec-result">' + resultOptions(rk) + '</select></div>' +
+      '<div class="field"><label>交换 / 规则</label><select id="rec-rules">' + ruleOptions(doc ? (doc.rules || '') : '') + '</select></div>' +
+      '</div>' +
+      '<div class="field"><label>这一格对应哪份棋谱</label><select id="rec-link">' +
+      links.map(function (o) {
+        return '<option value="' + esc(o[0]) + '"' + (o[0] === curLink ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="tipbox">点棋盘落子，黑先白后自动交替，最后一手标红。双击某颗子回退到那一手，' +
+      '也可以用上面的「悔一步」。点「保存并关联」后，棋谱会按编号存好，并挂到这一台；' +
+      '这里的胜负和先后手会一起写回成绩表。</div>' +
+      '<div class="rec-foot">' +
+      '<button type="button" class="btn primary" data-act="rec-save">保存并关联</button>' +
+      '<button type="button" class="btn" data-act="rec-close">取消</button>' +
+      '</div>' +
+      '</div></div></div></div>';
+
+    var host = $('rec-host');
+    host.innerHTML = html;
+    document.body.classList.add('is-modal');
+
+    REC.board = mountBoard('rec-board', (doc && doc.moves) || [], function (arr) {
+      var mv = $('rec-moves');
+      if (mv) { mv.textContent = arr.join(' ') || '（还没有落子，点棋盘开始）'; }
+      var ct = $('rec-count');
+      if (ct) { ct.textContent = arr.length + ' 手'; }
+    });
+
+    var s1 = $('rec-p1'), s2 = $('rec-p2');
+    if (s1) { s1.focus(); s1.select(); }
+    /* 弹窗里输入框自己保存到 REC，避免关掉再开会丢 */
+    [['rec-p1', 'p1'], ['rec-p2', 'p2'], ['rec-result', 'rk'], ['rec-rules', 'rules']].forEach(function (p) {
+      var el = p[0] ? $(p[0]) : null;
+      if (!el) { return; }
+      el.addEventListener('input', function () { REC[p[1]] = el.value; });
+      el.addEventListener('change', function () { REC[p[1]] = el.value; });
+    });
+    REC.p1 = black; REC.p2 = white; REC.rk = rk; REC.rules = doc ? (doc.rules || '') : '';
+  }
+
+  function closeRecorder() {
+    var host = $('rec-host');
+    if (host) { host.innerHTML = ''; }
+    document.body.classList.remove('is-modal');
+    REC = null;
+  }
+
+  function swapRecSides() {
+    if (!REC) { return; }
+    var a = $('rec-p1'), b = $('rec-p2');
+    if (!a || !b) { return; }
+    var t = a.value; a.value = b.value; b.value = t;
+    REC.p1 = a.value; REC.p2 = b.value;
+    /* 先后手换了，胜负跟着反过来 */
+    var r = $('rec-result');
+    if (r && r.value === 'p1') { r.value = 'p2'; } else if (r && r.value === 'p2') { r.value = 'p1'; }
+    if (r) { REC.rk = r.value; }
+  }
+
+  function switchRecLink(v) {
+    if (!REC) { return; }
+    var hasMoves = REC.board && REC.board.getMoves().length > 0;
+    if (hasMoves && !window.confirm('切换到另一份棋谱会替换棋盘上的落子，确定继续？')) {
+      var sel = $('rec-link');
+      if (sel) { sel.value = REC.id || ''; }
+      return;
+    }
+    openRecorder(REC.ri, REC.gi, v || 'new');
+  }
+
+  function saveRecorder() {
+    if (!REC) { throw new Error('请先选择要录入的对局'); }
+    var p1 = (($('rec-p1') || {}).value || '').trim();
+    var p2 = (($('rec-p2') || {}).value || '').trim();
+    if (!p1 || !p2) { throw new Error('请先填好黑方和白方的姓名'); }
+    var moves = movesOfBoard(REC.board);
+    if (!moves.length) { throw new Error('棋盘上还没有落子，先点几手再保存'); }
+
+    var rk = ($('rec-result') || {}).value || '';
+    var rules = ($('rec-rules') || {}).value || '';
+    var id = REC.id || nextQipuId();
+    var doc = clone(REC.doc || {});
+    var oldMoves = Array.isArray(doc.moves) ? doc.moves.join(' ') : '';
+
+    if (/^\d+$/.test(String(id))) { doc.id = num(id, 0); }
+    doc.tid = num(S.work.tid, 0);
+    doc.event = S.work.title || doc.event || '';
+    doc.date = S.work.date || doc.date || '';
+    doc.round = REC.gi + 1;
+    doc.roundLabel = '第 ' + (REC.gi + 1) + ' 轮';
+    doc.board = REC.ri + 1;
+    doc.p1 = p1;
+    doc.p2 = p2;
+    doc.rules = rules;
+    doc.moves = moves;
+    doc.turns = moves.length;
+
+    if (rk === 'p1') { doc.result = '1-0'; doc.resultText = '先胜'; doc.winner = p1; }
+    else if (rk === 'p2') { doc.result = '0-1'; doc.resultText = '后胜'; doc.winner = p2; }
+    else if (rk === 'draw') { doc.result = '1/2-1/2'; doc.resultText = '和棋'; doc.winner = ''; }
+    else { doc.result = ''; doc.resultText = ''; doc.winner = ''; }
+
+    /* 落子变了，旧的引擎评估就不作数了 */
+    if (oldMoves !== moves.join(' ')) { delete doc.eval; }
+
+    var ri = REC.ri, gi = REC.gi;
+    var me = String((((S.work.rows || [])[ri]) || {}).name || '').trim();
+    var round = gi + 1, boardNo = ri + 1;
+
+    msg('正在保存棋谱 #' + id + '…');
+    return rpc('zbx_admin_save_docs', {
+      p_token: token(), p_kind: 'qipu',
+      p_rows: [{ doc_id: String(id), data: doc, ord: num(id, 0) }]
+    }).then(function (res) {
+      if (!res || !res.ok) { throw new Error((res && res.err) || '棋谱保存失败'); }
+      /* 把棋谱写回这一格：编号、先后手、胜负 */
+      var row = S.work.rows[ri];
+      row.games = row.games || [];
+      var g = row.games[gi] || (row.games[gi] = {});
+      g.qipu = String(id);
+      if (me) { g.first = (p1 === me); }
+      if (doc.result === '1-0') { g.res = (p1 === me) ? '1' : '0'; }
+      else if (doc.result === '0-1') { g.res = (p1 === me) ? '0' : '1'; }
+      else if (doc.result === '1/2-1/2') { g.res = '0.5'; }
+      S.work.qipu_ids = S.work.qipu_ids || [];
+      var nid = num(id, -1);
+      if (nid >= 0 && S.work.qipu_ids.indexOf(nid) < 0) { S.work.qipu_ids.push(nid); }
+
+      return rpc('zbx_admin_save_docs', {
+        p_token: token(), p_kind: 'competition',
+        p_rows: [{ doc_id: S.cur, data: S.work, ord: S.ord }]
+      }).then(function (r2) {
+        if (!r2 || !r2.ok) { throw new Error((r2 && r2.err) || '关联到成绩表失败'); }
+        closeRecorder();
+        return loadAll().then(function () {
+          var el = $('msg');
+          if (el) {
+            el.className = 'ok';
+            el.innerHTML = '棋谱 #' + esc(id) + ' 已保存（' + moves.length + ' 手），并关联到第 ' +
+              round + ' 轮第 ' + boardNo + ' 台。' +
+              ' <a href="' + esc(viewUrlOf('competition', S.cur, S.work)) +
+              '" target="_blank" rel="noopener">看这一页 ↗</a>';
+          }
+        });
+      });
+    });
   }
 
   /* ---------- 富文本组件 ---------- */
@@ -719,9 +959,22 @@
   }
 
   /* ---------- 新建 / 更新等级分 ---------- */
+  /* 比赛与棋谱的 ID 是编号，可以直接给一个下一个可用值；其余按姓名建 */
+  function suggestId(kind) {
+    if (kind === 'qipu') { return nextQipuId(); }
+    if (kind === 'competition') {
+      var m = 0;
+      (S.docs.competition || []).forEach(function (d) {
+        var n = num(String(d.doc_id).replace(/[^0-9]/g, ''), 0);
+        if (n > m) { m = n; }
+      });
+      return 't' + (m + 1);
+    }
+    return '';
+  }
   function addDoc() {
-    var id = ($('new-id').value || '').trim();
-    if (!id) { throw new Error('请填写新内容的 ID'); }
+    var id = ($('new-id').value || '').trim() || suggestId(S.kind);
+    if (!id) { throw new Error('请填写新内容的 ID（一般是姓名）'); }
     for (var i = 0; i < (S.docs[S.kind] || []).length; i++) {
       if (S.docs[S.kind][i].doc_id === id) { throw new Error('这个 ID 已存在，请换一个'); }
     }
@@ -770,6 +1023,7 @@
     else if (a === 'refresh') { guard(loadAll)(); }
     else if (a === 'recalc') { guard(recalc)(); }
     else if (a === 'add') { guard(addDoc)(); }
+    else if (a === 'addnew') { guard(addDoc)(); }
     else if (a === 'save') { guard(saveCurrent)(); }
     else if (a === 'del') { guard(delCurrent)(); }
     else if (a === 'addrow') {
@@ -819,14 +1073,26 @@
     }
     else if (a === 'chess-undo') { chessUndo(); }
     else if (a === 'chess-clear') { chessClear(); }
-    else if (a === 'chess-prev') { chessMove(-1); }
-    else if (a === 'chess-next') { chessMove(1); }
-    else if (a === 'chess-last') { S.chess.cursor = (S.work.moves || []).length; drawChess(); }
+    else if (a === 'rec') { openRecorder(num(act.getAttribute('data-r'), 0), num(act.getAttribute('data-g'), 0)); }
+    else if (a === 'rec-close') { closeRecorder(); }
+    else if (a === 'rec-mask') { if (e.target === act) { closeRecorder(); } }
+    else if (a === 'rec-undo') { if (REC && REC.board) { REC.board.undo(); } }
+    else if (a === 'rec-clear') {
+      if (REC && REC.board && window.confirm('清空棋盘上所有落子，重新摆？')) { REC.board.clear(); }
+    }
+    else if (a === 'rec-swap') { swapRecSides(); }
+    else if (a === 'rec-save') { guard(saveRecorder)(); }
     else if (a === 'rt') { richCommand(act.getAttribute('data-cmd'), act.getAttribute('data-val')); }
   }
 
   document.addEventListener('input', onInput);
   document.addEventListener('change', onInput);
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.id === 'rec-link') { switchRecLink(e.target.value); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && REC) { closeRecorder(); }
+  });
   document.addEventListener('click', onClick);
   $('search').addEventListener('input', function () { S.filter = this.value; renderList(); });
   document.addEventListener('zbx:account', syncGate);
