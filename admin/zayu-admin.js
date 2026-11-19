@@ -75,28 +75,128 @@
   }
 
   /* ---------- 读取云端 ---------- */
-  function loadAll() {
-    msg('正在读取云端内容…');
+  function applyRows(rows) {
+    S.docs = {};
+    KINDS.forEach(function (k) { S.docs[k] = []; });
+    rows.forEach(function (r) {
+      (S.docs[r.kind] = S.docs[r.kind] || []).push({
+        doc_id: String(r.doc_id), data: r.data || {}, ord: Number(r.ord || 0)
+      });
+    });
+    Object.keys(S.docs).forEach(function (k) {
+      S.docs[k].sort(function (a, b) {
+        return a.ord - b.ord || Number(a.doc_id) - Number(b.doc_id) ||
+          String(a.doc_id).localeCompare(String(b.doc_id));
+      });
+    });
+  }
+  function fetchDocs() {
     return rpc('zbx_admin_all_docs', { p_token: token() }).then(function (res) {
       if (!res || !res.ok) { throw new Error((res && res.err) || '读取失败'); }
-      var rows = Array.isArray(res.rows) ? res.rows : [];
-      S.docs = {};
-      KINDS.forEach(function (k) { S.docs[k] = []; });
-      rows.forEach(function (r) {
-        (S.docs[r.kind] = S.docs[r.kind] || []).push({
-          doc_id: String(r.doc_id), data: r.data || {}, ord: Number(r.ord || 0)
-        });
-      });
-      Object.keys(S.docs).forEach(function (k) {
-        S.docs[k].sort(function (a, b) {
-          return a.ord - b.ord || Number(a.doc_id) - Number(b.doc_id) ||
-            String(a.doc_id).localeCompare(String(b.doc_id));
-        });
-      });
+      return Array.isArray(res.rows) ? res.rows : [];
+    });
+  }
+  function loadAll() {
+    msg('正在读取云端内容…');
+    return fetchDocs().then(function (rows) {
+      applyRows(rows);
+      return autoFill();
+    }).then(function (filled) {
+      return filled ? fetchDocs().then(applyRows) : null;
+    }).then(function () {
       renderStat(); renderList();
       if (S.cur) { selectDoc(S.cur); }
-      msg('已读取云端内容。', 'ok');
+      if (S.fillErr) {
+        msg('部分内容自动准备失败：' + errText(S.fillErr) + '，请点「重新读取」重试。', 'err');
+        S.fillErr = null;
+      } else {
+        msg('已读取云端内容。点左侧任意一条即可修改。', 'ok');
+      }
     });
+  }
+
+  /* ---------- 自动补齐：打开后台就把全量内容放进云端，不用点任何按钮 ----------
+   * 只补「云端还缺的」条目，绝不覆盖管理员已经改过的内容。
+   * 某类数量已经足够时完全跳过，避免每次打开都重算。 */
+  var MIN_COUNT = { competition: 5, qipu: 5, person: 5, rating: 5, person_page: 100 };
+  var _baseline = null;
+  function loadBaseline() {
+    if (_baseline) { return Promise.resolve(_baseline); }
+    function getJson(u, dft) {
+      return fetch(u, { cache: 'no-store' }).then(function (r) {
+        return r.ok ? r.json() : dft;
+      }).catch(function () { return dft; });
+    }
+    return Promise.all([
+      getJson('../data/zayu-full.json', {}),
+      getJson('../data/zayu-people-pages.json', [])
+    ]).then(function (res) {
+      var full = res[0] || {};
+      var pages = Array.isArray(res[1]) ? res[1] : [];
+      _baseline = {
+        competition: full.competitions || [],
+        qipu: full.qipu || [],
+        person: full.people || [],
+        rating: full.ratings || [],
+        person_page: pages
+      };
+      return _baseline;
+    });
+  }
+  function autoFill() {
+    return loadBaseline().then(function (base) {
+      var jobs = [], filled = false;
+      KINDS.forEach(function (kind) {
+        var remote = S.docs[kind] || [];
+        var list = base[kind] || [];
+        /* 数量已足够就跳过；person_page 每次都检查字段是否完整 */
+        if (remote.length >= (MIN_COUNT[kind] || 0) && kind !== 'person_page') { return; }
+        var have = {};
+        remote.forEach(function (d) { have[d.doc_id] = true; });
+        var write = [];
+        /* 1) 云端缺的，补进来 */
+        list.forEach(function (x, i) {
+          var id = (kind === 'rating' || kind === 'person_page')
+            ? String(x.name) : String(x.id != null ? x.id : i);
+          if (!have[id]) { write.push({ doc_id: id, data: x, ord: i }); }
+        });
+        /* 2) 云端已有但字段不全的（早期人物页只有 bio），补字段、不动正文 */
+        if (kind === 'person_page') {
+          var byId = {};
+          list.forEach(function (x) { byId[String(x.name)] = x; });
+          remote.forEach(function (d) {
+            var b = byId[d.doc_id];
+            if (!b) { return; }
+            var data = d.data || {};
+            if (Array.isArray(data.stats) && data.stats.length) { return; }
+            var merged = {};
+            Object.keys(data).forEach(function (k) { merged[k] = data[k]; });
+            merged.region = data.region || b.region || '';
+            merged.unit = data.unit || b.unit || '';
+            merged.dan = data.dan || b.dan || '';
+            merged.stats = b.stats || [];
+            write.push({ doc_id: d.doc_id, data: merged, ord: d.ord });
+          });
+        }
+        if (!write.length) { return; }
+        filled = true;
+        msg('正在准备' + LABEL[kind] + '（' + write.length + ' 条），首次打开稍等…');
+        for (var s = 0; s < write.length; s += 40) {
+          (function (chunk) {
+            jobs.push(function () {
+              return rpc('zbx_admin_save_docs', {
+                p_token: token(), p_kind: kind, p_rows: chunk
+              }).then(function (res) {
+                if (!res || !res.ok) { throw new Error(LABEL[kind] + ' 准备失败'); }
+              });
+            });
+          })(write.slice(s, s + 40));
+        }
+      });
+      if (!filled) { return false; }
+      return jobs.reduce(function (p, fn) { return p.then(fn); }, Promise.resolve())
+        .then(function () { return true; });
+    }).catch(function (e) { S.fillErr = e; return false; });
   }
 
   function renderStat() {
@@ -129,7 +229,9 @@
         x.rules].filter(Boolean).join(' · ');
     }
     if (kind === 'person') { return [x.dan, x.tag].filter(Boolean).join(' · '); }
-    if (kind === 'person_page') { return x.title || ''; }
+    if (kind === 'person_page') {
+      return [x.region, x.unit, x.dan].filter(Boolean).join(' · ');
+    }
     if (kind === 'rating') { return [x.region, x.uni].filter(Boolean).join(' · '); }
     return '';
   }
@@ -145,7 +247,7 @@
         '" data-doc="' + esc(d.doc_id) + '">' + esc(docLabel(S.kind, d)) +
         '<small>' + esc(docSub(S.kind, d)) + '</small></button>';
     }).join('') || '<p class="hint" style="padding:6px">' +
-      (f ? '没有匹配的条目。' : '这一类还没有数据。可点下方「新建」，或先一键载入初始数据。') + '</p>';
+      (f ? '没有匹配的条目。' : '这一类还没有数据，可点下方「新建」添加。') + '</p>';
   }
 
   function selectDoc(id) {
@@ -246,7 +348,9 @@
       field('平均等级分', 'band.选手平均等级分', w.band['选手平均等级分'] || '') +
       selectField('赛事等级', 'band.等级', w.band['等级'] || '',
         ['A', 'B', 'C', 'D', 'E', '未定']) +
-      '</div>' + field('赛事介绍（一段文字，显示在比赛标题下方）', 'intro', w.intro || '', 'textarea') +
+      '</div>' +
+      field('页面链接（一般不用改）', 'url', w.url || ('zayu/' + (S.cur || '') + '.html')) +
+      field('赛事介绍（一段文字，显示在比赛标题下方）', 'intro', w.intro || '', 'textarea') +
       field('棋谱提示语', 'qp_hint', w.qp_hint || '', 'text', 'placeholder="提示访客点击棋谱格子"');
     var info = repeater('赛事信息（主办、裁判、规则、用时……每行一条）', 'info', w.info,
       { ph: '例如：主办：河南省高校棋类协会' });
@@ -375,10 +479,16 @@
   /* ---------- 编辑器：棋手个人主页（富文本） ---------- */
   function editPersonPage() {
     var w = S.work;
-    var head = '<h3>页面信息</h3><div class="grid2">' +
+    w.stats = w.stats || [];
+    var head = '<h3>基本信息</h3><div class="grid2">' +
       field('棋手姓名', 'name', w.name || '') +
       field('页面标题', 'title', w.title || '') +
+      field('地区', 'region', w.region || '', 'text', 'placeholder="例如：河南省 郑州市"') +
+      field('单位', 'unit', w.unit || '', 'text', 'placeholder="例如：郑州经贸学院"') +
+      field('段位', 'dan', w.dan || '', 'text', 'placeholder="例如：专业二段（可留空）"') +
       '</div>';
+    var stats = repeater('等级分等统计（名称 + 数值，可增删）', 'stats', w.stats,
+      { pairs: true, kph: '名称', kkey: 'k', vkey: 'v', vph: '数值' });
     var rt = '<h3>个人主页正文<span class="badge">像 Word 一样编辑，不用写代码</span></h3>' +
       '<div class="rt-box"><div class="rt-bar">' +
       '<button type="button" data-act="rt" data-cmd="bold" title="加粗"><b>B</b></button>' +
@@ -392,9 +502,9 @@
       '</div><div class="rt-content" id="rt-content" contenteditable="true" data-ph="在这里写这位棋手的介绍……">' +
       (w.bioHtml || w.bio || '') + '</div></div>' +
       '<p class="hint" style="color:var(--muted);font-size:12px">选中文字再点工具栏按钮即可加粗、设标题、加链接。支持直接粘贴网页文字。</p>';
-    var note = '<div class="tipbox">保存后，访客打开这位棋手的个人主页（zayu/p/姓名.html）就能看到新内容。' +
-      '文档 ID 要与棋手姓名一致；如果要改姓名，请删除旧条目后用新姓名新建一条。</div>';
-    return head + rt + note;
+    var note = '<div class="tipbox">左侧共 595 位棋手，可用搜索框按姓名快速定位。保存后，访客打开这位棋手的个人主页就能看到新内容。' +
+      '文档 ID 与页面文件绑定，请勿修改 ID。</div>';
+    return head + stats + rt + note;
   }
 
   /* ---------- 编辑器：等级分 ---------- */
@@ -553,9 +663,6 @@
       var rt = $('rt-content');
       if (rt) { w.bioHtml = rt.innerHTML; }
     }
-    if (S.kind === 'competition') {
-      delete w.url;
-    }
   }
   function saveCurrent() {
     if (!S.work) { throw new Error('请先选择一条内容'); }
@@ -569,10 +676,26 @@
     return rpc('zbx_admin_save_docs', { p_token: token(), p_kind: S.kind, p_rows: rows })
       .then(function (res) {
         if (!res || !res.ok) { throw new Error((res && res.err) || '保存失败'); }
-        msg('已保存「' + docLabel(S.kind, { doc_id: id, data: S.work }) + '」。', 'ok');
         S.cur = id;
-        return loadAll();
+        return loadAll().then(function () { showSaved(id); });
       });
+  }
+
+  /* 保存后给出「立即查看这页」链接，确认改动确实到了站点 */
+  function viewUrlOf(kind, id, data) {
+    if (kind === 'competition') { return '../zayu/' + id + '.html'; }
+    if (kind === 'person_page') { return '../zayu/p/' + encodeURIComponent((data && data.name) || id) + '.html'; }
+    if (kind === 'person') { return '../zayu/renwu.html#' + encodeURIComponent((data && data.id) || id); }
+    if (kind === 'rating') { return '../zayu/rating.html'; }
+    return '';
+  }
+  function showSaved(id) {
+    var el = $('msg');
+    if (!el) { return; }
+    var u = viewUrlOf(S.kind, id, S.work);
+    el.className = 'ok';
+    el.innerHTML = '已保存「' + esc(docLabel(S.kind, { doc_id: id, data: S.work })) + '」。' +
+      (u ? ' <a href="' + u + '" target="_blank" rel="noopener">立即查看这页 ↗</a>' : '');
   }
   function delCurrent() {
     if (!S.cur) { throw new Error('请先选中要删除的内容'); }
@@ -585,7 +708,7 @@
       });
   }
 
-  /* ---------- 新建 / 一键载入 / 更新等级分 ---------- */
+  /* ---------- 新建 / 更新等级分 ---------- */
   function addDoc() {
     var id = ($('new-id').value || '').trim();
     if (!id) { throw new Error('请填写新内容的 ID'); }
@@ -596,40 +719,12 @@
     if (S.kind === 'competition') { seed = { title: id, date: '', info: [], intro: '', rounds: ['编号', '姓名', 'R1', '积分', '对手分', '中间对手分', '胜局数', '名次'], rows: [], qipu_ids: [] }; }
     else if (S.kind === 'qipu') { seed = { event: '', date: '', round: 1, board: 1, p1: '', p2: '', rules: '', moves: [], winner: '', result: '' }; }
     else if (S.kind === 'person') { seed = { name: id, facts: [], honors: [], links: [] }; }
-    else if (S.kind === 'person_page') { seed = { name: id, title: id, bioHtml: '<p></p>' }; }
+    else if (S.kind === 'person_page') { seed = { name: id, title: id, region: '', unit: '', dan: '', stats: [], bioHtml: '<p></p>' }; }
     else if (S.kind === 'rating') { seed = { name: id, rank: '', rating: '', region: '', uni: '' }; }
     S.cur = id; S.work = seed; S.ord = (S.docs[S.kind] || []).length;
     $('new-id').value = '';
     renderList(); renderPane();
     msg('已新建，填好内容后点「保存修改」。');
-  }
-  function seedAll() {
-    if (!window.confirm('用本站初始数据覆盖云端全部杂豫内容？已有修改会丢失。')) { return; }
-    msg('正在载入初始数据…');
-    return fetch('../data/zayu-full.json', { cache: 'no-store' })
-      .then(function (r) { if (!r.ok) { throw new Error('读取初始数据失败'); } return r.json(); })
-      .then(function (seed) {
-        var groups = {
-          competition: seed.competitions || [], qipu: seed.qipu || [],
-          person: seed.people || [], person_page: seed.person_pages || [], rating: seed.ratings || []
-        };
-        var jobs = Object.keys(groups).map(function (kind) {
-          var rows = groups[kind].map(function (x, i) {
-            var id = x.id != null ? String(x.id)
-              : (kind === 'rating' || kind === 'person_page') ? String(x.name) : String(i);
-            return { doc_id: id, data: x, ord: i };
-          });
-          return rpc('zbx_admin_save_docs', { p_token: token(), p_kind: kind, p_rows: rows })
-            .then(function (res) {
-              if (Array.isArray(res)) { res = res[0]; }
-              if (res && res.data) { res = res.data; }
-              if (!res || !res.ok) { throw new Error(kind + ' 写入失败'); }
-            });
-        });
-        return Promise.all(jobs);
-      })
-      .then(function () { msg('初始数据已全部载入云端。', 'ok'); S.cur = null; S.work = null; return loadAll(); })
-      .then(function () { renderPane(); });
   }
   function recalc() {
     if (!window.confirm('按尚未更新的对局重算等级分？')) { return; }
@@ -663,7 +758,6 @@
 
     if (a === 'login') { window.ZBX_ACCOUNT.openPanel('login'); }
     else if (a === 'refresh') { guard(loadAll)(); }
-    else if (a === 'seed') { guard(seedAll)(); }
     else if (a === 'recalc') { guard(recalc)(); }
     else if (a === 'add') { guard(addDoc)(); }
     else if (a === 'save') { guard(saveCurrent)(); }
