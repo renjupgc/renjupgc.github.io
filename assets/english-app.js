@@ -1,8 +1,8 @@
 /* 杂技 · 连珠英语：四级词汇与连珠术语的记忆卡。
  * ---------------------------------------------------------------------------
  * 数据：assets/words-cet4.js、assets/words-renju.js（tools/build_english_words.py 生成）
- * 用户名：只填名字，和全站共用一个用户名（window.ZBX_PROGRESS.user()），没有密码。
- *         背词进度按用户名单独存；换设备靠侧栏「备份进度 / 恢复进度」导出导入。
+ * 账号：右上角登录 / 注册，和全站共用一个云端账号（window.ZBX_ACCOUNT）。
+ *       背词进度随账号存在云端，换设备登录同一账号即恢复，不用备份文件。
  * 换页：全站是无刷新换页，这个脚本只会被注入一次，所以状态挂在 window.ZBX_EN 上，
  *       每次进入页面用 boot() 重建 DOM，监听器只绑一次（document 级委托）。
  */
@@ -113,10 +113,22 @@
     }
 
     function loadData(name) {
+        var gp = progMod();
+        if (gp && typeof gp.englishData === 'function') {
+            var cloud = gp.englishData();
+            if (cloud && typeof cloud === 'object') {
+                var c = normalizeEnData(cloud);
+                return c;
+            }
+        }
         var raw = storeGet(K_PROG + name);
         if (!raw) { return blankData(); }
-        var d = null;
-        try { d = JSON.parse(raw); } catch (err) { d = null; }
+        var local = null;
+        try { local = JSON.parse(raw); } catch (err) { local = null; }
+        return normalizeEnData(local);
+    }
+
+    function normalizeEnData(d) {
         if (!d || typeof d !== 'object') { return blankData(); }
         var base = blankData();
         ['book', 'dir', 'goal', 'speech'].forEach(function (k) {
@@ -134,10 +146,17 @@
     var saveTimer = null;
     var quotaWarned = false;
     function writeData(payload) {
+        var gp = progMod();
+        if (gp && typeof gp.setEnglishData === 'function') {
+            try {
+                gp.setEnglishData(JSON.parse(payload));
+                return;
+            } catch (err) { /* 落到本机缓存 */ }
+        }
         if (storeSet(K_PROG + state.user, payload)) { return; }
         if (quotaWarned) { return; }
         quotaWarned = true;
-        alert('本机存储写不进去了，进度可能没有保存。\n先用侧栏「备份进度」下载一份，再清掉别的站点数据。');
+        alert('进度暂时没能保存，请检查网络后重试。');
     }
     function saveData(now) {
         if (!state.user || !state.data) { return; }
@@ -242,11 +261,8 @@
 
     function doEnter(name) {
         name = String(name || '').trim();
-        if (!validName(name)) { return Promise.reject('用户名 1–16 位，可用中文、字母、数字、下划线或短横'); }
-        if (!hasStore()) { return Promise.reject('浏览器禁用了本地存储，进度存不下来'); }
+        if (!validName(name)) { return Promise.reject('用户名 2–20 位，可用中文、字母、数字、下划线或短横'); }
         enter(name);
-        var gp = progMod();
-        if (gp) { gp.setUser(name); }
         return Promise.resolve();
     }
 
@@ -269,6 +285,11 @@
 
     function logout() {
         saveData(true);
+        var acc = window.ZBX_ACCOUNT;
+        if (acc && typeof acc.logout === 'function') {
+            acc.logout().catch(function () {});
+            return;
+        }
         var gp = progMod();
         if (gp) { gp.setUser(''); }
         state.user = null;
@@ -357,28 +378,23 @@
     function renderGate() {
         var gate = el('en-gate');
         if (!gate) { return; }
-        var gp = progMod();
-        var names = gp && gp.userNames ? gp.userNames() : [];
-        var def = gp && gp.user ? gp.user() : '';
+        var acc = window.ZBX_ACCOUNT;
+        var nick = acc && acc.nick ? acc.nick() : '';
         gate.innerHTML = ''
             + '<div class="en-gate-in">'
             + '  <div class="en-gate-head">'
             + '    <p class="en-kicker">RENJU ENGLISH</p>'
-            + '    <h2 class="en-gate-title">填个名字，开始背词</h2>'
-            + '    <p class="en-gate-sub">只要用户名，不用注册、不用密码。这个名字和全站通用：禁手找茬、棋形判断、VCF 的分数都记在它名下，各项分开算。本机进度自动保存，换设备用侧栏「备份进度 / 恢复进度」带过去。</p>'
+            + '    <h2 class="en-gate-title">登录后开始背词</h2>'
+            + '    <p class="en-gate-sub">用页面右上角的「登录 / 注册」进入。背词进度和四项分数都保存在云端账号下，换设备登录同一个账号就能接着用，不用再导出备份文件。</p>'
             + '  </div>'
-            + '  <form class="en-form" id="en-form" autocomplete="off">'
-            + '    <label class="en-field"><span>用户名</span>'
-            + '      <input id="en-name" name="username" type="text" inputmode="text" autocomplete="username" maxlength="16" placeholder="1–16 位，中文或字母" value="' + esc(def) + '"></label>'
-            + '    <p class="en-err" id="en-err" role="alert">' + esc(state.note || '') + '</p>'
-            + '    <button type="submit" class="en-btn en-btn-main">进入，接着背</button>'
-            + '  </form>'
+            + '  <div class="en-form">'
+            + '    <p class="en-err" role="alert">' + esc(state.note || '') + '</p>'
+            + '    <button type="button" class="en-btn en-btn-main" data-act="login">登录 / 注册</button>'
+            + (nick ? '<p class="en-gate-foot">当前账号：' + esc(nick) + '，正在读取云端进度…</p>' : '')
+            + '  </div>'
             + '  <p class="en-gate-foot">词库：大学英语四级 ' + wordCounts().cet4 + ' 词 ＋ 连珠术语 ' + wordCounts().renju + ' 条；另有 ' + articles().length + ' 篇五子棋英语阅读。'
-            + (names.length ? '本机已有档案：' + names.map(function (n) { return esc(n); }).join('、') : '')
             + '</p>'
             + '</div>';
-        var nm = el('en-name');
-        if (nm) { try { nm.focus(); } catch (err) { /* 忽略 */ } }
     }
 
     function renderSide() {
@@ -423,12 +439,9 @@
             }).join('') + '</select></label>'
             + '  <label class="en-row en-row-sw"><span>发音</span><input type="checkbox" data-act="set" data-key="speech"' + (d.speech ? ' checked' : '') + '></label>'
             + '  <div class="en-tools">'
-            + '    <button type="button" class="en-btn en-btn-ghost" data-act="export">备份进度</button>'
-            + '    <button type="button" class="en-btn en-btn-ghost" data-act="import">恢复进度</button>'
-            + '    <input type="file" id="en-file" accept="application/json,.json" hidden>'
-            + '    <button type="button" class="en-btn en-btn-ghost en-btn-warn" data-act="reset">清空</button>'
+            + '    <button type="button" class="en-btn en-btn-ghost en-btn-warn" data-act="reset">清空背词进度</button>'
             + '  </div>'
-            + '  <p class="en-tip">进度自动存在这台设备，关掉网页也不会丢。换手机或电脑：旧设备点「备份进度」下载一个文件，带到新设备填同一个用户名后点「恢复进度」选中它，记录就回来了。</p>'
+            + '  <p class="en-tip">进度自动保存到云端账号，换设备登录同一个账号即可接着背，不用备份文件。</p>'
             + '</div>';
     }
 
@@ -1160,10 +1173,9 @@
                 return;
             }
             if (act === 'read-words') { addReadingWords(); return; }
-            if (act === 'export') { exportData(); return; }
-            if (act === 'import') {
-                var f = el('en-file');
-                if (f) { f.click(); }
+            if (act === 'login' || act === 'signup') {
+                var acc0 = window.ZBX_ACCOUNT;
+                if (acc0 && acc0.openPanel) { acc0.openPanel(act); }
                 return;
             }
             if (act === 'reset') { resetData(); return; }
@@ -1286,20 +1298,42 @@
 
     /* ---------- 启动 ---------- */
 
+    function enterAfterCloud(name) {
+        var gp = progMod();
+        if (gp && typeof gp.loadCloud === 'function') {
+            gp.loadCloud().then(function () { enter(name); });
+            return;
+        }
+        enter(name);
+    }
+
+    function showGate() {
+        state.user = null;
+        state.data = null;
+        state.queue = [];
+        state.spell = null;
+        state.note = '';
+        render();
+    }
+
     function boot() {
         if (!el('en-app')) { return; }
         buildWords();
         bindOnce();
-        var gp = progMod();
-        var name = gp && gp.user ? gp.user() : '';
+        var acc = window.ZBX_ACCOUNT;
+        var name = acc && acc.user ? acc.user() : '';
         if (name && validName(name)) {
-            enter(name);
-        } else {
-            state.user = null;
-            state.data = null;
-            state.queue = [];
-            render();
+            enterAfterCloud(name);
+            return;
         }
+        if (window.ZBX_ACCOUNT_READY) {
+            window.ZBX_ACCOUNT_READY.then(function (info) {
+                var n = info && info.user ? info.user() : '';
+                if (n && validName(n)) { enterAfterCloud(n); } else { showGate(); }
+            });
+            return;
+        }
+        showGate();
     }
 
     window.ZBX_EN = { boot: boot };
@@ -1307,18 +1341,15 @@
     document.addEventListener('zbx:navigate', function () {
         if (el('en-app')) { boot(); }
     });
-    /* 用户名在别处（进度面板或其他页）切换时，这边跟着切换 */
-    document.addEventListener('zbx:user', function (e) {
+    /* 账号在右上角或管理页切换时，这边跟着切换 */
+    document.addEventListener('zbx:account', function (e) {
         if (!el('en-app')) { return; }
         var name = e && e.detail ? e.detail.user : '';
         if (name && validName(name)) {
-            if (name !== state.user) { enter(name); }
+            if (name !== state.user) { enterAfterCloud(name); }
         } else if (state.user) {
             saveData(true);
-            state.user = null;
-            state.data = null;
-            state.queue = [];
-            render();
+            showGate();
         }
     });
 })();
