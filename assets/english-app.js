@@ -517,7 +517,7 @@
                 + '  <p class="en-kicker">' + (state.mode === 'review' ? '复习完成' : '这一轮走完了') + '</p>'
                 + '  <h2 class="en-done-num">' + state.sess.n + ' <small>词</small></h2>'
                 + '  <p class="en-done-line">答对 ' + state.sess.ok + '，没记住 ' + state.sess.bad + '，正确率 ' + acc + '%</p>'
-                + '  <p class="en-done-line">进度分已记入档案，记得在下方「导出进度」存一份。</p>'
+                + '  <p class="en-done-line">进度已记入账号，换设备登录同一个账号即可接着背。</p>'
                 + '  <div class="en-done-btns">'
                 + '    <button type="button" class="en-btn en-btn-main" data-act="mode" data-mode="study">再来一轮</button>'
                 + '    <button type="button" class="en-btn en-btn-ghost" data-act="mode" data-mode="review">只复习</button>'
