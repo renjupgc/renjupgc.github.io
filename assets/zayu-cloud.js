@@ -375,7 +375,9 @@
         if (document.querySelector('.rh-card')) {
             jobs.push(rpcDocs('person').then(renderPeople));
         }
-        if (document.querySelector('.pr-bio')) {
+        /* 人物页用 .player-stats 识别（595 个页面都有），不能只看 .pr-bio：
+         * 大多数页面原本没有介绍段落，管理员新写的介绍也要能显示出来。 */
+        if (document.querySelector('.player-stats')) {
             jobs.push(rpcDocs('person_page').then(renderPersonPage));
         }
         if (document.querySelector('table.ratings tbody')) {
