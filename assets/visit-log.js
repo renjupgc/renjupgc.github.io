@@ -80,6 +80,31 @@
 
     /* ---------------- 发送 ---------------- */
 
+    /* 云数据库写入：WorkBuddy 云服务提供真实的持久化审计表，替代原来
+     * 「ntfy 暂存 + GitHub Actions 定时归档」的链路。失败不影响主流程，
+     * 原 ntfy 通道继续保留，兼容 admin 现有统计面板。 */
+    function cloudWrite(obj) {
+        var waited = 0;
+        function deliver() {
+            if (!window.ZBX_CLOUD_READY) {
+                /* cloud.js 由 layout.js 先注入；给它几秒加载，逾期就跳过云写入 */
+                if (waited++ < 40) { setTimeout(deliver, 100); return; }
+                return;
+            }
+            window.ZBX_CLOUD_READY.then(function (cloud) {
+                return cloud.database.from('site_visits').insert({
+                    visitor_id: obj.v || 'anon',
+                    session_id: obj.s || null,
+                    page: obj.p || null,
+                    kind: obj.k || 'evt',
+                    host: obj.h || null,
+                    payload: obj
+                });
+            }).catch(function () { /* 云写入失败不影响埋点 */ });
+        }
+        deliver();
+    }
+
     var pending = [];
     var ip = null;
     try { ip = sessionStorage.getItem('zbx.ip'); } catch (e) { ip = null; }
@@ -102,6 +127,8 @@
             obj.ti = (obj.ti || '').slice(0, 60);
             try { body = JSON.stringify(obj); } catch (e2) { return; }
         }
+        /* 写入云数据库（真实持久化） */
+        cloudWrite(obj);
         /* sendBeacon 用 Blob + text/plain，跨域不触发预检 */
         try {
             if (navigator.sendBeacon) {

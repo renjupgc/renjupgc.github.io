@@ -903,9 +903,19 @@
  */
 (function () {
     'use strict';
+    var base = (document.body && document.body.getAttribute('data-base')) || '';
+
+    /* 云服务统一入口：先加载，visit-log 与各功能页共用同一个客户端实例 */
+    if (!window.__zbxCloudLoaded) {
+        window.__zbxCloudLoaded = true;
+        var c = document.createElement('script');
+        c.src = base + 'assets/cloud.js';
+        c.async = true;
+        document.head.appendChild(c);
+    }
+
     if (window.__zbxVisitLoaded) { return; }
     window.__zbxVisitLoaded = true;
-    var base = (document.body && document.body.getAttribute('data-base')) || '';
     var s = document.createElement('script');
     s.src = base + 'assets/visit-log.js';
     s.async = true;

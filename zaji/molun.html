@@ -3257,11 +3257,34 @@
 
     /* ---------------- 图片识别 ---------------- */
 
-    /* 匿名免费视觉接口：OVHcloud AI Endpoints，不需要 key（每分钟 2 次） */
-    var OCR_API = {
-        base: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions',
-        model: 'Qwen2.5-VL-72B-Instruct'
-    };
+    /* 图片识别走 WorkBuddy 云大模型：免密钥、有配额保障，不再依赖第三方免费额度。
+     * 模型从云端模型目录里挑一个支持图片的，缓存下来，不写死具体型号。 */
+    var OCR_SYSTEM = '你是一个 OCR 助手，专门把棋类比赛的成绩单照片读成结构化数据。严格按用户给出的字段规范逐行输出，不添加任何解释、表头或 Markdown。';
+    var visionModelId = null;
+
+    function pickVisionModel(cloud) {
+        if (visionModelId) { return Promise.resolve(visionModelId); }
+        return Promise.resolve(cloud.llm.models.list()).then(function (models) {
+            var usable = (models || []).filter(function (m) {
+                return m && m.enabled !== false && m.disabled !== true && m.supportsImages === true;
+            });
+            if (!usable.length) { throw new Error('当前没有可用的图片识别模型'); }
+            /* 优先免积分的视觉模型，其次视觉专精，最后退回自动 */
+            var prefer = ['hy4flash-free', 'glm-4.6v', 'auto'];
+            var chosen = null;
+            for (var i = 0; i < prefer.length; i++) {
+                (function (id) {
+                    if (!chosen) {
+                        var hit = usable.filter(function (m) { return m.id === id; })[0];
+                        if (hit) { chosen = hit; }
+                    }
+                })(prefer[i]);
+            }
+            if (!chosen) { chosen = usable[0]; }
+            visionModelId = chosen.id;
+            return visionModelId;
+        });
+    }
 
     /* 只读表格数据行，不要解释文字 */
     var OCR_PROMPT = [
@@ -3310,46 +3333,61 @@
         });
     }
 
-    function readJson(r) {
-        if (r.status === 429) { throw new Error('免费接口每分钟只放 2 次，等一分钟再试'); }
-        return r.text().then(function (txt) {
-            var j;
-            try { j = JSON.parse(txt); } catch (e) { throw new Error('返回不是 JSON（' + txt.slice(0, 80) + '）'); }
-            if (!r.ok) {
-                var m = (j.error && (j.error.message || j.error.code)) || j.message || ('HTTP ' + r.status);
-                throw new Error(String(m).slice(0, 160));
-            }
-            return j;
-        });
+    /* 把云 SDK 抛出的错误翻成给用户看的话，按稳定的 code 前缀分支 */
+    function llmErrorText(err) {
+        var code = (err && err.error && err.error.code) || '';
+        var raw = (err && err.error && err.error.message) || (err && err.message) || String(err);
+        if (/^request_/.test(code)) { throw new Error('识别参数不被接受：' + String(raw).slice(0, 120)); }
+        if (/^auth_/.test(code)) { throw new Error('云服务认证未通过，请联系站点管理员'); }
+        if (/^quota_/.test(code)) { throw new Error('云服务额度暂时用完，请稍后再试或联系站点管理员'); }
+        if (/^gateway_/.test(code) || /^model_/.test(code)) { throw new Error('识别模型暂时不可用，请点「识别图片」重试'); }
+        if (/^internal_/.test(code)) { throw new Error('云服务内部错误，请稍后重试'); }
+        throw new Error(String(raw).slice(0, 160));
     }
 
-    /* 匿名免费接口，不带任何 key */
+    /* 走云大模型识别：SDK 只支持流式，收集 content 增量拼成完整结果 */
     function callVision(img) {
-        var ctrl = window.AbortController ? new AbortController() : null;
-        var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 90000) : 0;
+        if (!window.ZBX_CLOUD_READY) {
+            return Promise.reject(new Error('云服务尚未初始化，请刷新页面再试'));
+        }
 
-        var p = fetch(OCR_API.base, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: OCR_API.model,
-                temperature: 0.1,
-                messages: [{
-                    role: 'user',
-                    content: [
-                        { type: 'image_url', image_url: { url: img.url } },
-                        { type: 'text', text: OCR_PROMPT }
-                    ]
-                }]
-            }),
-            signal: ctrl ? ctrl.signal : undefined
-        }).then(readJson).then(function (j) {
-            var ch = (j.choices || [])[0] || {};
-            return (ch.message && ch.message.content) || '';
+        var ctrl = window.AbortController ? new AbortController() : null;
+        var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 120000) : 0;
+
+        var p = window.ZBX_CLOUD_READY.then(function (cloud) {
+            return pickVisionModel(cloud).then(function (model) {
+                var answer = '';
+                var stream = cloud.llm.chat.completions.create({
+                    model: model,
+                    messages: [
+                        { role: 'system', content: OCR_SYSTEM },
+                        {
+                            role: 'user',
+                            content: [
+                                { type: 'image_url', image_url: { url: img.url } },
+                                { type: 'text', text: OCR_PROMPT }
+                            ]
+                        }
+                    ],
+                    stream: true,
+                    temperature: 0.1,
+                    signal: ctrl ? ctrl.signal : undefined
+                });
+                var it = stream[Symbol.asyncIterator] ? stream[Symbol.asyncIterator]() : stream;
+                function step() {
+                    return it.next().then(function (r) {
+                        if (r.done) { return answer; }
+                        var delta = r.value && r.value.choices && r.value.choices[0] && r.value.choices[0].delta;
+                        if (delta && delta.content) { answer += delta.content; }
+                        return step();
+                    });
+                }
+                return step();
+            });
         }).catch(function (err) {
-            if (err && err.name === 'AbortError') { throw new Error('等了 90 秒没回应，换个网络或稍后再试'); }
-            if (err instanceof TypeError) { throw new Error('连不上识别服务，可能是网络问题'); }
-            throw err;
+            if (err && err.name === 'AbortError') { throw new Error('识别超时，请换张清晰的图重试'); }
+            if (err instanceof TypeError) { throw new Error('连不上云服务，请检查网络'); }
+            return llmErrorText(err);
         });
 
         if (timer) { p = p.then(function (v) { clearTimeout(timer); return v; },
