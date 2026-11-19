@@ -271,7 +271,11 @@
         if (!bio || !docs.length) { return; }
         var name = decodeURIComponent((location.pathname.split('/').pop() || '').replace(/\.html?$/i, ''));
         var r = byId(docs, name);
-        if (r && r.bio) { bio.textContent = r.bio; }
+        if (!r) { return; }
+        /* 管理员用富文本编辑器写的是 bioHtml（带标签），原样渲染；
+         * 老数据只有纯文本 bio，按文本显示。 */
+        if (r.bioHtml) { bio.innerHTML = r.bioHtml; }
+        else if (r.bio) { bio.textContent = r.bio; }
     }
 
     /* ---------- 等级分 ---------- */
