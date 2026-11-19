@@ -1,15 +1,29 @@
 /*
- * 连珠杂箱 · 全站账号
+ * 连珠杂箱 · 全站账号（Supabase 版）
  * ------------------------------------------------------------
- * 右上角登录 / 注册 / 会话管理。账号、密码哈希、进度都放在云端，
- * 前端只保存一个登录令牌；不再有「只填用户名、进度存本机」的旧逻辑。
+ * 右上角登录 / 注册 / 会话管理。账号、密码、进度都在 Supabase，
+ * 浏览器里只留一个 Supabase 自己的会话（localStorage 里 sb-*-auth-token）。
  *
- * 云端通过 SECURITY DEFINER RPC 暴露：
+ * 后端映射（Supabase 原生能力，不用自建 RPC）：
+ *   注册   auth.signUp          → 触发器自动写 public.profiles
+ *   登录   auth.signInWithPassword
+ *   会话   auth.getSession / onAuthStateChange（自动续期）
+ *   退出   auth.signOut
+ *   进度   public.user_progress 表 select / upsert（RLS 限定本人）
+ *
+ * 用户名怎么变成邮箱：Supabase 只认邮箱，所以内部把「阿远」拼成
+ * 阿远@zbx.example.com 当账号标识（域名见 supabase-config.js 的 emailDomain）。
+ * 界面、数据、进度键名都还是用户名，用户完全无感。
+ *
+ * 为了不改动别处的代码，这里保留旧的 rpc() 入口：
  *   zbx_signup / zbx_signin / zbx_session / zbx_signout
+ *   zbx_progress_load / zbx_progress_save
+ * 都转到 Supabase 实现；其余不认识的 RPC 名（管理后台、公开文档等
+ * 尚未迁移的模块）继续走 assets/cloud.js 的旧云服务，保证不炸。
  *
  * 对外暴露：
  *   window.ZBX_ACCOUNT        账号对象
- *   window.ZBX_ACCOUNT_READY  Promise<account>，云端会话恢复完成后 resolve
+ *   window.ZBX_ACCOUNT_READY  Promise<account>，会话恢复完成后 resolve
  *   document 'zbx:account'    登录、退出、角色变化时触发
  */
 (function () {
@@ -17,12 +31,13 @@
 
     if (window.ZBX_ACCOUNT) { return; }
 
-    var TOKEN_KEY = 'zbx.account.token';
     var CACHE_KEY = 'zbx.account.cache';
     var STYLE_ID = 'zbx-account-style';
     var USER_RE = /^[一-龥A-Za-z0-9_-]{2,20}$/;
+    var DEFAULT_DOMAIN = 'zbx.example.com';
 
     var state = {
+        uid: '',
         token: '',
         user: '',
         role: '',
@@ -34,6 +49,12 @@
 
     function base() {
         return (document.body && document.body.getAttribute('data-base')) || '';
+    }
+
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function readCache() {
@@ -50,82 +71,92 @@
         } catch (e) { /* 隐私模式忽略 */ }
     }
 
-    function esc(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    /* ---------- 配置 ---------- */
+
+    /* 配置是懒加载的：先确保 supabase-config.js 到位，否则页面刚打开那几百毫秒
+       会把「还没加载」误判成「没填配置」，已登录用户会瞬间显示成未登录。 */
+    var cfgLoaded = false;
+    var configReady = new Promise(function (resolve) {
+        if (window.ZBX_SUPABASE && window.ZBX_SUPABASE.url) {
+            cfgLoaded = true;
+            resolve();
+            return;
+        }
+        var s = document.createElement('script');
+        s.src = base() + 'assets/supabase-config.js';
+        s.async = true;
+        s.onload = function () { cfgLoaded = true; resolve(); };
+        s.onerror = function () { cfgLoaded = true; resolve(); };
+        document.head.appendChild(s);
+        setTimeout(resolve, 3000);
+    });
+
+    function configured() {
+        var cfg = window.ZBX_SUPABASE;
+        return !!(cfg && cfg.url && cfg.anonKey);
     }
 
-    function ensureCloud() {
-        if (window.ZBX_CLOUD_READY) { return window.ZBX_CLOUD_READY; }
-        var b = base();
-        if (!window.__zbxAccountCloudLoad) {
-            window.__zbxAccountCloudLoad = true;
+    /* ---------- 客户端 ---------- */
+
+    function client() {
+        if (window.ZBX_SB_READY) { return window.ZBX_SB_READY; }
+        if (!window.__zbxSbLoad) {
+            window.__zbxSbLoad = true;
             var s = document.createElement('script');
-            s.src = b + 'assets/cloud.js';
+            s.src = base() + 'assets/supabase-client.js';
             s.async = true;
             document.head.appendChild(s);
         }
         return new Promise(function (resolve, reject) {
             var waited = 0;
             (function poll() {
-                if (window.ZBX_CLOUD_READY) { resolve(window.ZBX_CLOUD_READY); return; }
-                if (waited++ > 200) { reject(new Error('云服务加载超时')); return; }
+                if (window.ZBX_SB_READY) { resolve(window.ZBX_SB_READY); return; }
+                if (waited++ > 300) {
+                    reject(new Error('云服务加载超时，请刷新重试'));
+                    return;
+                }
                 setTimeout(poll, 100);
             })();
         });
     }
 
-    /* 不同 SDK 版本对 RPC 返回值包装略有差异，这里统一拆出 jsonb 对象。
-     * expectArray=true 时保留数组（公开列表函数返回的是 jsonb 数组）。 */
-    function unwrap(res, name, expectArray) {
-        var v = res;
-        if (v && typeof v === 'object' && !Array.isArray(v)) {
-            if (Object.prototype.hasOwnProperty.call(v, 'error') && v.error) {
-                throw new Error(typeof v.error === 'string' ? v.error : (v.error.message || '云端请求失败'));
-            }
-            /* 网关会把函数返回再包一层信封 {ok:true,data:...}。zbx_progress_load 的
-               真实档案就在这层 data 里，必须一并剥掉，否则调用方拿到的是 {ok,data}
-               而不是进度对象，会被误判成「云端没有档案」并触发一次空白回写。 */
-            if (Object.prototype.hasOwnProperty.call(v, 'data') &&
-                (v.ok === true || v.success === true)) { v = v.data; }
-            if (Object.prototype.hasOwnProperty.call(v, 'data')) { v = v.data; }
-        }
-
-        if (expectArray) {
-            if (Array.isArray(v)) {
-                if (v.length && Array.isArray(v[0])) { return v[0]; }
-                if (v.length && v[0] && typeof v[0] === 'object' &&
-                    Object.prototype.hasOwnProperty.call(v[0], name)) { return v[0][name]; }
-                return v;
-            }
-            if (v && typeof v === 'object' && Object.prototype.hasOwnProperty.call(v, name)) {
-                return Array.isArray(v[name]) ? v[name] : [];
-            }
-            return [];
-        }
-
-        if (Array.isArray(v)) { v = v.length ? v[0] : null; }
-        if (v && typeof v === 'object' && !Array.isArray(v) &&
-            Object.prototype.hasOwnProperty.call(v, name)) { v = v[name]; }
-        if (Array.isArray(v)) { v = v.length ? v[0] : null; }
-        if (v && typeof v === 'object' && !Array.isArray(v) &&
-            Object.prototype.hasOwnProperty.call(v, 'data')) { v = v.data; }
-        return v;
+    function domain() {
+        var cfg = window.ZBX_SUPABASE;
+        return (cfg && cfg.emailDomain) || DEFAULT_DOMAIN;
     }
 
-    function rpc(name, params, expectArray) {
-        return ensureCloud().then(function (ready) {
-            return ready;
-        }).then(function (cloud) {
-            if (!cloud || !cloud.database || typeof cloud.database.rpc !== 'function') {
-                throw new Error('当前云服务不支持账号接口');
-            }
-            return cloud.database.rpc(name, params || {});
-        }).then(function (res) {
-            return unwrap(res, name, !!expectArray);
-        });
+    /* 用户名 → 合成邮箱（内部账号标识，不发信） */
+    function emailOf(user) {
+        return String(user || '').trim() + '@' + domain();
     }
+
+    /* 合成邮箱 / 元数据 → 用户名 */
+    function usernameOf(sbUser) {
+        if (!sbUser) { return ''; }
+        var meta = sbUser.user_metadata || {};
+        if (meta.username) { return String(meta.username); }
+        return String(sbUser.email || '').split('@')[0];
+    }
+
+    function mapErr(err) {
+        var msg = String((err && err.message) || err || '操作失败');
+        var map = {
+            'Invalid login credentials': '用户名或密码不对。',
+            'User already registered': '这个用户名已经被注册，换个名字或去登录。',
+            'Email not confirmed': '这个账号还需要邮箱确认才能登录，请先在 Supabase 后台关闭 Confirm email。',
+            'Signups not allowed for this instance': 'Supabase 项目关闭了注册，请到 Authentication 里打开 Allow new users to sign up。',
+            'Failed to fetch': '连不上 Supabase，检查网络或确认 assets/supabase-config.js 里的 url 填对了。',
+            'Load failed': '连不上 Supabase，检查网络或确认 assets/supabase-config.js 里的 url 填对了。'
+        };
+        if (map[msg]) { return new Error(map[msg]); }
+        if (/duplicate key|unique/i.test(msg)) { return new Error('这个用户名已经被注册，换个名字或去登录。'); }
+        if (/relation .* does not exist|schema cache/i.test(msg)) {
+            return new Error('数据库表还没建好，请先在 Supabase SQL Editor 里执行 supabase/schema.sql。');
+        }
+        return new Error(msg);
+    }
+
+    /* ---------- 会话 ---------- */
 
     function emit(action) {
         try {
@@ -141,20 +172,40 @@
         } catch (e) { /* 老浏览器 */ }
     }
 
-    function applySession(res, action) {
-        if (!res || !res.ok) {
-            throw new Error((res && res.err) || '登录失败');
+    /* 档案表里的昵称与角色；表还不存在时退回注册元数据，不影响登录 */
+    function loadProfile(sb) {
+        if (!state.uid) { return Promise.resolve(); }
+        return sb.from('profiles').select('username,nick,role').eq('id', state.uid).maybeSingle()
+            .then(function (r) {
+                if (r.error) { return; }
+                var row = r.data;
+                if (!row) { return; }
+                if (row.username) { state.user = row.username; }
+                if (row.nick) { state.nick = row.nick; }
+                if (row.role) { state.role = row.role; }
+            })
+            .catch(function () { /* 网络抖动就先用缓存展示 */ });
+    }
+
+    function applySession(session, action) {
+        if (!session || !session.user) {
+            throw new Error('登录失败，没拿到会话');
         }
-        state.token = res.token || state.token || '';
-        state.user = res.user || '';
-        state.role = res.role || 'user';
-        state.nick = res.nick || res.user || state.user;
-        try { window.localStorage.setItem(TOKEN_KEY, state.token); } catch (e) { /* 忽略 */ }
-        writeCache();
-        closePanel();
-        render();
-        emit(action);
-        return sessionInfo();
+        state.uid = session.user.id;
+        state.token = session.access_token || '';
+        state.user = usernameOf(session.user);
+        state.nick = (session.user.user_metadata && session.user.user_metadata.nick) || state.user;
+        state.role = 'user';
+
+        return client().then(function (sb) {
+            return loadProfile(sb);
+        }).then(function () {
+            writeCache();
+            closePanel();
+            render();
+            emit(action);
+            return sessionInfo();
+        });
     }
 
     function restore() {
@@ -165,26 +216,29 @@
             state.nick = cached.nick || cached.user;
             render();
         }
-        var token = '';
-        try { token = window.localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { token = ''; }
-        if (!token) {
-            state.ready = true;
-            render();
-            return Promise.resolve(sessionInfo());
-        }
-        state.token = token;
-        return rpc('zbx_session', { p_token: token }).then(function (res) {
-            if (res && res.ok) {
-                state.user = res.user || '';
-                state.role = res.role || 'user';
-                state.nick = res.nick || res.user || state.user;
-            } else {
-                clearLocal();
+
+        return configReady.then(function () {
+            if (!configured()) {
+                /* 还没填配置：保持未登录外观，点登录会给明确提示 */
+                state.ready = true;
+                render();
+                return sessionInfo();
             }
-            state.ready = true;
-            render();
-            emit('restore');
-            return sessionInfo();
+            return client().then(function (sb) {
+                return sb.auth.getSession();
+            }).then(function (r) {
+                var session = r && r.data ? r.data.session : null;
+                if (!session) {
+                    clearLocal();
+                    state.ready = true;
+                    render();
+                    return sessionInfo();
+                }
+                return applySession(session, 'restore').then(function (info) {
+                    state.ready = true;
+                    return info;
+                });
+            });
         }).catch(function () {
             /* 网络失败时保留缓存展示，但不把用户当成已登录去写云端 */
             state.ready = true;
@@ -194,41 +248,77 @@
     }
 
     function clearLocal() {
+        state.uid = '';
         state.token = '';
         state.user = '';
         state.role = '';
         state.nick = '';
-        try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* 忽略 */ }
         try { window.localStorage.removeItem(CACHE_KEY); } catch (e) { /* 忽略 */ }
     }
 
     function login(user, pw) {
         if (state.busy) { return Promise.reject(new Error('正在处理，请稍候')); }
+        var name = String(user || '').trim();
+        if (!name || !pw) { return Promise.reject(new Error('用户名和密码都要填。')); }
         state.busy = true;
-        return rpc('zbx_signin', { p_user: String(user || '').trim(), p_pw: String(pw || '') })
-            .then(function (res) { return applySession(res, 'login'); })
-            .finally(function () { state.busy = false; });
+        return client().then(function (sb) {
+            return sb.auth.signInWithPassword({ email: emailOf(name), password: String(pw) });
+        }).then(function (r) {
+            if (r.error) { throw mapErr(r.error); }
+            return applySession(r.data.session, 'login');
+        }).catch(function (err) {
+            throw (err instanceof Error) ? err : mapErr(err);
+        }).finally(function () { state.busy = false; });
     }
 
     function signup(user, pw, nick) {
         if (state.busy) { return Promise.reject(new Error('正在处理，请稍候')); }
+        var name = String(user || '').trim();
+        var pass = String(pw || '');
+        if (!name) { return Promise.reject(new Error('用户名要填。')); }
+        if (pass.length < 6) { return Promise.reject(new Error('密码至少 6 位（Supabase 的下限）。')); }
+
         state.busy = true;
-        return rpc('zbx_signup', {
-            p_user: String(user || '').trim(),
-            p_pw: String(pw || ''),
-            p_nick: String(nick || '').trim() || null
-        }).then(function (res) { return applySession(res, 'signup'); })
-            .finally(function () { state.busy = false; });
+        var sbRef = null;
+        return client().then(function (sb) {
+            sbRef = sb;
+            /* 先查重名，能给出人话提示，而不是数据库 500 */
+            return sb.rpc('zbx_username_taken', { p_username: name });
+        }).then(function (r) {
+            if (r && !r.error && r.data === true) {
+                throw new Error('这个用户名已经被注册，换个名字或去登录。');
+            }
+            return sbRef.auth.signUp({
+                email: emailOf(name),
+                password: pass,
+                options: { data: { username: name, nick: String(nick || '').trim() || name } }
+            });
+        }).then(function (r) {
+            if (r.error) { throw mapErr(r.error); }
+            var session = r.data && r.data.session;
+            var sbUser = r.data && r.data.user;
+            if (!session) {
+                /* 邮箱确认没关：注册成功但拿不到会话，登录不了 */
+                if (sbUser && Array.isArray(sbUser.identities) && sbUser.identities.length === 0) {
+                    throw new Error('这个用户名已经被注册，换个名字或去登录。');
+                }
+                throw new Error('注册信息已提交，但项目还开着「邮箱确认」，本站用的合成邮箱收不到信。' +
+                    '请到 Supabase → Authentication → Sign In / Providers → Email，关掉 Confirm email 后再试。');
+            }
+            return applySession(session, 'signup');
+        }).catch(function (err) {
+            throw (err instanceof Error) ? err : mapErr(err);
+        }).finally(function () { state.busy = false; });
     }
 
     function logout() {
-        var token = state.token;
         clearLocal();
         render();
         emit('logout');
-        if (!token) { return Promise.resolve(true); }
-        return rpc('zbx_signout', { p_token: token })
-            .then(function () { return true; })
+        if (!configured()) { return Promise.resolve(true); }
+        return client().then(function (sb) {
+            return sb.auth.signOut();
+        }).then(function () { return true; })
             .catch(function () { return false; });
     }
 
@@ -241,6 +331,105 @@
             token: state.token,
             ready: state.ready
         };
+    }
+
+    /* ---------- 旧 RPC 兼容层 ---------- */
+
+    function currentUid() {
+        return state.uid;
+    }
+
+    function loadProgress() {
+        if (!currentUid()) { return Promise.resolve({ ok: true, data: null }); }
+        return client().then(function (sb) {
+            return sb.from('user_progress').select('data').eq('user_id', currentUid()).maybeSingle();
+        }).then(function (r) {
+            if (r.error) { throw mapErr(r.error); }
+            return { ok: true, data: (r.data && r.data.data) || null };
+        });
+    }
+
+    function saveProgress(data) {
+        if (!currentUid()) { return Promise.resolve({ ok: false, err: 'not signed in' }); }
+        return client().then(function (sb) {
+            return sb.from('user_progress').upsert({
+                user_id: currentUid(),
+                data: data || {},
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+        }).then(function (r) {
+            if (r.error) {
+                var e = mapErr(r.error);
+                return { ok: false, err: e.message };
+            }
+            return { ok: true };
+        });
+    }
+
+    /* 尚未迁移到 Supabase 的老接口（管理后台、杂豫云端数据等）继续走旧云服务 */
+    function legacyRpc(name, params) {
+        return new Promise(function (resolve, reject) {
+            var b = base();
+            if (!window.__zbxCloudLoad) {
+                window.__zbxCloudLoad = true;
+                var s = document.createElement('script');
+                s.src = b + 'assets/cloud.js';
+                s.async = true;
+                document.head.appendChild(s);
+            }
+            var waited = 0;
+            (function poll() {
+                if (window.ZBX_CLOUD_READY) { resolve(window.ZBX_CLOUD_READY); return; }
+                if (waited++ > 200) { reject(new Error('旧云服务加载超时')); return; }
+                setTimeout(poll, 100);
+            })();
+        }).then(function (cloud) {
+            if (!cloud || !cloud.database || typeof cloud.database.rpc !== 'function') {
+                throw new Error('旧云服务不支持该接口');
+            }
+            return cloud.database.rpc(name, params || {});
+        }).then(function (res) { return unwrap(res); });
+    }
+
+    /* 旧网关会给返回值套各种信封，这里统一拆成裸对象 */
+    function unwrap(res) {
+        var v = res;
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+            if (Object.prototype.hasOwnProperty.call(v, 'error') && v.error) {
+                throw new Error(typeof v.error === 'string' ? v.error : (v.error.message || '云端请求失败'));
+            }
+            if (Object.prototype.hasOwnProperty.call(v, 'data') &&
+                (v.ok === true || v.success === true)) { v = v.data; }
+            if (Object.prototype.hasOwnProperty.call(v, 'data')) { v = v.data; }
+        }
+        if (Array.isArray(v)) { v = v.length ? v[0] : null; }
+        return v;
+    }
+
+    function rpc(name, params) {
+        params = params || {};
+        switch (name) {
+            case 'zbx_signup':
+                return signup(params.p_user, params.p_pw, params.p_nick);
+            case 'zbx_signin':
+                return login(params.p_user, params.p_pw);
+            case 'zbx_signout':
+                return logout().then(function () { return { ok: true }; });
+            case 'zbx_session':
+                return Promise.resolve({
+                    ok: !!state.user,
+                    user: state.user,
+                    nick: state.nick || state.user,
+                    role: state.role,
+                    token: state.token
+                });
+            case 'zbx_progress_load':
+                return loadProgress();
+            case 'zbx_progress_save':
+                return saveProgress(params.p_data);
+            default:
+                return legacyRpc(name, params);
+        }
     }
 
     /* ---------- 界面 ---------- */
@@ -291,11 +480,12 @@
             '.za-submit:disabled{opacity:.6;cursor:wait}' +
             '.za-close{float:right;cursor:pointer;border:0;background:transparent;color:#85745a;font-size:20px;line-height:1}' +
             '.za-err{min-height:20px;margin-top:10px;font-size:12px;color:#b23b2e}' +
+            '.za-note{margin-top:8px;font-size:11px;color:#9c8b70}' +
             '@media(prefers-color-scheme:dark){' +
             '.za-menu,.za-dialog{background:#242019;color:#efe4cd;border-color:#5c4e3c}' +
             '.za-menu a,.za-menu button,.za-field input,.za-tabs button{color:#efe4cd;background:transparent;border-color:#5c4e3c}' +
             '.za-field input{background:#17150f}.za-menu-name{color:#b6a688;border-color:#5c4e3c}' +
-            '.za-dialog p,.za-field span{color:#b6a688}' +
+            '.za-dialog p,.za-field span,.za-note{color:#b6a688}' +
             '.za-tabs button.is-on{background:#b98d43;color:#17150f}' +
             '.za-dialog h2{color:#f6ead0}}';
         var st = document.createElement('style');
@@ -341,7 +531,9 @@
             document.body.appendChild(mask);
         }
         mask.hidden = false;
-        drawPanel();
+        drawPanel(cfgLoaded && !configured()
+            ? '尚未配置 Supabase：请打开 assets/supabase-config.js 填入 url 与 anonKey。'
+            : '');
         var first = mask.querySelector('input');
         if (first) { try { first.focus(); } catch (e) { /* 忽略 */ } }
     }
@@ -375,25 +567,29 @@
                 '<input name="nick" type="text" maxlength="20" placeholder="显示用名字"></label>' : '') +
             '<label class="za-field"><span>密码</span>' +
             '<input name="pw" type="password" autocomplete="' + (isSignup ? 'new-password' : 'current-password') +
-            '" minlength="4" maxlength="64" placeholder="至少 4 位" required></label>' +
+            '" minlength="6" maxlength="64" placeholder="至少 6 位" required></label>' +
             '<button type="submit" class="za-submit"' + (state.busy ? ' disabled' : '') + '>' +
             (isSignup ? '注册并登录' : '登录') + '</button>' +
             '<div class="za-err" role="alert">' + esc(msg || '') + '</div>' +
+            '<div class="za-note">只用用户名和密码，不需要邮箱验证。</div>' +
             '</form></div>';
     }
 
     function errText(err) {
         var s = String((err && err.message) || err || '操作失败');
-        var map = {
-            'bad credentials': '用户名或密码不对。',
-            'invalid username': '用户名需 2–20 位，可用中文、字母、数字、下划线或短横。',
-            'invalid password': '密码需 4–64 位。',
-            'username taken': '这个用户名已经被注册，换个名字或去登录。'
-        };
-        return map[s] || s;
+        if (s === 'bad credentials') { return '用户名或密码不对。'; }
+        if (s === 'invalid username') { return '用户名需 2–20 位，可用中文、字母、数字、下划线或短横。'; }
+        if (s === 'invalid password') { return '密码需 6–64 位。'; }
+        if (s === 'username taken') { return '这个用户名已经被注册，换个名字或去登录。'; }
+        return s;
     }
 
     document.addEventListener('click', function (e) {
+        /* 点遮罩空白处关闭（先判遮罩，否则会被下面的 data-za 查找拦掉） */
+        if (e.target && e.target.id === 'zbx-account-mask') {
+            closePanel();
+            return;
+        }
         var t = e.target;
         while (t && t.nodeType === 1 && !t.hasAttribute('data-za')) {
             t = t.parentNode;
@@ -406,7 +602,7 @@
         }
         if (act === 'tab') {
             state.panel = t.getAttribute('data-mode') === 'signup' ? 'signup' : 'login';
-            drawPanel();
+            drawPanel('');
             return;
         }
         if (act === 'close') {
@@ -422,10 +618,6 @@
             if (window.confirm('退出登录？本机的进度缓存会保留，下次登录会从云端恢复。')) {
                 logout().catch(function () {});
             }
-            return;
-        }
-        if (e.target && e.target.id === 'zbx-account-mask') {
-            closePanel();
         }
     }, false);
 
@@ -440,7 +632,11 @@
             drawPanel('用户名需 2–20 位，可用中文、字母、数字、下划线或短横。');
             return;
         }
-        if (state.busy) { return; }  /* 已有请求在处理，忽略重复提交，避免把 busy 提前清掉 */
+        if (state.panel === 'signup' && pw.length < 6) {
+            drawPanel('密码至少 6 位。');
+            return;
+        }
+        if (state.busy) { return; }  /* 已有请求在处理，忽略重复提交 */
         var job = state.panel === 'signup' ? signup(user, pw, nick) : login(user, pw);
         job.then(function () {
             state.busy = false;
@@ -457,6 +653,25 @@
 
     document.addEventListener('zbx:navigate', function () { render(); });
     document.addEventListener('zbx:account', function () { render(); });
+
+    /* 会话自动续期 / 被踢下线（token 失效）时同步本地状态 */
+    configReady.then(function () {
+        if (!configured()) { return; }
+        client().then(function (sb) {
+            sb.auth.onAuthStateChange(function (event, session) {
+                if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                    if (session && state.uid) { state.token = session.access_token || state.token; }
+                    return;
+                }
+                if (event === 'SIGNED_OUT' && state.user) {
+                    clearLocal();
+                    state.ready = true;
+                    render();
+                    emit('logout');
+                }
+            });
+        }).catch(function () { /* 配置错误在点登录时才提示 */ });
+    });
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () { render(); });
@@ -477,6 +692,7 @@
         role: function () { return state.role; },
         isAdmin: function () { return state.role === 'admin'; },
         token: function () { return state.token; },
+        uid: function () { return state.uid; },
         info: sessionInfo,
         login: login,
         signup: signup,
@@ -484,6 +700,7 @@
         openPanel: openPanel,
         closePanel: closePanel,
         render: render,
+        configured: configured,
         validName: function (n) { return USER_RE.test(String(n || '').trim()); }
     };
 })();
