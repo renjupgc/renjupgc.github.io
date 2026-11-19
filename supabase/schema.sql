@@ -161,7 +161,18 @@ create policy user_progress_update_own on public.user_progress
     with check (auth.uid() = user_id);
 
 
--- ---------- 6. 自检 ----------
+-- ---------- 6. 表级授权 ----------
+-- RLS 管「能碰哪一行」，GRANT 管「能不能碰这张表」，两样都要。
+-- 部分项目的默认权限没覆盖到，只开 RLS 不写 GRANT 会得到
+-- 「permission denied for table profiles」（登录成功但读不到进度）。
+-- 这里只授权给 authenticated：未登录的 anon 一律不给表权限。
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update on public.profiles to authenticated;
+grant select, insert, update on public.user_progress to authenticated;
+
+
+-- ---------- 7. 自检 ----------
 -- 跑完可以执行下面两句确认结构就位：
 --   select tablename, rowsecurity from pg_tables
 --    where schemaname = 'public' and tablename in ('profiles', 'user_progress');

@@ -18,7 +18,7 @@
  *              一旦定下来不要再改，否则老账号会全部找不到。
  */
 window.ZBX_SUPABASE = {
-    url: '',
-    anonKey: '',
+    url: 'https://gksfnlaylcgbdryfmlvr.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrc2ZubGF5bGNnYmRyeWZtbHZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxMDk3OTksImV4cCI6MjExMDY4NTc5OX0.lCT6adlNpJz1VzY9bP3RlNMgJ1miO8nkjeNxlB5E1dQ',
     emailDomain: 'zbx.example.com'
 };

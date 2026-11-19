@@ -37,6 +37,7 @@
 - `user_progress` —— 每个账号的进度 JSON（背词、四项分数、阅读记录）
 - 两个触发器：注册时自动建档；普通用户改不了自己的角色（防提权）
 - 函数 `zbx_username_taken()` —— 注册前查重名
+- 表级授权（GRANT）—— RLS 管「能碰哪一行」，GRANT 管「能不能碰这张表」，缺了会报 permission denied
 - 两张表都开了 RLS：**登录用户只能读写自己那一行**
 
 > 脚本是幂等的，重复执行不会报错也不会清数据，放心重跑。
@@ -111,6 +112,7 @@ update public.profiles set role = 'admin' where username = '你的用户名';
 | 尚未配置 Supabase | `supabase-config.js` 里 url / anonKey 还是空的 | 回第 4 步 |
 | 连不上 Supabase | URL 填错，或网络被挡 | 检查 url 是否以 `.supabase.co` 结尾且没多余空格 |
 | 数据库表还没建好 | 第 2 步 SQL 没跑 | 回第 2 步，整段重跑 |
+| permission denied for table profiles / user_progress | 表建了但没授权（RLS 之外还需要 GRANT） | 回第 2 步整段重跑；或单独执行 `supabase/schema.sql` 第 6 节那几行 GRANT |
 | 注册信息已提交，但项目还开着「邮箱确认」 | 第 3 步没关 Confirm email | 回第 3 步 |
 | 这个用户名已经被注册 | 重名（不分大小写） | 换名字或直接登录 |
 | 用户名或密码不对 | 密码错，或这账号是旧云服务时代注册的 | 旧账号迁不过来，重新注册（见下） |
