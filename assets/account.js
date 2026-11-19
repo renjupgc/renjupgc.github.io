@@ -435,7 +435,7 @@
             drawPanel('用户名需 2–20 位，可用中文、字母、数字、下划线或短横。');
             return;
         }
-        state.busy = true;
+        if (state.busy) { return; }  /* 已有请求在处理，忽略重复提交，避免把 busy 提前清掉 */
         var job = state.panel === 'signup' ? signup(user, pw, nick) : login(user, pw);
         job.then(function () {
             state.busy = false;
