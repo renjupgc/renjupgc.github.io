@@ -14,7 +14,8 @@
     if (window.ZBX_ZAYU_CLOUD) { return; }
 
     var cache = {};
-    var TTL = 60 * 1000;
+    /* 缓存只有 8 秒：管理员改完，访客刷新即可看到最新内容 */
+    var TTL = 8 * 1000;
 
     function base() {
         return (document.body && document.body.getAttribute('data-base')) || '';
@@ -108,10 +109,8 @@
     /* ---------- 赛事列表 ---------- */
     function renderCompetitionList(docs) {
         var list = document.querySelector('.tournament-list');
-        /* 云端数据不完整时（例如管理员刚建立账号尚未载入），保留静态列表，
-         * 避免把完整列表替换成只有几条。 */
-        var staticCount = list ? list.querySelectorAll('li').length : 0;
-        if (!list || !docs.length || (staticCount && docs.length < staticCount)) { return; }
+        /* 云端有数据就以云端为准（增删都即时生效）；云端为空才保留静态列表。 */
+        if (!list || !docs.length) { return; }
         list.innerHTML = docs.map(function (d) {
             var r = d.data || {};
             var id = d.doc_id;
@@ -267,15 +266,74 @@
 
     /* ---------- 人物详情页介绍 ---------- */
     function renderPersonPage(docs) {
-        var bio = document.querySelector('.pr-bio');
-        if (!bio || !docs.length) { return; }
+        var main = document.querySelector('main');
+        if (!main || !docs.length) { return; }
         var name = decodeURIComponent((location.pathname.split('/').pop() || '').replace(/\.html?$/i, ''));
         var r = byId(docs, name);
         if (!r) { return; }
-        /* 管理员用富文本编辑器写的是 bioHtml（带标签），原样渲染；
-         * 老数据只有纯文本 bio，按文本显示。 */
-        if (r.bioHtml) { bio.innerHTML = r.bioHtml; }
-        else if (r.bio) { bio.textContent = r.bio; }
+
+        /* 标题 */
+        var h1 = main.querySelector('.article-title');
+        if (h1 && r.title) { h1.textContent = r.title; }
+
+        /* 地区、单位（article-meta 第 2、3 个 span，第 1 个是「栏目」）
+         * 只有地区没有单位的页面，管理员补了单位就追加一个 span。 */
+        var metas = main.querySelectorAll('.article-meta');
+        if (metas.length) {
+            var box = metas[0];
+            var spans = box.querySelectorAll('span');
+            if (r.region && spans[1]) { spans[1].textContent = r.region; }
+            if (r.unit) {
+                if (spans[2]) { spans[2].textContent = r.unit; }
+                else if (spans[1]) {
+                    var add = document.createElement('span');
+                    add.textContent = r.unit;
+                    box.appendChild(add);
+                }
+            }
+        }
+
+        /* 统计项：按名称匹配，改哪项就更新哪项 */
+        if (Array.isArray(r.stats) && r.stats.length) {
+            var box = main.querySelector('.player-stats');
+            if (box) {
+                var psList = box.querySelectorAll('.ps');
+                r.stats.forEach(function (it) {
+                    for (var i = 0; i < psList.length; i++) {
+                        var kEl = psList[i].querySelector('.ps-k');
+                        if (kEl && kEl.textContent.replace(/\s+/g, '') === String(it.k || '').replace(/\s+/g, '')) {
+                            var vEl = psList[i].querySelector('.ps-v');
+                            if (vEl) { vEl.textContent = it.v; }
+                            break;
+                        }
+                    }
+                });
+            }
+        }
+
+        /* 段位 */
+        if (r.dan) {
+            var danEl = main.querySelector('.rh-dan');
+            if (danEl) { danEl.textContent = r.dan; }
+        }
+
+        /* 介绍：管理员用富文本写的是 bioHtml，原样渲染；老数据 bio 是纯文本 */
+        var bio = main.querySelector('.pr-bio');
+        if (r.bioHtml) {
+            if (bio) { bio.innerHTML = r.bioHtml; }
+            else {
+                var host = main.querySelector('.player-note') ||
+                    main.querySelector('.player-stats') || main.querySelector('.article-header');
+                if (host && host.parentNode) {
+                    var p = document.createElement('p');
+                    p.className = 'pr-bio';
+                    p.innerHTML = r.bioHtml;
+                    host.parentNode.insertBefore(p, host.nextSibling);
+                }
+            }
+        } else if (r.bio && bio) {
+            bio.textContent = r.bio;
+        }
     }
 
     /* ---------- 等级分 ---------- */
