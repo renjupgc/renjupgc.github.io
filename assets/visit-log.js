@@ -80,19 +80,19 @@
 
     /* ---------------- 发送 ---------------- */
 
-    /* 云数据库写入：WorkBuddy 云服务提供真实的持久化审计表，替代原来
-     * 「ntfy 暂存 + GitHub Actions 定时归档」的链路。失败不影响主流程，
-     * 原 ntfy 通道继续保留，兼容 admin 现有统计面板。 */
+    /* 云数据库写入：Supabase 的 site_visits 表做持久化审计。
+     * 访客未登录，所以这张表对 anon 开放 insert、读只给管理员（见 supabase/schema.sql）。
+     * 失败不影响主流程；原 ntfy 通道继续保留，兼容 admin 现有统计面板。 */
     function cloudWrite(obj) {
         var waited = 0;
         function deliver() {
-            if (!window.ZBX_CLOUD_READY) {
-                /* cloud.js 由 layout.js 先注入；给它几秒加载，逾期就跳过云写入 */
+            if (!window.ZBX_SB_READY) {
+                /* supabase-client.js 由 layout.js 先注入；给它几秒加载，逾期就跳过云写入 */
                 if (waited++ < 40) { setTimeout(deliver, 100); return; }
                 return;
             }
-            window.ZBX_CLOUD_READY.then(function (cloud) {
-                return cloud.database.from('site_visits').insert({
+            window.ZBX_SB_READY.then(function (sb) {
+                return sb.from('site_visits').insert({
                     visitor_id: obj.v || 'anon',
                     session_id: obj.s || null,
                     page: obj.p || null,

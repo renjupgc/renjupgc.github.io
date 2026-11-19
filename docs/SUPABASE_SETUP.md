@@ -35,10 +35,12 @@
 
 - `profiles` —— 用户名、昵称、角色
 - `user_progress` —— 每个账号的进度 JSON（背词、四项分数、阅读记录）
+- `zayu_docs` —— 杂豫的正文内容（比赛 / 棋谱 / 人物 / 等级分），所有人可读、仅管理员可写
+- `site_visits` —— 访问埋点，访客未登录也能写，只有管理员能读
 - 两个触发器：注册时自动建档；普通用户改不了自己的角色（防提权）
-- 函数 `zbx_username_taken()` —— 注册前查重名
+- 函数 `zbx_username_taken()` —— 注册前查重名；`zbx_is_admin()` —— 后台写权限判定
 - 表级授权（GRANT）—— RLS 管「能碰哪一行」，GRANT 管「能不能碰这张表」，缺了会报 permission denied
-- 两张表都开了 RLS：**登录用户只能读写自己那一行**
+- 所有表都开了 RLS
 
 > 脚本是幂等的，重复执行不会报错也不会清数据，放心重跑。
 
@@ -111,7 +113,23 @@ update public.profiles set role = 'admin' where username = '你的用户名';
 
 设完让那人重新登录（或刷新页面），导航栏会出现「管理」标记和管理后台入口。
 
-> 注意：管理后台里那些功能（`zbx_admin_*` 接口）还在旧云服务上，这次没迁。角色标记能显示，但后台的数据操作要等后续迁移。
+---
+
+## 各模块现在用什么
+
+| 模块 | 后端 | 说明 |
+| --- | --- | --- |
+| 账号 / 登录 / 会话 | Supabase Auth | `assets/account.js` |
+| 进度（背词、四项分数） | `user_progress` | 换设备自动恢复 |
+| 杂豫正文（比赛/棋谱/人物/等级分） | `zayu_docs` | 公开可读，管理员可写；空表时自动退回静态 HTML |
+| 管理后台读写 | `zayu_docs` | `admin/zayu.html`，靠 `profiles.role` 判权 |
+| 访问埋点 | `site_visits` | 匿名可写、管理员可读 |
+| 末轮计算器的成绩单识别 | **仍是 WorkBuddy 云服务** | 用它的大模型；只在 `zaji/molun.html` 按需加载 `assets/cloud.js`，其它页面不再加载 |
+
+### 两个已知缺口
+
+1. **等级分重算**：后台那个「按尚未更新的对局重算等级分」按钮现在会明确报错。WHR 全历史拟合的算法在 `tools/recompute_ratings.py`（Python）里，旧云服务那份 PL/pgSQL 实现没随仓库留存，硬写会算错分。正确做法：本机跑 `python tools/recompute_ratings.py`，再把 `rating` 文档用后台「保存修改」写回。
+2. **成绩单 OCR**：`cloud.js` 还留着，只为这一页的大模型能力。要去掉它得另接一个视觉模型接口（需要服务端代理放密钥），属于独立改造。
 
 ---
 

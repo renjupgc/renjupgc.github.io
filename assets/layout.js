@@ -905,11 +905,11 @@
     'use strict';
     var base = (document.body && document.body.getAttribute('data-base')) || '';
 
-    /* 云服务统一入口：先加载，visit-log、账号与各功能页共用同一个客户端实例 */
-    if (!window.__zbxCloudLoaded) {
-        window.__zbxCloudLoaded = true;
+    /* 云服务统一入口：先加载，账号、杂豫内容与访问埋点共用同一个客户端实例 */
+    if (!window.__zbxSbLoaded) {
+        window.__zbxSbLoaded = true;
         var c = document.createElement('script');
-        c.src = base + 'assets/cloud.js';
+        c.src = base + 'assets/supabase-client.js';
         c.async = true;
         document.head.appendChild(c);
     }

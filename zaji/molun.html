@@ -3345,16 +3345,34 @@
         throw new Error(String(raw).slice(0, 160));
     }
 
+    /* 云大模型 SDK 只在这一页按需加载：全站其它页面已经换到 Supabase，
+       这里保留 WorkBuddy 云服务只是因为成绩单识别要用它的大模型能力。 */
+    function ensureCloudSdk() {
+        if (window.ZBX_CLOUD_READY) { return window.ZBX_CLOUD_READY; }
+        if (!window.__zbxMolunCloud) {
+            window.__zbxMolunCloud = 1;
+            var s = document.createElement('script');
+            s.src = '../assets/cloud.js';
+            s.async = true;
+            document.head.appendChild(s);
+        }
+        return new Promise(function (resolve, reject) {
+            var i = 0;
+            (function poll() {
+                if (window.ZBX_CLOUD_READY) { resolve(window.ZBX_CLOUD_READY); return; }
+                if (i++ > 200) { reject(new Error('云服务尚未初始化，请刷新页面再试')); return; }
+                setTimeout(poll, 100);
+            })();
+        });
+    }
+
     /* 走云大模型识别：SDK 只支持流式，收集 content 增量拼成完整结果 */
     function callVision(img) {
-        if (!window.ZBX_CLOUD_READY) {
-            return Promise.reject(new Error('云服务尚未初始化，请刷新页面再试'));
-        }
 
         var ctrl = window.AbortController ? new AbortController() : null;
         var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 120000) : 0;
 
-        var p = window.ZBX_CLOUD_READY.then(function (cloud) {
+        var p = ensureCloudSdk().then(function (cloud) {
             return pickVisionModel(cloud).then(function (model) {
                 var answer = '';
                 var stream = cloud.llm.chat.completions.create({

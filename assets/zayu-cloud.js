@@ -27,70 +27,36 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    /* 客户端：supabase-client.js 由 layout.js 先注入，这里等它即可 */
     function ensureCloud() {
-        if (window.ZBX_CLOUD_READY) { return window.ZBX_CLOUD_READY; }
+        if (window.ZBX_SB_READY) { return window.ZBX_SB_READY; }
         if (!window.__zbxZayuCloudLoad) {
             window.__zbxZayuCloudLoad = 1;
             var s = document.createElement('script');
-            s.src = base() + 'assets/cloud.js';
+            s.src = base() + 'assets/supabase-client.js';
             s.async = true;
             document.head.appendChild(s);
         }
         return new Promise(function (resolve, reject) {
             var i = 0;
             (function poll() {
-                if (window.ZBX_CLOUD_READY) { resolve(window.ZBX_CLOUD_READY); return; }
-                if (i++ > 200) { reject(new Error('云服务加载超时')); return; }
+                if (window.ZBX_SB_READY) { resolve(window.ZBX_SB_READY); return; }
+                if (i++ > 300) { reject(new Error('云服务加载超时')); return; }
                 setTimeout(poll, 100);
             })();
         });
-    }
-
-    /* SDK 对 rpc 返回值的包装各版本不同，统一拆成数组 */
-    function unwrap(res, name) {
-        var v = res;
-        if (v && typeof v === 'object' && !Array.isArray(v)) {
-            if (Object.prototype.hasOwnProperty.call(v, 'error') && v.error) { return []; }
-            if (Object.prototype.hasOwnProperty.call(v, 'data')) { v = v.data; }
-        }
-        if (Array.isArray(v)) {
-            if (v.length && Array.isArray(v[0])) { return v[0]; }
-            if (v.length && v[0] && typeof v[0] === 'object' &&
-                Object.prototype.hasOwnProperty.call(v[0], name)) {
-                var inner = v[0][name];
-                return Array.isArray(inner) ? inner : [];
-            }
-            if (v.length && v[0] && typeof v[0] === 'object' &&
-                Object.prototype.hasOwnProperty.call(v[0], 'rows')) {
-                return Array.isArray(v[0].rows) ? v[0].rows : [];
-            }
-            return v;
-        }
-        if (v && typeof v === 'object') {
-            if (Object.prototype.hasOwnProperty.call(v, name)) {
-                var x = v[name];
-                return Array.isArray(x) ? x : [];
-            }
-            if (Object.prototype.hasOwnProperty.call(v, 'rows')) {
-                return Array.isArray(v.rows) ? v.rows : [];
-            }
-        }
-        return [];
     }
 
     function rpcDocs(kind) {
         if (cache[kind] && Date.now() - cache[kind].t < TTL) {
             return Promise.resolve(cache[kind].v);
         }
-        return ensureCloud().then(function (cloud) {
-            if (!cloud || !cloud.database || typeof cloud.database.rpc !== 'function') {
-                throw new Error('云服务不可用');
-            }
-            return cloud.database.rpc('zbx_public_docs', { p_kind: kind });
+        return ensureCloud().then(function (sb) {
+            /* 表是 zayu_docs，行形状与旧接口一致：{kind, doc_id, data, ord} */
+            return sb.from('zayu_docs').select('kind,doc_id,data,ord').eq('kind', kind);
         }).then(function (res) {
-            var docs = unwrap(res, 'zbx_public_docs');
-            /* 文档行：{kind, doc_id, data, ord}；按 ord 排序 */
-            docs = docs.slice().sort(function (a, b) {
+            var docs = (res && !res.error && Array.isArray(res.data)) ? res.data.slice() : [];
+            docs.sort(function (a, b) {
                 var oa = Number(a.ord || 0), ob = Number(b.ord || 0);
                 return oa - ob || String(a.doc_id).localeCompare(String(b.doc_id));
             });

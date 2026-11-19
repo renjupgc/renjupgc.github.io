@@ -8,9 +8,12 @@
 -- 建的东西：
 --   public.profiles        账号档案（用户名 / 昵称 / 角色）
 --   public.user_progress   每个账号的进度 JSON（背词、分数、阅读）
+--   public.zayu_docs       杂豫内容（比赛 / 棋谱 / 人物 / 等级分），公开可读
+--   public.site_visits     访问埋点，匿名可写、仅管理员可读
 --   zbx_username_taken()   注册前查重名
+--   zbx_is_admin()         后台写权限判定
 --   两个触发器             注册自动建档案 / 禁止改自己的角色
--- 所有表都开了 RLS：登录用户只能读写自己那一行。
+-- 所有表都开了 RLS，并显式写了表级 GRANT（两者缺一不可）。
 -- ============================================================
 
 
@@ -161,18 +164,110 @@ create policy user_progress_update_own on public.user_progress
     with check (auth.uid() = user_id);
 
 
--- ---------- 6. 表级授权 ----------
+-- ---------- 6. 管理员判定 ----------
+-- 后台写权限统一走这个函数：profiles.role = 'admin' 才为真。
+-- security definer 是为了绕开 profiles 的「只能读自己」策略。
+create or replace function public.zbx_is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1 from public.profiles
+        where id = auth.uid() and role = 'admin'
+    );
+$$;
+
+grant execute on function public.zbx_is_admin() to anon, authenticated;
+
+
+-- ---------- 7. 杂豫内容（比赛 / 棋谱 / 人物 / 等级分） ----------
+-- 取代旧的 zayu_docs：站点内容以这张表为准，静态 HTML 只是兜底。
+-- kind: competition / qipu / person / person_page / rating
+create table if not exists public.zayu_docs (
+    kind        text not null,
+    doc_id      text not null,
+    data        jsonb not null default '{}'::jsonb,
+    ord         integer not null default 0,
+    updated_at  timestamptz not null default now(),
+    primary key (kind, doc_id)
+);
+
+alter table public.zayu_docs enable row level security;
+
+-- 所有访客都能读（这就是站点正文），只有管理员能写
+drop policy if exists zayu_docs_select_all on public.zayu_docs;
+create policy zayu_docs_select_all on public.zayu_docs
+    for select to anon, authenticated
+    using (true);
+
+drop policy if exists zayu_docs_insert_admin on public.zayu_docs;
+create policy zayu_docs_insert_admin on public.zayu_docs
+    for insert to authenticated
+    with check (public.zbx_is_admin());
+
+drop policy if exists zayu_docs_update_admin on public.zayu_docs;
+create policy zayu_docs_update_admin on public.zayu_docs
+    for update to authenticated
+    using (public.zbx_is_admin())
+    with check (public.zbx_is_admin());
+
+drop policy if exists zayu_docs_delete_admin on public.zayu_docs;
+create policy zayu_docs_delete_admin on public.zayu_docs
+    for delete to authenticated
+    using (public.zbx_is_admin());
+
+
+-- ---------- 8. 访问埋点 ----------
+-- 访客不需要登录，所以 anon 也能写；读只给管理员。
+create table if not exists public.site_visits (
+    id          bigserial primary key,
+    created_at  timestamptz not null default now(),
+    visitor_id  text,
+    session_id  text,
+    page        text,
+    kind        text,
+    host        text,
+    payload     jsonb
+);
+
+create index if not exists site_visits_created_at_idx on public.site_visits (created_at desc);
+
+alter table public.site_visits enable row level security;
+
+drop policy if exists site_visits_insert_any on public.site_visits;
+create policy site_visits_insert_any on public.site_visits
+    for insert to anon, authenticated
+    with check (true);
+
+drop policy if exists site_visits_select_admin on public.site_visits;
+create policy site_visits_select_admin on public.site_visits
+    for select to authenticated
+    using (public.zbx_is_admin());
+
+
+-- ---------- 9. 表级授权 ----------
 -- RLS 管「能碰哪一行」，GRANT 管「能不能碰这张表」，两样都要。
 -- 部分项目的默认权限没覆盖到，只开 RLS 不写 GRANT 会得到
 -- 「permission denied for table profiles」（登录成功但读不到进度）。
--- 这里只授权给 authenticated：未登录的 anon 一律不给表权限。
 grant usage on schema public to anon, authenticated;
 
 grant select, insert, update on public.profiles to authenticated;
 grant select, insert, update on public.user_progress to authenticated;
 
+-- 杂豫内容：匿名只读，登录用户（配合 RLS 里的 zbx_is_admin）才写得动
+grant select on public.zayu_docs to anon, authenticated;
+grant insert, update, delete on public.zayu_docs to authenticated;
 
--- ---------- 7. 自检 ----------
+-- 访问埋点：匿名可写，读靠 RLS 限定管理员
+grant insert on public.site_visits to anon, authenticated;
+grant select on public.site_visits to authenticated;
+grant usage, select on sequence public.site_visits_id_seq to anon, authenticated;
+
+
+-- ---------- 10. 自检 ----------
 -- 跑完可以执行下面两句确认结构就位：
 --   select tablename, rowsecurity from pg_tables
 --    where schemaname = 'public' and tablename in ('profiles', 'user_progress');

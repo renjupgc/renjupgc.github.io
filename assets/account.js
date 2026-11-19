@@ -401,44 +401,85 @@
         });
     }
 
-    /* 尚未迁移到 Supabase 的老接口（管理后台、杂豫云端数据等）继续走旧云服务 */
-    function legacyRpc(name, params) {
-        return new Promise(function (resolve, reject) {
-            var b = base();
-            if (!window.__zbxCloudLoad) {
-                window.__zbxCloudLoad = true;
-                var s = document.createElement('script');
-                s.src = b + 'assets/cloud.js';
-                s.async = true;
-                document.head.appendChild(s);
+    /* ---------- 杂豫内容与后台 ---------- */
+
+    function docErr(r) {
+        if (r && r.error) {
+            var e = mapErr(r.error);
+            if (r.error.code === '42501' || /row-level security|permission denied/i.test(String(r.error.message))) {
+                return '没有写入权限：当前账号不是管理员（profiles.role 需为 admin）。';
             }
-            var waited = 0;
-            (function poll() {
-                if (window.ZBX_CLOUD_READY) { resolve(window.ZBX_CLOUD_READY); return; }
-                if (waited++ > 200) { reject(new Error('旧云服务加载超时')); return; }
-                setTimeout(poll, 100);
-            })();
-        }).then(function (cloud) {
-            if (!cloud || !cloud.database || typeof cloud.database.rpc !== 'function') {
-                throw new Error('旧云服务不支持该接口');
-            }
-            return cloud.database.rpc(name, params || {});
-        }).then(function (res) { return unwrap(res); });
+            return e.message;
+        }
+        return '';
     }
 
-    /* 旧网关会给返回值套各种信封，这里统一拆成裸对象 */
-    function unwrap(res) {
-        var v = res;
-        if (v && typeof v === 'object' && !Array.isArray(v)) {
-            if (Object.prototype.hasOwnProperty.call(v, 'error') && v.error) {
-                throw new Error(typeof v.error === 'string' ? v.error : (v.error.message || '云端请求失败'));
-            }
-            if (Object.prototype.hasOwnProperty.call(v, 'data') &&
-                (v.ok === true || v.success === true)) { v = v.data; }
-            if (Object.prototype.hasOwnProperty.call(v, 'data')) { v = v.data; }
-        }
-        if (Array.isArray(v)) { v = v.length ? v[0] : null; }
-        return v;
+    /* 公开读：站点正文，未登录也能读 */
+    function publicDocs(kind) {
+        return client().then(function (sb) {
+            var q = sb.from('zayu_docs').select('kind,doc_id,data,ord');
+            if (kind) { q = q.eq('kind', kind); }
+            return q.order('ord', { ascending: true }).order('doc_id', { ascending: true });
+        }).then(function (r) {
+            if (r.error) { throw mapErr(r.error); }
+            return { ok: true, rows: r.data || [] };
+        });
+    }
+
+    /* 后台：读全部（含未公开的草稿类） */
+    function adminAllDocs() {
+        return client().then(function (sb) {
+            return sb.from('zayu_docs').select('kind,doc_id,data,ord')
+                .order('kind').order('ord').order('doc_id');
+        }).then(function (r) {
+            if (r.error) { return { ok: false, err: docErr(r) || '读取失败' }; }
+            return { ok: true, rows: r.data || [] };
+        });
+    }
+
+    /* 后台：批量写入（一条条 upsert，同 kind+doc_id 覆盖） */
+    function adminSaveDocs(kind, rows) {
+        if (!kind || !Array.isArray(rows) || !rows.length) { return Promise.resolve({ ok: true }); }
+        var now = new Date().toISOString();
+        var payload = rows.map(function (row) {
+            return {
+                kind: String(kind),
+                doc_id: String(row && row.doc_id != null ? row.doc_id : ''),
+                data: (row && row.data) || {},
+                ord: Number(row && row.ord != null ? row.ord : 0) || 0,
+                updated_at: now
+            };
+        }).filter(function (row) { return row.doc_id !== ''; });
+
+        if (!payload.length) { return Promise.resolve({ ok: false, err: '没有有效的 doc_id' }); }
+
+        return client().then(function (sb) {
+            return sb.from('zayu_docs').upsert(payload, { onConflict: 'kind,doc_id' });
+        }).then(function (r) {
+            if (r.error) { return { ok: false, err: docErr(r) || '保存失败' }; }
+            return { ok: true };
+        });
+    }
+
+    /* 后台：删除一条 */
+    function adminDeleteDoc(kind, docId) {
+        return client().then(function (sb) {
+            return sb.from('zayu_docs').delete().eq('kind', String(kind)).eq('doc_id', String(docId));
+        }).then(function (r) {
+            if (r.error) { return { ok: false, err: docErr(r) || '删除失败' }; }
+            return { ok: true };
+        });
+    }
+
+    /* 等级分重算：WHR 全历史拟合算法在 tools/recompute_ratings.py（Python），
+       旧云服务里那份 PL/pgSQL 实现没有随仓库留存，硬写会算错分，所以这里明确报错，
+       宁可让管理员看到提示，也不要悄悄把分数改坏。 */
+    function recalcRatings() {
+        return Promise.resolve({
+            ok: false,
+            err: '等级分重算还没迁到 Supabase。请在本机跑 python tools/recompute_ratings.py，' +
+                '再把算好的 rating 文档用后台「保存修改」写回去。'
+        });
     }
 
     function rpc(name, params) {
@@ -462,8 +503,18 @@
                 return loadProgress();
             case 'zbx_progress_save':
                 return saveProgress(params.p_data);
+            case 'zbx_public_docs':
+                return publicDocs(params.p_kind);
+            case 'zbx_admin_all_docs':
+                return adminAllDocs();
+            case 'zbx_admin_save_docs':
+                return adminSaveDocs(params.p_kind, params.p_rows);
+            case 'zbx_admin_delete_doc':
+                return adminDeleteDoc(params.p_kind, params.p_doc_id);
+            case 'zbx_admin_recalc_ratings':
+                return recalcRatings();
             default:
-                return legacyRpc(name, params);
+                return Promise.reject(new Error('未知接口：' + name + '（旧云服务已下线）'));
         }
     }
 
