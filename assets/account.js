@@ -125,9 +125,44 @@
         return (cfg && cfg.emailDomain) || DEFAULT_DOMAIN;
     }
 
-    /* 用户名 → 合成邮箱（内部账号标识，不发信） */
+    /* 用户名 → 合成邮箱（内部账号标识，不发信）
+     *
+     * Supabase 的邮箱校验不认非 ASCII：直接拼「本站验收@zbx.example.com」会被
+     * 判成 invalid format。所以纯 ASCII 用户名原样（转小写，与不分大小写的
+     * 唯一索引一致），含中文等字符的把 UTF-8 字节转成十六进制，加 u- 前缀：
+     *   阿远  →  u-e998bfe8bf9c@zbx.example.com
+     * 这个映射是确定且可逆的，同一个用户名永远得到同一个邮箱。 */
+    function emailLocal(user) {
+        var name = String(user || '').trim();
+        if (!name) { return ''; }
+        /* 只有「字母/数字开头，且只含字母数字下划线短横」才原样用；
+           其余一律转十六进制，免得碰上邮件本地部分的边角规则。 */
+        if (/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(name) && !/^u-/i.test(name)) {
+            return name.toLowerCase();
+        }
+        var bin = encodeURIComponent(name).replace(/%([0-9A-F]{2})/g, function (_, h) {
+            return String.fromCharCode(parseInt(h, 16));
+        });
+        var out = '';
+        for (var i = 0; i < bin.length; i++) {
+            out += ('0' + bin.charCodeAt(i).toString(16)).slice(-2);
+        }
+        return 'u-' + out;
+    }
+
+    /* 反向还原（仅在注册元数据丢失、只能从邮箱读用户名时用） */
+    function localToName(local) {
+        if (!/^u-[0-9a-f]+$/i.test(local)) { return local; }
+        var hex = local.slice(2);
+        var pct = '';
+        for (var i = 0; i < hex.length; i += 2) {
+            pct += '%' + hex.substr(i, 2);
+        }
+        try { return decodeURIComponent(pct); } catch (e) { return local; }
+    }
+
     function emailOf(user) {
-        return String(user || '').trim() + '@' + domain();
+        return emailLocal(user) + '@' + domain();
     }
 
     /* 合成邮箱 / 元数据 → 用户名 */
@@ -135,7 +170,7 @@
         if (!sbUser) { return ''; }
         var meta = sbUser.user_metadata || {};
         if (meta.username) { return String(meta.username); }
-        return String(sbUser.email || '').split('@')[0];
+        return localToName(String(sbUser.email || '').split('@')[0]);
     }
 
     function mapErr(err) {

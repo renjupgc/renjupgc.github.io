@@ -44,7 +44,17 @@
 
 ## 第 3 步：关掉邮箱验证（关键，很多人卡在这）
 
-站点用的是「用户名 + 密码」，但 Supabase 只认邮箱，所以内部把 `阿远` 拼成 `阿远@zbx.example.com` 当账号标识。这个假邮箱收不到信，**邮箱确认必须关掉**，否则注册完登不进去。
+站点用的是「用户名 + 密码」，但 Supabase 只认邮箱，所以内部把用户名拼成 `xxx@zbx.example.com` 当账号标识。这个假邮箱收不到信，**邮箱确认必须关掉**，否则注册完登不进去。
+
+用户名怎么变成邮箱前缀（Supabase 不认中文，所以中文要被编码）：
+
+| 用户名 | 内部邮箱 |
+| --- | --- |
+| `renju` | `renju@zbx.example.com`（纯字母数字原样，转小写） |
+| `阿远` | `u-e998bfe8bf9c@zbx.example.com`（UTF-8 字节转十六进制） |
+| `本站验收` | `u-e69cace7ab99e9aa8ce694b6@zbx.example.com` |
+
+所以你在 **Authentication → Users** 里会看到一串 `u-xxxx` 的邮箱 —— 这是正常的，**真实用户名看 `profiles` 表的 `username` 列**。这个映射是确定且可逆的，同一个用户名永远得到同一个邮箱，用户完全无感。
 
 1. 左侧栏 → **Authentication**
 2. → **Sign In / Providers**（旧版界面叫 **Providers**）→ 展开 **Email**

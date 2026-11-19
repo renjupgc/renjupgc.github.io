@@ -13,8 +13,11 @@
  *           那是万能钥匙，会随 GitHub Pages 一起公开给所有人。
  *
  * emailDomain：站上登录只用「用户名 + 密码」，Supabase 需要邮箱格式，
- *              所以内部把用户名拼成 用户名@zbx.example.com 当账号标识。
- *              这只是内部标识，不会真的发信；example.com 是保留域名。
+ *              所以内部拼成「用户名@zbx.example.com」当账号标识。
+ *              纯字母数字的用户名原样用；中文等字符会转成十六进制，
+ *              例如 阿远 → u-e998bfe8bf9c@zbx.example.com。
+ *              这只是内部标识，不会真的发信；example.com 是保留域名，
+ *              所以在 Authentication → Users 里看到 u- 开头的邮箱是正常的。
  *              一旦定下来不要再改，否则老账号会全部找不到。
  */
 window.ZBX_SUPABASE = {
