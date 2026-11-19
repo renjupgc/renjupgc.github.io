@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
-<title>杂豫数据管理 · 连珠杂箱</title>
+<title>杂豫内容管理 · 连珠杂箱</title>
 <link rel="stylesheet" href="admin.css">
 <style>
   :root{--bg:#f6f4ef;--fg:#23211d;--muted:#77726a;--card:#fff;--line:#e2ded6;--accent:#3a5a78;--warn:#a03a2e;--ok:#2f6f4f;--chip:#f1eee7}
   @media(prefers-color-scheme:dark){:root{--bg:#16181a;--fg:#e8e6e1;--muted:#9a958c;--card:#1e2124;--line:#2f3337;--accent:#8fb6d6;--warn:#e08a7a;--ok:#6fbf8f;--chip:#262a2e}}
   *{box-sizing:border-box}
   body{margin:0;padding:22px 16px 70px;background:var(--bg);color:var(--fg);font:14px/1.6 "PingFang SC","Microsoft YaHei",system-ui,sans-serif}
-  .wrap{max-width:1180px;margin:0 auto}
+  .wrap{max-width:1280px;margin:0 auto}
   .admin-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
   .admin-head a{color:var(--fg);text-decoration:none}
   .an-links{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
@@ -26,23 +26,30 @@
   .btn:hover{border-color:var(--accent)}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   .btn.warn{color:var(--warn)}
+  .btn.sm{font-size:12px;padding:4px 9px}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
   #msg{min-height:22px;font-size:13px;color:var(--muted)}
   #msg.ok{color:var(--ok)}#msg.err{color:var(--warn)}
   .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}
-  .tabs button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--muted);padding:7px 14px}
+  .tabs button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--muted);padding:7px 13px}
   .tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-  section.pane{display:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;overflow-x:auto}
-  section.pane.on{display:block}
-  .pane h2{font-size:14px;margin:0 0 10px}
-  table{border-collapse:collapse;width:100%;min-width:760px;font-size:13px}
-  th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
-  th{color:var(--muted);font-size:12px;font-weight:600}
-  input,textarea{font:inherit;font-size:13px;width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 7px}
-  textarea{min-height:48px;resize:vertical}
-  input[type=number]{width:80px}
-  .mini{width:auto;white-space:nowrap}
+  .editor{display:grid;grid-template-columns:280px 1fr;gap:14px;min-height:520px}
+  @media(max-width:820px){.editor{grid-template-columns:1fr}}
+  .doclist{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;overflow:auto;max-height:640px}
+  .doclist h2{font-size:13px;margin:2px 4px 10px;color:var(--muted)}
+  .doclist button.d{display:block;width:100%;text-align:left;cursor:pointer;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--fg);padding:7px 9px;font:13px/1.4 inherit;margin-bottom:3px}
+  .doclist button.d:hover{background:var(--chip)}
+  .doclist button.d.on{background:var(--accent);color:#fff}
+  .doclist button.d small{display:block;opacity:.65;font-size:11px}
+  .editpane{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;min-width:0}
+  .editpane .eh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .editpane .eh input.docid{font-weight:700;width:180px}
+  .editpane label{font-size:12px;color:var(--muted)}
+  .editpane textarea.json{flex:1;min-height:380px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;tab-size:2}
   .hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+  .stat{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:6px 0}
+  .stat b{color:var(--fg)}
+  .warnbox{background:rgba(160,58,46,.08);border:1px solid rgba(160,58,46,.3);color:var(--warn);border-radius:9px;padding:9px 12px;font-size:12.5px;margin:10px 0}
 </style>
 </head>
 <body data-base="../">
@@ -53,7 +60,7 @@
     <a href="index.html">访问统计</a>
     <a href="duiju.html">赛果录入</a>
     <a href="ops.html">运维</a>
-    <a href="zayu.html" class="on">杂豫数据</a>
+    <a href="zayu.html" class="on">杂豫内容</a>
     <a href="../zayu.html" target="_blank" rel="noopener">看站点 ↗</a>
   </div>
   <div class="site-user-slot" data-zbx-user="global" aria-label="账号"></div>
@@ -62,69 +69,57 @@
 <div class="wrap">
 
   <div id="gate">
-    <h1>杂豫数据管理</h1>
+    <h1>杂豫内容管理</h1>
     <p id="gate-msg">请用管理员账号登录后继续。</p>
     <button type="button" class="btn primary" data-act="login">管理员登录</button>
   </div>
 
   <div id="panel" hidden>
-    <h1>杂豫数据管理</h1>
-    <p class="sub">比赛、人物与等级分直接写入云端数据库。前台页面优先读取这里的数据。</p>
+    <h1>杂豫内容管理</h1>
+    <p class="sub">比赛信息、台次成绩表、棋谱、赛事介绍、人物介绍、等级分——全部直接写入云端，改完刷新站点即生效。</p>
 
     <div id="msg" role="status" aria-live="polite"></div>
 
     <div class="toolbar">
-      <button type="button" class="btn" data-act="seed">一键载入本站初始数据</button>
+      <button type="button" class="btn" data-act="seed">一键载入本站全部初始数据</button>
       <button type="button" class="btn" data-act="refresh">重新读取</button>
       <button type="button" class="btn primary" data-act="recalc">更新等级分</button>
     </div>
-    <p class="hint">「一键载入」会用仓库里的初始数据覆盖云端比赛、人物、等级分，只在首次初始化或需要恢复时使用。</p>
+    <div class="warnbox">首次使用请点「一键载入本站全部初始数据」，把现有比赛、棋谱、人物、等级分写入云端。之后所有编辑都保存在云端，访客刷新即可看到。</div>
 
-    <div class="tabs">
-      <button type="button" class="on" data-tab="comp">比赛</button>
-      <button type="button" data-tab="people">人物</button>
-      <button type="button" data-tab="rating">等级分 / 对局</button>
+    <div class="stat" id="stat"></div>
+
+    <div class="tabs" id="tabs">
+      <button type="button" class="on" data-kind="competition">比赛与台次</button>
+      <button type="button" data-kind="qipu">棋谱</button>
+      <button type="button" data-kind="person">人物介绍</button>
+      <button type="button" data-kind="person_page">人物页</button>
+      <button type="button" data-kind="rating">等级分</button>
     </div>
 
-    <section class="pane on" id="pane-comp">
-      <h2>比赛信息</h2>
-      <table>
-        <thead><tr><th style="width:70px">ID</th><th>标题</th><th style="width:110px">日期</th><th style="width:70px">局数</th><th>链接</th><th>备注</th><th style="width:60px">排序</th><th></th></tr></thead>
-        <tbody id="comp-rows"></tbody>
-      </table>
-      <div class="toolbar"><button type="button" class="btn" data-act="comp-add">＋ 加一行</button><button type="button" class="btn primary" data-act="comp-save">保存比赛</button></div>
-    </section>
-
-    <section class="pane" id="pane-people">
-      <h2>人物信息</h2>
-      <table>
-        <thead><tr><th style="width:110px">ID</th><th style="width:90px">姓名</th><th style="width:120px">地区</th><th style="width:100px">段位</th><th style="width:130px">单位</th><th>小传</th><th style="width:200px">荣誉（JSON 数组）</th><th style="width:180px">资料项（JSON 数组）</th><th></th></tr></thead>
-        <tbody id="people-rows"></tbody>
-      </table>
-      <div class="toolbar"><button type="button" class="btn" data-act="people-add">＋ 加一行</button><button type="button" class="btn primary" data-act="people-save">保存人物</button></div>
-      <p class="hint">荣誉格式：[{"y":"2026","t":"冠军"}]; 资料项格式：[{"k":"单位","v":"河南师范大学"}]。</p>
-    </section>
-
-    <section class="pane" id="pane-rating">
-      <h2>等级分榜（云端当前值）</h2>
-      <table>
-        <thead><tr><th style="width:60px">名次</th><th>姓名</th><th>地区</th><th>学校</th><th style="width:100px">等级分</th></tr></thead>
-        <tbody id="rating-rows"></tbody>
-      </table>
-
-      <h2 style="margin-top:20px">录入新对局，再点上方「更新等级分」</h2>
-      <div class="toolbar">
-        <input type="text" id="m-p1" placeholder="选手一" style="max-width:140px">
-        <input type="text" id="m-p2" placeholder="选手二" style="max-width:140px">
-        <select id="m-result"><option value="1">选手一胜</option><option value="0">选手二胜</option><option value="0.5">和棋</option></select>
-        <input type="date" id="m-date">
-        <button type="button" class="btn" data-act="match-add">录入对局</button>
+    <div class="editor">
+      <div class="doclist">
+        <h2 id="doclist-title">文档列表</h2>
+        <div id="doclist"></div>
+        <div class="toolbar" style="margin-top:10px">
+          <button type="button" class="btn sm" data-act="doc-add">＋ 新建</button>
+        </div>
       </div>
-      <table>
-        <thead><tr><th style="width:60px">#</th><th>选手一</th><th>选手二</th><th style="width:90px">结果</th><th style="width:120px">日期</th></tr></thead>
-        <tbody id="match-rows"></tbody>
-      </table>
-    </section>
+      <div class="editpane">
+        <div class="eh">
+          <label for="doc-id">ID</label>
+          <input type="text" class="docid" id="doc-id" placeholder="文档 ID">
+          <label for="doc-ord">排序</label>
+          <input type="number" id="doc-ord" value="0" style="width:80px">
+          <button type="button" class="btn primary sm" data-act="doc-save">保存此文档</button>
+          <button type="button" class="btn warn sm" data-act="doc-del">删除</button>
+        </div>
+        <label for="doc-json">内容（JSON，可改任意字段）</label>
+        <textarea class="json" id="doc-json" spellcheck="false"></textarea>
+        <p class="hint" id="doc-hint">改完点「保存此文档」。保存只影响当前这一条，其他文档不变。</p>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -135,219 +130,216 @@
     'use strict';
 
     var $ = function (id) { return document.getElementById(id); };
-    var S = { comp: [], people: [], ratings: [], matches: [], loaded: false };
+    var LABEL = {
+        competition: '比赛与台次', qipu: '棋谱', person: '人物介绍',
+        person_page: '人物页', rating: '等级分'
+    };
+    var S = { kind: 'competition', docs: {}, cur: null, loaded: false };
 
     function esc(s) {
         return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
-
     function msg(text, kind) {
-        var el = $('msg');
-        el.textContent = text || '';
-        el.className = kind || '';
+        var el = $('msg'); el.textContent = text || ''; el.className = kind || '';
     }
-
     function errText(e) {
         var s = String((e && e.message) || e || '操作失败');
         return ({ 'no permission': '需要管理员权限。' })[s] || s;
     }
-
-    function rpc(name, params, array) {
-        return window.ZBX_ACCOUNT.rpc(name, params, array);
-    }
-
+    function rpc(name, params, array) { return window.ZBX_ACCOUNT.rpc(name, params, array); }
     function token() { return window.ZBX_ACCOUNT.token(); }
-
     function guard(fn) {
-        return function () {
-            Promise.resolve(fn()).catch(function (e) { msg(errText(e), 'err'); });
-        };
+        return function () { Promise.resolve(fn()).catch(function (e) { msg(errText(e), 'err'); }); };
     }
 
     function syncGate() {
         var acc = window.ZBX_ACCOUNT;
         if (!acc || !acc.ready()) { setTimeout(syncGate, 80); return; }
         if (!acc.isAdmin()) {
-            $('panel').hidden = true;
-            $('gate').hidden = false;
+            $('panel').hidden = true; $('gate').hidden = false;
             $('gate-msg').textContent = acc.user()
                 ? '当前账号「' + acc.nick() + '」不是管理员。'
                 : '请用管理员账号登录后继续。';
             return;
         }
-        $('gate').hidden = true;
-        $('panel').hidden = false;
+        $('gate').hidden = true; $('panel').hidden = false;
         if (!S.loaded) { S.loaded = true; loadAll(); }
     }
 
     function loadAll() {
-        msg('正在读取云端数据…');
-        return Promise.all([
-            rpc('zbx_public_competitions', {}, true),
-            rpc('zbx_public_people', {}, true),
-            rpc('zbx_public_ratings', {}, true),
-            rpc('zbx_admin_matches', { p_token: token() })
-        ]).then(function (r) {
-            S.comp = Array.isArray(r[0]) ? r[0] : [];
-            S.people = Array.isArray(r[1]) ? r[1] : [];
-            S.ratings = Array.isArray(r[2]) ? r[2] : [];
-            S.matches = (r[3] && r[3].ok && Array.isArray(r[3].rows)) ? r[3].rows : [];
-            renderAll();
-            msg('已读取云端数据。', 'ok');
-        });
-    }
-
-    function renderAll() {
-        $('comp-rows').innerHTML = S.comp.map(function (r, i) {
-            return '<tr data-i="' + i + '">' +
-                td(input(r.id, 'id')) + td(input(r.title, 'title')) +
-                td(input(r.date, 'date')) + td(input(r.games, 'games', 'number')) +
-                td(input(r.url, 'url')) + td(textarea(r.note, 'note')) +
-                td(input(r.ord, 'ord', 'number')) +
-                '<td><button type="button" class="btn mini warn" data-del="comp" data-i="' + i + '">删</button></td></tr>';
-        }).join('');
-        $('people-rows').innerHTML = S.people.map(function (r, i) {
-            return '<tr data-i="' + i + '">' +
-                td(input(r.id, 'id')) + td(input(r.name, 'name')) + td(input(r.region, 'region')) +
-                td(input(r.dan, 'dan')) + td(input(r.unit, 'unit')) + td(textarea(r.bio, 'bio')) +
-                td(textarea(JSON.stringify(r.honors || [], null, 1), 'honors')) +
-                td(textarea(JSON.stringify(r.stats || [], null, 1), 'stats')) +
-                '<td><button type="button" class="btn mini warn" data-del="people" data-i="' + i + '">删</button></td></tr>';
-        }).join('');
-        $('rating-rows').innerHTML = S.ratings.slice(0, 80).map(function (r) {
-            return '<tr><td>' + esc(r.rank == null ? '—' : r.rank) + '</td><td>' + esc(r.name) + '</td>' +
-                '<td>' + esc(r.region || '—') + '</td><td>' + esc(r.uni || '—') + '</td>' +
-                '<td>' + esc(Number(r.rating || 0).toFixed(2)) + '</td></tr>';
-        }).join('') || '<tr><td colspan="5">云端还没有等级分，点「一键载入本站初始数据」。</td></tr>';
-        $('match-rows').innerHTML = S.matches.map(function (r) {
-            var res = ({ '1': '选手一胜', '0': '选手二胜', '0.5': '和棋' })[r.result] || r.result;
-            return '<tr><td>' + esc(r.id) + '</td><td>' + esc(r.p1) + '</td><td>' + esc(r.p2) + '</td>' +
-                '<td>' + esc(res) + '</td><td>' + esc(r.played_at || '—') + '</td></tr>';
-        }).join('') || '<tr><td colspan="5">暂无待更新对局。</td></tr>';
-    }
-
-    function td(inner) { return '<td>' + inner + '</td>'; }
-    function input(v, f, type) {
-        return '<input type="' + (type || 'text') + '" data-f="' + f + '" value="' + esc(v == null ? '' : v) + '">';
-    }
-    function textarea(v, f) {
-        return '<textarea data-f="' + f + '">' + esc(v == null ? '' : v) + '</textarea>';
-    }
-
-    function collect(tbodyId, names) {
-        return Array.prototype.map.call($(tbodyId).querySelectorAll('tr[data-i]'), function (tr) {
-            var o = {};
-            names.forEach(function (f) {
-                var el = tr.querySelector('[data-f="' + f + '"]');
-                o[f] = el ? el.value.trim() : '';
+        msg('正在读取云端内容…');
+        return rpc('zbx_admin_all_docs', { p_token: token() }).then(function (res) {
+            if (!res || !res.ok) { throw new Error((res && res.err) || '读取失败'); }
+            var rows = Array.isArray(res.rows) ? res.rows : [];
+            S.docs = {};
+            ['competition', 'qipu', 'person', 'person_page', 'rating'].forEach(function (k) { S.docs[k] = []; });
+            rows.forEach(function (r) {
+                (S.docs[r.kind] = S.docs[r.kind] || []).push({
+                    doc_id: r.doc_id, data: r.data || {}, ord: Number(r.ord || 0)
+                });
             });
-            return o;
+            Object.keys(S.docs).forEach(function (k) {
+                S.docs[k].sort(function (a, b) { return a.ord - b.ord || String(a.doc_id).localeCompare(String(b.doc_id)); });
+            });
+            renderStat();
+            renderList();
+            msg('已读取云端内容。', 'ok');
         });
     }
 
-    function check(res, label) {
-        if (!res || !res.ok) { throw new Error((res && res.err) || (label + '失败')); }
-        msg(label + '成功：' + (res.n || res.applied || 0) + ' 条。', 'ok');
+    function renderStat() {
+        $('stat').innerHTML = Object.keys(LABEL).map(function (k) {
+            return '<span>' + LABEL[k] + ' <b>' + (S.docs[k] || []).length + '</b> 条</span>';
+        }).join('');
+    }
+
+    function docLabel(kind, d) {
+        var x = d.data || {};
+        if (kind === 'competition') { return (x.title || d.doc_id) + '（' + d.doc_id + '）'; }
+        if (kind === 'qipu') { return '第' + (x.round || '?') + '轮 ' + (x.p1 || '?') + ' vs ' + (x.p2 || '?') + '（#' + d.doc_id + '）'; }
+        if (kind === 'person') { return (x.name || d.doc_id); }
+        if (kind === 'person_page') { return (x.name || d.doc_id); }
+        if (kind === 'rating') { return (x.name || d.doc_id) + ' · ' + (x.rating || ''); }
+        return d.doc_id;
+    }
+
+    function summary(kind, d) {
+        var x = d.data || {};
+        if (kind === 'competition') { return (x.date || '') + (Array.isArray(x.rows) ? ' · ' + x.rows.length + ' 人 / ' + (x.rounds ? x.rounds.length - 3 : '?') + ' 轮' : ''); }
+        if (kind === 'qipu') { return (x.event || '') + ' · ' + (Array.isArray(x.moves) ? x.moves.length + ' 手' : ''); }
+        if (kind === 'person') { return (x.dan || '') + ' ' + (x.tag || x.region || ''); }
+        return '';
+    }
+
+    function renderList() {
+        var list = S.docs[S.kind] || [];
+        $('doclist-title').textContent = LABEL[S.kind] + ' · ' + list.length + ' 条';
+        $('doclist').innerHTML = list.map(function (d, i) {
+            return '<button type="button" class="d' + (S.cur === d.doc_id ? ' on' : '') + '" data-doc="' + esc(d.doc_id) + '" data-i="' + i + '">' +
+                esc(docLabel(S.kind, d)) + '<small>' + esc(summary(S.kind, d)) + '</small></button>';
+        }).join('') || '<p class="hint">这一类还没有数据。可点「新建」，或先一键载入初始数据。</p>';
+    }
+
+    function selectDoc(id) {
+        var list = S.docs[S.kind] || [];
+        var found = null;
+        for (var i = 0; i < list.length; i++) { if (list[i].doc_id === id) { found = list[i]; break; } }
+        S.cur = id;
+        $('doc-id').value = found ? found.doc_id : (id || '');
+        $('doc-ord').value = found ? found.ord : 0;
+        $('doc-json').value = found ? JSON.stringify(found.data, null, 2) : '';
+        renderList();
+    }
+
+    function currentDoc() {
+        var list = S.docs[S.kind] || [];
+        for (var i = 0; i < list.length; i++) { if (list[i].doc_id === S.cur) { return list[i]; } }
+        return null;
+    }
+
+    function tab(kind) {
+        S.kind = kind; S.cur = null;
+        Array.prototype.forEach.call($('tabs').querySelectorAll('button'), function (b) {
+            b.classList.toggle('on', b.getAttribute('data-kind') === kind);
+        });
+        $('doc-id').value = ''; $('doc-ord').value = 0; $('doc-json').value = '';
+        renderList();
+    }
+
+    function saveCurrent() {
+        var id = $('doc-id').value.trim();
+        if (!id) { throw new Error('请填写文档 ID'); }
+        var data;
+        try { data = JSON.parse($('doc-json').value || '{}'); }
+        catch (e) { throw new Error('JSON 格式不对：' + e.message); }
+        var ord = Number($('doc-ord').value) || 0;
+        var rows = [{ doc_id: id, data: data, ord: ord }];
+        return rpc('zbx_admin_save_docs', { p_token: token(), p_kind: S.kind, p_rows: rows })
+            .then(function (res) {
+                if (!res || !res.ok) { throw new Error((res && res.err) || '保存失败'); }
+                msg('已保存「' + id + '」。', 'ok');
+                S.cur = id;
+                return loadAll().then(function () { selectDoc(id); });
+            });
     }
 
     document.addEventListener('click', function (e) {
-        var tab = e.target.closest('[data-tab]');
-        if (tab) {
-            Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function (b) { b.classList.remove('on'); });
-            Array.prototype.forEach.call(document.querySelectorAll('.pane'), function (p) { p.classList.remove('on'); });
-            tab.classList.add('on');
-            $('pane-' + tab.getAttribute('data-tab')).classList.add('on');
-            return;
-        }
-        var del = e.target.closest('[data-del]');
-        if (del) {
-            var which = del.getAttribute('data-del');
-            var row = del.closest('tr');
-            if (row) { row.parentNode.removeChild(row); }
-            return;
-        }
+        var tabBtn = e.target.closest('#tabs [data-kind]');
+        if (tabBtn) { tab(tabBtn.getAttribute('data-kind')); return; }
+
+        var docBtn = e.target.closest('[data-doc]');
+        if (docBtn) { selectDoc(docBtn.getAttribute('data-doc')); return; }
+
         var act = e.target.closest('[data-act]');
         if (!act) { return; }
         var a = act.getAttribute('data-act');
+
         if (a === 'login') { window.ZBX_ACCOUNT.openPanel('login'); }
         else if (a === 'refresh') { guard(loadAll)(); }
-        else if (a === 'comp-add') {
-            $('comp-rows').insertAdjacentHTML('beforeend',
-                '<tr data-i="new">' + td(input('', 'id')) + td(input('', 'title')) + td(input('', 'date')) +
-                td(input('', 'games', 'number')) + td(input('', 'url')) + td(textarea('', 'note')) +
-                td(input('0', 'ord', 'number')) +
-                '<td><button type="button" class="btn mini warn" data-del="comp">删</button></td></tr>');
+        else if (a === 'doc-add') {
+            S.cur = null; $('doc-id').value = ''; $('doc-ord').value = 0;
+            $('doc-json').value = '{}';
+            $('doc-id').focus();
+            msg('填好 ID 和内容后点「保存此文档」。');
         }
-        else if (a === 'people-add') {
-            $('people-rows').insertAdjacentHTML('beforeend',
-                '<tr data-i="new">' + td(input('', 'id')) + td(input('', 'name')) + td(input('', 'region')) +
-                td(input('', 'dan')) + td(input('', 'unit')) + td(textarea('', 'bio')) +
-                td(textarea('[]', 'honors')) + td(textarea('[]', 'stats')) +
-                '<td><button type="button" class="btn mini warn" data-del="people">删</button></td></tr>');
-        }
-        else if (a === 'comp-save') {
+        else if (a === 'doc-save') { guard(saveCurrent)(); }
+        else if (a === 'doc-del') {
             guard(function () {
-                var rows = collect('comp-rows', ['id', 'title', 'date', 'games', 'url', 'note', 'ord'])
-                    .map(function (r) {
-                        return { id: r.id, title: r.title, date: r.date, games: Number(r.games) || 0,
-                            url: r.url, note: r.note, ord: Number(r.ord) || 0 };
+                var id = $('doc-id').value.trim();
+                if (!id) { throw new Error('请先选中要删除的文档'); }
+                if (!window.confirm('删除「' + id + '」？此操作不可撤销。')) { return; }
+                return rpc('zbx_admin_delete_doc', { p_token: token(), p_kind: S.kind, p_doc_id: id })
+                    .then(function (res) {
+                        if (!res || !res.ok) { throw new Error((res && res.err) || '删除失败'); }
+                        msg('已删除「' + id + '」。', 'ok');
+                        S.cur = null; $('doc-id').value = ''; $('doc-json').value = '';
+                        return loadAll();
                     });
-                if (rows.some(function (r) { return !r.id || !r.title; })) { throw new Error('ID 和标题不能为空'); }
-                return rpc('zbx_admin_save_competitions', { p_token: token(), p_rows: rows })
-                    .then(function (res) { check(res, '比赛已保存'); return loadAll(); });
-            })();
-        }
-        else if (a === 'people-save') {
-            guard(function () {
-                var rows = collect('people-rows', ['id', 'name', 'region', 'dan', 'unit', 'bio', 'honors', 'stats'])
-                    .map(function (r) {
-                        var honors = [], stats = [];
-                        try { honors = JSON.parse(r.honors || '[]'); } catch (err) { throw new Error('荣誉 JSON 格式不对：' + r.id); }
-                        try { stats = JSON.parse(r.stats || '[]'); } catch (err) { throw new Error('资料项 JSON 格式不对：' + r.id); }
-                        return { id: r.id, name: r.name, region: r.region, dan: r.dan, unit: r.unit,
-                            bio: r.bio, honors: honors, stats: stats, ord: 0 };
-                    });
-                if (rows.some(function (r) { return !r.id || !r.name; })) { throw new Error('ID 和姓名不能为空'); }
-                return rpc('zbx_admin_save_people', { p_token: token(), p_rows: rows })
-                    .then(function (res) { check(res, '人物已保存'); return loadAll(); });
-            })();
-        }
-        else if (a === 'match-add') {
-            guard(function () {
-                var p1 = $('m-p1').value.trim(), p2 = $('m-p2').value.trim();
-                if (!p1 || !p2) { throw new Error('请填写两位选手'); }
-                return rpc('zbx_admin_add_matches', {
-                    p_token: token(),
-                    p_rows: [{ p1: p1, p2: p2, result: $('m-result').value, played_at: $('m-date').value || null }]
-                }).then(function (res) { check(res, '对局已录入'); $('m-p1').value = ''; $('m-p2').value = ''; return loadAll(); });
             })();
         }
         else if (a === 'recalc') {
             guard(function () {
                 if (!window.confirm('按尚未更新的对局重算等级分？')) { return; }
                 return rpc('zbx_admin_recalc_ratings', { p_token: token() })
-                    .then(function (res) { check(res, '等级分已更新'); return loadAll(); });
+                    .then(function (res) {
+                        if (!res || !res.ok) { throw new Error((res && res.err) || '更新失败'); }
+                        msg('等级分已更新：应用 ' + (res.applied || 0) + ' 局。', 'ok');
+                    });
             })();
         }
         else if (a === 'seed') {
             guard(function () {
-                if (!window.confirm('用本站初始数据覆盖云端的比赛、人物、等级分？已有修改会丢失。')) { return; }
-                return fetch('../data/zayu-seed.json', { cache: 'no-store' })
+                if (!window.confirm('用本站初始数据覆盖云端全部杂豫内容？已有修改会丢失。')) { return; }
+                msg('正在载入…');
+                return fetch('../data/zayu-full.json', { cache: 'no-store' })
                     .then(function (r) { if (!r.ok) { throw new Error('读取初始数据失败'); } return r.json(); })
                     .then(function (seed) {
-                        return Promise.all([
-                            rpc('zbx_admin_save_competitions', { p_token: token(), p_rows: seed.competitions || [] }),
-                            rpc('zbx_admin_save_people', { p_token: token(), p_rows: seed.people || [] }),
-                            rpc('zbx_admin_save_ratings', { p_token: token(), p_rows: seed.ratings || [] })
-                        ]);
+                        var groups = {
+                            competition: seed.competitions || [],
+                            qipu: seed.qipu || [],
+                            person: seed.people || [],
+                            person_page: seed.person_pages || [],
+                            rating: seed.ratings || []
+                        };
+                        var jobs = Object.keys(groups).map(function (kind) {
+                            var rows = groups[kind].map(function (x, i) {
+                                var id = x.id != null ? String(x.id)
+                                    : (kind === 'rating' ? String(x.name)
+                                       : kind === 'person_page' ? String(x.name)
+                                       : String(i));
+                                return { doc_id: id, data: x, ord: i };
+                            });
+                            return rpc('zbx_admin_save_docs', { p_token: token(), p_kind: kind, p_rows: rows })
+                                .then(function (res) {
+                                    if (Array.isArray(res)) { res = res[0]; }
+                                    if (res && res.data) { res = res.data; }
+                                    if (!res || !res.ok) { throw new Error(kind + ' 写入失败'); }
+                                });
+                        });
+                        return Promise.all(jobs);
                     })
-                    .then(function (res) {
-                        if (res.some(function (r) { return !r || !r.ok; })) { throw new Error('初始数据写入失败'); }
-                        msg('初始数据已载入云端。', 'ok');
-                        return loadAll();
-                    });
+                    .then(function () { msg('初始数据已全部载入云端。', 'ok'); return loadAll(); });
             })();
         }
     });
