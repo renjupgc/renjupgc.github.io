@@ -510,7 +510,7 @@
       '<button type="button" data-act="rt" data-cmd="createLink" title="插入链接">链接</button>' +
       '<button type="button" data-act="rt" data-cmd="removeFormat" title="清除格式">清除格式</button>' +
       '</div><div class="rt-content" id="rt-content" contenteditable="true" data-ph="在这里写这位棋手的介绍……">' +
-      (w.bioHtml || w.bio || '') + '</div></div>' +
+      (w.bioHtml || esc(w.bio) || '') + '</div></div>' +
       '<p class="hint" style="color:var(--muted);font-size:12px">选中文字再点工具栏按钮即可加粗、设标题、加链接。支持直接粘贴网页文字。</p>';
     var note = '<div class="tipbox">左侧共 595 位棋手，可用搜索框按姓名快速定位。保存后，访客打开这位棋手的个人主页就能看到新内容。' +
       '文档 ID 与页面文件绑定，请勿修改 ID。</div>';
