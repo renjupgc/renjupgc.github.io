@@ -820,7 +820,7 @@ function hit(k) {
     if (pr) { gain = pr.commit(moduleKey(s), { ok: true, ms: ms, diff: s.diff, par: s.par }); pr.changed(); }
     if (s.chal) { s.chal.results.push({ ok: true, ms: ms, delta: gain ? gain.delta : 0 }); chalProgress(); }
     const gainText = gain ? '，分数 ' + (gain.delta >= 0 ? '+' : '') + gain.delta + '（现 ' + gain.after + '）' : '';
-    const saveTip = (pr && pr.ready()) ? '记得导出存档。' : '先在右侧填用户名，分数才记得住。';
+    const saveTip = (pr && pr.ready()) ? '分数已同步到云端。' : '先在右上角登录，分数才记得住。';
     stat();
     paintTime();
     draw();
@@ -910,7 +910,7 @@ function miss(k) {
     if (s.chal) { s.chal.results.push({ ok: false, ms: ms, delta: lose ? lose.delta : 0 }); chalProgress(); }
     const loseText = lose
         ? '分数 ' + lose.delta + '（现 ' + lose.after + '）。'
-        : (pr && pr.ready() ? '' : '先在右上角填用户名，分数才记得住。');
+        : (pr && pr.ready() ? '' : '先在右上角登录，分数才记得住。');
 
     const all = s.answers.map(pname).join('、');
     const answerText = s.mode === 'shape'
@@ -982,7 +982,7 @@ function reveal() {
     if (pr) { lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par }); pr.changed(); stat(); }
     if (s.chal) { s.chal.results.push({ ok: false, ms: ms, delta: lose ? lose.delta : 0 }); chalProgress(); }
     const loseText = lose ? ' 分数 ' + lose.delta + '（现 ' + lose.after + '）。' :
-        (pr && pr.ready() ? '' : ' 先填用户名才能记分。');
+        (pr && pr.ready() ? '' : ' 先登录账号才能记分。');
     s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
 
     const rest = s.answers.filter(k => !s.found.has(k));
