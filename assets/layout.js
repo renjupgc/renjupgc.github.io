@@ -905,7 +905,7 @@
     'use strict';
     var base = (document.body && document.body.getAttribute('data-base')) || '';
 
-    /* 云服务统一入口：先加载，visit-log 与各功能页共用同一个客户端实例 */
+    /* 云服务统一入口：先加载，visit-log、账号与各功能页共用同一个客户端实例 */
     if (!window.__zbxCloudLoaded) {
         window.__zbxCloudLoaded = true;
         var c = document.createElement('script');
@@ -914,10 +914,28 @@
         document.head.appendChild(c);
     }
 
+    /* 全站右上角账号：登录 / 注册 / 会话，进度随账号同步到云端 */
+    if (!window.__zbxAccountLoaded) {
+        window.__zbxAccountLoaded = true;
+        var a = document.createElement('script');
+        a.src = base + 'assets/account.js';
+        a.async = true;
+        document.head.appendChild(a);
+    }
+
     if (window.__zbxVisitLoaded) { return; }
     window.__zbxVisitLoaded = true;
     var s = document.createElement('script');
     s.src = base + 'assets/visit-log.js';
     s.async = true;
     document.head.appendChild(s);
+
+    /* 杂豫数据：云端优先，静态页面兜底 */
+    if (!window.__zbxZayuCloudLoaded) {
+        window.__zbxZayuCloudLoaded = true;
+        var z = document.createElement('script');
+        z.src = base + 'assets/zayu-cloud.js';
+        z.async = true;
+        document.head.appendChild(z);
+    }
 })();
