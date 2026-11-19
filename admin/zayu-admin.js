@@ -143,7 +143,17 @@
       return _baseline;
     });
   }
+  /* 只有真正缺数据时才去拉基准文件（约 700KB），平时打开后台零额外请求 */
+  function needBaseline() {
+    if (KINDS.some(function (k) { return (S.docs[k] || []).length < (MIN_COUNT[k] || 0); })) {
+      return true;
+    }
+    return (S.docs.person_page || []).some(function (d) {
+      return !(d.data && Array.isArray(d.data.stats) && d.data.stats.length);
+    });
+  }
   function autoFill() {
+    if (!needBaseline()) { return Promise.resolve(false); }
     return loadBaseline().then(function (base) {
       var jobs = [], filled = false;
       KINDS.forEach(function (kind) {
