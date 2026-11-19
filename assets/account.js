@@ -84,6 +84,11 @@
             if (Object.prototype.hasOwnProperty.call(v, 'error') && v.error) {
                 throw new Error(typeof v.error === 'string' ? v.error : (v.error.message || '云端请求失败'));
             }
+            /* 网关会把函数返回再包一层信封 {ok:true,data:...}。zbx_progress_load 的
+               真实档案就在这层 data 里，必须一并剥掉，否则调用方拿到的是 {ok,data}
+               而不是进度对象，会被误判成「云端没有档案」并触发一次空白回写。 */
+            if (Object.prototype.hasOwnProperty.call(v, 'data') &&
+                (v.ok === true || v.success === true)) { v = v.data; }
             if (Object.prototype.hasOwnProperty.call(v, 'data')) { v = v.data; }
         }
 
