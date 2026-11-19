@@ -18,8 +18,9 @@
  * 为了不改动别处的代码，这里保留旧的 rpc() 入口：
  *   zbx_signup / zbx_signin / zbx_session / zbx_signout
  *   zbx_progress_load / zbx_progress_save
- * 都转到 Supabase 实现；其余不认识的 RPC 名（管理后台、公开文档等
- * 尚未迁移的模块）继续走 assets/cloud.js 的旧云服务，保证不炸。
+ *   zbx_public_docs / zbx_admin_all_docs / zbx_admin_save_docs / zbx_admin_delete_doc
+ * 全部转到 Supabase 实现；不认识的 RPC 名直接报错，不再回退旧云服务
+ * （旧网关已下线，悄悄回退只会让人以为保存成功）。
  *
  * 对外暴露：
  *   window.ZBX_ACCOUNT        账号对象
