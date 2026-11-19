@@ -1261,6 +1261,8 @@
 .zg-in--word {
     flex: 1 1 auto;
     width: auto;
+    /* flex 子项默认 min-width:auto，输入框的固有宽度会把整行撑出视口 */
+    min-width: 0;
     min-height: 0;
     height: 54px;
     padding: 0 16px;

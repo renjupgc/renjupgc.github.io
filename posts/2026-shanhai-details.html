@@ -4,6 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>山海杯 · 名次表</title>
+<meta name="description" content="“山海杯”2026年全国五子棋业余棋王争霸赛公开组名次表：积分、对手分、中间对手分、胜局数与夺冠概率，可按轮次查看并导出图片。">
+<!-- zbx:seo -->
+<link rel="canonical" href="https://renjupgc.github.io/posts/2026-shanhai-details.html">
+<meta property="og:site_name" content="连珠杂箱">
+<meta property="og:type" content="website">
+<meta property="og:title" content="山海杯 · 名次表">
+<meta property="og:description" content="“山海杯”2026年全国五子棋业余棋王争霸赛公开组名次表：积分、对手分、中间对手分、胜局数与夺冠概率。">
+<meta property="og:url" content="https://renjupgc.github.io/posts/2026-shanhai-details.html">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<!-- /zbx:seo -->
 <style>
 @font-face{
   font-family:"ShuHei";
@@ -232,6 +243,13 @@ tbody tr.shade td{background:var(--mint2)}
     return getJSON(SAPI + 'r' + ROUND + '.json').then(render).catch(function () {
       tbody.innerHTML = '<tr><td colspan="7" class="empty">第 ' + ROUND + ' 轮名次表未生成或读取失败</td></tr>';
     });
+  }
+
+  /* 外部平台脚本（platform.js）已下线时的兜底：表格给出说明，不抛错、不白屏 */
+  if (!window.RenjuPlatform) {
+    document.getElementById('rows').innerHTML =
+      '<tr><td colspan="7" class="empty">数据源暂不可用：此处原依赖外部平台实时取数，该平台已下线，成绩表暂未恢复。</td></tr>';
+    return;
   }
 
   window.RenjuPlatform.init({

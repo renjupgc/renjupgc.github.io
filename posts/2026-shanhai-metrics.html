@@ -4,6 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>山海杯 · 模型评估</title>
+<meta name="description" content="“山海杯”2026年全国五子棋业余棋王争霸赛的模型评估：逐轮的预测命中率、平均 Brier 值、对数损失与平均置信度，用实际对局检验等级分模型的预测力。">
+<!-- zbx:seo -->
+<link rel="canonical" href="https://renjupgc.github.io/posts/2026-shanhai-metrics.html">
+<meta property="og:site_name" content="连珠杂箱">
+<meta property="og:type" content="website">
+<meta property="og:title" content="山海杯 · 模型评估">
+<meta property="og:description" content="“山海杯”2026年全国五子棋业余棋王争霸赛的模型评估：逐轮命中率、平均 Brier 值、对数损失与平均置信度。">
+<meta property="og:url" content="https://renjupgc.github.io/posts/2026-shanhai-metrics.html">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<!-- /zbx:seo -->
 <style>
 @font-face{
   font-family:"ShuHei";
@@ -152,6 +163,13 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   var tbody = document.getElementById('rows');
+
+  /* 外部平台脚本（platform.js）已下线时的兜底：表格给出说明，不抛错、不白屏 */
+  if (!window.RenjuPlatform) {
+    document.getElementById('rows').innerHTML =
+      '<tr><td colspan="7" class="empty">数据源暂不可用：此处原依赖外部平台实时取数，该平台已下线，成绩表暂未恢复。</td></tr>';
+    return;
+  }
 
   window.RenjuPlatform.init({
     apiRoot: 'https://renju4433.github.io/api/',

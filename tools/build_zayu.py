@@ -102,6 +102,30 @@ def esc(s):
     return html.escape(str(s or ''), quote=True)
 
 
+# 一场比赛按组别拆成多条赛事记录时，各条 name 相同、只有 group_name 不同。
+# 标题、页面 title、列表条目都要补上组别，否则十来个页面叫同一个名字。
+DUP_NAMES = set()
+
+
+def mark_dup_names(ts):
+    """记下名字重复的赛事名，供 event_title() 判组别。"""
+    seen = {}
+    for t in ts:
+        n = t['name'] or ''
+        seen[n] = seen.get(n, 0) + 1
+    DUP_NAMES.clear()
+    DUP_NAMES.update(n for n, c in seen.items() if c > 1 and n)
+
+
+def event_title(t):
+    """详情页标题：同名赛事补上组别，其余照原名。"""
+    name = t['name'] or ''
+    g = t['group_name'] or ''
+    if g and name in DUP_NAMES:
+        return '%s · %s' % (name, g)
+    return name
+
+
 def player_href(name):
     """棋手个人主页的内链（页面由 tools/build_players.py 生成）。"""
     return 'p/%s.html' % quote(name)
@@ -147,6 +171,20 @@ HEAD = '''<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{title}</title>
 <meta name="description" content="{desc}">
+<!-- zbx:seo -->
+<link rel="canonical" href="{canon}">
+<meta property="og:site_name" content="连珠杂箱">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:url" content="{canon}">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{desc}">
+<meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<!-- /zbx:seo -->
 <link rel="stylesheet" href="{base}assets/style.css">
 </head>
 
@@ -169,6 +207,15 @@ HEAD = '''<!DOCTYPE html>
 '''
 
 FOOT = '        <p class="back-link"><a href="{back}">← 返回杂豫</a> · <a href="{home}">返回首页</a></p>'
+
+
+SITE = 'https://renjupgc.github.io'
+
+
+def render_head(**kw):
+    """HEAD.format 的包装：canonical 漏传时退回站首页，不至于整个生成流程报错。"""
+    kw.setdefault('canon', SITE + '/')
+    return HEAD.format(**kw)
 
 
 # ---------------------------------------------------------------- 数据读取
@@ -713,9 +760,10 @@ def rating_page(rows, as_of, n_tournaments, n_games):
                  '']
     body += [FOOT.format(back='../zayu.html', home='../index.html')]
 
-    page = HEAD.format(
+    page = render_head(
         title='河南高校爱好者等级分（%s 更新） - 杂豫 - 连珠杂箱' % as_of,
         desc='河南高校五子棋爱好者等级分，WHR 算法计算，%s 更新。' % as_of,
+        canon=SITE + '/zayu/rating.html',
         base='../',
         base_attr=' data-base="../"',
         body='\n'.join(body))
@@ -1047,7 +1095,7 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
         info.append('状态：未开赛')
 
     body = ['            <header class="article-header">',
-            '                <h1 class="article-title">%s</h1>' % esc(t['name']),
+            '                <h1 class="article-title">%s</h1>' % esc(event_title(t)),
             '                <div class="article-meta">',
             '                    <span>栏目：<a href="../zayu.html">杂豫</a></span>',
             '                    <span>%s</span>' % esc(t['date'] or ''),
@@ -1095,9 +1143,10 @@ def detail_page(t, ms, players=(), qmap=None, as_of=''):
     body.append('')
     body.append(FOOT.format(back='../zayu.html', home='../index.html'))
 
-    page = HEAD.format(
-        title=esc(t['name']) + ' - 杂豫 - 连珠杂箱',
-        desc=esc('河南五子棋赛事成绩：' + (t['name'] or '')),
+    page = render_head(
+        title=esc(event_title(t)) + ' - 杂豫 - 连珠杂箱',
+        desc=esc('河南五子棋赛事成绩：' + event_title(t)),
+        canon=SITE + '/zayu/t%d.html' % t['id'],
         base='../',
         base_attr=' data-base="../"',
         body='\n'.join(body))
@@ -1158,9 +1207,10 @@ def list_page(ts, by_tid, as_of=None):
     body.append('            </ul>')
     body.append('        </section>')
 
-    page = HEAD.format(
+    page = render_head(
         title='杂豫 - 连珠杂箱',
-        desc='河南五子棋赛事与对局记录。',
+        desc='河南五子棋赛事与对局记录：各场赛事的成绩表、逐轮对手与先后手，另有河南高校爱好者等级分榜。',
+        canon=SITE + '/zayu.html',
         base='',
         base_attr='',
         body='\n'.join(body))
@@ -1198,6 +1248,7 @@ def rebuild_pages():
     d.row_factory = sqlite3.Row
     ts = [dict(r) for r in d.execute('SELECT * FROM tournaments')]
     ts.sort(key=lambda t: ((t['date'] or ''), t['id']), reverse=True)
+    mark_dup_names(ts)
     ms = [dict(r) for r in d.execute(
         'SELECT * FROM matches ORDER BY tournament_id, round, board_number, id')]
     as_of = d.execute('SELECT MAX(as_of) FROM ratings').fetchone()[0] or ''
@@ -1237,6 +1288,7 @@ def rebuild_pages():
 
 def main(src):
     ts, ms, idmap, unis, regions = fetch(src)
+    mark_dup_names(ts)
     by_tid = {}
     for m in ms:
         by_tid.setdefault(m['tournament_id'], []).append(m)

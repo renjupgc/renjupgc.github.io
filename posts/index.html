@@ -6,12 +6,12 @@
 <title>山海杯 · 第 1 轮对阵概率预测表</title>
 <meta name="description" content="“山海杯”2026年全国五子棋业余棋王争霸赛公开组逐台对阵概率预测。">
 <!-- zbx:seo -->
-<link rel="canonical" href="https://renjupgc.github.io/posts/2026-shanhai.html">
+<link rel="canonical" href="https://renjupgc.github.io/posts/index.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="article">
 <meta property="og:title" content="山海杯 · 第 1 轮对阵概率预测表">
 <meta property="og:description" content="“山海杯”2026年全国五子棋业余棋王争霸赛公开组逐台对阵概率预测。">
-<meta property="og:url" content="https://renjupgc.github.io/posts/2026-shanhai.html">
+<meta property="og:url" content="https://renjupgc.github.io/posts/index.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -727,6 +727,13 @@ td.c-prob{width:248px;padding:11px 22px}
              '本地预览请起 http 服务（<code>python -m http.server</code>）再打开本页；<code>file://</code> 下浏览器不允许 fetch 本地 JSON。', []);
       }
     });
+  }
+
+  /* 外部平台脚本（platform.js）已下线时的兜底：表格给出说明，不抛错、不白屏 */
+  if (!window.RenjuPlatform) {
+    document.getElementById('rows').innerHTML =
+      '<tr><td colspan="7" class="empty">数据源暂不可用：此处原依赖外部平台实时取数，该平台已下线，成绩表暂未恢复。</td></tr>';
+    return;
   }
 
   window.RenjuPlatform.init({

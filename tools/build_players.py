@@ -128,6 +128,8 @@ def load_db():
     ratings = [dict(r) for r in d.execute(
         'SELECT * FROM ratings ORDER BY rank, name')]
     tournaments = {r['id']: dict(r) for r in d.execute('SELECT * FROM tournaments')}
+    # 同名赛事按组别拆表时，页面上的赛事名要带组别，否则一场十组同名分不清
+    bz.mark_dup_names(list(tournaments.values()))
     matches = [dict(r) for r in d.execute(
         'SELECT * FROM matches ORDER BY tournament_id, round, board_number, id')]
     d.close()
@@ -237,6 +239,12 @@ def match_result(m, name):
 
 def collect(ratings, tournaments, matches):
     """每人：参赛各场成绩 + 逐局记录。"""
+    # 非公开进行的赛事（data/rating_excluded.txt）站上不出赛事页，
+    # 人物页也不列它们的场次与对局——否则姓名会链到不存在的 t{id}.html。
+    hidden = bz.unrated_tids(list(tournaments.values()))
+    if hidden:
+        matches = [m for m in matches if m['tournament_id'] not in hidden]
+        tournaments = {k: v for k, v in tournaments.items() if k not in hidden}
     by_tid = collections.defaultdict(list)
     for m in matches:
         by_tid[m['tournament_id']].append(m)
@@ -677,7 +685,7 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                      '<td class="c-name"><a href="../../zayu/t%d.html">%s</a>%s</td>'
                      '<td class="c-rank">%s</td></tr>'
                      % (bz.esc(t.get('date') or ''), e['tid'],
-                        bz.esc(t.get('name') or ''), tag,
+                        bz.esc(bz.event_title(t)), tag,
                         rank_cell(t, e['row'], name, arts))))
     for x in extras:
         rows.append((x['date'], '                        <tr>%s</tr>'
@@ -737,7 +745,7 @@ def page(name, rec, events, games, reports, index, total_players, arts,
                             '<td class="c-opp">%s</td>'
                             '<td class="c-rank %s">%s</td></tr>'
                             % (bz.esc(t.get('date') or ''),
-                               g['tid'], bz.esc(t.get('name') or ''),
+                               g['tid'], bz.esc(bz.event_title(t)),
                                bz.esc(g['m']['round']
                                       if g['m']['round'] is not None else '—'),
                                '假先' if g['first'] else '假后',
@@ -783,9 +791,10 @@ def page(name, rec, events, games, reports, index, total_players, arts,
             rif.get('id'), rif['rating'],
             rif.get('rating_pos') or '—')
 
-    html = bz.HEAD.format(
+    html = bz.render_head(
         title='%s - 杂豫 - 连珠杂箱' % bz.esc(name),
         desc=bz.esc(desc),
+        canon='%s/zayu/p/%s.html' % (bz.SITE, quote(name)),
         base='../../',
         base_attr=' data-base="../../"',
         body='\n'.join(body))
