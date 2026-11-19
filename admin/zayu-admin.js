@@ -273,13 +273,13 @@
   function selectDoc(id) {
     var list = S.docs[S.kind] || [], found = null;
     for (var i = 0; i < list.length; i++) { if (list[i].doc_id === id) { found = list[i]; break; } }
-    if (!found) { S.cur = null; S.work = null; renderList(); renderPane(); return; }
-    S.cur = found.doc_id; S.ord = found.ord; S.work = clone(found.data);
+    if (!found) { S.cur = null; S.work = null; S.infoState = null; renderList(); renderPane(); return; }
+    S.cur = found.doc_id; S.ord = found.ord; S.work = clone(found.data); S.infoState = null;
     renderList(); renderPane();
   }
 
   function tab(kind) {
-    S.kind = kind; S.cur = null; S.work = null; S.filter = '';
+    S.kind = kind; S.cur = null; S.work = null; S.filter = ''; S.infoState = null;
     $('search').value = '';
     Array.prototype.forEach.call($('tabs').querySelectorAll('button'), function (b) {
       b.classList.toggle('on', b.getAttribute('data-kind') === kind);
@@ -341,6 +341,16 @@
   /* 可增减列表：每行一个输入框 */
   function repeater(title, path, arr, opts) {
     opts = opts || {};
+    if (opts.plain) {
+      var plainRows = (arr || []).map(function (v, i) {
+        return '<div class="rep-row">' +
+          '<input data-bind="' + path + '.' + i + '" value="' + esc(v) + '" placeholder="' + esc(opts.ph || '') + '">' +
+          '<button type="button" class="btn icon warn" data-act="delrow" data-path="' + path + '" data-i="' + i + '" title="删除这条">×</button></div>';
+      }).join('');
+      return '<div class="repeater">' + plainRows + '</div>' +
+        '<button type="button" class="btn sm ghost" data-act="addrow" data-path="' + path +
+        '" data-pair="0">＋ 添加一行</button>';
+    }
     var rows = (arr || []).map(function (v, i) {
       if (opts.pairs) {
         var kk = opts.kkey || 'k', vk = opts.vkey || 'v';
@@ -360,6 +370,63 @@
       '" data-pair="' + (opts.pairs ? '1' : '0') + '">＋ 添加一行</button>';
   }
 
+  /* ---------- 赛事信息：固定维度表单 ----------
+   * 主办/裁判/规则/用时/棋手/轮次/对局/弃权 本来就是每场比赛都有的，
+   * 直接把标签摆好让管理员填空；不常见的维度才放进「其他信息」自由增删。
+   */
+  var INFO_KEYS = ['主办', '裁判', '规则', '用时', '棋手', '轮次', '对局', '弃权'];
+  var INFO_PH = {
+    '主办': '河南省高校棋类协会',
+    '裁判': '潘冠臣',
+    '规则': '五手两打',
+    '用时': '30 分钟，共用时后 5 分钟包干',
+    '棋手': '8 人',
+    '轮次': '3 轮',
+    '对局': '12 局',
+    '弃权': '例如：6 台'
+  };
+  function parseInfo(arr) {
+    var map = {}, extra = [], order = [];
+    (arr || []).forEach(function (s) {
+      s = String(s == null ? '' : s);
+      var m = /^\s*([^：:]{1,10})\s*[：:]\s*([\s\S]*)$/.exec(s);
+      if (m && INFO_KEYS.indexOf(m[1].trim()) >= 0) {
+        map[m[1].trim()] = m[2];
+        order.push(m[1].trim());
+      } else if (s.trim()) {
+        extra.push(s);
+      }
+    });
+    return { map: map, extra: extra };
+  }
+  function flushInfo() {
+    if (!S.work || S.kind !== 'competition' || !S.infoState) { return; }
+    var st = S.infoState, out = [];
+    INFO_KEYS.forEach(function (k) {
+      var v = String(st.map[k] == null ? '' : st.map[k]).trim();
+      if (v) { out.push(k + '：' + v); }
+    });
+    ((S.work.infoExtra) || []).forEach(function (s) {
+      s = String(s == null ? '' : s).trim();
+      if (s) { out.push(s); }
+    });
+    S.work.info = out;
+  }
+  function infoEditor(w) {
+    if (!S.infoState) { S.infoState = parseInfo(w.info); }
+    if (!w.infoExtra) { w.infoExtra = S.infoState.extra.slice(); }
+    var map = S.infoState.map;
+    var grid = INFO_KEYS.map(function (k) {
+      return '<div class="kvrow"><label class="kvk">' + esc(k) + '</label>' +
+        '<input class="kvv" data-infokey="' + esc(k) + '" value="' + esc(map[k] || '') +
+        '" placeholder="' + esc(INFO_PH[k] || '') + '"></div>';
+    }).join('');
+    return '<h3>赛事信息<span class="badge">填值即可，留空的不会显示</span></h3>' +
+      '<div class="kvlist">' + grid + '</div>' +
+      '<div class="kvlabel">其他信息<span>不常用的维度可以自己加，例如「地点：河南省棋院」「赛制：瑞士制 7 轮」</span></div>' +
+      repeater('', 'infoExtra', w.infoExtra, { plain: true, ph: '名称：内容' });
+  }
+
   /* ---------- 编辑器：比赛与台次 ---------- */
   function editCompetition() {
     var w = S.work;
@@ -376,8 +443,7 @@
       field('页面链接（一般不用改）', 'url', w.url || ('zayu/' + (S.cur || '') + '.html')) +
       field('赛事介绍（一段文字，显示在比赛标题下方）', 'intro', w.intro || '', 'textarea') +
       field('棋谱提示语', 'qp_hint', w.qp_hint || '', 'text', 'placeholder="提示访客点击棋谱格子"');
-    var info = repeater('赛事信息（主办、裁判、规则、用时……每行一条）', 'info', w.info,
-      { ph: '例如：主办：河南省高校棋类协会' });
+    var info = infoEditor(w);
     var roundsEd = '<h3>轮次与列<span class="badge">修改后成绩表会自动跟着变</span></h3>' +
       '<div class="repeater">' + rounds.map(function (h, i) {
         var isRoundCol = i >= 2 && i < rounds.length - 5;
@@ -892,6 +958,11 @@
   /* ---------- 保存 / 删除 ---------- */
   function applySpecial() {
     var w = S.work;
+    if (S.kind === 'competition') {
+      flushInfo();
+      delete w.infoExtra;
+      delete w._infoExtra;
+    }
     if (S.kind === 'qipu') {
       /* 只有管理员这一次明确动了「胜负」下拉框，才覆盖胜负字段；
        * 否则保留原有结果，避免改落子时把已有胜负清掉。 */
@@ -1001,10 +1072,19 @@
   /* ---------- 事件绑定 ---------- */
   function onInput(e) {
     var t = e.target;
+    if (!S.work) { return; }
+    var ik = t.getAttribute && t.getAttribute('data-infokey');
+    if (ik) {
+      if (!S.infoState) { S.infoState = parseInfo(S.work.info); }
+      S.infoState.map[ik] = t.value;
+      flushInfo();
+      return;
+    }
     var bind = t.getAttribute && t.getAttribute('data-bind');
-    if (!bind || !S.work) { return; }
+    if (!bind) { return; }
     var v = t.value;
     setPath(S.work, bind, v);
+    if (bind.indexOf('infoExtra') === 0) { flushInfo(); }
     var kindAttr = t.getAttribute('data-bind');
     if (kindAttr === '_result') {
       /* 胜负变化时立即同步隐藏字段，保存时还会再算一次 */
