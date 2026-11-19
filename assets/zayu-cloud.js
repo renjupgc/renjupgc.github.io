@@ -1,9 +1,11 @@
 /*
  * 连珠杂箱 · 杂豫云端数据
  * ------------------------------------------------------------
- * 比赛、人物、等级分以云端数据库为准。静态 HTML 保留为兜底：
- * 云端没有数据时什么都不改，页面照常显示原来的表格与卡片。
+ * 比赛、台次成绩表、棋谱、赛事介绍、人物介绍、等级分，全部以云数据库
+ * zayu_docs 为准。管理员在后台改完即时生效。静态 HTML 保留为兜底：
+ * 云端某类数据为空时，对应区域不改动，页面照常显示原来的内容。
  *
+ * 文档分类(kind)：competition / qipu / person / person_page / rating
  * 由 assets/layout.js 注入；也支持页面直接引用。
  */
 (function () {
@@ -12,7 +14,7 @@
     if (window.ZBX_ZAYU_CLOUD) { return; }
 
     var cache = {};
-    var TTL = 5 * 60 * 1000;
+    var TTL = 60 * 1000;
 
     function base() {
         return (document.body && document.body.getAttribute('data-base')) || '';
@@ -43,6 +45,7 @@
         });
     }
 
+    /* SDK 对 rpc 返回值的包装各版本不同，统一拆成数组 */
     function unwrap(res, name) {
         var v = res;
         if (v && typeof v === 'object' && !Array.isArray(v)) {
@@ -56,61 +59,168 @@
                 var inner = v[0][name];
                 return Array.isArray(inner) ? inner : [];
             }
+            if (v.length && v[0] && typeof v[0] === 'object' &&
+                Object.prototype.hasOwnProperty.call(v[0], 'rows')) {
+                return Array.isArray(v[0].rows) ? v[0].rows : [];
+            }
             return v;
         }
-        if (v && typeof v === 'object' && Object.prototype.hasOwnProperty.call(v, name)) {
-            return Array.isArray(v[name]) ? v[name] : [];
+        if (v && typeof v === 'object') {
+            if (Object.prototype.hasOwnProperty.call(v, name)) {
+                var x = v[name];
+                return Array.isArray(x) ? x : [];
+            }
+            if (Object.prototype.hasOwnProperty.call(v, 'rows')) {
+                return Array.isArray(v.rows) ? v.rows : [];
+            }
         }
         return [];
     }
 
-    function rpcList(name) {
-        if (cache[name] && Date.now() - cache[name].t < TTL) {
-            return Promise.resolve(cache[name].v);
+    function rpcDocs(kind) {
+        if (cache[kind] && Date.now() - cache[kind].t < TTL) {
+            return Promise.resolve(cache[kind].v);
         }
         return ensureCloud().then(function (cloud) {
             if (!cloud || !cloud.database || typeof cloud.database.rpc !== 'function') {
                 throw new Error('云服务不可用');
             }
-            return cloud.database.rpc(name, {});
+            return cloud.database.rpc('zbx_public_docs', { p_kind: kind });
         }).then(function (res) {
-            var list = unwrap(res, name);
-            cache[name] = { t: Date.now(), v: list };
-            return list;
+            var docs = unwrap(res, 'zbx_public_docs');
+            /* 文档行：{kind, doc_id, data, ord}；按 ord 排序 */
+            docs = docs.slice().sort(function (a, b) {
+                var oa = Number(a.ord || 0), ob = Number(b.ord || 0);
+                return oa - ob || String(a.doc_id).localeCompare(String(b.doc_id));
+            });
+            cache[kind] = { t: Date.now(), v: docs };
+            return docs;
         }).catch(function () { return []; });
     }
 
-    /* ---------- 比赛列表 ---------- */
-    function renderCompetitions(rows) {
+    function byId(docs, id) {
+        for (var i = 0; i < docs.length; i++) {
+            if (String(docs[i].doc_id) === String(id)) { return docs[i].data || {}; }
+        }
+        return null;
+    }
+
+    /* ---------- 赛事列表 ---------- */
+    function renderCompetitionList(docs) {
         var list = document.querySelector('.tournament-list');
-        if (!list || !rows.length) { return; }
-        list.innerHTML = rows.map(function (r) {
-            var url = r.url || ('zayu/' + r.id + '.html');
-            var date = [r.date, (r.games != null ? r.games + ' 局' : '')].filter(Boolean).join(' · ');
-            var note = r.note ? '<span class="date">' + esc(r.note) + '</span>' : '';
-            return '<li><a href="' + esc(url) + '">' + esc(r.title || r.id) + '</a>' +
-                (date ? '<span class="date">' + esc(date) + '</span>' : '') + note + '</li>';
+        /* 云端数据不完整时（例如管理员刚建立账号尚未载入），保留静态列表，
+         * 避免把完整列表替换成只有几条。 */
+        var staticCount = list ? list.querySelectorAll('li').length : 0;
+        if (!list || !docs.length || (staticCount && docs.length < staticCount)) { return; }
+        list.innerHTML = docs.map(function (d) {
+            var r = d.data || {};
+            var id = d.doc_id;
+            var url = r.url || ('zayu/' + id + '.html');
+            var games = Array.isArray(r.rows) ? r.rows.length : r.games;
+            var date = [r.date, (games != null ? games + ' 局' : '')].filter(Boolean).join(' · ');
+            return '<li><a href="' + esc(url) + '">' + esc(r.title || id) + '</a>' +
+                (date ? '<span class="date">' + esc(date) + '</span>' : '') + '</li>';
         }).join('');
     }
 
-    /* ---------- 等级分 ---------- */
-    function renderRatings(rows) {
-        var tbody = document.querySelector('table.ratings tbody');
-        if (!tbody || !rows.length) { return; }
-        tbody.innerHTML = rows.map(function (r) {
-            var name = r.name || '';
-            var href = 'p/' + encodeURIComponent(name) + '.html';
-            var rank = r.rank == null ? '—' : r.rank;
-            var rating = Number(r.rating || 0).toFixed(2);
-            return '<tr><td class="r-rank">' + esc(rank) + '</td>' +
-                '<td class="r-name"><a href="' + href + '">' + esc(name) + '</a></td>' +
-                '<td class="r-region">' + esc(r.region || '—') + '</td>' +
-                '<td class="r-uni">' + esc(r.uni || '—') + '</td>' +
-                '<td class="r-pt">' + rating + '</td></tr>';
-        }).join('');
+    /* ---------- 比赛详情（含台次成绩表） ---------- */
+    function cellHtml(c) {
+        c = c || {};
+        var cls = ['rt'];
+        if (c.first) { cls.push('first'); }
+        if (c.qipu) { cls.push('has-qipu'); }
+        if (c.bye) { cls.push('bye'); }
+        var attrs = '';
+        if (c.qipu) {
+            attrs = ' data-qipu="' + esc(c.qipu) + '" tabindex="0" role="button" aria-expanded="false" title="点开看棋谱与复盘"';
+        }
+        var inner;
+        if (c.bye) {
+            inner = esc(c.opp || c.raw || '轮空');
+        } else if (c.opp != null || c.res != null) {
+            inner = '<span class="opp">' + esc(c.opp || '') + '</span><span class="res">' + esc(c.res || '') + '</span>';
+        } else {
+            inner = esc(c.raw || '');
+        }
+        return '<td class="' + cls.join(' ') + '"' + attrs + '>' + inner + '</td>';
     }
 
-    /* ---------- 人物 ---------- */
+    function renderCompetitionDetail(docs) {
+        var titleEl = document.querySelector('.article-title');
+        var table = document.querySelector('table.crosstab');
+        if (!titleEl || !table) { return; }
+        var name = (location.pathname.split('/').pop() || '').replace(/\.html?$/i, '');
+        var r = byId(docs, name);
+        if (!r) { return; }
+
+        if (r.title) { titleEl.textContent = r.title; document.title = r.title + ' - 杂豫 - 连珠杂箱'; }
+        var metas = document.querySelectorAll('.article-meta span');
+        if (r.date && metas.length) { metas[metas.length - 1].textContent = r.date; }
+
+        if (r.band && Object.keys(r.band).length) {
+            document.querySelectorAll('.band-hero .band-figure').forEach(function (f) {
+                var k = (f.querySelector('.band-k') || {}).textContent || '';
+                var v = r.band[k];
+                if (v == null) { return; }
+                var slot = f.querySelector('.band-v') || f.querySelector('.band-g');
+                if (slot) { slot.textContent = v; }
+            });
+        }
+
+        var info = document.querySelector('.event-info');
+        if (info && Array.isArray(r.info) && r.info.length) {
+            info.innerHTML = r.info.map(function (s) { return '<span>' + esc(s) + '</span>'; }).join('');
+        }
+
+        /* 赛事介绍：article-header 之后第一个普通 p（非 qp-hint） */
+        if (r.intro) {
+            var anchor = document.querySelector('.article-header');
+            var p = anchor ? anchor.nextElementSibling : null;
+            while (p && (p.classList && (p.classList.contains('band-hero') || p.classList.contains('event-info')))) {
+                p = p.nextElementSibling;
+            }
+            if (p && p.tagName === 'P' && !(p.classList && p.classList.contains('qp-hint'))) {
+                p.textContent = r.intro;
+            }
+        }
+        if (r.qp_hint) {
+            var qh = document.querySelector('.qp-hint');
+            if (qh) { qh.textContent = r.qp_hint; }
+        }
+
+        var thead = table.querySelector('thead tr');
+        if (thead && Array.isArray(r.rounds) && r.rounds.length) {
+            thead.innerHTML = r.rounds.map(function (h, i) {
+                var cls = i === 0 ? 'c-no' : i === 1 ? 'c-name' : i >= r.rounds.length - 5 && i < r.rounds.length - 1 ? 'c-tb' : (i === r.rounds.length - 1 ? 'c-rank' : 'c-round');
+                if (h === '积分') { cls = 'c-pt'; }
+                return '<th class="' + cls + '">' + esc(h) + '</th>';
+            }).join('');
+        }
+
+        var tbody = table.querySelector('tbody');
+        if (tbody && Array.isArray(r.rows) && r.rows.length) {
+            tbody.innerHTML = r.rows.map(function (row) {
+                var games = Array.isArray(row.games) ? row.games : [];
+                var tb = Array.isArray(row.tb) ? row.tb : [];
+                return '<tr>' +
+                    '<td class="c-no">' + esc(row.no || '') + '</td>' +
+                    '<td class="c-name"><a href="' + esc(row.href || '') + '">' + esc(row.name || '') + '</a></td>' +
+                    games.map(cellHtml).join('') +
+                    '<td class="c-pt">' + esc(row.pt || '') + '</td>' +
+                    tb.map(function (v) { return '<td class="c-tb">' + esc(v) + '</td>'; }).join('') +
+                    '<td class="c-rank">' + esc(row.rank || '') + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        /* 棋谱 JSON 注入给 qipu.js（优先云端） */
+        window.ZAYU_QIPU_OVERRIDE = window.ZAYU_QIPU_OVERRIDE || {};
+        (r.qipu_ids || []).forEach(function (id) {
+            window.ZAYU_QIPU_OVERRIDE[id] = true;
+        });
+    }
+
+    /* ---------- 人物卡片 ---------- */
     function province(region) {
         var s = String(region || '');
         if (s.indexOf('山东') === 0) { return 'sd'; }
@@ -123,54 +233,94 @@
     function honorsHtml(list) {
         if (!Array.isArray(list) || !list.length) { return ''; }
         return '<ul class="rh-honors">' + list.map(function (h) {
-            var item = typeof h === 'string' ? { y: '', t: h } : (h || {});
-            return '<li><span class="rh-year">' + esc(item.y || '') + '</span>' +
-                '<span class="rh-txt">' + esc(item.t || '') + '</span></li>';
+            var item = typeof h === 'string' ? { year: '', text: h } : (h || {});
+            return '<li><span class="rh-year">' + esc(item.year || item.y || '') + '</span>' +
+                '<span class="rh-txt">' + esc(item.text || item.t || '') + '</span></li>';
         }).join('') + '</ul>';
     }
 
     function cardHtml(p) {
-        var stats = Array.isArray(p.stats) ? p.stats : [];
+        var facts = Array.isArray(p.facts) ? p.facts : (Array.isArray(p.stats) ? p.stats : []);
+        var links = Array.isArray(p.links) ? p.links : [];
         return '<div class="rh-head">' +
             '<h3 class="rh-name">' + esc(p.name || '') + '</h3>' +
             (p.dan ? '<span class="rh-dan">' + esc(p.dan) + '</span>' : '') +
-            (p.region ? '<span class="rh-tag">' + esc(p.region) + '</span>' : '') +
+            (p.tag || p.region ? '<span class="rh-tag">' + esc(p.tag || p.region) + '</span>' : '') +
             '</div>' +
-            '<dl class="rh-facts">' + stats.map(function (it) {
+            '<dl class="rh-facts">' + facts.map(function (it) {
                 return '<div><dt>' + esc(it.k || '') + '</dt><dd>' + esc(it.v || '') + '</dd></div>';
             }).join('') + '</dl>' +
-            '<p class="rh-bio">' + esc(p.bio || '') + '</p>' + honorsHtml(p.honors);
+            '<p class="rh-bio">' + esc(p.bio || '') + '</p>' + honorsHtml(p.honors) +
+            (links.length ? '<p class="rh-links">' + links.map(function (a) {
+                return '<a href="' + esc(a.href || '') + '">' + esc(a.text || '') + '</a>';
+            }).join(' · ') + '</p>' : '');
     }
 
-    function renderPeople(rows) {
-        if (!rows.length || !document.querySelector('.rh-card')) { return; }
-        rows.forEach(function (p) {
-            var card = document.getElementById(p.id);
-            if (card) {
-                card.innerHTML = cardHtml(p);
-            } else {
-                var sec = document.getElementById(province(p.region));
-                if (sec) {
-                    var el = document.createElement('article');
-                    el.className = 'rh-card';
-                    el.id = p.id;
-                    el.innerHTML = cardHtml(p);
-                    sec.appendChild(el);
-                }
-            }
+    function renderPeople(docs) {
+        if (!docs.length || !document.querySelector('.rh-card')) { return; }
+        docs.forEach(function (d) {
+            var p = d.data || {};
+            var card = document.getElementById(p.id || d.doc_id);
+            if (card) { card.innerHTML = cardHtml(p); }
+        });
+    }
+
+    /* ---------- 人物详情页介绍 ---------- */
+    function renderPersonPage(docs) {
+        var bio = document.querySelector('.pr-bio');
+        if (!bio || !docs.length) { return; }
+        var name = decodeURIComponent((location.pathname.split('/').pop() || '').replace(/\.html?$/i, ''));
+        var r = byId(docs, name);
+        if (r && r.bio) { bio.textContent = r.bio; }
+    }
+
+    /* ---------- 等级分 ---------- */
+    function renderRatings(docs) {
+        var tbody = document.querySelector('table.ratings tbody');
+        if (!tbody || !docs.length) { return; }
+        tbody.innerHTML = docs.map(function (d) {
+            var r = d.data || {};
+            var name = r.name || d.doc_id;
+            var href = r.href || ('p/' + encodeURIComponent(name) + '.html');
+            var rank = r.rank == null ? '—' : r.rank;
+            var rating = Number(r.rating || 0).toFixed(2);
+            return '<tr><td class="r-rank">' + esc(rank) + '</td>' +
+                '<td class="r-name"><a href="' + esc(href) + '">' + esc(name) + '</a></td>' +
+                '<td class="r-region">' + esc(r.region || '—') + '</td>' +
+                '<td class="r-uni">' + esc(r.uni || '—') + '</td>' +
+                '<td class="r-pt">' + rating + '</td></tr>';
+        }).join('');
+    }
+
+    /* ---------- 棋谱：整篇注入，供 qipu.js 优先读取 ---------- */
+    function loadQipu() {
+        return rpcDocs('qipu').then(function (docs) {
+            window.ZAYU_QIPU = window.ZAYU_QIPU || {};
+            docs.forEach(function (d) { window.ZAYU_QIPU[d.doc_id] = d.data || {}; });
+            return docs;
         });
     }
 
     function run() {
         var jobs = [];
+
         if (document.querySelector('.tournament-list')) {
-            jobs.push(rpcList('zbx_public_competitions').then(renderCompetitions));
+            jobs.push(rpcDocs('competition').then(renderCompetitionList));
         }
-        if (document.querySelector('table.ratings tbody')) {
-            jobs.push(rpcList('zbx_public_ratings').then(renderRatings));
+        if (document.querySelector('table.crosstab')) {
+            jobs.push(rpcDocs('competition').then(renderCompetitionDetail));
         }
         if (document.querySelector('.rh-card')) {
-            jobs.push(rpcList('zbx_public_people').then(renderPeople));
+            jobs.push(rpcDocs('person').then(renderPeople));
+        }
+        if (document.querySelector('.pr-bio')) {
+            jobs.push(rpcDocs('person_page').then(renderPersonPage));
+        }
+        if (document.querySelector('table.ratings tbody')) {
+            jobs.push(rpcDocs('rating').then(renderRatings));
+        }
+        if (document.querySelector('[data-qipu]')) {
+            jobs.push(loadQipu());
         }
         return Promise.all(jobs);
     }
@@ -188,8 +338,11 @@
 
     window.ZBX_ZAYU_CLOUD = {
         refresh: function () { cache = {}; return run(); },
-        competitions: function () { return rpcList('zbx_public_competitions'); },
-        people: function () { return rpcList('zbx_public_people'); },
-        ratings: function () { return rpcList('zbx_public_ratings'); }
+        docs: rpcDocs,
+        competitions: function () { return rpcDocs('competition'); },
+        qipu: function () { return rpcDocs('qipu'); },
+        people: function () { return rpcDocs('person'); },
+        personPages: function () { return rpcDocs('person_page'); },
+        ratings: function () { return rpcDocs('rating'); }
     };
 })();
