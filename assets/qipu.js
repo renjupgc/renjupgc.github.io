@@ -59,18 +59,37 @@
 
     var cache = {};
 
+    /* 云端棋谱优先（管理员改过的即时生效），静态 g*.json 兜底。
+     * 云端数据由 zayu-cloud.js 异步注入到 window.ZAYU_QIPU。 */
+    function cloudGame(id) {
+        var all = window.ZAYU_QIPU;
+        return (all && all[id]) || null;
+    }
+
+    function waitCloud(id, tries) {
+        var g = cloudGame(id);
+        if (g) { return Promise.resolve(g); }
+        /* 最多再等 ~1.5 秒，给 zayu-cloud.js 拉取云端的时间 */
+        if ((tries || 0) >= 15) { return Promise.resolve(null); }
+        return new Promise(function (resolve) {
+            setTimeout(function () { resolve(waitCloud(id, (tries || 0) + 1)); }, 100);
+        });
+    }
+
     function getGame(id) {
         if (!cache[id]) {
-            cache[id] = fetch(asset('assets/qipu/g' + id + '.json'),
-                { credentials: 'same-origin' })
-                .then(function (res) {
-                    if (!res.ok) { throw new Error('HTTP ' + res.status); }
-                    return res.json();
-                })
-                .catch(function (err) {
-                    delete cache[id];
-                    throw err;
-                });
+            cache[id] = waitCloud(id).then(function (g) {
+                if (g) { return g; }
+                return fetch(asset('assets/qipu/g' + id + '.json'),
+                    { credentials: 'same-origin' })
+                    .then(function (res) {
+                        if (!res.ok) { throw new Error('HTTP ' + res.status); }
+                        return res.json();
+                    });
+            }).catch(function (err) {
+                delete cache[id];
+                throw err;
+            });
         }
         return cache[id];
     }
