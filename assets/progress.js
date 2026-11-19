@@ -1,15 +1,12 @@
 /*
- * 连珠杂箱 · 统一进度档案（按用户名分档）
+ * 连珠杂箱 · 统一进度档案（随账号存云端）
  * ------------------------------------------------------------
- * 先填用户名，再做题。四项的分数各自独立、互不打通：
+ * 登录后四项分数各自独立、互不打通：
  *   禁手找茬 / 棋形判断 / VCF 做题 / 连珠英语，初始各 1000 分。
- * 每个用户名一套独立档案，换设备按用户名导出/导入，不会串分。
- * 做对加、做错扣，快加满分慢加少分；题目难度分最低 1000，显示在题旁。
+ * 分数与连珠英语的背词记录都放在云端账号下，换设备登录同一个账号即恢复，
+ * 不再需要导出 / 导入备份文件。本机 localStorage 只做离线缓存。
  *
- * 存档是本地 JSON 文件，导出时算 HMAC-SHA256 签名，导入先验签，
- * 再核对「分数 = 1000 + 历史增减之和」。直接改文件里的分数会被挡回来。
- * 但要说清楚：这是纯静态站，签名密钥必然写在前端，懂代码的人仍能重签。
- * 它能防手改、防误改，防不了蓄意伪造——真防伪造得有服务端。
+ * 做对加、做错扣，快加满分慢加少分；题目难度分最低 1000，显示在题旁。
  */
 (function () {
     'use strict';
@@ -18,11 +15,9 @@
 
     var KEY = 'zbx.progress.v2';
     var OLD_KEY = 'zbx.progress.v1';
-    var UKEY = 'zbx.user';
     var BASE = 1000;
-    var SEED = 'lianzhu-zaxiang-progress-2026-9f3c7a2e';
     var STYLE_ID = 'zbx-progress-style';
-    var NAME_RE = /^[\u4e00-\u9fa5A-Za-z0-9_-]{1,16}$/;
+    var NAME_RE = /^[一-龥A-Za-z0-9_-]{2,20}$/;
 
     var MODULES = [
         { k: 'jz_forbid', name: '禁手找茬' },
@@ -94,7 +89,7 @@
         return d;
     }
 
-    /* 老版本（单档案）迁上来，归到当前用户名名下，不丢分 */
+    /* 老版本（单档案）迁上来，归到当前账号名下，不丢分 */
     function migrateOld() {
         var raw = null;
         try { raw = JSON.parse(window.localStorage.getItem(OLD_KEY) || 'null'); } catch (e) { raw = null; }
@@ -104,16 +99,16 @@
         store.users[name] = normalizeProfile(raw);
         try {
             window.localStorage.setItem(KEY, JSON.stringify(store));
-            window.localStorage.setItem(UKEY, name);
         } catch (e) { /* 忽略 */ }
-        curUser = name;
     }
 
-    /* ---------- 当前用户名 ---------- */
+    /* ---------- 当前账号 ---------- */
+    function account() { return window.ZBX_ACCOUNT || null; }
+
     function readUser() {
-        var name = '';
-        try { name = String(window.localStorage.getItem(UKEY) || ''); } catch (e) { name = ''; }
-        return NAME_RE.test(name) ? name : '';
+        var a = account();
+        if (a && typeof a.user === 'function') { return a.user() || ''; }
+        return '';
     }
     var curUser = readUser();
 
@@ -128,44 +123,142 @@
     var D = loadStore();
     if (curUser && !D.users[curUser]) { D.users[curUser] = blankProfile(); }
 
+    /* 连珠英语的背词档案，和分数一起存进同一个云端进度对象 */
+    var E = null;
+    var cloudTimer = 0;
+    var cloudBusy = false;
+
     function profile() {
         if (!curUser) { return null; }
         if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
         return D.users[curUser];
     }
 
-    function save() {
+    function writeLocal() {
         D.at = Date.now();
         try { window.localStorage.setItem(KEY, JSON.stringify(D)); return true; }
         catch (e) { return false; }
     }
 
+    function save() {
+        writeLocal();
+        scheduleCloudSave();
+    }
+
+    /* ---------- 云端同步 ---------- */
+    function envelope() {
+        var p = normalizeStore(D);
+        p.at = Date.now();
+        return { app: 'zbx-progress-cloud', v: 3, at: p.at, progress: p, english: E || null };
+    }
+
+    function cloudRpc(name, params) {
+        var a = account();
+        if (!a || typeof a.rpc !== 'function' || !a.token()) {
+            return Promise.resolve(null);
+        }
+        return a.rpc(name, params);
+    }
+
+    function scheduleCloudSave() {
+        if (!curUser) { return; }
+        window.clearTimeout(cloudTimer);
+        flagSaved(true);
+        cloudTimer = window.setTimeout(saveCloud, 450);
+    }
+
+    function saveCloud(force) {
+        var a = account();
+        var token = a && typeof a.token === 'function' ? a.token() : '';
+        if (!curUser || !token) { return Promise.resolve(false); }
+        if (cloudBusy && !force) {
+            window.clearTimeout(cloudTimer);
+            cloudTimer = window.setTimeout(function () { saveCloud(false); }, 600);
+            return Promise.resolve(false);
+        }
+        cloudBusy = true;
+        return cloudRpc('zbx_progress_save', { p_token: token, p_data: envelope() })
+            .then(function (res) {
+                cloudBusy = false;
+                if (res && res.ok) {
+                    flagSaved(false);
+                    return true;
+                }
+                return false;
+            })
+            .catch(function () {
+                cloudBusy = false;
+                return false;
+            });
+    }
+
+    function loadCloud() {
+        var a = account();
+        var token = a && typeof a.token === 'function' ? a.token() : '';
+        if (!curUser || !token) { render(); return Promise.resolve(false); }
+        return cloudRpc('zbx_progress_load', { p_token: token }).then(function (res) {
+            if (!res || !res.ok) { render(); return false; }
+            var data = res.data;
+            if (data && typeof data === 'object' && data.progress) {
+                D = normalizeStore(data.progress);
+                E = data.english && typeof data.english === 'object' ? data.english : null;
+            } else if (data && data.users) {
+                /* 兼容最早的直接档案结构 */
+                D = normalizeStore(data);
+            } else {
+                /* 第一次登录：把本机缓存带上去，不丢旧分 */
+                if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
+                return saveCloud(true).then(function () { render(); return true; });
+            }
+            if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
+            writeLocal();
+            render();
+            return true;
+        }).catch(function () {
+            render();
+            return false;
+        });
+    }
+
+    function englishData() {
+        return E && typeof E === 'object' ? E : null;
+    }
+
+    function setEnglishData(d) {
+        E = d && typeof d === 'object' ? d : null;
+        save();
+    }
+
+    /* 兼容旧调用：不再支持「填名字就进」，统一走右上角登录 */
     function setUser(name) {
+        var a = account();
+        if (a && typeof a.openPanel === 'function') {
+            a.openPanel('login');
+            return false;
+        }
         name = String(name || '').trim();
-        /* 空名＝退出登录，回到未登录态；档案保留在本机，下次填名字还能进来 */
         if (!name) {
             curUser = '';
-            try { window.localStorage.removeItem(UKEY); } catch (e) { /* 忽略 */ }
             save();
             render();
-            try { document.dispatchEvent(new CustomEvent('zbx:user', { detail: { user: '' } })); } catch (e) { /* 老浏览器 */ }
             return true;
         }
         if (!NAME_RE.test(name)) { return false; }
         if (name !== curUser) {
             curUser = name;
-            try { window.localStorage.setItem(UKEY, name); } catch (e) { /* 忽略 */ }
             if (!D.users[name]) { D.users[name] = blankProfile(); }
             save();
-            notify('已切到「' + name + '」的档案。', 'ok');
         }
         render();
-        try { document.dispatchEvent(new CustomEvent('zbx:user', { detail: { user: name } })); } catch (e) { /* 老浏览器 */ }
         return true;
     }
 
     function userName() { return curUser; }
-    function userNames() { return Object.keys(D.users).sort(); }
+    function userNames() {
+        var names = Object.keys(D.users);
+        if (curUser && names.indexOf(curUser) < 0) { names.push(curUser); }
+        return names.sort();
+    }
 
     /* ---------- 计分 ---------- */
     function speedFactor(ms, par) {
@@ -384,12 +477,13 @@
     }
 
     function reset() {
-        if (!curUser) { notify('先填用户名。', 'bad'); return; }
-        if (!window.confirm('清掉「' + curUser + '」在本机的全部进度，分数回到 1000？\n其他用户名不受影响。先导出存档再清，还能恢复回来。')) { return; }
+        if (!curUser) { notify('先登录账号。', 'bad'); return; }
+        if (!window.confirm('清空「' + curUser + '」的云端进度？四项分数都会回到 1000，英语背词记录也一起清空。')) { return; }
         D.users[curUser] = blankProfile();
+        E = null;
         save();
         render();
-        notify('「' + curUser + '」的进度已清空，分数回到 1000。', 'ok');
+        notify('进度已清空，云端会在片刻后更新。', 'ok');
     }
 
     /* ---------- 面板 ---------- */
@@ -470,43 +564,17 @@
     function flagSaved(isDirty) { dirty = !!isDirty; render(); }
 
     function bind() {
-        Array.prototype.forEach.call(document.querySelectorAll('[data-zbx-progress],[data-zbx-user]'), function (box) {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-zbx-progress]'), function (box) {
             if (box.dataset.bound === '1') { return; }
             box.dataset.bound = '1';
             box.addEventListener('click', function (ev) {
                 var b = ev.target.closest('button');
                 if (!b) { return; }
                 var act = b.getAttribute('data-act');
-                if (act === 'export') { exportFile(); }
-                else if (act === 'reset') { reset(); }
-                else if (act === 'toggleuser') {
-                    var ed = box.querySelector('.zu-edit');
-                    if (ed) {
-                        var open = ed.hidden;
-                        ed.hidden = !open;
-                        if (open) {
-                            var inp = ed.querySelector('[data-act="username"]');
-                            if (inp) { inp.focus(); inp.select(); }
-                        }
-                    }
-                }
-                else if (act === 'setuser') {
-                    var inp = box.querySelector('[data-act="username"]');
-                    if (inp) { setUser(inp.value); }
-                }
-            });
-            box.addEventListener('keydown', function (ev) {
-                if (ev.key === 'Enter' && ev.target && ev.target.getAttribute('data-act') === 'username') {
-                    setUser(ev.target.value);
-                } else if (ev.key === 'Escape' && ev.target && ev.target.getAttribute('data-act') === 'username') {
-                    var ed = box.querySelector('.zu-edit');
-                    if (ed) { ed.hidden = true; }
-                }
-            });
-            box.addEventListener('change', function (ev) {
-                if (ev.target && ev.target.getAttribute('data-act') === 'import' && ev.target.files) {
-                    importFile(ev.target.files[0]);
-                    ev.target.value = '';
+                if (act === 'reset') { reset(); }
+                else if (act === 'login') {
+                    var a = account();
+                    if (a && a.openPanel) { a.openPanel('login'); }
                 }
             });
         });
@@ -535,11 +603,6 @@
 
     function render() {
         injectStyle();
-        Array.prototype.forEach.call(document.querySelectorAll('[data-zbx-user]'), function (chip) {
-            var compact = chip.getAttribute('data-zbx-user') === 'global';
-            chip.className = (compact ? 'site-user-slot ' : '') + 'zbx-user' + (compact ? ' is-global' : '');
-            chip.innerHTML = userChipHtml(compact);
-        });
         Array.prototype.forEach.call(document.querySelectorAll('[data-zbx-progress]'), function (box) {
             var P = profile();
             var cells = MODULES.map(function (m) {
@@ -548,26 +611,23 @@
                 return '<div class="zbx-prog-cell"><b>' + sc + '</b><span>' + m.name + '</span>' +
                     '<i>做 ' + st.n + ' · 平均 ' + fmtMs(avgMs(m.k)) + '</i></div>';
             }).join('');
-            var names = userNames();
-            var namesHtml = names.length ? '本机档案：' + names.map(function (n) {
-                return escHtml(n) + (n === curUser ? '（当前）' : '');
-            }).join('、') : '还没有档案，填个名字开始。';
             box.className = 'zbx-prog' + (dirty ? ' is-dirty' : '');
-            box.innerHTML = '<h3>我的进度 <small>四项分数各自独立 · 初始 1000 分</small></h3>' +
+            box.innerHTML = '<h3>我的进度 <small>四项分数各自独立 · 初始 1000 分 · 云端同步</small></h3>' +
                 '<div class="zbx-prog-user">' +
-                '<span class="zbx-prog-names">当前用户：<b>' + (curUser ? escHtml(curUser) : '未设置') + '</b>' +
-                '　<span style="opacity:.75">（在右上角用户名处切换 / 建立）</span></span>' +
+                '<span class="zbx-prog-names">当前账号：<b>' + (curUser ? escHtml(curUser) : '未登录') + '</b></span>' +
+                (curUser
+                    ? '<span style="font-size:12px;color:var(--zp-sub)">进度自动保存在云端</span>'
+                    : '<button type="button" data-act="login">登录 / 注册</button>') +
                 '</div>' +
                 (curUser ? '<div class="zbx-prog-grid">' + cells + '</div>' :
-                    '<p class="zbx-prog-tip">填好用户名并按「切换 / 建立」，就能开始记分。</p>') +
+                    '<p class="zbx-prog-tip">登录后就能开始记分，分数会按账号同步到云端。</p>') +
                 '<div class="zbx-prog-btns">' +
-                '<button type="button" data-act="export">导出进度</button>' +
-                '<label>导入进度<input type="file" accept="application/json,.json" data-act="import"></label>' +
-                '<button type="button" data-act="reset">清空</button>' +
+                (curUser ? '<button type="button" data-act="reset">清空进度</button>' : '') +
                 '</div>' +
                 '<p class="zbx-prog-tip zbx-prog-hint">' +
-                (dirty ? '进度有更新，记得点「导出进度」存一份。' :
-                    '进度按用户名自动存在本机；换设备就导出文件带过去，导入时按用户名归位，不会串分。存档带签名，改分数会被拦下。') +
+                (dirty ? '正在同步到云端…' :
+                    (curUser ? '已同步到云端，换设备登录同一个账号就能接着做题。' :
+                        '不再需要导出 / 导入备份文件。')) +
                 '</p>' +
                 '<p class="zbx-prog-note" role="status" aria-live="polite"></p>';
         });
@@ -583,20 +643,44 @@
     function watch() {
         if (!window.MutationObserver) { return; }
         new window.MutationObserver(function () {
-            var boxes = document.querySelectorAll('[data-zbx-progress],[data-zbx-user]');
-            if (boxes.length) {
-                var empty = false;
-                Array.prototype.forEach.call(boxes, function (b) { if (!b.innerHTML.trim()) { empty = true; } });
-                if (empty) { render(); }
-            }
+            var boxes = document.querySelectorAll('[data-zbx-progress]');
+            if (!boxes.length) { return; }
+            var empty = false;
+            Array.prototype.forEach.call(boxes, function (b) { if (!b.innerHTML.trim()) { empty = true; } });
+            if (empty) { render(); }
         }).observe(document.body, { childList: true, subtree: true });
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { render(); watch(); });
-    } else {
+    /* 账号就绪后从云端取档案；登录 / 退出切换时重新取对应账号的数据 */
+    document.addEventListener('zbx:account', function (e) {
+        var detail = e && e.detail ? e.detail : {};
+        if (detail.action === 'restore') { return; } /* 启动流程统一处理 */
+        var name = detail.user || '';
+        if (name !== curUser) {
+            curUser = name;
+            D = loadStore();
+            E = null;
+            if (curUser && !D.users[curUser]) { D.users[curUser] = blankProfile(); }
+        }
+        if (curUser) { loadCloud(); } else { render(); }
+    });
+
+    function start() {
         render();
         watch();
+        if (window.ZBX_ACCOUNT_READY) {
+            window.ZBX_ACCOUNT_READY.then(function (info) {
+                curUser = (info && info.user) || '';
+                if (!curUser) { render(); return; }
+                loadCloud();
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start);
+    } else {
+        start();
     }
 
     window.ZBX_PROGRESS = {
@@ -614,6 +698,10 @@
         saved: function () { flagSaved(false); },
         exportFile: exportFile,
         importFile: importFile,
+        englishData: englishData,
+        setEnglishData: setEnglishData,
+        loadCloud: loadCloud,
+        saveCloud: saveCloud,
         render: render,
         snapshot: snapshot,
         base: BASE,
