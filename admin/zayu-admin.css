@@ -587,35 +587,201 @@ textarea {
     gap: 8px;
 }
 
-/* ---------- 可增减列表 ---------- */
+/* ---------- 可增减列表（纸面条目，不用一整排白框） ---------- */
 
 .repeater {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    margin-bottom: 8px;
+    padding: 2px 14px;
+    background: rgba(255, 253, 247, 0.55);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
 }
 
 .rep-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    padding: 1px 0;
+    border-bottom: 1px dashed rgba(176, 141, 87, 0.22);
 }
 
-.rep-row input {
+.rep-row:last-child {
+    border-bottom: 0;
+}
+
+.rep-row input[type="text"],
+.rep-row input:not([type]) {
     flex: 1;
     min-width: 0;
+    padding: 4px 5px;
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.6;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--ink-2);
+    cursor: text;
 }
 
-.rep-row .k {
-    flex: 0 0 96px;
+.rep-row input:not([type]):hover,
+.rep-row input[type="text"]:hover {
+    background: rgba(176, 141, 87, 0.06);
+    border-radius: 5px;
 }
 
-.rep-row .v {
-    flex: 1;
+.rep-row input:not([type]):focus,
+.rep-row input[type="text"]:focus {
+    background: rgba(176, 141, 87, 0.1);
+    border: 0;
+    border-radius: 5px;
+    box-shadow: none;
 }
 
-.rep-row .btn {
+.rep-row input::placeholder {
+    color: #bdb4a2;
+}
+
+.rep-row input.k {
+    flex: 0 0 92px;
+    min-width: 0;
+    color: var(--ink-3);
+}
+
+.rep-row input.v {
+    flex: 1 1 auto;
+}
+
+/* 行尾删除：淡灰小叉，鼠标移上去才变赭红 */
+.rep-row .btn.icon,
+.rep-row .btn.icon.warn {
     flex: 0 0 auto;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    line-height: 18px;
+    color: #b9b0a1;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    box-shadow: none;
+}
+
+.rep-row .btn.icon:hover,
+.rep-row .btn.icon.warn:hover {
+    color: var(--win);
+    background: rgba(168, 69, 63, 0.1);
+    border: 0;
+}
+
+.repeater:empty {
+    display: none;
+}
+
+/* ---------- 赛事信息：固定维度表单 ---------- */
+
+.kvlist {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 30px;
+    margin-bottom: 14px;
+    padding: 4px 16px 8px;
+    background: rgba(255, 253, 247, 0.55);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+}
+
+@media (max-width: 760px) {
+    .kvlist {
+        grid-template-columns: 1fr;
+    }
+}
+
+.kvrow {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    min-width: 0;
+    border-bottom: 1px dashed rgba(176, 141, 87, 0.22);
+}
+
+.kvrow:nth-last-child(-n+2) {
+    border-bottom-color: transparent;
+}
+
+.kvrow .kvk {
+    flex: 0 0 3.2em;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    line-height: 2.4;
+    color: var(--gold-deep);
+    white-space: nowrap;
+}
+
+.kvrow .kvv {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 2px;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.kvrow .kvv::placeholder {
+    color: #c4bbaa;
+}
+
+.kvrow .kvv:hover {
+    background: rgba(176, 141, 87, 0.06);
+}
+
+.kvrow .kvv:focus {
+    outline: none;
+    background: rgba(176, 141, 87, 0.1);
+    border: 0;
+    box-shadow: none;
+}
+
+.kvlabel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    margin: 2px 0 7px;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--gold-deep);
+}
+
+.kvlabel span {
+    font-size: 11.5px;
+    letter-spacing: 0;
+    color: var(--faint);
+}
+
+/* 虚线「添加一行」 */
+.btn.ghost {
+    background: transparent;
+    border-style: dashed;
+    border-color: rgba(176, 141, 87, 0.45);
+    color: var(--gold-deep);
+}
+
+.btn.ghost:hover {
+    color: var(--ink);
+    border-color: var(--gold);
+    border-style: solid;
+    background: var(--gold-tint);
 }
 
 /* ---------- 成绩表 ---------- */
@@ -668,16 +834,23 @@ table.editgrid td.namein .hrefin {
     color: var(--faint);
 }
 
-table.editgrid input[type="text"],
+table.editgrid input,
 table.editgrid select {
     padding: 3px 5px;
+    font-family: var(--sans);
     font-size: 12px;
+    line-height: 1.5;
     border-radius: 6px;
-    border-color: transparent;
+    border: 1px solid transparent;
     background: transparent;
 }
 
-table.editgrid input[type="text"]:hover,
+table.editgrid td.namein input:first-child {
+    font-size: 12.5px;
+    color: var(--ink);
+}
+
+table.editgrid input:hover,
 table.editgrid select:hover {
     border-color: var(--line);
     background: var(--surface);
