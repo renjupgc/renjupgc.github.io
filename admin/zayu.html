@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>杂豫数据管理 · 连珠杂箱</title>
+<link rel="stylesheet" href="admin.css">
+<style>
+  :root{--bg:#f6f4ef;--fg:#23211d;--muted:#77726a;--card:#fff;--line:#e2ded6;--accent:#3a5a78;--warn:#a03a2e;--ok:#2f6f4f;--chip:#f1eee7}
+  @media(prefers-color-scheme:dark){:root{--bg:#16181a;--fg:#e8e6e1;--muted:#9a958c;--card:#1e2124;--line:#2f3337;--accent:#8fb6d6;--warn:#e08a7a;--ok:#6fbf8f;--chip:#262a2e}}
+  *{box-sizing:border-box}
+  body{margin:0;padding:22px 16px 70px;background:var(--bg);color:var(--fg);font:14px/1.6 "PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+  .wrap{max-width:1180px;margin:0 auto}
+  .admin-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .admin-head a{color:var(--fg);text-decoration:none}
+  .an-links{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+  .an-links .on{color:var(--accent);font-weight:700}
+  .admin-head .site-user-slot{margin-left:auto}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  #gate{max-width:380px;margin:10vh auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;text-align:center}
+  #gate h1{font-size:17px}
+  #gate p{color:var(--muted)}
+  .btn{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);padding:7px 12px}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.warn{color:var(--warn)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+  #msg{min-height:22px;font-size:13px;color:var(--muted)}
+  #msg.ok{color:var(--ok)}#msg.err{color:var(--warn)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}
+  .tabs button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--muted);padding:7px 14px}
+  .tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  section.pane{display:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;overflow-x:auto}
+  section.pane.on{display:block}
+  .pane h2{font-size:14px;margin:0 0 10px}
+  table{border-collapse:collapse;width:100%;min-width:760px;font-size:13px}
+  th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-size:12px;font-weight:600}
+  input,textarea{font:inherit;font-size:13px;width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 7px}
+  textarea{min-height:48px;resize:vertical}
+  input[type=number]{width:80px}
+  .mini{width:auto;white-space:nowrap}
+  .hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+</style>
+</head>
+<body data-base="../">
+
+<div class="admin-head">
+  <a href="index.html"><b>连珠杂箱</b> · 管理后台</a>
+  <div class="an-links">
+    <a href="index.html">访问统计</a>
+    <a href="duiju.html">赛果录入</a>
+    <a href="ops.html">运维</a>
+    <a href="zayu.html" class="on">杂豫数据</a>
+    <a href="../zayu.html" target="_blank" rel="noopener">看站点 ↗</a>
+  </div>
+  <div class="site-user-slot" data-zbx-user="global" aria-label="账号"></div>
+</div>
+
+<div class="wrap">
+
+  <div id="gate">
+    <h1>杂豫数据管理</h1>
+    <p id="gate-msg">请用管理员账号登录后继续。</p>
+    <button type="button" class="btn primary" data-act="login">管理员登录</button>
+  </div>
+
+  <div id="panel" hidden>
+    <h1>杂豫数据管理</h1>
+    <p class="sub">比赛、人物与等级分直接写入云端数据库。前台页面优先读取这里的数据。</p>
+
+    <div id="msg" role="status" aria-live="polite"></div>
+
+    <div class="toolbar">
+      <button type="button" class="btn" data-act="seed">一键载入本站初始数据</button>
+      <button type="button" class="btn" data-act="refresh">重新读取</button>
+      <button type="button" class="btn primary" data-act="recalc">更新等级分</button>
+    </div>
+    <p class="hint">「一键载入」会用仓库里的初始数据覆盖云端比赛、人物、等级分，只在首次初始化或需要恢复时使用。</p>
+
+    <div class="tabs">
+      <button type="button" class="on" data-tab="comp">比赛</button>
+      <button type="button" data-tab="people">人物</button>
+      <button type="button" data-tab="rating">等级分 / 对局</button>
+    </div>
+
+    <section class="pane on" id="pane-comp">
+      <h2>比赛信息</h2>
+      <table>
+        <thead><tr><th style="width:70px">ID</th><th>标题</th><th style="width:110px">日期</th><th style="width:70px">局数</th><th>链接</th><th>备注</th><th style="width:60px">排序</th><th></th></tr></thead>
+        <tbody id="comp-rows"></tbody>
+      </table>
+      <div class="toolbar"><button type="button" class="btn" data-act="comp-add">＋ 加一行</button><button type="button" class="btn primary" data-act="comp-save">保存比赛</button></div>
+    </section>
+
+    <section class="pane" id="pane-people">
+      <h2>人物信息</h2>
+      <table>
+        <thead><tr><th style="width:110px">ID</th><th style="width:90px">姓名</th><th style="width:120px">地区</th><th style="width:100px">段位</th><th style="width:130px">单位</th><th>小传</th><th style="width:200px">荣誉（JSON 数组）</th><th style="width:180px">资料项（JSON 数组）</th><th></th></tr></thead>
+        <tbody id="people-rows"></tbody>
+      </table>
+      <div class="toolbar"><button type="button" class="btn" data-act="people-add">＋ 加一行</button><button type="button" class="btn primary" data-act="people-save">保存人物</button></div>
+      <p class="hint">荣誉格式：[{"y":"2026","t":"冠军"}]; 资料项格式：[{"k":"单位","v":"河南师范大学"}]。</p>
+    </section>
+
+    <section class="pane" id="pane-rating">
+      <h2>等级分榜（云端当前值）</h2>
+      <table>
+        <thead><tr><th style="width:60px">名次</th><th>姓名</th><th>地区</th><th>学校</th><th style="width:100px">等级分</th></tr></thead>
+        <tbody id="rating-rows"></tbody>
+      </table>
+
+      <h2 style="margin-top:20px">录入新对局，再点上方「更新等级分」</h2>
+      <div class="toolbar">
+        <input type="text" id="m-p1" placeholder="选手一" style="max-width:140px">
+        <input type="text" id="m-p2" placeholder="选手二" style="max-width:140px">
+        <select id="m-result"><option value="1">选手一胜</option><option value="0">选手二胜</option><option value="0.5">和棋</option></select>
+        <input type="date" id="m-date">
+        <button type="button" class="btn" data-act="match-add">录入对局</button>
+      </div>
+      <table>
+        <thead><tr><th style="width:60px">#</th><th>选手一</th><th>选手二</th><th style="width:90px">结果</th><th style="width:120px">日期</th></tr></thead>
+        <tbody id="match-rows"></tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<script src="../assets/cloud.js"></script>
+<script src="../assets/account.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    var $ = function (id) { return document.getElementById(id); };
+    var S = { comp: [], people: [], ratings: [], matches: [], loaded: false };
+
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function msg(text, kind) {
+        var el = $('msg');
+        el.textContent = text || '';
+        el.className = kind || '';
+    }
+
+    function errText(e) {
+        var s = String((e && e.message) || e || '操作失败');
+        return ({ 'no permission': '需要管理员权限。' })[s] || s;
+    }
+
+    function rpc(name, params, array) {
+        return window.ZBX_ACCOUNT.rpc(name, params, array);
+    }
+
+    function token() { return window.ZBX_ACCOUNT.token(); }
+
+    function guard(fn) {
+        return function () {
+            Promise.resolve(fn()).catch(function (e) { msg(errText(e), 'err'); });
+        };
+    }
+
+    function syncGate() {
+        var acc = window.ZBX_ACCOUNT;
+        if (!acc || !acc.ready()) { setTimeout(syncGate, 80); return; }
+        if (!acc.isAdmin()) {
+            $('panel').hidden = true;
+            $('gate').hidden = false;
+            $('gate-msg').textContent = acc.user()
+                ? '当前账号「' + acc.nick() + '」不是管理员。'
+                : '请用管理员账号登录后继续。';
+            return;
+        }
+        $('gate').hidden = true;
+        $('panel').hidden = false;
+        if (!S.loaded) { S.loaded = true; loadAll(); }
+    }
+
+    function loadAll() {
+        msg('正在读取云端数据…');
+        return Promise.all([
+            rpc('zbx_public_competitions', {}, true),
+            rpc('zbx_public_people', {}, true),
+            rpc('zbx_public_ratings', {}, true),
+            rpc('zbx_admin_matches', { p_token: token() })
+        ]).then(function (r) {
+            S.comp = Array.isArray(r[0]) ? r[0] : [];
+            S.people = Array.isArray(r[1]) ? r[1] : [];
+            S.ratings = Array.isArray(r[2]) ? r[2] : [];
+            S.matches = (r[3] && r[3].ok && Array.isArray(r[3].rows)) ? r[3].rows : [];
+            renderAll();
+            msg('已读取云端数据。', 'ok');
+        });
+    }
+
+    function renderAll() {
+        $('comp-rows').innerHTML = S.comp.map(function (r, i) {
+            return '<tr data-i="' + i + '">' +
+                td(input(r.id, 'id')) + td(input(r.title, 'title')) +
+                td(input(r.date, 'date')) + td(input(r.games, 'games', 'number')) +
+                td(input(r.url, 'url')) + td(textarea(r.note, 'note')) +
+                td(input(r.ord, 'ord', 'number')) +
+                '<td><button type="button" class="btn mini warn" data-del="comp" data-i="' + i + '">删</button></td></tr>';
+        }).join('');
+        $('people-rows').innerHTML = S.people.map(function (r, i) {
+            return '<tr data-i="' + i + '">' +
+                td(input(r.id, 'id')) + td(input(r.name, 'name')) + td(input(r.region, 'region')) +
+                td(input(r.dan, 'dan')) + td(input(r.unit, 'unit')) + td(textarea(r.bio, 'bio')) +
+                td(textarea(JSON.stringify(r.honors || [], null, 1), 'honors')) +
+                td(textarea(JSON.stringify(r.stats || [], null, 1), 'stats')) +
+                '<td><button type="button" class="btn mini warn" data-del="people" data-i="' + i + '">删</button></td></tr>';
+        }).join('');
+        $('rating-rows').innerHTML = S.ratings.slice(0, 80).map(function (r) {
+            return '<tr><td>' + esc(r.rank == null ? '—' : r.rank) + '</td><td>' + esc(r.name) + '</td>' +
+                '<td>' + esc(r.region || '—') + '</td><td>' + esc(r.uni || '—') + '</td>' +
+                '<td>' + esc(Number(r.rating || 0).toFixed(2)) + '</td></tr>';
+        }).join('') || '<tr><td colspan="5">云端还没有等级分，点「一键载入本站初始数据」。</td></tr>';
+        $('match-rows').innerHTML = S.matches.map(function (r) {
+            var res = ({ '1': '选手一胜', '0': '选手二胜', '0.5': '和棋' })[r.result] || r.result;
+            return '<tr><td>' + esc(r.id) + '</td><td>' + esc(r.p1) + '</td><td>' + esc(r.p2) + '</td>' +
+                '<td>' + esc(res) + '</td><td>' + esc(r.played_at || '—') + '</td></tr>';
+        }).join('') || '<tr><td colspan="5">暂无待更新对局。</td></tr>';
+    }
+
+    function td(inner) { return '<td>' + inner + '</td>'; }
+    function input(v, f, type) {
+        return '<input type="' + (type || 'text') + '" data-f="' + f + '" value="' + esc(v == null ? '' : v) + '">';
+    }
+    function textarea(v, f) {
+        return '<textarea data-f="' + f + '">' + esc(v == null ? '' : v) + '</textarea>';
+    }
+
+    function collect(tbodyId, names) {
+        return Array.prototype.map.call($(tbodyId).querySelectorAll('tr[data-i]'), function (tr) {
+            var o = {};
+            names.forEach(function (f) {
+                var el = tr.querySelector('[data-f="' + f + '"]');
+                o[f] = el ? el.value.trim() : '';
+            });
+            return o;
+        });
+    }
+
+    function check(res, label) {
+        if (!res || !res.ok) { throw new Error((res && res.err) || (label + '失败')); }
+        msg(label + '成功：' + (res.n || res.applied || 0) + ' 条。', 'ok');
+    }
+
+    document.addEventListener('click', function (e) {
+        var tab = e.target.closest('[data-tab]');
+        if (tab) {
+            Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function (b) { b.classList.remove('on'); });
+            Array.prototype.forEach.call(document.querySelectorAll('.pane'), function (p) { p.classList.remove('on'); });
+            tab.classList.add('on');
+            $('pane-' + tab.getAttribute('data-tab')).classList.add('on');
+            return;
+        }
+        var del = e.target.closest('[data-del]');
+        if (del) {
+            var which = del.getAttribute('data-del');
+            var row = del.closest('tr');
+            if (row) { row.parentNode.removeChild(row); }
+            return;
+        }
+        var act = e.target.closest('[data-act]');
+        if (!act) { return; }
+        var a = act.getAttribute('data-act');
+        if (a === 'login') { window.ZBX_ACCOUNT.openPanel('login'); }
+        else if (a === 'refresh') { guard(loadAll)(); }
+        else if (a === 'comp-add') {
+            $('comp-rows').insertAdjacentHTML('beforeend',
+                '<tr data-i="new">' + td(input('', 'id')) + td(input('', 'title')) + td(input('', 'date')) +
+                td(input('', 'games', 'number')) + td(input('', 'url')) + td(textarea('', 'note')) +
+                td(input('0', 'ord', 'number')) +
+                '<td><button type="button" class="btn mini warn" data-del="comp">删</button></td></tr>');
+        }
+        else if (a === 'people-add') {
+            $('people-rows').insertAdjacentHTML('beforeend',
+                '<tr data-i="new">' + td(input('', 'id')) + td(input('', 'name')) + td(input('', 'region')) +
+                td(input('', 'dan')) + td(input('', 'unit')) + td(textarea('', 'bio')) +
+                td(textarea('[]', 'honors')) + td(textarea('[]', 'stats')) +
+                '<td><button type="button" class="btn mini warn" data-del="people">删</button></td></tr>');
+        }
+        else if (a === 'comp-save') {
+            guard(function () {
+                var rows = collect('comp-rows', ['id', 'title', 'date', 'games', 'url', 'note', 'ord'])
+                    .map(function (r) {
+                        return { id: r.id, title: r.title, date: r.date, games: Number(r.games) || 0,
+                            url: r.url, note: r.note, ord: Number(r.ord) || 0 };
+                    });
+                if (rows.some(function (r) { return !r.id || !r.title; })) { throw new Error('ID 和标题不能为空'); }
+                return rpc('zbx_admin_save_competitions', { p_token: token(), p_rows: rows })
+                    .then(function (res) { check(res, '比赛已保存'); return loadAll(); });
+            })();
+        }
+        else if (a === 'people-save') {
+            guard(function () {
+                var rows = collect('people-rows', ['id', 'name', 'region', 'dan', 'unit', 'bio', 'honors', 'stats'])
+                    .map(function (r) {
+                        var honors = [], stats = [];
+                        try { honors = JSON.parse(r.honors || '[]'); } catch (err) { throw new Error('荣誉 JSON 格式不对：' + r.id); }
+                        try { stats = JSON.parse(r.stats || '[]'); } catch (err) { throw new Error('资料项 JSON 格式不对：' + r.id); }
+                        return { id: r.id, name: r.name, region: r.region, dan: r.dan, unit: r.unit,
+                            bio: r.bio, honors: honors, stats: stats, ord: 0 };
+                    });
+                if (rows.some(function (r) { return !r.id || !r.name; })) { throw new Error('ID 和姓名不能为空'); }
+                return rpc('zbx_admin_save_people', { p_token: token(), p_rows: rows })
+                    .then(function (res) { check(res, '人物已保存'); return loadAll(); });
+            })();
+        }
+        else if (a === 'match-add') {
+            guard(function () {
+                var p1 = $('m-p1').value.trim(), p2 = $('m-p2').value.trim();
+                if (!p1 || !p2) { throw new Error('请填写两位选手'); }
+                return rpc('zbx_admin_add_matches', {
+                    p_token: token(),
+                    p_rows: [{ p1: p1, p2: p2, result: $('m-result').value, played_at: $('m-date').value || null }]
+                }).then(function (res) { check(res, '对局已录入'); $('m-p1').value = ''; $('m-p2').value = ''; return loadAll(); });
+            })();
+        }
+        else if (a === 'recalc') {
+            guard(function () {
+                if (!window.confirm('按尚未更新的对局重算等级分？')) { return; }
+                return rpc('zbx_admin_recalc_ratings', { p_token: token() })
+                    .then(function (res) { check(res, '等级分已更新'); return loadAll(); });
+            })();
+        }
+        else if (a === 'seed') {
+            guard(function () {
+                if (!window.confirm('用本站初始数据覆盖云端的比赛、人物、等级分？已有修改会丢失。')) { return; }
+                return fetch('../data/zayu-seed.json', { cache: 'no-store' })
+                    .then(function (r) { if (!r.ok) { throw new Error('读取初始数据失败'); } return r.json(); })
+                    .then(function (seed) {
+                        return Promise.all([
+                            rpc('zbx_admin_save_competitions', { p_token: token(), p_rows: seed.competitions || [] }),
+                            rpc('zbx_admin_save_people', { p_token: token(), p_rows: seed.people || [] }),
+                            rpc('zbx_admin_save_ratings', { p_token: token(), p_rows: seed.ratings || [] })
+                        ]);
+                    })
+                    .then(function (res) {
+                        if (res.some(function (r) { return !r || !r.ok; })) { throw new Error('初始数据写入失败'); }
+                        msg('初始数据已载入云端。', 'ok');
+                        return loadAll();
+                    });
+            })();
+        }
+    });
+
+    document.addEventListener('zbx:account', syncGate);
+    syncGate();
+})();
+</script>
+</body>
+</html>
