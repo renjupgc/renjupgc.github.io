@@ -249,17 +249,21 @@
   .chartwrap { position: relative; flex: 0 0 auto; height: 176px; min-width: 0; }
   .chartwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .chartwrap svg circle[data-pt] { cursor: pointer; }
-  .chartdetail {
-    margin-top: 6px; min-height: 22px; padding: 4px 8px;
-    border: 1px solid var(--line); border-radius: 3px; background: var(--panel);
-    font: 600 11px/1.4 var(--mono); color: var(--muted);
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  /* 点击折线点弹出的悬浮框，定位在被点的数据点旁 */
+  .charttip {
+    position: absolute; z-index: 30; pointer-events: none;
+    min-width: 116px; padding: 7px 9px;
+    border: 1px solid var(--line); border-radius: 5px;
+    background: var(--panel); box-shadow: 0 6px 20px rgba(0,0,0,.45);
+    font: 600 11px/1.55 var(--mono); color: var(--muted);
+    transform: translate(-50%, -100%); opacity: 0; visibility: hidden;
+    transition: opacity .12s ease; white-space: nowrap;
   }
-  .chartdetail .hint { font-weight: 400; opacity: .75; }
-  .chartdetail .pt-san { font-weight: 700; }
-  .chartdetail .pt-elo { color: var(--muted); }
-  .chartdetail .pt-prob { color: var(--pear); font-weight: 700; margin-left: auto; }
-  .chartdetail .pt-rank { font-size: 10px; opacity: .7; }
+  .charttip.on { opacity: 1; visibility: visible; }
+  .charttip .tip-san { font-weight: 700; font-size: 12px; }
+  .charttip .tip-prob { color: var(--pear); font-weight: 700; font-size: 15px; }
+  .charttip .tip-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .charttip .tip-rank { font-size: 10px; opacity: .7; }
 
   @media (max-width: 900px) {
     .stage { padding: 10px; }
@@ -367,8 +371,7 @@
     <div class="chead">
       <div class="legend" id="legend"></div>
     </div>
-    <div class="chartwrap" id="chartwrap"><svg id="chart" preserveAspectRatio="none"></svg></div>
-    <div class="chartdetail" id="chartdetail"><span class="hint">点击折线上的点查看该等级分下的落点概率</span></div>
+    <div class="chartwrap" id="chartwrap"><svg id="chart" preserveAspectRatio="none"></svg><div class="charttip" id="charttip"></div></div>
   </section>
 </footer>
 
@@ -899,7 +902,7 @@ function paintChart(data) {
     const pts = s.points.map((p, i) => ({ x: xFor(i), y: yFor(p) }));
     lines += `<path d="${curveThrough(pts)}" fill="none" stroke="${s.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />`;
     lines += pts.map((p, i) =>
-      `<circle data-pt="${si},${i}" cx="${p.x}" cy="${p.y}" r="4.2" fill="${s.color}" stroke="var(--bg)" stroke-width="1"><title>${s.san} · ${X_LABELS[i]} · ${s.points[i].toFixed(1)}%</title></circle>`
+      `<circle data-pt="${si},${i}" cx="${p.x}" cy="${p.y}" r="4.2" fill="${s.color}" stroke="var(--bg)" stroke-width="1" />`
     ).join('');
   });
 
@@ -949,28 +952,44 @@ function renderChart(immediate = false) {
   requestAnimationFrame(frame);
 }
 
-/* 点击折线上的点：显示该等级分下这个候选落点的概率详情 */
+/* 点击折线上的点：在该点旁弹出悬浮框显示概率 */
 let selectedPt = null;   // {si, i}
-el('chart').addEventListener('click', (ev) => {
-  const node = ev.target.closest('[data-pt]');
-  if (!node) return;
+function showChartTip(node) {
+  const tip = el('charttip');
+  const wrap = el('chartwrap');
   const [si, i] = node.getAttribute('data-pt').split(',').map(Number);
   const s = curve[si];
   if (!s) return;
   selectedPt = { si, i };
   const rankTxt = si === 0 ? '首选' : `第 ${si + 1} 位`;
-  el('chartdetail').innerHTML =
-    `<span class="pt-san" style="color:${s.color}">${s.san}</span>` +
-    `<span class="pt-rank">${rankTxt}</span>` +
-    `<span class="pt-elo">等级分 ${X_LABELS[i]}</span>` +
-    `<span class="pt-prob">${s.points[i].toFixed(1)}%</span>`;
+  tip.innerHTML =
+    `<div class="tip-row"><span class="tip-san" style="color:${s.color}">${s.san}</span><span class="tip-rank">${rankTxt}</span></div>` +
+    `<div class="tip-row"><span>等级分 ${X_LABELS[i]}</span><span class="tip-prob">${s.points[i].toFixed(1)}%</span></div>`;
+  tip.classList.add('on');
+  // 数据点像素坐标：viewBox 与容器像素 1:1，cx/cy 即相对 chartwrap 的偏移
+  const cx = parseFloat(node.getAttribute('cx'));
+  const cy = parseFloat(node.getAttribute('cy'));
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  const ww = wrap.clientWidth;
+  const left = Math.min(Math.max(cx, tw / 2 + 2), ww - tw / 2 - 2);
+  let top = cy - 9, above = true;
+  if (top - th < 0) { top = cy + 9; above = false; }   // 顶部空间不足则翻到点下方
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+  tip.style.transform = above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)';
+}
+el('chart').addEventListener('click', (ev) => {
+  const node = ev.target.closest('[data-pt]');
+  if (!node) { el('charttip').classList.remove('on'); selectedPt = null; return; }
+  showChartTip(node);
 });
 function clearChartDetail() {
   selectedPt = null;
-  el('chartdetail').innerHTML = '<span class="hint">点击折线上的点查看该等级分下的落点概率</span>';
+  el('charttip').classList.remove('on');
 }
 
 addEventListener('resize', () => {
+  el('charttip').classList.remove('on');   // 坐标会变，先收起悬浮框
   fitBoard();
   if (curve.length) renderChart(true);
 });
