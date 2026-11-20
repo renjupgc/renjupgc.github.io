@@ -169,10 +169,9 @@ function noteSpot(op, five) {
     return { dx: 0.94, dy: -1.16, anchor: 'start' };
 }
 
-/* 其余打点：左右交错，免得挤成一条 */
-function noteSide(c) {
-    const left = c[0] % 2 === 0;
-    return { dx: left ? -0.46 : 0.46, dy: -0.5, anchor: left ? 'end' : 'start' };
+/* 其余打点：直接写在交叉点上，居中（dy 补一个基线偏移，视觉才正） */
+function noteSide() {
+    return { dx: 0, dy: 0.19, anchor: 'middle' };
 }
 
 /* 原书标号：a3、c10?、6 */
