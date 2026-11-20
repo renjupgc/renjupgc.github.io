@@ -86,22 +86,23 @@
   .eb-draw { background: #8a8d84; }               /* 和棋：灰色 */
   .eb-bottom { bottom: 0; background: #14150F; }  /* 黑胜 */
   .eb-mid { position: absolute; left: 0; right: 0; height: 1px; background: rgba(120,125,110,.45); }
-  .eb-pill {
+  /* 三个百分比标签，贴在各自色段的中点：上白胜 / 中灰和棋 / 下黑胜 */
+  .eb-lab {
     position: absolute;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 2;
-    background: var(--bg);
-    color: var(--paper);
-    border: 1px solid rgba(215,212,194,.6);
+    z-index: 3;
     border-radius: 9999px;
-    padding: 1px 7px;
-    font: 700 10px/1.3 var(--mono);
+    padding: 1px 6px;
+    font: 700 10px/1.25 var(--mono);
     box-shadow: 0 1px 4px rgba(17,18,13,.18);
     white-space: nowrap;
     pointer-events: none;
     transition: top .3s ease-out;
   }
+  .eb-lab-w { background: #fff; color: #14150f; border: 1px solid rgba(120,125,110,.5); }  /* 白胜 */
+  .eb-lab-d { background: #8a8d84; color: #fff; border: 1px solid #6e7168; }             /* 和棋 */
+  .eb-lab-b { background: #14150f; color: #fff; border: 1px solid #14150f; }             /* 黑胜 */
 
   /* 导航条：紧贴棋盘正下方，左边留出胜率条的宽度 */
   .navrow {
@@ -295,14 +296,16 @@
 <main class="stage">
   <div class="playcol">
     <div class="boardrow">
-      <div class="evalbar" title="黑方胜率">
+      <div class="evalbar" title="胜 / 和 / 负（黑方视角）">
         <div class="eb-track">
           <div class="eb-top" id="ebTop" style="height:33.3%"></div>
           <div class="eb-draw" id="ebDraw" style="top:33.3%;height:33.4%"></div>
           <div class="eb-bottom" id="ebBottom" style="height:33.3%"></div>
           <div id="ebMids"></div>
         </div>
-        <div class="eb-pill" id="ebPill" style="top:50%">50.0%</div>
+        <div class="eb-lab eb-lab-w" id="ebLabW" style="top:16%">33.3%</div>
+        <div class="eb-lab eb-lab-d" id="ebLabD" style="top:50%">33.4%</div>
+        <div class="eb-lab eb-lab-b" id="ebLabB" style="top:84%">33.3%</div>
       </div>
       <div class="board" id="board"></div>
     </div>
@@ -1052,12 +1055,29 @@ const MID_LINES = Array.from({ length: 9 }, (_, i) => `<div class="eb-mid" style
 el('ebMids').innerHTML = MID_LINES;
 
 /* 三段胜率条：p = [黑胜, 和棋, 白胜]（黑方视角，概率和为 1）。
-   上段白胜、中段和棋(灰)、下段黑胜；药丸位置 = 黑胜+½和，与旧胜率语义连续。 */
+   上段白胜、中段和棋(灰)、下段黑胜；每段中点贴一个该段的百分比标签。 */
 function softmax3(logits) {
   const m = Math.max(logits[0], logits[1], logits[2]);
   const e = [Math.exp(logits[0] - m), Math.exp(logits[1] - m), Math.exp(logits[2] - m)];
   const s = e[0] + e[1] + e[2];
   return [e[0] / s, e[1] / s, e[2] / s];
+}
+/* 三段很悬殊时（如 98/1/1）中点会挤在一起，按像素做一次最小间距排布。 */
+function ebLabelTops(pcts) {
+  const H = (el('ebTop').parentElement && el('ebTop').parentElement.clientHeight) || 400;
+  const gap = 15, pad = 8;
+  // 各段中点的像素 y（从上往下）：白 / 和 / 黑
+  const y = [
+    pcts[0] / 2 / 100 * H,
+    (pcts[0] + pcts[1] / 2) / 100 * H,
+    (pcts[0] + pcts[1] + pcts[2] / 2) / 100 * H,
+  ];
+  for (let i = 1; i < 3; i++) if (y[i] - y[i - 1] < gap) y[i] = y[i - 1] + gap;
+  if (y[2] > H - pad) {
+    y[2] = H - pad;
+    for (let i = 1; i >= 0; i--) if (y[i + 1] - y[i] < gap) y[i] = y[i + 1] - gap;
+  }
+  return y.map(v => Math.max(pad, Math.min(H - pad, v)) / H * 100);
 }
 function renderBar(p) {
   let bw, dr, ww;
@@ -1073,9 +1093,17 @@ function renderBar(p) {
   el('ebDraw').style.top = `${whitePct}%`;
   el('ebDraw').style.height = `${drawPct}%`;
   el('ebBottom').style.height = `${blackPct}%`;
-  const pillPct = (bw + 0.5 * dr) * 100;   // 黑方胜率（和棋算半分）
-  el('ebPill').style.top = `${100 - pillPct}%`;
-  el('ebPill').textContent = `${pillPct.toFixed(1)}%`;
+  // 三个标签：上白胜 / 中灰和棋 / 下黑胜，各自显示本段百分比
+  const tops = ebLabelTops([whitePct, drawPct, blackPct]);
+  const labels = [
+    [el('ebLabW'), whitePct, tops[0]],
+    [el('ebLabD'), drawPct, tops[1]],
+    [el('ebLabB'), blackPct, tops[2]],
+  ];
+  for (const [node, pct, top] of labels) {
+    node.style.top = `${top}%`;
+    node.textContent = `${pct.toFixed(1)}%`;
+  }
 }
 
 function renderList() {
