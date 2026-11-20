@@ -6996,3 +6996,72 @@ table.ratings .r-name a:hover {
     color: var(--faint);
     opacity: 0.62;
 }
+
+/* 模式切换：五手两打 / 十打判断 */
+.sd-tabs {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fffdf7;
+}
+
+.sd-tab {
+    padding: 5px 13px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.sd-tab:hover {
+    color: var(--ink-2);
+}
+
+.sd-tab.is-on {
+    background: var(--gold-tint);
+    color: var(--gold-deep);
+    font-weight: 600;
+}
+
+/* 交换三选一并排，省一层竖向空间 */
+.sd-opts.sd-opts-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.sd-opts.sd-opts-row .sd-opt {
+    padding: 9px 6px 8px;
+    text-align: center;
+}
+
+.sd-opts.sd-opts-row .sd-opt b {
+    font-size: 13.5px;
+}
+
+.sd-opts.sd-opts-row .sd-opt span {
+    margin-top: 2px;
+    font-size: 10px;
+}
+
+.sd-hint.sd-warn {
+    color: #a8453f;
+}
+
+@media (max-width: 520px) {
+    .sd-opts.sd-opts-row {
+        grid-template-columns: 1fr;
+    }
+
+    .sd-opts.sd-opts-row .sd-opt {
+        text-align: left;
+        padding: 7px 11px;
+    }
+}

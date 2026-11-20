@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>十打判断 - 连珠杂箱</title>
-<meta name="description" content="塔拉山口-10 的开局练习：给出前四手，先判断第五手能不能直接给十打，再看白方挑中的打点之后局面算哪一档。题面取自《漱星阁开局指南》里的打数表。">
+<title>开局综合判断 - 连珠杂箱</title>
+<meta name="description" content="塔拉山口-10 的开局练习：先判断白方该不该交换，再让黑方在盘上点出第五手的两打；另有一路十打判断，问第五手能不能直接摊十打。题面取自《漱星阁开局指南》里的打数表。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/zaji/shida.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
-<meta property="og:title" content="十打判断">
-<meta property="og:description" content="塔拉山口-10 的开局练习：给出前四手，先判断第五手能不能直接给十打，再看白方挑中的打点之后局面算哪一档。题面取自《漱星阁开局指南》里的打数表。">
+<meta property="og:title" content="开局综合判断">
+<meta property="og:description" content="塔拉山口-10 的开局练习：先判断白方该不该交换，再让黑方在盘上点出第五手的两打；另有一路十打判断，问第五手能不能直接摊十打。题面取自《漱星阁开局指南》里的打数表。">
 <meta property="og:url" content="https://renjupgc.github.io/zaji/shida.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="十打判断">
-<meta name="twitter:description" content="塔拉山口-10 的开局练习：给出前四手，先判断第五手能不能直接给十打，再看白方挑中的打点之后局面算哪一档。">
+<meta name="twitter:title" content="开局综合判断">
+<meta name="twitter:description" content="塔拉山口-10 的开局练习：先判断白方该不该交换，再让黑方在盘上点出第五手的两打；另有一路十打判断，问第五手能不能直接摊十打。题面取自《漱星阁开局指南》里的打数表。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
@@ -33,11 +33,15 @@
 
         <header class="page-head">
             <p class="eyebrow">杂技</p>
-            <h1 class="page-title">十打判断</h1>
-            <p class="page-desc">塔拉山口-10 的开局选择练习。四手摆好，先问一句：第五手能不能直接给十打？再问一句：白方挑中的那一手之后，这盘棋偏谁。题面与答案都来自《漱星阁开局指南》里的打数表。</p>
+            <h1 class="page-title">开局综合判断</h1>
+            <p class="page-desc">塔拉山口-10 的开局练习，两条路。一是开局摆出后，白方换不换；二是白 4 落定，黑方的第五手两打怎么给。想单练打数，也能切到十打判断那一档。题面与答案都来自《漱星阁开局指南》里的打数表。</p>
         </header>
 
         <div class="sd-topline">
+            <div class="sd-tabs">
+                <button type="button" class="sd-tab is-on" data-sd-mode="ws">五手两打</button>
+                <button type="button" class="sd-tab" data-sd-mode="st">十打判断</button>
+            </div>
             <span class="sd-score" id="sd-score">第 <b>1</b> 局</span>
             <div class="sd-acts">
                 <button type="button" class="sd-next" id="sd-next">换一题</button>
@@ -55,18 +59,18 @@
         <section>
             <h2>怎么算对</h2>
             <p class="sd-legend">
-                <b>打数</b>是第五手一次摊开几个打点。摊得越多，白方挑得越舒服，所以同一局越往上越偏白。书里那几行就是这个意思，比如「6 打黑胜、9 打白近胜」，再往上一律记黑败。
+                <b>五手两打 · 交换</b>：对方执黑摆出开局，白方一句话定要不要接手。26 种开局按书里的强弱分档：疏星、瑞星是纯平衡，丘月、斜月黑小优，这四路「视情况」；长星、流星白优，「视情况」或不换都算对；彗星、游星白必胜，白方不必换；其余各路黑方不亏，也该换。选错会当场标出来，并告诉你这一路属于哪一档。
             </p>
             <p class="sd-legend">
-                <b>第一问</b>只问一件事：十打之后还算不算黑方的局面。黑必胜、黑近胜、黑大优、黑小优、偏黑、平衡、偏白、白小优，这八种都算「给得」；一落到白大优、白近胜、白必胜（书里写「黑败」）就不能给。
+                <b>五手两打 · 两打</b>：白 4 落定后，轮到你执黑给第五手的两打，直接在盘上点两个交叉点，点满即判。书里的 1 打、2 打就是黑方该先摆出来的两手，踩中这两个点算对；若有三个以上的黑必胜点，你给的两个都在里面也算对。两手都没越过白小优、只是没踩到最紧的两手，算擦边（半分）；任一手落到白大优、白近胜、白必胜，就是把局面送掉了，算错。若白方最舒服的两手本身就是白必胜，盘上会把这两手标成 A、B，改成你执白挑一手：哪一手对白更好。
             </p>
             <p class="sd-legend">
-                <b>盘上的小字</b>是原书的打点标注，照数字读即可：<b>a3</b> 是「给三打时白方挑去这一点，黑方仍胜」，<b>c8?</b> 是「给八打时挑去这一点，黑方败，书里存疑」，只写一个 <b>6</b> 的是中间档（偏黑、平衡、偏白这一类）。塔拉山口里 a 记胜、c 记败，后面的数字就是打数。棋盘上金圈那一手就是白方挑中的点；答题时圈边不写字，选完才亮出它的标号。
+                <b>十打判断</b>：四手摆好，先问第五手能不能直接给十打，再问白方挑中的那一手之后局面偏谁。十打之后还在白小优以内的八档（黑必胜到白小优）算「给得」，落到白大优、白近胜、白必胜就不能给。第二问的五档互有重叠，正落在本档算对，落在重叠那一档算擦边。
             </p>
             <p class="sd-legend">
-                <b>第二问</b>从这局的原书打点里随机取一个，打数就照点旁那个数字，不另掷；答题时先不说给的是几打，选完再揭晓，圈边的标号也那时才亮。问的是那一刻局面偏谁。五档里有三档是干净的：黑很好（黑必胜、黑近胜、黑大优）、大致均势（黑小优、偏黑、平衡、偏白、白小优）、白很好（白必胜、白近胜、白大优），落进去就是全对。黑稍好、白稍好各带一段擦边：黑稍好收黑小优、偏黑，碰着黑近胜、黑大优、平衡只算半对；白稍好收白小优、偏白，碰着白近胜、白大优、平衡也只算半对。选项下面那几个淡色的字就是擦边项，半对记 0.5 分，计分里另数擦边个数。两问都答完，那一局的整张打数表才摊出来。
+                <b>盘上的小字</b>是原书的打点标注：<b>a3</b> 是「给三打时白方挑去这一点，黑方仍胜」，<b>c8?</b> 是「给八打时挑去这一点，黑方败，书里存疑」，只写一个 <b>6</b> 的是中间档。塔拉山口里 a 记胜、c 记败，后面的数字就是打数。两打答完后，1 打、2 打会用金色压住，其余打点也一并摊出来。
             </p>
-            <p class="sd-note" id="sd-msg">题库 225 局，取自《漱星阁开局指南》2026.10.25 版的打数表。书里一页分两列（带 ′ 的那类变化）的局没敢收，两列挤在一行里读不准；其余照原样搬过来，坐标一位没改。</p>
+            <p class="sd-note" id="sd-msg">题库 225 局，取自《漱星阁开局指南》2026.10.25 版的打数表。书里一页分两列（带 ′ 的那类变化）的局没敢收，两列挤在一行里读不准；其余照原样搬过来，坐标一位没改。两打的出题按打数分布配了权重：2 打就黑必胜、或 2 打只能平衡及以下的局面多出，要 3–4 打才见黑胜的少些，5 打往上才黑胜的更少。</p>
         </section>
 
     </main>

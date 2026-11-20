@@ -22,8 +22,11 @@ const OPEN = (window.SHIDA_OPENINGS || []).filter(function (o) {
     return o && o.m && o.m.length === 4 && o.r && o.r.length;
 });
 
-/* 书里的简称归一：黑胜就是黑必胜，黑败就是白必胜 */
-const NORM = { '黑胜': '黑必胜', '黑败': '白必胜', '白胜': '白必胜' };
+/* 书里的简称归一：黑胜就是黑必胜，黑败就是白必胜，「有望胜」按近胜读 */
+const NORM = {
+    '黑胜': '黑必胜', '黑败': '白必胜', '白胜': '白必胜',
+    '黑有望胜': '黑近胜', '白有望胜': '白近胜'
+};
 const cat = (r) => NORM[r] || r;
 
 /* 十打仍可接受的那一档 */
@@ -79,6 +82,7 @@ const CORE = {
 };
 
 const S = {
+    mode: 'ws',        // 'ws' 五手两打 | 'st' 十打判断
     queue: [],
     cur: null,
     five: null,
@@ -410,7 +414,502 @@ function bindSide() {
         });
 }
 
+/* ==========================================================================
+ * 五手两打
+ * --------------------------------------------------------------------------
+ * 一题两步。先问白方换不换；再让黑方在盘上点两个点当第五手的两打。
+ *
+ * 交换只有 26 种开局，按书里的强弱分档：
+ *   疏星、瑞星      纯平衡      → 视情况
+ *   丘月、斜月      黑小优      → 视情况
+ *   长星、流星      白优        → 视情况 / 不交换
+ *   彗星、游星      白必胜      → 不交换
+ *   其余                         → 交换
+ *
+ * 两打：书里 1 打、2 打那两个点就是黑方该先摆出来的两手。用户点两下即判。
+ * 若白方最舒服的两手本身就是白必胜（黑方怎么给都挡不住），把这两点亮在盘
+ * 上，换成用户执白挑一手：哪一手对白更好。
+ *
+ * 判分：踩中 1、2 打算对；两手都没越过白小优算擦边（半分）；任一手落到
+ * 白大优 / 白近胜 / 白必胜算错。
+ * ========================================================================== */
+
+const FAM_CN = { '鬆月': '松月' };
+const famName = (f) => FAM_CN[f] || f;
+
+const SWAP = {
+    '疏星': { take: ['dep'], tag: '纯平衡', why: '两边都差不多，换与不换看你熟哪一边。' },
+    '瑞星': { take: ['dep'], tag: '纯平衡', why: '两边都差不多，换与不换看你熟哪一边。' },
+    '丘月': { take: ['dep'], tag: '黑小优', why: '黑方略占便宜，换了能接着这点便宜下。' },
+    '斜月': { take: ['dep'], tag: '黑小优', why: '黑方略占便宜，换了能接着这点便宜下。' },
+    '长星': { take: ['dep', 'no'], tag: '白优', why: '白方本来就舒服，换与不换都说得过去。' },
+    '流星': { take: ['dep', 'no'], tag: '白优', why: '白方本来就舒服，换与不换都说得过去。' },
+    '彗星': { take: ['no'], tag: '白必胜', why: '书里记这一路白必胜，白方没必要交换。' },
+    '游星': { take: ['no'], tag: '白必胜', why: '书里记这一路白必胜，白方没必要交换。' }
+};
+
+const SWAP_DEF = { take: ['swap'], tag: '黑不亏', why: '这一路黑方不亏，白方该换。' };
+const swapRule = (f) => SWAP[f] || SWAP_DEF;
+
+const SWAP_WORD = { swap: '交换', dep: '视情况', no: '不交换' };
+
+/* 白视角打分：数字越大越偏黑，用来比「哪一手更好」 */
+const WSCORE = {
+    '白必胜': 0, '白近胜': 1, '白大优': 2, '白小优': 3, '偏白': 4,
+    '平衡': 5, '偏黑': 6, '黑小优': 7, '黑大优': 8, '黑近胜': 9, '黑必胜': 10
+};
+
+/* 越过白小优就算把局面送掉 */
+const WS_BAD = new Set(['白大优', '白近胜', '白必胜']);
+
+const W = {
+    op: null,
+    pool: [],
+    seen: {},
+    phase: 0,        // 0 未答交换；1 待点两打；2 已判
+    swap: null,
+    picks: [],
+    mode2: 'free',   // 'free' 自己点 | 'pick2' 二选一
+    res: null,
+    msg: '',
+    stats: { n: 0, s: 0, sOk: 0, t: 0, tOk: 0, tMid: 0 }
+};
+
+/* 书里的打点摊成一张表：n 是第几打，res 是这一打的结果 */
+function wsCands(op) {
+    return op.c.map(function (c) {
+        return { i: c[0], j: c[1], n: c[2], res: cat(resultAt(op, c[2])), raw: c };
+    });
+}
+
+/* 黑方最强的两手 = 打数最小的两个点 */
+function wsTop2(op) {
+    return wsCands(op).sort(function (a, b) { return a.n - b.n; }).slice(0, 2);
+}
+
+/* 白方最舒服的两手：白优在前，同档时打数大的更松，排前面 */
+function wsBestWhite(op) {
+    return wsCands(op).sort(function (a, b) {
+        const d = WSCORE[a.res] - WSCORE[b.res];
+        return d !== 0 ? d : b.n - a.n;
+    }).slice(0, 2);
+}
+
+/* 书里第一个「黑胜」档从几打起；没有这一档就是整局都到不了黑胜 */
+function wsFirstWin(op) {
+    for (let k = 0; k < op.r.length; k++) {
+        if (cat(op.r[k][2]) === '黑必胜') {
+            return op.r[k][0];
+        }
+    }
+    return null;
+}
+
+/*
+ * 出题按四组配额抽：2 打就黑必胜 55%、整局没有黑胜档 12%、
+ * 3–4 打才见黑胜 18%、5 打往上才黑胜 15%。
+ * 组内洗牌不放回，抽完再洗，免得同一局连着来；配额管的是长期比例，
+ * 不受各组局数多少影响（5 打以上那一组局最多，但不能因此霸屏）。
+ */
+const WS_QUOTA = [['g2', 55], ['g0', 12], ['g34', 18], ['g5', 15]];
+const WS_SRC = {};
+const WS_BAG = {};
+
+function wsBucket(op) {
+    const s = wsFirstWin(op);
+    if (s === null) {
+        return 'g0';
+    }
+    if (s <= 2) {
+        return 'g2';
+    }
+    return s <= 4 ? 'g34' : 'g5';
+}
+
+function wsFill() {
+    Object.keys(WS_SRC).forEach(function (k) { delete WS_SRC[k]; });
+    Object.keys(WS_BAG).forEach(function (k) { delete WS_BAG[k]; });
+    OPEN.forEach(function (o) {
+        if (!o.c || o.c.length < 2) {
+            return;
+        }
+        const k = wsBucket(o);
+        (WS_SRC[k] || (WS_SRC[k] = [])).push(o);
+    });
+    Object.keys(WS_SRC).forEach(function (k) {
+        WS_BAG[k] = shuffle(WS_SRC[k].slice());
+    });
+}
+
+function wsPick() {
+    if (!WS_SRC.g2) {
+        wsFill();
+    }
+    let roll = Math.random() * 100;
+    let key = 'g5';
+    for (let k = 0; k < WS_QUOTA.length; k++) {
+        roll -= WS_QUOTA[k][1];
+        if (roll <= 0) {
+            key = WS_QUOTA[k][0];
+            break;
+        }
+    }
+    if (!WS_BAG[key] || !WS_BAG[key].length) {
+        WS_BAG[key] = shuffle((WS_SRC[key] || []).slice());
+    }
+    const bag = WS_BAG[key];
+    return bag.length ? bag.pop() : OPEN[0];
+}
+
+function wsStart() {
+    let op = null;
+    /* 地址栏 ?p=68 直接跳到原书那一页，方便对着书看；只认第一次 */
+    if (!S.forced) {
+        S.forced = true;
+        const want = Number(new URLSearchParams(location.search).get('p'));
+        if (want) {
+            op = OPEN.filter(function (o) {
+                return o.p === want && o.c && o.c.length >= 2;
+            })[0] || null;
+        }
+    }
+    W.op = op || wsPick();
+    W.phase = 0;
+    W.swap = null;
+    W.picks = [];
+    W.mode2 = 'free';
+    W.res = null;
+    W.msg = '';
+    W.stats.n += 1;
+    wsRender();
+}
+
+function wsAnswerSwap(word) {
+    const op = W.op;
+    W.swap = word;
+    W.phase = 1;
+    W.stats.s += 1;
+    if (swapRule(op.f).take.indexOf(word) >= 0) {
+        W.stats.sOk += 1;
+    }
+    /* 白方最舒服的两手本身就是白必胜，就把这俩亮出来改问「哪一手对白更好」 */
+    const two = wsBestWhite(op);
+    W.mode2 = two.length === 2 && two.every(function (c) { return c.res === '白必胜'; })
+        ? 'pick2' : 'free';
+    wsRender();
+}
+
+function wsPoint(p) {
+    const op = W.op;
+    if (!p || p.i < 0 || p.i > 14 || p.j < 0 || p.j > 14) {
+        return;
+    }
+    if (W.phase !== 1) {
+        return;
+    }
+    if (op.m.some(function (m) { return m[0] === p.i && m[1] === p.j; })) {
+        return;
+    }
+    if (W.mode2 === 'pick2') {
+        const top = wsTop2(op);
+        const k = top.findIndex(function (c) { return c.i === p.i && c.j === p.j; });
+        if (k >= 0) {
+            wsChoose(k);
+        }
+        return;
+    }
+    if (W.picks.length >= 2 || W.picks.some(function (q) { return q.i === p.i && q.j === p.j; })) {
+        return;
+    }
+    W.picks.push({ i: p.i, j: p.j });
+    W.msg = '';
+    if (W.picks.length === 2) {
+        wsGrade();
+    }
+    wsRender();
+}
+
+function wsGrade() {
+    const op = W.op;
+    const all = wsCands(op);
+    const top = wsTop2(op);
+    const key = (c) => c.i + ',' + c.j;
+    const keys = top.map(key);
+    const mine = W.picks.map(function (p) {
+        return all.filter(function (c) { return c.i === p.i && c.j === p.j; })[0];
+    });
+    if (mine.some(function (c) { return !c; })) {
+        W.picks = [];
+        W.msg = '有一点书里没标，盘上换一个位置再点。';
+        return;
+    }
+    const same = mine.every(function (c) { return keys.indexOf(key(c)) >= 0; });
+    const wins = all.filter(function (c) { return c.res === '黑必胜'; });
+    const allWin = wins.length > 2 && mine.every(function (c) { return c.res === '黑必胜'; });
+    const ok = same || allWin;
+    const bad = mine.filter(function (c) { return WS_BAD.has(c.res); });
+    W.res = {
+        kind: ok ? 'ok' : (bad.length ? 'bad' : 'mid'),
+        top: top,
+        mine: mine,
+        same: same,
+        allWin: allWin
+    };
+    W.phase = 2;
+    W.stats.t += 1;
+    if (ok) {
+        W.stats.tOk += 1;
+    } else if (!bad.length) {
+        W.stats.tOk += 0.5;
+        W.stats.tMid += 1;
+    }
+}
+
+function wsChoose(k) {
+    const two = wsBestWhite(W.op);
+    const me = two[k];
+    const other = two[1 - k];
+    /* 你执白：白优越大越好；同为白必胜时，书里打数大的那手更松，对白更有利 */
+    const mine = WSCORE[me.res];
+    const theirs = WSCORE[other.res];
+    const ok = mine < theirs || (mine === theirs && me.n >= other.n);
+    W.res = { kind: ok ? 'ok' : 'bad', top: two, pick2: true, k: k };
+    W.phase = 2;
+    W.stats.t += 1;
+    if (ok) {
+        W.stats.tOk += 1;
+    }
+}
+
+/* ---------- 两打的视图 ---------- */
+
+const TAG_TEXT = {
+    '纯平衡': '是纯平衡局',
+    '黑小优': '黑方略占优',
+    '白优': '白方占优',
+    '白必胜': '白方必胜',
+    '黑不亏': '黑方不亏'
+};
+
+function wsDoneHTML() {
+    const op = W.op;
+    const rule = swapRule(op.f);
+    const ok = rule.take.indexOf(W.swap) >= 0;
+    const want = rule.take.length > 1
+        ? '「' + SWAP_WORD[rule.take[0]] + '」或「' + SWAP_WORD[rule.take[1]] + '」'
+        : '「' + SWAP_WORD[rule.take[0]] + '」';
+    return '<div class="sd-done ' + (ok ? 'ok' : 'bad') + '">' +
+        '<span class="sd-mark">' + (ok ? '✓' : '✗') + '</span>' +
+        '<span>该<b>' + want + '</b>：' + famName(op.f) +
+        (TAG_TEXT[rule.tag] || '') + '。你选了「' + SWAP_WORD[W.swap] + '」</span></div>';
+}
+
+function wsFB() {
+    const op = W.op;
+    const res = W.res;
+    const two = res.top.map(function (c) {
+        return '<b>' + coord(c.i, c.j) + '</b>（' + c.n + ' 打 · ' + c.res + '）';
+    }).join('、');
+    let tip;
+    if (res.pick2) {
+        const a = res.top[0];
+        const b = res.top[1];
+        tip = '你执白，这两点是盘上最舒服的两手，都是白必胜：' +
+            coord(a.i, a.j) + ' 记 ' + a.n + ' 打，' + coord(b.i, b.j) + ' 记 ' + b.n +
+            ' 打。摊得越多白方越松，所以 ' + coord(a.i, a.j) + ' 更值得拿。';
+    } else if (res.kind === 'ok') {
+        tip = res.allWin
+            ? '黑必胜的点不止两个，你给的两手都在里面，够了。书里排在最前的是 ' + two + '。'
+            : '正是书里的两打：' + two + '。';
+    } else if (res.kind === 'mid') {
+        tip = '书里的两打是 ' + two + '。你给的点都没越过白小优，局面还守得住，但没踩到最紧的两手。';
+    } else {
+        const badOne = res.mine.filter(function (c) { return WS_BAD.has(c.res); })[0];
+        tip = '你给的两手里有一手已经落到「' + badOne.res + '」，白方接着走就是白大优往上。' +
+            '书里的两打是 ' + two + '。';
+    }
+    const head = res.pick2
+        ? (res.kind === 'ok' ? '选对了' : '选错了')
+        : (res.kind === 'ok' ? '两打正确' : (res.kind === 'mid' ? '擦边，算半对' : '判断有误'));
+    const note = res.pick2
+        ? '这题换了边：你执白，只挑一手。'
+        : '金圈是书里的两打，圈里的数字就是第几打；其余打点不再铺开，' +
+          '免得二十几行字挤成一团。绿圈是你给对的那手，黄圈是擦边，红圈是送掉的那手。';
+    return '<div class="sd-fb">' +
+        '<span class="sd-verdict ' + res.kind + '">' + head + '</span>' +
+        '<p>' + tip + '</p>' +
+        '<p class="sd-note">' + note + '</p></div>';
+}
+
+function wsSideHTML() {
+    const op = W.op;
+    let html = '<div class="sd-head"><span class="sd-opening">' + famName(op.f) +
+        ' · ' + op.n + '</span><span class="sd-page">原书 ' + op.p + ' 页</span></div>';
+
+    if (W.phase === 0) {
+        html += '<div class="sd-step">第一问 · 交换</div>';
+        html += '<p class="sd-q">对方执黑摆出「<em>' + famName(op.f) +
+            '</em>」。你执白，换不换？</p>';
+        html += '<div class="sd-opts sd-opts-row">';
+        [['swap', '交换', '接过来执黑'], ['dep', '视情况', '看白4再定'],
+         ['no', '不交换', '接着执白']].forEach(function (o) {
+            html += '<button type="button" class="sd-opt" data-w="' + o[0] + '"><b>' +
+                o[1] + '</b><span>' + o[2] + '</span></button>';
+        });
+        html += '</div>';
+        html += '<p class="sd-hint">塔拉山口：白方一句话定，换了就是执黑。</p>';
+        return html;
+    }
+
+    html += wsDoneHTML();
+    html += '<div class="sd-step">第二问 · ' +
+        (W.mode2 === 'pick2' ? '挑一手' : '五手两打') + '</div>';
+
+    if (W.mode2 === 'pick2') {
+        html += '<p class="sd-q">盘上 <em>A</em>、<em>B</em> 是白方最舒服的两手，都是白必胜。' +
+            '轮到你执白挑一个：哪个对你更好？</p>';
+        if (W.phase === 1) {
+            html += '<div class="sd-opts sd-opts-row">';
+            wsBestWhite(op).forEach(function (c, k) {
+                html += '<button type="button" class="sd-opt" data-c="' + k +
+                    '"><b>' + 'AB'.charAt(k) + '</b><span>' + coord(c.i, c.j) +
+                    '</span></button>';
+            });
+            html += '</div>';
+            html += '<p class="sd-hint">两手都是白必胜，挑白方拿得更松的那手。</p>';
+        }
+    } else {
+        html += '<p class="sd-q">白方走了 <em>' + coord(op.m[3][0], op.m[3][1]) +
+            '</em>。轮到你给两打：在盘上点两个点。</p>';
+        if (W.phase === 1) {
+            html += '<p class="sd-hint">' + (W.picks.length
+                ? '已点 ' + W.picks.length + ' 个，再点 ' + (2 - W.picks.length) + ' 个。'
+                : '点到交叉点上，两个点凑齐立刻判。') + '</p>';
+            if (W.msg) {
+                html += '<p class="sd-hint sd-warn">' + W.msg + '</p>';
+            }
+            if (W.picks.length) {
+                html += '<button type="button" class="sd-next sd-ghost" data-w="again">重选</button>';
+            }
+        }
+    }
+
+    if (W.phase === 2) {
+        html += wsFB();
+        html += '<p class="sd-note">' + swapRule(op.f).why + '</p>';
+    }
+    return html;
+}
+
+function wsScore() {
+    const el = document.getElementById('sd-score');
+    if (!el) {
+        return;
+    }
+    const t = Math.round(W.stats.tOk * 10) / 10;
+    el.innerHTML = '第 <b>' + W.stats.n + '</b> 局 · 交换对 <b>' + W.stats.sOk + '/' +
+        W.stats.s + '</b> · 两打对 <b>' + t + '/' + W.stats.t + '</b>（擦边 ' +
+        W.stats.tMid + ' 个）';
+}
+
+function wsRender() {
+    const op = W.op;
+    if (!op || !S.board) {
+        return;
+    }
+    S.board.setMoves(op.m.map(function (m) {
+        return { i: m[0], j: m[1], color: m[2] };
+    }));
+
+    const marks = [];
+    const notes = [];
+    const push = function (c, text, size, tone, dx, dy, anchor) {
+        notes.push({ i: c.i, j: c.j, text: text, size: size, tone: tone, dx: dx, dy: dy, anchor: anchor });
+    };
+
+    if (W.phase === 1 && W.mode2 === 'pick2') {
+        wsBestWhite(op).forEach(function (c, k) {
+            marks.push({ i: c.i, j: c.j, kind: 'warn' });
+            push(c, 'AB'.charAt(k), 0.95, 'warn', 0, 0.19, 'middle');
+        });
+    } else if (W.phase === 1) {
+        W.picks.forEach(function (p, k) {
+            marks.push({ i: p.i, j: p.j, kind: 'warn' });
+            push({ i: p.i, j: p.j }, String(k + 1), 0.95, 'warn', 0, 0.19, 'middle');
+        });
+    }
+
+    if (W.phase === 2) {
+        /* 只钉住书里的两点，其余打点不铺，免得二十几行字挤成一团 */
+        const top = W.res ? W.res.top : [];
+        top.forEach(function (c) {
+            push(c, String(c.n), 0.9, 'warn', 0, 0.19, 'middle');
+            marks.push({ i: c.i, j: c.j, kind: 'warn' });
+        });
+        if (W.res.pick2) {
+            const me = top[W.res.k];
+            if (me) {
+                marks.push({ i: me.i, j: me.j, kind: W.res.kind === 'ok' ? 'good' : 'bad' });
+            }
+        } else {
+            const miss = W.res.kind === 'mid' ? 'warn' : 'bad';
+            W.picks.forEach(function (p) {
+                const isTop = top.some(function (t) { return t.i === p.i && t.j === p.j; });
+                marks.push({ i: p.i, j: p.j, kind: isTop ? 'good' : miss });
+            });
+        }
+    }
+
+    S.board.setMarks(marks);
+    S.board.setNotes(notes);
+
+    const side = document.getElementById('sd-side');
+    if (side) {
+        side.innerHTML = wsSideHTML();
+        wsBind();
+        if (W.phase === 1 && window.innerWidth <= 820) {
+            const box = side.getBoundingClientRect();
+            if (box.top < 0 || box.top > window.innerHeight * 0.6) {
+                side.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    }
+    wsScore();
+}
+
+function wsBind() {
+    Array.prototype.forEach.call(
+        document.querySelectorAll('#sd-side [data-w]'),
+        function (btn) {
+            btn.addEventListener('click', function () {
+                const what = btn.getAttribute('data-w');
+                if (W.phase === 0) {
+                    wsAnswerSwap(what);
+                } else if (what === 'again') {
+                    W.picks = [];
+                    W.msg = '';
+                    wsRender();
+                }
+            });
+        });
+
+    Array.prototype.forEach.call(
+        document.querySelectorAll('#sd-side [data-c]'),
+        function (btn) {
+            btn.addEventListener('click', function () {
+                if (W.phase === 1 && W.mode2 === 'pick2') {
+                    wsChoose(Number(btn.getAttribute('data-c')));
+                    wsRender();
+                }
+            });
+        });
+}
+
 function render() {
+    if (S.mode === 'ws') {
+        wsRender();
+        return;
+    }
     const op = S.cur;
     if (!op || !S.board) {
         return;
@@ -430,7 +929,7 @@ function render() {
             const isFive = c[0] === S.five[0] && c[1] === S.five[1];
             const spot = isFive ? noteSpot(op, c) : noteSide(c);
             return {
-                i: c[0], j: c[1], text: labelOf(c), size: isFive ? 0.92 : 0.55,
+                i: c[0], j: c[1], text: labelOf(c), size: isFive ? 0.92 : 0.62,
                 tone: isFive ? 'warn' : (c[3] === 0 ? 'good' : (c[3] === 1 ? 'bad' : 'mute')),
                 dx: spot.dx, dy: spot.dy, anchor: spot.anchor
             };
@@ -455,6 +954,27 @@ function render() {
     renderScore();
 }
 
+function setMode(m) {
+    if (S.mode === m) {
+        return;
+    }
+    S.mode = m;
+    Array.prototype.forEach.call(
+        document.querySelectorAll('[data-sd-mode]'),
+        function (b) {
+            b.classList.toggle('is-on', b.getAttribute('data-sd-mode') === m);
+        });
+    S.board.setNotes([]);
+    S.board.setMarks([]);
+    if (m === 'ws') {
+        wsStart();
+    } else if (!S.cur) {
+        startQuestion();
+    } else {
+        render();
+    }
+}
+
 export function boot() {
     const host = document.getElementById('sd-board');
     if (!host || !OPEN.length) {
@@ -472,22 +992,55 @@ export function boot() {
         editable: false
     });
 
+    /* 盘上点两下就是两打 */
+    host.addEventListener('click', function (e) {
+        if (S.mode !== 'ws' || !S.board) {
+            return;
+        }
+        wsPoint(S.board.hit(e));
+    });
+
+    Array.prototype.forEach.call(
+        document.querySelectorAll('[data-sd-mode]'),
+        function (b) {
+            b.classList.toggle('is-on', b.getAttribute('data-sd-mode') === S.mode);
+            b.addEventListener('click', function () {
+                setMode(b.getAttribute('data-sd-mode'));
+            });
+        });
+
     const next = document.getElementById('sd-next');
     if (next) {
         next.addEventListener('click', function () {
-            startQuestion();
+            if (S.mode === 'ws') {
+                wsStart();
+            } else {
+                startQuestion();
+            }
         });
     }
 
     const reset = document.getElementById('sd-reset');
     if (reset) {
         reset.addEventListener('click', function () {
-            S.stats = { n: 0, a: 0, aOk: 0, b: 0, bOk: 0, bMid: 0 };
-            renderScore();
+            if (S.mode === 'ws') {
+                W.stats = { n: 0, s: 0, sOk: 0, t: 0, tOk: 0, tMid: 0 };
+                W.seen = {};
+                wsScore();
+            } else {
+                S.stats = { n: 0, a: 0, aOk: 0, b: 0, bOk: 0, bMid: 0 };
+                renderScore();
+            }
         });
     }
 
-    if (!S.cur) {
+    if (S.mode === 'ws') {
+        if (!W.op) {
+            wsStart();
+        } else {
+            wsRender();
+        }
+    } else if (!S.cur) {
         startQuestion();
     } else {
         render();
