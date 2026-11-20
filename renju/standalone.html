@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Otter Renju · 局面分析</title>
+<style>
+  :root {
+    --bg: #FAFAF6;
+    --panel: #F1EFE4;
+    --line: #D7D4C2;
+    --pear: #5C8A2E;
+    --pear-dim: #8CA35F;
+    --pear-tint: #E9F0D9;
+    --pear-deep: #3F5F1F;
+    --paper: #11120D;
+    --muted: #525447;
+    --sq-light: #FBFAF5;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: Inter, ui-sans-serif, system-ui, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --space: "Space Grotesk", var(--sans);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--paper);
+    font-family: var(--sans);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  ::selection { background: var(--pear-tint); color: var(--pear-deep); }
+
+  /* ── 棋盘区：胜率条 + 棋盘 + 导航 ─────────────────────────── */
+  .stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 16px;
+    min-height: 0;
+  }
+  .playcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .boardrow {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    height: clamp(300px, 52vh, 560px);
+  }
+  .board {
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    background: var(--sq-light);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .board svg { display: block; width: 100%; height: 100%; }
+
+  /* 胜率条：上白下黑，药丸数字为黑方胜率 */
+  .evalbar {
+    position: relative;
+    width: 24px;
+    flex: 0 0 auto;
+  }
+  .eb-track {
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .eb-top, .eb-bottom {
+    position: absolute;
+    left: 0; right: 0;
+    transition: height .3s ease-out;
+  }
+  .eb-top { top: 0; background: #FFFFFF; }
+  .eb-bottom { bottom: 0; background: #14150F; }
+  .eb-mid { position: absolute; left: 0; right: 0; height: 1px; background: rgba(120,125,110,.45); }
+  .eb-pill {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    background: var(--bg);
+    color: var(--paper);
+    border: 1px solid rgba(215,212,194,.6);
+    border-radius: 9999px;
+    padding: 1px 7px;
+    font: 700 10px/1.3 var(--mono);
+    box-shadow: 0 1px 4px rgba(17,18,13,.18);
+    white-space: nowrap;
+    pointer-events: none;
+    transition: top .3s ease-out;
+  }
+
+  /* 导航条：紧贴棋盘正下方，左边留出胜率条的宽度 */
+  .navrow {
+    margin-left: 30px;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto 1fr 1fr;
+    gap: 4px;
+    align-items: center;
+  }
+  .navrow button {
+    height: 30px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--paper);
+    border-radius: 3px;
+    cursor: pointer;
+    font: 600 13px/1 var(--mono);
+    transition: all .15s ease;
+  }
+  .navrow button:hover:not(:disabled) { border-color: var(--pear); color: var(--pear); background: var(--pear-tint); }
+  .navrow button:disabled { color: #b9b6a4; cursor: default; }
+  .ply {
+    font: 700 11px/1 var(--mono);
+    color: var(--muted);
+    text-align: center;
+    white-space: nowrap;
+    padding: 0 3px;
+    letter-spacing: .02em;
+  }
+  .ply b { color: var(--paper); font-weight: 700; }
+
+  /* ── 底部三栏 ────────────────────────────────────────────── */
+  footer {
+    display: grid;
+    grid-template-columns: 250px 206px minmax(280px, 1fr);
+    align-items: stretch;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+  }
+  .cell { padding: 12px 14px; border-right: 1px solid var(--line); min-width: 0; }
+  .cell:last-child { border-right: none; }
+
+  .lbl {
+    display: block;
+    font: 700 10.5px/1 var(--mono);
+    letter-spacing: .06em;
+    color: var(--pear);
+    margin-bottom: 8px;
+  }
+  .lbl.sub { color: var(--muted); margin-top: 10px; }
+
+  /* 输入特征 */
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .row + input[type=range] { margin-top: 5px; }
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font: 700 11px/1 var(--sans);
+    letter-spacing: .04em;
+    color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--line); flex: 0 0 auto; }
+  .dot.b { background: var(--paper); border-color: var(--paper); }
+  .dot.w { background: #fff; }
+  .val { font: 500 12px/1 var(--space); color: var(--pear); }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(122,133,111,.4);
+    outline: none;
+    display: block;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--pear);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 11px; height: 11px; border: 2px solid var(--bg);
+    border-radius: 50%; background: var(--pear); cursor: pointer;
+  }
+  .fmtbtns { display: flex; gap: 4px; margin-bottom: 10px; }
+  .fmtbtns button {
+    flex: 1;
+    padding: 5px 0;
+    border: 1px solid rgba(122,133,111,.4);
+    background: transparent;
+    border-radius: 3px;
+    font: 600 11px/1 var(--sans);
+    letter-spacing: .02em;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .fmtbtns button.on { border-color: var(--pear); color: var(--pear); background: rgba(233,240,217,.35); }
+
+  /* 分析结果 */
+  .phead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; gap: 6px; }
+  .phead .t { font: 700 11px/1 var(--mono); letter-spacing: .06em; color: var(--pear); }
+  .pcols {
+    display: flex; justify-content: space-between;
+    font: 700 10px/1 var(--mono); color: var(--muted);
+    padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid rgba(215,212,194,.7);
+  }
+  .pmove {
+    display: flex; justify-content: space-between; align-items: center;
+    height: 22px; font: 13.5px/1 var(--mono);
+  }
+  .pmove .m { font-weight: 600; color: var(--paper); }
+  .pmove .p { font-weight: 700; color: var(--pear); }
+
+  /* 折线图 */
+  .chead { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 6px; }
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .legend span { font: 700 11px/1 var(--mono); }
+  .chartcell { display: flex; flex-direction: column; }
+  .chartwrap { flex: 1; height: 208px; min-height: 170px; min-width: 0; }
+  .chartwrap svg { width: 100%; height: 100%; display: block; }
+
+  @media (max-width: 900px) {
+    .stage { padding: 10px; }
+    .playcol { width: 100%; min-width: 0; }
+    .boardrow { height: auto; }
+    /* 窄屏上棋盘吃掉剩余宽度，正方形由 aspect-ratio 定高，避免 100% 宽度撑破 */
+    .board { flex: 1 1 0; width: auto; height: auto; min-width: 0; }
+    footer { grid-template-columns: 1fr 1fr; }
+    .cell { border-bottom: 1px solid var(--line); }
+  }
+  @media (max-width: 560px) {
+    footer { grid-template-columns: 1fr; }
+    .cell { border-right: none; }
+  }
+</style>
+</head>
+<body>
+
+<main class="stage">
+  <div class="playcol">
+    <div class="boardrow">
+      <div class="evalbar" title="黑方胜率">
+        <div class="eb-track">
+          <div class="eb-top" id="ebTop" style="height:50%"></div>
+          <div class="eb-bottom" id="ebBottom" style="height:50%"></div>
+          <div id="ebMids"></div>
+        </div>
+        <div class="eb-pill" id="ebPill" style="top:50%">50.0%</div>
+      </div>
+      <div class="board" id="board"></div>
+    </div>
+
+    <!-- « ‹ › » 紧贴棋盘下方 -->
+    <div class="navrow">
+      <button id="bFirst" title="开局">&#171;</button>
+      <button id="bPrev" title="上一手">&#8249;</button>
+      <span class="ply" id="plyLine">0 / 0</span>
+      <button id="bNext" title="下一手">&#8250;</button>
+      <button id="bLast" title="末尾">&#187;</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <!-- 输入特征 -->
+  <section class="cell">
+    <span class="lbl">等级分</span>
+    <div class="row">
+      <span class="who"><i class="dot b"></i>黑方</span>
+      <span class="val" id="valB">1500</span>
+    </div>
+    <input type="range" id="eloB" min="0" max="9" step="1" value="4" />
+    <div class="row" style="margin-top:10px">
+      <span class="who"><i class="dot w"></i>白方</span>
+      <span class="val" id="valW">1500</span>
+    </div>
+    <input type="range" id="eloW" min="0" max="9" step="1" value="4" />
+
+    <span class="lbl" style="margin-top:12px">时控</span>
+    <div class="fmtbtns" id="fmtBtns">
+      <button data-fmt="blitz">闪电战</button>
+      <button data-fmt="rapid" class="on">快棋</button>
+      <button data-fmt="classical">慢棋</button>
+    </div>
+
+    <div class="row">
+      <span class="who"><i class="dot b"></i>黑方剩余</span>
+      <span class="val" id="valTB">10:00</span>
+    </div>
+    <input type="range" id="timeB" min="0" max="600" step="10" value="600" />
+    <div class="row" style="margin-top:10px">
+      <span class="who"><i class="dot w"></i>白方剩余</span>
+      <span class="val" id="valTW">10:00</span>
+    </div>
+    <input type="range" id="timeW" min="0" max="600" step="10" value="600" />
+  </section>
+
+  <!-- 分析结果 -->
+  <section class="cell">
+    <div class="phead">
+      <span class="t">分析结果</span>
+    </div>
+    <div class="pcols"><span>落点</span><span>概率</span></div>
+    <div id="plist"></div>
+  </section>
+
+  <!-- Elo 折线图 -->
+  <section class="cell chartcell">
+    <div class="chead">
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="chartwrap" id="chartwrap"><svg id="chart" preserveAspectRatio="none"></svg></div>
+  </section>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   常量：与 ui/play/lib/play/renju.ts 一致
+   ══════════════════════════════════════════════════════════════ */
+const N = 15, CELLS = 225, EMPTY = 0, BLACK = 1, WHITE = 2;
+const CHANNELS = 18, HISTORY_K = 20, RECENT_PLANES = 6;
+const ELO_MIN = 1320, ELO_BAND = 40, ELO_BUCKETS = 10;
+const FORMATS = { blitz: 300, rapid: 600, classical: 1800 };
+const COLUMNS = 'abcdefghijklmno';
+const PALETTE = ['#8FBF4A', '#E0B34E', '#7FA8C9', '#C98FB0', '#6FC3B8'];
+const LAST_MOVE = '#e23b32';
+const STAR = [3, 7, 11];
+const VIEW = { x: -0.85, y: -0.5, w: 15.95, h: 16.4 };
+const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+
+const el = (id) => document.getElementById(id);
+const coord = (cell) => `${COLUMNS[cell % N].toUpperCase()}${N - Math.floor(cell / N)}`;
+const rotate = (cell) => (N - 1 - Math.floor(cell / N)) * N + (N - 1 - (cell % N));
+const eloBucket = (elo) => Math.max(0, Math.min(ELO_BUCKETS - 1, Math.floor((elo - ELO_MIN) / ELO_BAND)));
+const eloFromBucket = (b) => ELO_MIN + b * ELO_BAND + ELO_BAND / 2;
+const fmtClock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+/* ══════════════════════════════════════════════════════════════
+   状态
+   ══════════════════════════════════════════════════════════════ */
+let moves = [];
+let ply = 0;
+let session = null;
+let probs = null;          // 当前局面 225 路概率（真实格点）
+let topMoves = [];         // [{cell, p}]
+let curve = [];            // [{san, color, points:[p...]}]
+let curveLoading = false;
+let busy = false, queued = false;
+
+const sideAt = (n) => (n % 2 === 0 ? BLACK : WHITE);
+const boardAt = (n) => {
+  const b = new Uint8Array(CELLS);
+  for (let i = 0; i < n; i++) b[moves[i]] = i % 2 === 0 ? BLACK : WHITE;
+  return b;
+};
+
+/* ══════════════════════════════════════════════════════════════
+   输入张量（与 encode.board_planes / history_ids 同构）
+   ══════════════════════════════════════════════════════════════ */
+function boardPlanes(board, side, seen) {
+  const out = new Float32Array(CHANNELS * CELLS);
+  const rot = side === WHITE;
+  const stride = CELLS;
+  for (let cell = 0; cell < CELLS; cell++) {
+    const v = board[cell];
+    const cc = rot ? rotate(cell) : cell;
+    if (!v) { out[4 * stride + cc] = 1; continue; }
+    out[(v === side ? 0 : 1) * stride + cc] = 1;
+    out[(v === BLACK ? 2 : 3) * stride + cc] = 1;
+  }
+  const own = [], them = [];
+  for (let i = seen.length - 1; i >= 0; i--) {
+    if ((i % 2 === 0) === (side === BLACK)) own.push(seen[i]); else them.push(seen[i]);
+  }
+  const put = (cell, plane) => {
+    if (cell === undefined) return;
+    out[plane * stride + (rot ? rotate(cell) : cell)] = 1;
+  };
+  put(own[0], 5); put(them[0], 6);
+  for (let k = 1; k < RECENT_PLANES; k++) put(own[k], 6 + k);
+  for (let k = 1; k < RECENT_PLANES; k++) put(them[k], 11 + k);
+  for (let i = 0; i < out.length; i++) out[i] /= 255;   // 训练时 planes / 255
+  return out;
+}
+
+function historyIds(seen, side) {
+  const rot = side === WHITE;
+  const win = seen.slice(-HISTORY_K);
+  const ids = new BigInt64Array(HISTORY_K);
+  for (let i = 0; i < win.length; i++) {
+    ids[HISTORY_K - win.length + i] = BigInt((rot ? rotate(win[i]) : win[i]) + 1);
+  }
+  return ids;
+}
+
+function historyMask(n) {
+  const mask = new Uint8Array(HISTORY_K);
+  for (let i = HISTORY_K - Math.min(n, HISTORY_K); i < HISTORY_K; i++) mask[i] = 1;
+  return mask;
+}
+
+const tcBucket = (base) => (base < 60 ? 0 : base < 180 ? 1 : base < 600 ? 2 : base < 1800 ? 3 : 4);
+
+/* ══════════════════════════════════════════════════════════════
+   推理
+   ══════════════════════════════════════════════════════════════ */
+async function infer(activeElo, opponentElo, remaining) {
+  const board = boardAt(ply);
+  const side = sideAt(ply);
+  const seen = moves.slice(0, ply);
+  const base = FORMATS[currentFormat()];
+
+  const feeds = {
+    board: new ort.Tensor('float32', boardPlanes(board, side, seen), [1, CHANNELS, N, N]),
+    history_ids: new ort.Tensor('int64', historyIds(seen, side), [1, HISTORY_K]),
+    history_mask: new ort.Tensor('bool', historyMask(seen.length), [1, HISTORY_K]),
+    active_elo: new ort.Tensor('int64', BigInt64Array.from([BigInt(eloBucket(activeElo))]), [1]),
+    opponent_elo: new ort.Tensor('int64', BigInt64Array.from([BigInt(eloBucket(opponentElo))]), [1]),
+    time_control: new ort.Tensor('int64', BigInt64Array.from([BigInt(tcBucket(base))]), [1]),
+    clock: new ort.Tensor('float32', Float32Array.from([Math.max(0, remaining) / base, 0]), [1, 2]),
+  };
+
+  const out = await session.run(feeds);
+  const logits = out.policy_logits.data;
+
+  // 只对空点做 softmax，再映射回真实格点
+  const rot = side === WHITE;
+  const cells = [], vals = [];
+  let max = -Infinity;
+  for (let cc = 0; cc < CELLS; cc++) {
+    const real = rot ? rotate(cc) : cc;
+    if (board[real] !== EMPTY) continue;
+    cells.push(real);
+    vals.push(logits[cc]);
+    if (logits[cc] > max) max = logits[cc];
+  }
+  let sum = 0;
+  for (let i = 0; i < vals.length; i++) { vals[i] = Math.exp(vals[i] - max); sum += vals[i]; }
+  const p = new Float64Array(CELLS);
+  for (let i = 0; i < cells.length; i++) p[cells[i]] = vals[i] / sum;
+
+  return { probs: p, value: Number(out.value_pred.data[0]), side };
+}
+
+function topK(p, k) {
+  const arr = [];
+  for (let i = 0; i < CELLS; i++) if (p[i] > 0) arr.push({ cell: i, p: p[i] });
+  arr.sort((a, b) => b.p - a.p);
+  return arr.slice(0, k);
+}
+
+const currentFormat = () => el('fmtBtns').querySelector('.on').dataset.fmt;
+const eloOf = (side) => eloFromBucket(Number(side === BLACK ? el('eloB').value : el('eloW').value));
+const timeOf = (side) => Number(side === BLACK ? el('timeB').value : el('timeW').value);
+
+/* ══════════════════════════════════════════════════════════════
+   渲染：棋盘
+   ══════════════════════════════════════════════════════════════ */
+function renderBoard() {
+  const board = boardAt(ply);
+  const last = ply > 0 ? moves[ply - 1] : -1;
+  const top = topMoves[0];
+
+  let heat = '';
+  if (probs) {
+    let maxP = 0;
+    for (let i = 0; i < CELLS; i++) if (board[i] === EMPTY && probs[i] > maxP) maxP = probs[i];
+    if (maxP > 0) {
+      for (let cell = 0; cell < CELLS; cell++) {
+        if (board[cell] !== EMPTY) continue;
+        const r = probs[cell] / maxP;
+        if (r < 0.04) continue;
+        const x = (cell % N) + 0.5, y = Math.floor(cell / N) + 0.5;
+        heat += `<rect x="${x - 0.5}" y="${y - 0.5}" width="1" height="1" fill="rgba(92,138,46,${(r * 0.42).toFixed(3)})" />`;
+      }
+    }
+  }
+
+  let grid = '';
+  for (let i = 0; i < N; i++) {
+    grid += `<line x1="0.5" y1="${i + 0.5}" x2="${N - 0.5}" y2="${i + 0.5}" />`;
+    grid += `<line x1="${i + 0.5}" y1="0.5" x2="${i + 0.5}" y2="${N - 0.5}" />`;
+  }
+
+  let stars = '';
+  for (const r of STAR) for (const c of STAR) stars += `<circle cx="${c + 0.5}" cy="${r + 0.5}" r="0.1" />`;
+
+  let stones = '', numbers = '';
+  for (let cell = 0; cell < CELLS; cell++) {
+    const v = board[cell];
+    if (!v) continue;
+    const x = (cell % N) + 0.5, y = Math.floor(cell / N) + 0.5;
+    const black = v === BLACK;
+    stones += `<circle cx="${x}" cy="${y}" r="0.44" fill="${black ? '#1a1b15' : '#FFFFFF'}" stroke="${black ? '#000000' : '#8a8f7c'}" stroke-width="0.03" />`;
+    if (!black) stones += `<circle cx="${x - 0.12}" cy="${y - 0.14}" r="0.1" fill="rgba(255,255,255,0.9)" />`;
+    let ord = 0;
+    for (let i = 0; i < ply; i++) if (moves[i] === cell) { ord = i + 1; break; }
+    const fs = ord >= 100 ? 0.28 : ord >= 10 ? 0.36 : 0.42;
+    numbers += `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="${fs}"
+      font-family="${MONO}" font-weight="700"
+      fill="${ord === ply ? LAST_MOVE : black ? '#f0efe6' : '#1a1b15'}">${ord}</text>`;
+  }
+
+  let marks = '';
+  if (last >= 0 && board[last] !== EMPTY) {
+    const x = (last % N) + 0.5, y = Math.floor(last / N) + 0.5;
+    marks += `<circle cx="${x}" cy="${y}" r="0.47" fill="none" stroke="${LAST_MOVE}" stroke-width="0.055" />`;
+  }
+  if (top && board[top.cell] === EMPTY) {
+    const x = (top.cell % N) + 0.5, y = Math.floor(top.cell / N) + 0.5;
+    marks += `<circle cx="${x}" cy="${y}" r="0.4" fill="none" stroke="var(--pear)" stroke-width="0.08" />
+      <circle cx="${x}" cy="${y}" r="0.1" fill="var(--pear)" />`;
+  }
+
+  let labels = '';
+  for (let c = 0; c < N; c++) {
+    labels += `<text x="${c + 0.5}" y="${N + 0.62}" text-anchor="middle" font-size="0.34"
+      font-family="${MONO}" fill="#525447">${COLUMNS[c].toUpperCase()}</text>`;
+  }
+  for (let r = 0; r < N; r++) {
+    labels += `<text x="-0.18" y="${r + 0.62}" text-anchor="end" font-size="0.34"
+      font-family="${MONO}" fill="#525447">${N - r}</text>`;
+  }
+
+  el('board').innerHTML = `<svg viewBox="${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}" role="grid" aria-label="五子棋棋盘">
+    <rect width="${N}" height="${N}" fill="var(--sq-light)" />
+    <g stroke="#8a8f7c" stroke-width="0.035" stroke-linecap="square">${grid}</g>
+    <g fill="#5f6553">${stars}</g>
+    ${heat}
+    ${stones}${marks}${numbers}${labels}
+  </svg>`;
+
+  el('plyLine').innerHTML = `<b>${ply}</b> / ${moves.length}`;
+  el('bFirst').disabled = ply === 0;
+  el('bPrev').disabled = ply === 0;
+  el('bNext').disabled = ply >= moves.length;
+  el('bLast').disabled = ply >= moves.length;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   渲染：胜率条 / 候选列表 / 折线图
+   ══════════════════════════════════════════════════════════════ */
+const MID_LINES = Array.from({ length: 9 }, (_, i) => `<div class="eb-mid" style="top:${(i + 1) * 10}%"></div>`).join('');
+el('ebMids').innerHTML = MID_LINES;
+
+function renderBar(blackPct) {
+  const p = Math.max(0, Math.min(100, blackPct));
+  el('ebTop').style.height = `${100 - p}%`;
+  el('ebBottom').style.height = `${p}%`;
+  el('ebPill').style.top = `${100 - p}%`;
+  el('ebPill').textContent = `${p.toFixed(1)}%`;
+}
+
+function renderList() {
+  el('plist').innerHTML = topMoves.length
+    ? topMoves.map((m) => `<div class="pmove"><span class="m">${coord(m.cell)}</span><span class="p">${(m.p * 100).toFixed(1)}%</span></div>`).join('')
+    : '<div class="pmove"><span class="m" style="color:var(--muted);font-style:italic">分析中…</span></div>';
+}
+
+const X_LABELS = Array.from({ length: ELO_BUCKETS }, (_, i) => eloFromBucket(i));
+
+function renderChart() {
+  // 按容器的实际像素出图：viewBox 与像素一一对应，图就横向铺满且不失真。
+  const wrap = el('chartwrap');
+  const chartW = Math.max(240, Math.round(wrap.clientWidth || 380));
+  const chartH = Math.max(140, Math.round(wrap.clientHeight || 208));
+  const padL = 42, padB = 18, padT = 8, padR = 16;
+  const plotW = chartW - padL - padR, plotH = chartH - padT - padB;
+  const baseline = chartH - padB;
+  const xFor = (i) => padL + (X_LABELS.length > 1 ? (i / (X_LABELS.length - 1)) * plotW : plotW / 2);
+  const yFor = (p) => padT + (1 - Math.min(100, Math.max(0, p)) / 100) * plotH;
+
+  const curveThrough = (pts) => {
+    if (!pts.length) return '';
+    if (pts.length === 1) return `M ${pts[0].x},${pts[0].y}`;
+    let d = `M ${pts[0].x},${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      d += ` C ${(p1.x + (p2.x - p0.x) / 6).toFixed(2)},${(p1.y + (p2.y - p0.y) / 6).toFixed(2)}`
+        + ` ${(p2.x - (p3.x - p1.x) / 6).toFixed(2)},${(p2.y - (p3.y - p1.y) / 6).toFixed(2)}`
+        + ` ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+    }
+    return d;
+  };
+  const areaThrough = (pts) => {
+    if (!pts.length) return '';
+    return `M ${pts[0].x},${baseline} L ${pts[0].x},${pts[0].y} `
+      + curveThrough(pts).replace(/^M [^C]+/, '')
+      + ` L ${pts[pts.length - 1].x},${baseline} Z`;
+  };
+
+  let defs = '', gridLines = '', axis = '', areas = '', lines = '', xlabels = '';
+
+  curve.forEach((s, i) => {
+    defs += `<linearGradient id="g${i}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${s.color}" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="${s.color}" stop-opacity="0" /></linearGradient>`;
+  });
+
+  [0, 25, 50, 75, 100].forEach((g) => {
+    gridLines += `<line x1="${padL}" x2="${chartW - padR}" y1="${yFor(g)}" y2="${yFor(g)}" stroke="var(--line)" stroke-width="0.7" stroke-dasharray="2,2" />
+      <text x="${padL - 5}" y="${yFor(g) + 3.5}" text-anchor="end" font-size="9" fill="var(--muted)" font-family="${MONO}">${g}%</text>`;
+  });
+
+  axis += `<line x1="${padL}" x2="${padL}" y1="${padT}" y2="${baseline}" stroke="var(--muted)" stroke-width="1" opacity="0.45" />`;
+  axis += `<line x1="${padL}" x2="${chartW - padR}" y1="${baseline}" y2="${baseline}" stroke="var(--muted)" stroke-width="1" opacity="0.45" />`;
+
+  X_LABELS.forEach((elo, i) => {
+    const show = i === 0 || i === X_LABELS.length - 1 || (i % 2 === 0 && i < X_LABELS.length - 2);
+    if (!show) return;
+    xlabels += `<text x="${xFor(i)}" y="${chartH - 4}" text-anchor="${i === 0 ? 'start' : i === X_LABELS.length - 1 ? 'end' : 'middle'}"
+      font-size="8.5" fill="var(--muted)" font-family="${MONO}">${elo}</text>`;
+  });
+
+  [...curve].reverse().forEach((s, ri) => {
+    const si = curve.length - 1 - ri;
+    const pts = s.points.map((p, i) => ({ x: xFor(i), y: yFor(p) }));
+    areas += `<path d="${areaThrough(pts)}" fill="url(#g${si})" stroke="none" />`;
+  });
+
+  curve.forEach((s) => {
+    const pts = s.points.map((p, i) => ({ x: xFor(i), y: yFor(p) }));
+    lines += `<path d="${curveThrough(pts)}" fill="none" stroke="${s.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />`;
+    lines += pts.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="3.6" fill="${s.color}" stroke="var(--bg)" stroke-width="1" />`).join('');
+  });
+
+  el('chart').setAttribute('viewBox', `0 0 ${chartW} ${chartH}`);
+  el('chart').innerHTML = `<defs>${defs}</defs>${gridLines}${axis}${xlabels}${areas}${lines}`;
+  el('legend').innerHTML = curve.map((s) => `<span style="color:${s.color}">${s.san}</span>`).join('');
+}
+
+addEventListener('resize', () => { if (curve.length) renderChart(); });
+
+/* ══════════════════════════════════════════════════════════════
+   分析
+   ══════════════════════════════════════════════════════════════ */
+async function analyse() {
+  if (!session) return;
+  if (busy) { queued = true; return; }
+  busy = true;
+  try {
+    const side = sideAt(ply);
+    const active = eloOf(side), opp = eloOf(side === BLACK ? WHITE : BLACK);
+    const r = await infer(active, opp, timeOf(side));
+    probs = r.probs;
+    topMoves = topK(r.probs, 5);
+    const forBlack = r.side === BLACK ? r.value : -r.value;
+    renderBar(Math.max(0, Math.min(100, ((forBlack + 1) / 2) * 100)));
+    renderBoard();
+    renderList();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    busy = false;
+    if (queued) { queued = false; analyse(); }
+  }
+}
+
+async function sweep() {
+  if (!session || curveLoading) return;
+  curveLoading = true;
+  try {
+    const side = sideAt(ply);
+    const opp = eloOf(side === BLACK ? WHITE : BLACK);
+    const remaining = timeOf(side);
+    const per = [];
+    for (let b = 0; b < ELO_BUCKETS; b++) per.push((await infer(eloFromBucket(b), opp, remaining)).probs);
+
+    const mean = new Float64Array(CELLS);
+    for (const p of per) for (let i = 0; i < CELLS; i++) mean[i] += p[i];
+    for (let i = 0; i < CELLS; i++) mean[i] /= per.length;
+
+    curve = topK(mean, 5).map((m, i) => ({
+      san: coord(m.cell),
+      color: PALETTE[i % PALETTE.length],
+      points: per.map((p) => p[m.cell] * 100),
+    }));
+    renderChart();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    curveLoading = false;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   交互
+   ══════════════════════════════════════════════════════════════ */
+function goTo(n) {
+  const next = Math.max(0, Math.min(moves.length, n));
+  if (next === ply) return;
+  ply = next;
+  renderBoard();
+  analyse();
+  sweep();
+}
+
+el('board').addEventListener('click', (ev) => {
+  const svg = ev.currentTarget.querySelector('svg');
+  const rect = svg.getBoundingClientRect();
+  const x = VIEW.x + ((ev.clientX - rect.left) / rect.width) * VIEW.w;
+  const y = VIEW.y + ((ev.clientY - rect.top) / rect.height) * VIEW.h;
+  const c = Math.round(x - 0.5), r = Math.round(y - 0.5);
+  if (c < 0 || c >= N || r < 0 || r >= N) return;
+
+  const cell = r * N + c;
+  if (ply < moves.length) moves = moves.slice(0, ply);
+  if (moves.includes(cell)) return;
+  moves.push(cell);
+  ply = moves.length;
+  probs = null;
+  topMoves = [];
+  renderBoard();
+  analyse();
+  sweep();
+});
+
+el('bFirst').onclick = () => goTo(0);
+el('bPrev').onclick = () => goTo(ply - 1);
+el('bNext').onclick = () => goTo(ply + 1);
+el('bLast').onclick = () => goTo(moves.length);
+addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') { goTo(ply - 1); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { goTo(ply + 1); e.preventDefault(); }
+});
+
+/* 特征输入 */
+function refreshInputs() {
+  el('valB').textContent = eloFromBucket(Number(el('eloB').value));
+  el('valW').textContent = eloFromBucket(Number(el('eloW').value));
+  el('valTB').textContent = fmtClock(Number(el('timeB').value));
+  el('valTW').textContent = fmtClock(Number(el('timeW').value));
+}
+['eloB', 'eloW', 'timeB', 'timeW'].forEach((id) => {
+  el(id).addEventListener('input', () => { refreshInputs(); analyse(); });
+  el(id).addEventListener('change', () => { sweep(); });
+});
+el('fmtBtns').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('button');
+  if (!btn) return;
+  [...el('fmtBtns').children].forEach((b) => b.classList.toggle('on', b === btn));
+  const base = FORMATS[btn.dataset.fmt];
+  ['timeB', 'timeW'].forEach((id) => {
+    el(id).max = base;
+    el(id).step = base / 60;
+    el(id).value = base;
+  });
+  refreshInputs();
+  analyse();
+  sweep();
+});
+
+/* ══════════════════════════════════════════════════════════════
+   启动
+   ══════════════════════════════════════════════════════════════ */
+const SITE = 'https://renjupgc.github.io/renju';
+const param = new URLSearchParams(location.search);
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function loadRuntime() {
+  const bases = [];
+  if (param.get('ort')) bases.push(param.get('ort').replace(/\/?$/, '/'));
+  bases.push('./ort/', `${SITE}/ort/`, 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/');
+  for (const base of bases) {
+    try {
+      await loadScript(`${base}ort.min.js`);
+      if (!window.ort) continue;
+      ort.env.wasm.wasmPaths = new URL(base, location.href).href;
+      ort.env.wasm.numThreads = 1;
+      return;
+    } catch { /* 下一个来源 */ }
+  }
+  throw new Error('onnxruntime 加载失败');
+}
+
+async function fetchModel() {
+  const urls = [];
+  if (param.get('model')) urls.push(param.get('model'));
+  urls.push('./policy_model.onnx', `${SITE}/policy_model.onnx`);
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      return await res.arrayBuffer();
+    } catch { /* 下一个来源 */ }
+  }
+  throw new Error('模型加载失败');
+}
+
+(async () => {
+  try {
+    await loadRuntime();
+    session = await ort.InferenceSession.create(await fetchModel(), {
+      executionProviders: ['wasm'],
+      graphOptimizationLevel: 'basic',
+    });
+    refreshInputs();
+    renderBoard();
+    renderBar(50);
+    await analyse();
+    sweep();
+  } catch (err) {
+    console.error(err);
+    el('plist').innerHTML = `<div class="pmove"><span class="m" style="color:#c2413a">${err.message || err}</span></div>`;
+  }
+})();
+</script>
+</body>
+</html>
