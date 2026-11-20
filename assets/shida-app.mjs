@@ -1,5 +1,5 @@
 /*
- * 十打判断 - 出题与判分
+ * 开局综合判断 - 出题与判分（五手两打 / 塔拉山口-10 两档）
  * ------------------------------------------------------------
  * 题面全部来自 assets/shida-data.js：也就是《漱星阁开局指南》(2026.10.25)
  * 里每个开局的打数表。四手摆好，先问第五手能不能直接给十打，再问白方挑中
@@ -82,7 +82,7 @@ const CORE = {
 };
 
 const S = {
-    mode: 'ws',        // 'ws' 五手两打 | 'st' 十打判断
+    mode: 'ws',        // 'ws' 五手两打 | 'st' 塔拉山口-10
     queue: [],
     cur: null,
     five: null,
@@ -635,19 +635,15 @@ function wsGrade() {
     const top = wsTop2(op);
     const key = (c) => c.i + ',' + c.j;
     const keys = top.map(key);
+    /* 书里没记这一点：mine 里留 null，下面按「黑方走到这儿就败」处理 */
     const mine = W.picks.map(function (p) {
-        return all.filter(function (c) { return c.i === p.i && c.j === p.j; })[0];
+        return all.filter(function (c) { return c.i === p.i && c.j === p.j; })[0] || null;
     });
-    if (mine.some(function (c) { return !c; })) {
-        W.picks = [];
-        W.msg = '有一点书里没标，盘上换一个位置再点。';
-        return;
-    }
-    const same = mine.every(function (c) { return keys.indexOf(key(c)) >= 0; });
+    const same = mine.every(function (c) { return c && keys.indexOf(key(c)) >= 0; });
     const wins = all.filter(function (c) { return c.res === '黑必胜'; });
-    const allWin = wins.length > 2 && mine.every(function (c) { return c.res === '黑必胜'; });
+    const allWin = wins.length > 2 && mine.every(function (c) { return c && c.res === '黑必胜'; });
     const ok = same || allWin;
-    const bad = mine.filter(function (c) { return WS_BAD.has(c.res); });
+    const bad = mine.filter(function (c) { return !c || WS_BAD.has(c.res); });
     W.res = {
         kind: ok ? 'ok' : (bad.length ? 'bad' : 'mid'),
         top: top,
@@ -704,12 +700,23 @@ function wsDoneHTML() {
         (TAG_TEXT[rule.tag] || '') + '。你选了「' + SWAP_WORD[W.swap] + '」</span></div>';
 }
 
+function wsPickText() {
+    if (!W.res.mine) {
+        return '';
+    }
+    return W.picks.map(function (p, k) {
+        const c = W.res.mine[k];
+        return coord(p.i, p.j) + '（' + (c ? c.n + ' 打 · ' + c.res : 'c · 书里未记') + '）';
+    }).join('、');
+}
+
 function wsFB() {
     const op = W.op;
     const res = W.res;
     const two = res.top.map(function (c) {
         return '<b>' + coord(c.i, c.j) + '</b>（' + c.n + ' 打 · ' + c.res + '）';
     }).join('、');
+    const mineTxt = wsPickText();
     let tip;
     if (res.pick2) {
         const a = res.top[0];
@@ -722,19 +729,24 @@ function wsFB() {
             ? '黑必胜的点不止两个，你给的两手都在里面，够了。书里排在最前的是 ' + two + '。'
             : '正是书里的两打：' + two + '。';
     } else if (res.kind === 'mid') {
-        tip = '书里的两打是 ' + two + '。你给的点都没越过白小优，局面还守得住，但没踩到最紧的两手。';
+        tip = '书里的两打是 ' + two + '。你给的是 ' + mineTxt +
+            '，都没越过白小优，局面还守得住，只是没踩到最紧的两手。';
     } else {
-        const badOne = res.mine.filter(function (c) { return WS_BAD.has(c.res); })[0];
-        tip = '你给的两手里有一手已经落到「' + badOne.res + '」，白方接着走就是白大优往上。' +
-            '书里的两打是 ' + two + '。';
+        const lost = res.mine.filter(function (c) { return !c || WS_BAD.has(c.res); });
+        const words = lost.map(function (c) {
+            return c ? ('「' + c.res + '」') : '书里没记的那手（c，黑败）';
+        }).join('、');
+        tip = '你给的是 ' + mineTxt + '，其中' + words +
+            '，白方接着走就把局面收下了。书里的两打是 ' + two + '。';
     }
     const head = res.pick2
         ? (res.kind === 'ok' ? '选对了' : '选错了')
         : (res.kind === 'ok' ? '两打正确' : (res.kind === 'mid' ? '擦边，算半对' : '判断有误'));
     const note = res.pick2
         ? '这题换了边：你执白，只挑一手。'
-        : '金圈是书里的两打，圈里的数字就是第几打；其余打点不再铺开，' +
-          '免得二十几行字挤成一团。绿圈是你给对的那手，黄圈是擦边，红圈是送掉的那手。';
+        : '金圈是书里的两打，圈里的数字就是第几打；你点的位置若不在两打里，' +
+          '盘上会写出它自己的打数，书里没记的写 c（黑败）。你点的那几手用绿圈标出，' +
+          '已经送掉的（或书里没记的）用红圈。';
     return '<div class="sd-fb">' +
         '<span class="sd-verdict ' + res.kind + '">' + head + '</span>' +
         '<p>' + tip + '</p>' +
@@ -757,7 +769,7 @@ function wsSideHTML() {
                 o[1] + '</b><span>' + o[2] + '</span></button>';
         });
         html += '</div>';
-        html += '<p class="sd-hint">塔拉山口：白方一句话定，换了就是执黑。</p>';
+        html += '<p class="sd-hint">塔拉山口：白方一句话定，换了就是执黑。盘上先只摆开局三手，白 4 等你定完再落。</p>';
         return html;
     }
 
@@ -817,7 +829,9 @@ function wsRender() {
     if (!op || !S.board) {
         return;
     }
-    S.board.setMoves(op.m.map(function (m) {
+    /* 开局先只摆三手（26 种开局本身），白 4 等第一问答完再落 */
+    const shown = W.phase === 0 ? op.m.slice(0, 3) : op.m;
+    S.board.setMoves(shown.map(function (m) {
         return { i: m[0], j: m[1], color: m[2] };
     }));
 
@@ -852,10 +866,16 @@ function wsRender() {
                 marks.push({ i: me.i, j: me.j, kind: W.res.kind === 'ok' ? 'good' : 'bad' });
             }
         } else {
-            const miss = W.res.kind === 'mid' ? 'warn' : 'bad';
-            W.picks.forEach(function (p) {
+            W.picks.forEach(function (p, k) {
                 const isTop = top.some(function (t) { return t.i === p.i && t.j === p.j; });
-                marks.push({ i: p.i, j: p.j, kind: isTop ? 'good' : miss });
+                const c = W.res.mine[k];
+                /* 这一点自己的成色：没记或越过白小优是红的，还没送掉就是绿的 */
+                const tone = (!c || WS_BAD.has(c.res)) ? 'bad' : 'good';
+                marks.push({ i: p.i, j: p.j, kind: isTop ? 'good' : tone });
+                if (!isTop) {
+                    /* 不是最紧的两手：把这一点自己的打数写出来，书里没记的写 c */
+                    push({ i: p.i, j: p.j }, c ? String(c.n) : 'c', 0.9, tone, 0, 0.19, 'middle');
+                }
             });
         }
     }
