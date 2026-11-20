@@ -393,6 +393,206 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const el = (id) => document.getElementById(id);
 const coord = (cell) => `${COLUMNS[cell % N].toUpperCase()}${N - Math.floor(cell / N)}`;
 const rotate = (cell) => (N - 1 - Math.floor(cell / N)) * N + (N - 1 - (cell % N));
+/* ══════════════════════════════════════════════════════════════
+   连珠禁手判定：KataGomo CForbiddenPointFinder 的 JS 移植
+   （方向向量泛化，已与 forbidden.dll 在 1000 局面/22 万格点上零差异）
+   返回 225 长度掩码，1 = 黑方禁手点
+   ══════════════════════════════════════════════════════════════ */
+const DIRS = [[1, 0], [0, 1], [1, 1], [1, -1]];
+
+// 带哨兵棋盘 cb[i][j]，i,j ∈ [0,16]；逻辑点 (col,row) → cb[col+1][row+1]
+const SZ = 17, SENT = 3;
+const cb = new Uint8Array(SZ * SZ);
+const C = (i, j) => cb[i * SZ + j];
+const put = (x, y, c) => { cb[(x + 1) * SZ + (y + 1)] = c; };
+function loadBoard(board) {
+  cb.fill(SENT);
+  for (let i = 1; i <= N; i++) for (let j = 1; j <= N; j++) cb[i * SZ + j] = EMPTY;
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) cb[(c + 1) * SZ + (r + 1)] = board[r * N + c];
+}
+const inB = (i, j) => i >= 0 && i <= 16 && j >= 0 && j <= 16;
+
+// 单方向数线（调用前 (x,y) 必须已落 color 子）：返回连续同子数
+function lineLen(x, y, color, di, dj) {
+  const px = x + 1, py = y + 1;
+  let n = 1, ii = px - di, jj = py - dj;
+  while (inB(ii, jj) && C(ii, jj) === color) { n++; ii -= di; jj -= dj; }
+  ii = px + di; jj = py + dj;
+  while (inB(ii, jj) && C(ii, jj) === color) { n++; ii += di; jj += dj; }
+  return n;
+}
+// 试在空格 (x,y) 落 color，dir 方向是否恰好五
+function isFiveDir(x, y, color, di, dj) {
+  if (C(x + 1, y + 1) !== EMPTY) return false;
+  put(x, y, color);
+  const n = lineLen(x, y, color, di, dj);
+  put(x, y, EMPTY);
+  return n === 5;
+}
+// 试在空格 (x,y) 落 color，任意方向成五（黑恰好5，白≥5）
+function isFive(x, y, color) {
+  if (C(x + 1, y + 1) !== EMPTY) return false;
+  put(x, y, color);
+  let res = false;
+  for (const [di, dj] of DIRS) {
+    const n = lineLen(x, y, color, di, dj);
+    if (color === BLACK ? n === 5 : n >= 5) { res = true; break; }
+  }
+  put(x, y, EMPTY);
+  return res;
+}
+// 黑长连：某方向恰好5立即否，否则有方向≥6 为真
+function isOverline(x, y) {
+  if (C(x + 1, y + 1) !== EMPTY) return false;
+  put(x, y, BLACK);
+  let over = false;
+  for (const [di, dj] of DIRS) {
+    const n = lineLen(x, y, BLACK, di, dj);
+    if (n === 5) { put(x, y, EMPTY); return false; }
+    if (n >= 6) over = true;
+  }
+  put(x, y, EMPTY);
+  return over;
+}
+// 四：落子后，dir 方向存在一个空点补一子能成五（冲四或活四）
+function isFour(x, y, color, di, dj) {
+  const px = x + 1, py = y + 1;
+  if (C(px, py) !== EMPTY) return false;
+  if (isFive(x, y, color)) return false;
+  if (color === BLACK && isOverline(x, y)) return false;
+  put(x, y, color);
+  let found = false;
+  let ii = px - di, jj = py - dj;
+  while (inB(ii, jj)) {
+    const v = C(ii, jj);
+    if (v === color) { ii -= di; jj -= dj; continue; }
+    if (v === EMPTY && isFiveDir(ii - 1, jj - 1, color, di, dj)) found = true;
+    break;
+  }
+  if (!found) {
+    ii = px + di; jj = py + dj;
+    while (inB(ii, jj)) {
+      const v = C(ii, jj);
+      if (v === color) { ii += di; jj += dj; continue; }
+      if (v === EMPTY && isFiveDir(ii - 1, jj - 1, color, di, dj)) found = true;
+      break;
+    }
+  }
+  put(x, y, EMPTY);
+  return found;
+}
+// 活四：0/1/2。两端皆可延伸成五；nLine==4→1，否则2
+function isOpenFour(x, y, color, di, dj) {
+  const px = x + 1, py = y + 1;
+  if (C(px, py) !== EMPTY) return 0;
+  if (isFive(x, y, color)) return 0;
+  if (color === BLACK && isOverline(x, y)) return 0;
+  put(x, y, color);
+  let nLine = 1;
+  // 负端：必须是能成五的空点（活口）；否则整段作废
+  let ii = px - di, jj = py - dj, negOK = false;
+  while (inB(ii, jj)) {
+    const v = C(ii, jj);
+    if (v === color) { nLine++; ii -= di; jj -= dj; continue; }
+    if (v === EMPTY && isFiveDir(ii - 1, jj - 1, color, di, dj)) negOK = true;
+    break;
+  }
+  let result = 0;
+  if (negOK) {
+    // 正端：能成五的空点才算活四
+    ii = px + di; jj = py + dj;
+    while (inB(ii, jj)) {
+      const v = C(ii, jj);
+      if (v === color) { nLine++; ii += di; jj += dj; continue; }
+      if (v === EMPTY && isFiveDir(ii - 1, jj - 1, color, di, dj)) result = (nLine === 4 ? 1 : 2);
+      break;
+    }
+  }
+  put(x, y, EMPTY);
+  return result;
+}
+// 活三：落子后 dir 方向存在空点，落那子形成"纯活四"(==1)且不双四不双三
+function isOpenThree(x, y, color, di, dj) {
+  if (isFive(x, y, color)) return false;
+  if (color === BLACK && isOverline(x, y)) return false;
+  put(x, y, color);
+  const good = (ii, jj) => isOpenFour(ii - 1, jj - 1, color, di, dj) === 1
+    && !isDoubleFour(ii - 1, jj - 1) && !isDoubleThree(ii - 1, jj - 1);
+  let found = false;
+  let ii = (x + 1) - di, jj = (y + 1) - dj;
+  while (inB(ii, jj)) {
+    const v = C(ii, jj);
+    if (v === color) { ii -= di; jj -= dj; continue; }
+    if (v === EMPTY) found = good(ii, jj);
+    break;
+  }
+  if (!found) {
+    ii = (x + 1) + di; jj = (y + 1) + dj;
+    while (inB(ii, jj)) {
+      const v = C(ii, jj);
+      if (v === color) { ii += di; jj += dj; continue; }
+      if (v === EMPTY) found = good(ii, jj);
+      break;
+    }
+  }
+  put(x, y, EMPTY);
+  return found;
+}
+function isDoubleFour(x, y) {
+  if (C(x + 1, y + 1) !== EMPTY) return false;
+  if (isFive(x, y, BLACK)) return false;
+  let n = 0;
+  for (const [di, dj] of DIRS) {
+    const of = isOpenFour(x, y, BLACK, di, dj);
+    if (of === 2) n += 2;
+    else if (isFour(x, y, BLACK, di, dj)) n++;
+  }
+  return n >= 2;
+}
+function isDoubleThree(x, y) {
+  if (C(x + 1, y + 1) !== EMPTY) return false;
+  if (isFive(x, y, BLACK)) return false;
+  let n = 0;
+  for (const [di, dj] of DIRS) if (isOpenThree(x, y, BLACK, di, dj)) n++;
+  return n >= 2;
+}
+function isForbidden(x, y) {
+  const px = x + 1, py = y + 1;
+  if (C(px, py) !== EMPTY) return false;
+  let nb = 0;
+  for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) {
+    if (dx === 0 && dy === 0) continue;
+    if (Math.abs(dx) + Math.abs(dy) === 3) continue;
+    const ii = px + dx, jj = py + dy;
+    if (ii >= 1 && ii <= 15 && jj >= 1 && jj <= 15 && C(ii, jj) === BLACK) nb++;
+  }
+  if (nb < 2) return false;
+  return isDoubleThree(x, y) || isDoubleFour(x, y) || isOverline(x, y);
+}
+function forbiddenMap(board) {
+  loadBoard(board);
+  const out = new Uint8Array(N * N);
+  for (let idx = 0; idx < N * N; idx++) {
+    if (board[idx] !== EMPTY) continue;
+    const row = Math.floor(idx / N), col = idx % N;
+    if (isForbidden(col, row)) out[idx] = 1;
+  }
+  return out;
+}
+
+// 禁手掩码缓存：同一棋盘（ Analyse / Sweep 反复调用）只算一次
+const _forbiddenCache = new Map();
+function forbiddenMapCached(board) {
+  let key = '';
+  for (let i = 0; i < board.length; i++) key += board[i];
+  const hit = _forbiddenCache.get(key);
+  if (hit) return hit;
+  const m = forbiddenMap(board);
+  if (_forbiddenCache.size > 200) _forbiddenCache.clear();
+  _forbiddenCache.set(key, m);
+  return m;
+}
+
 const eloBucket = (elo) => Math.max(0, Math.min(ELO_BUCKETS - 1, Math.floor((elo - ELO_MIN) / ELO_BAND)));
 const eloFromBucket = (b) => ELO_MIN + b * ELO_BAND + ELO_BAND / 2;
 const fmtClock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -614,7 +814,7 @@ const boardAt = (n) => {
 /* ══════════════════════════════════════════════════════════════
    输入张量（与 encode.board_planes / history_ids 同构）
    ══════════════════════════════════════════════════════════════ */
-function boardPlanes(board, side, seen) {
+function boardPlanes(board, side, seen, forbidden) {
   const out = new Float32Array(CHANNELS * CELLS);
   const rot = side === WHITE;
   const stride = CELLS;
@@ -624,6 +824,13 @@ function boardPlanes(board, side, seen) {
     if (!v) { out[4 * stride + cc] = 1; continue; }
     out[(v === side ? 0 : 1) * stride + cc] = 1;
     out[(v === BLACK ? 2 : 3) * stride + cc] = 1;
+  }
+  // plane 17：黑方禁手掩码。训练端在轮到白方时把掩码旋转 180°，与 rot 一致。
+  if (forbidden) {
+    for (let cell = 0; cell < CELLS; cell++) {
+      if (!forbidden[cell]) continue;
+      out[17 * stride + (rot ? rotate(cell) : cell)] = 1;
+    }
   }
   const own = [], them = [];
   for (let i = seen.length - 1; i >= 0; i--) {
@@ -669,7 +876,7 @@ async function infer(activeElo, opponentElo, remaining, priority = 'live') {
 
   // 只描述张量，具体构造交给执行端（worker 或主线程）
   const feeds = {
-    board: { type: 'float32', data: boardPlanes(board, side, seen), dims: [1, CHANNELS, N, N] },
+    board: { type: 'float32', data: boardPlanes(board, side, seen, forbiddenMapCached(board)), dims: [1, CHANNELS, N, N] },
     history_ids: { type: 'int64', data: historyIds(seen, side), dims: [1, HISTORY_K] },
     history_mask: { type: 'bool', data: historyMask(seen.length), dims: [1, HISTORY_K] },
     active_elo: { type: 'int64', data: BigInt64Array.from([BigInt(eloBucket(activeElo))]), dims: [1] },
@@ -752,6 +959,20 @@ function renderBoard() {
     }
   }
 
+  // 轮到黑方时，给黑方禁手点画红叉（仅提示，不阻止落子）
+  let forbiddenMarks = '';
+  if (sideAt(ply) === BLACK) {
+    const fb = forbiddenMapCached(board);
+    for (let cell = 0; cell < CELLS; cell++) {
+      if (!fb[cell] || board[cell] !== EMPTY) continue;
+      const x = (cell % N) + 0.5, y = Math.floor(cell / N) + 0.5;
+      forbiddenMarks += `<g stroke="#c2413a" stroke-width="0.07" stroke-linecap="round" opacity="0.85">
+        <line x1="${x - 0.18}" y1="${y - 0.18}" x2="${x + 0.18}" y2="${y + 0.18}" />
+        <line x1="${x - 0.18}" y1="${y + 0.18}" x2="${x + 0.18}" y2="${y - 0.18}" />
+      </g>`;
+    }
+  }
+
   let grid = '';
   for (let i = 0; i < N; i++) {
     grid += `<line x1="0.5" y1="${i + 0.5}" x2="${N - 0.5}" y2="${i + 0.5}" />`;
@@ -803,7 +1024,7 @@ function renderBoard() {
     <g stroke="#8a8f7c" stroke-width="0.035" stroke-linecap="square">${grid}</g>
     <g fill="#5f6553">${stars}</g>
     ${heat}
-    ${stones}${marks}${numbers}${labels}
+    ${stones}${forbiddenMarks}${marks}${numbers}${labels}
   </svg>`;
 
   el('plyLine').innerHTML = `<b>${ply}</b> / ${moves.length}`;
