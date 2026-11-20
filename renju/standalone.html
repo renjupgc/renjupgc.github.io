@@ -660,12 +660,15 @@ async function runInference(job) {
   const feeds = {};
   for (const name in job.feeds) feeds[name] = toTensor(job.feeds[name]);
   const out = await session.run(feeds);
-  // value_pred: 3 类 logits [黑胜, 和棋, 黑负]（新模型）；旧模型只有 1 个标量，做兼容。
+  // 模型 value_pred 的真实 logits 顺序是 [走棋方负, 和, 走棋方胜]：
+  // 训练标签 -1/0/+1 经 np.searchsorted([-1,0,1]) 映射为 class 0/1/2（见 scripts/train.py），
+  // 且全都是「走棋方视角」。这里重排为 [走棋方胜, 和, 走棋方负]，
+  // 与下游 softmax3 + 黑白翻转的 [胜, 和, 负] 语义对齐。旧模型是单个标量（走棋方胜-负期望）。
   const vd = out.value_pred.data;
-  const value = vd.length >= 3 ? Array.from(vd.slice(0, 3)) : [Number(vd[0]), null, -Number(vd[0])];
+  const value = vd.length >= 3 ? [vd[2], vd[1], vd[0]] : [Number(vd[0]), 0, -Number(vd[0])];
   return {
     logits: new Float32Array(out.policy_logits.data),
-    value,   // [黑胜logit, 和棋logit, 黑负logit]
+    value,   // [走棋方胜logit, 和棋logit, 走棋方负logit]
   };
 }
 
