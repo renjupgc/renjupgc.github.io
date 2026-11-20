@@ -1403,21 +1403,55 @@ function refreshInputs() {
   el('valTB').textContent = fmtClock(Number(el('timeB').value));
   el('valTW').textContent = fmtClock(Number(el('timeW').value));
 }
+
+/* ── 设置缓存（localStorage）：等级分 / 时控 / 格式 ───────────── */
+const SETTINGS_KEY = 'otter-settings-v1';
+function applyFormat(fmt, resetTime = true) {
+  const base = FORMATS[fmt];
+  if (!base) return;
+  [...el('fmtBtns').children].forEach((b) => b.classList.toggle('on', b.dataset.fmt === fmt));
+  ['timeB', 'timeW'].forEach((id) => {
+    el(id).max = base;
+    el(id).step = base / 60;
+    if (resetTime) el(id).value = base;
+  });
+}
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      eloB: Number(el('eloB').value),
+      eloW: Number(el('eloW').value),
+      timeB: Number(el('timeB').value),
+      timeW: Number(el('timeW').value),
+      fmt: currentFormat(),
+    }));
+  } catch (e) {}
+}
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    // 先恢复格式（设好 time 滑块的 max/step），再恢复各滑块具体值
+    if (d.fmt && FORMATS[d.fmt] && [...el('fmtBtns').children].some((b) => b.dataset.fmt === d.fmt)) {
+      applyFormat(d.fmt, false);
+    }
+    if (Number.isFinite(d.eloB)) el('eloB').value = Math.max(0, Math.min(9, d.eloB));
+    if (Number.isFinite(d.eloW)) el('eloW').value = Math.max(0, Math.min(9, d.eloW));
+    if (Number.isFinite(d.timeB)) el('timeB').value = Math.max(0, Math.min(Number(el('timeB').max), d.timeB));
+    if (Number.isFinite(d.timeW)) el('timeW').value = Math.max(0, Math.min(Number(el('timeW').max), d.timeW));
+  } catch (e) {}
+}
 ['eloB', 'eloW', 'timeB', 'timeW'].forEach((id) => {
-  el(id).addEventListener('input', () => { refreshInputs(); analyse(); });
-  el(id).addEventListener('change', () => { sweep(); });
+  el(id).addEventListener('input', () => { refreshInputs(); saveSettings(); analyse(); });
+  el(id).addEventListener('change', () => { saveSettings(); sweep(); });
 });
 el('fmtBtns').addEventListener('click', (ev) => {
   const btn = ev.target.closest('button');
   if (!btn) return;
-  [...el('fmtBtns').children].forEach((b) => b.classList.toggle('on', b === btn));
-  const base = FORMATS[btn.dataset.fmt];
-  ['timeB', 'timeW'].forEach((id) => {
-    el(id).max = base;
-    el(id).step = base / 60;
-    el(id).value = base;
-  });
+  applyFormat(btn.dataset.fmt);
   refreshInputs();
+  saveSettings();
   analyse();
   sweep();
 });
@@ -1434,10 +1468,11 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitB
 (async () => {
   fitBoard();
   requestAnimationFrame(() => { fitBoard(); if (curve.length) renderChart(); });
-  // 局面路由 / 棋盘 / 禁手红叉都是纯前端计算，先恢复显示，不依赖模型加载。
-  // 这样即使模型下载慢或失败，链接里的局面也能立即呈现。
-  loadRoute();
+  // 设置（localStorage）与局面路由都是纯前端计算，先恢复显示，不依赖模型加载。
+  // 顺序：先读设置缓存并刷新显示，再恢复局面路由。
+  loadSettings();
   refreshInputs();
+  loadRoute();
   renderBoard();
   renderBar(50);
   try {
