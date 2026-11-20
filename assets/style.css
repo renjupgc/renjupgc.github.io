@@ -6727,7 +6727,7 @@ table.ratings .r-name a:hover {
 }
 
 .sd-step {
-    margin: 13px 0 6px;
+    margin: 11px 0 5px;
     font-family: var(--sans);
     font-size: 10.5px;
     letter-spacing: 0.16em;
@@ -6735,10 +6735,10 @@ table.ratings .r-name a:hover {
 }
 
 .sd-q {
-    margin: 0 0 10px;
+    margin: 0 0 9px;
     font-family: var(--sans);
     font-size: 13.5px;
-    line-height: 1.7;
+    line-height: 1.62;
     color: var(--ink-2);
 }
 
@@ -6756,7 +6756,7 @@ table.ratings .r-name a:hover {
 .sd-opt {
     display: block;
     width: 100%;
-    padding: 9px 12px;
+    padding: 7px 11px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: #fffdf7;
@@ -6775,9 +6775,9 @@ table.ratings .r-name a:hover {
 
 .sd-opt span {
     display: block;
-    margin-top: 2px;
-    font-size: 11px;
-    line-height: 1.5;
+    margin-top: 1px;
+    font-size: 10.5px;
+    line-height: 1.42;
     color: var(--muted);
 }
 
