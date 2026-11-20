@@ -6593,3 +6593,350 @@ table.ratings .r-name a:hover {
     }
 }
 
+
+/* ==========================================================================
+   十打判断（zaji/shida.html）
+   --------------------------------------------------------------------------
+   左边一块盘，右边一张提问卡：先问打数，再问局面。牌面沿用全站的暖纸与赭金。
+   ========================================================================== */
+
+.sd-topline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 14px;
+}
+
+.sd-score {
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+.sd-score b {
+    color: var(--ink-2);
+    font-weight: 600;
+}
+
+.sd-acts {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.sd-next {
+    padding: 7px 16px;
+    border: 1px solid rgba(176, 141, 87, 0.5);
+    border-radius: 12px;
+    background: var(--gold-tint);
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--gold-deep);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.sd-next:hover:not(:disabled) {
+    border-color: rgba(176, 141, 87, 0.7);
+    background: #fffdf7;
+}
+
+.sd-next:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.sd-next:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.sd-ghost {
+    border-color: var(--line);
+    background: transparent;
+    color: var(--muted);
+}
+
+.sd-ghost:hover:not(:disabled) {
+    border-color: rgba(176, 141, 87, 0.55);
+    background: #fffdf7;
+}
+
+.sd {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 18px;
+    align-items: start;
+    margin-bottom: 36px;
+}
+
+.sd-main,
+.sd-side {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(160deg, var(--surface), var(--surface-2));
+    box-shadow: var(--shadow-sm);
+}
+
+.sd-main {
+    display: flex;
+    justify-content: center;
+    padding: 14px;
+}
+
+.sd-main .board {
+    width: 100%;
+    max-width: 516px;
+}
+
+/* 出题时只摆子，不要翻页键和开关 */
+.sd-main .board-toolbar {
+    display: none;
+}
+
+.sd-side {
+    padding: 16px 16px 18px;
+}
+
+.sd-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.sd-opening {
+    font-family: var(--serif);
+    font-size: 19px;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+}
+
+.sd-page {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+    white-space: nowrap;
+}
+
+.sd-step {
+    margin: 13px 0 6px;
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    color: var(--gold);
+}
+
+.sd-q {
+    margin: 0 0 10px;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--ink-2);
+}
+
+.sd-q em {
+    font-style: normal;
+    color: var(--gold-deep);
+    font-weight: 600;
+}
+
+.sd-opts {
+    display: grid;
+    gap: 7px;
+}
+
+.sd-opt {
+    display: block;
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fffdf7;
+    font-family: var(--sans);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.sd-opt b {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.sd-opt span {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+.sd-opt:hover:not(:disabled) {
+    border-color: rgba(176, 141, 87, 0.6);
+    background: var(--gold-tint);
+}
+
+.sd-opt:disabled {
+    cursor: default;
+}
+
+.sd-opt.is-ok {
+    border-color: rgba(77, 114, 86, 0.5);
+    background: rgba(77, 114, 86, 0.07);
+}
+
+.sd-opt.is-ok b {
+    color: #3f6b48;
+}
+
+.sd-opt.is-bad {
+    border-color: rgba(168, 69, 63, 0.45);
+    background: rgba(168, 69, 63, 0.06);
+}
+
+.sd-opt.is-bad b {
+    color: #a8453f;
+}
+
+.sd-opt.is-mid {
+    border-color: rgba(176, 141, 87, 0.6);
+    background: var(--gold-tint);
+}
+
+.sd-opt.is-mid b {
+    color: var(--gold-deep);
+}
+
+.sd-opt.is-mute {
+    opacity: 0.5;
+}
+
+.sd-fb {
+    margin-top: 12px;
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.75;
+    color: var(--ink-3);
+}
+
+.sd-fb p {
+    margin: 4px 0;
+}
+
+.sd-fb b {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.sd-verdict {
+    display: inline-block;
+    margin-bottom: 6px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+}
+
+.sd-verdict.ok {
+    background: rgba(77, 114, 86, 0.12);
+    color: #3f6b48;
+}
+
+.sd-verdict.mid {
+    background: var(--gold-tint);
+    color: var(--gold-deep);
+}
+
+.sd-verdict.bad {
+    background: rgba(168, 69, 63, 0.12);
+    color: #a8453f;
+}
+
+.sd-table {
+    width: 100%;
+    margin-top: 8px;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 11.5px;
+}
+
+.sd-table th,
+.sd-table td {
+    padding: 2.5px 0;
+    font-weight: 400;
+    text-align: left;
+    color: var(--muted);
+}
+
+.sd-table th {
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    color: var(--faint);
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.sd-table td.res {
+    color: var(--ink-2);
+}
+
+.sd-table tr.is-pick td {
+    color: var(--gold-deep);
+    background: rgba(176, 141, 87, 0.09);
+}
+
+.sd-table tr.is-pick td.res {
+    font-weight: 600;
+}
+
+.sd-note {
+    margin-top: 8px;
+    font-size: 11px;
+    line-height: 1.65;
+    color: var(--faint);
+}
+
+.sd-sep {
+    margin: 15px 0 0;
+    border: 0;
+    border-top: 1px dashed var(--line);
+}
+
+.sd-legend {
+    margin-top: 8px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.85;
+    color: var(--muted);
+}
+
+.sd-legend b {
+    color: var(--ink-2);
+    font-weight: 600;
+}
+
+@media (max-width: 820px) {
+    .sd {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sd-main {
+        padding: 10px;
+    }
+
+    .sd-main .board {
+        max-width: 100%;
+    }
+
+    .sd-acts {
+        margin-left: 0;
+    }
+}

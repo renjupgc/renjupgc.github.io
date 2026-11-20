@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>十打判断 - 连珠杂箱</title>
+<meta name="description" content="塔拉山口-10 的开局练习：给出前四手，先判断第五手能不能直接给十打，再看白方挑中的打点之后局面算哪一档。题面取自《漱星阁开局指南》里的打数表。">
+<!-- zbx:seo -->
+<link rel="canonical" href="https://renjupgc.github.io/zaji/shida.html">
+<meta property="og:site_name" content="连珠杂箱">
+<meta property="og:type" content="website">
+<meta property="og:title" content="十打判断">
+<meta property="og:description" content="塔拉山口-10 的开局练习：给出前四手，先判断第五手能不能直接给十打，再看白方挑中的打点之后局面算哪一档。题面取自《漱星阁开局指南》里的打数表。">
+<meta property="og:url" content="https://renjupgc.github.io/zaji/shida.html">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="十打判断">
+<meta name="twitter:description" content="塔拉山口-10 的开局练习：给出前四手，先判断第五手能不能直接给十打，再看白方挑中的打点之后局面算哪一档。">
+<meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<!-- /zbx:seo -->
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+
+<body data-nav="杂技" data-base="../">
+
+<div class="container">
+
+    <div id="site-header"></div>
+
+    <main>
+
+        <header class="page-head">
+            <p class="eyebrow">杂技</p>
+            <h1 class="page-title">十打判断</h1>
+            <p class="page-desc">塔拉山口-10 的开局选择练习。四手摆好，先问一句：第五手能不能直接给十打？再问一句：白方挑中的那一手之后，这盘棋偏谁。题面与答案都来自《漱星阁开局指南》里的打数表。</p>
+        </header>
+
+        <div class="sd-topline">
+            <span class="sd-score" id="sd-score">第 <b>1</b> 局</span>
+            <div class="sd-acts">
+                <button type="button" class="sd-next" id="sd-next">换一题</button>
+                <button type="button" class="sd-next sd-ghost" id="sd-reset">清零</button>
+            </div>
+        </div>
+
+        <section class="sd">
+            <div class="sd-main">
+                <div class="board" id="sd-board"></div>
+            </div>
+            <aside class="sd-side" id="sd-side"></aside>
+        </section>
+
+        <section>
+            <h2>怎么算对</h2>
+            <p class="sd-legend">
+                <b>打数</b>是第五手一次摊开几个打点。摊得越多，白方挑得越舒服，所以同一局越往上越偏白。书里那几行就是这个意思，比如「6 打黑胜、9 打白近胜」，再往上一律记黑败。
+            </p>
+            <p class="sd-legend">
+                <b>第一问</b>只问一件事：十打之后还算不算黑方的局面。黑必胜、黑近胜、黑大优、黑小优、偏黑、平衡、偏白、白小优，这八种都算「给得」；一落到白大优、白近胜、白必胜（书里写「黑败」）就不能给。
+            </p>
+            <p class="sd-legend">
+                <b>第二问</b>换一档打数再问一次：黑方这次给六打、八打，或者干脆十打，白方从这一档打点里挑了图上那一点，问你这盘棋偏谁。五档本来就有重叠：黑很好（黑必胜、黑近胜、黑大优）、黑稍好（黑近胜、黑大优、黑小优、偏黑、平衡）、大致均势（黑小优、偏黑、平衡、偏白、白小优）、白稍好（白近胜、白大优、白小优、偏白、平衡）、白很好（白必胜、白近胜）。答在重叠的那一档算擦边，答在本档才算对。两问都答完，那一局的整张打数表才摊出来。
+            </p>
+            <p class="sd-note" id="sd-msg">题库 225 局，取自《漱星阁开局指南》2026.10.25 版的打数表。书里一页分两列（带 ′ 的那类变化）的局没敢收，两列挤在一行里读不准；其余照原样搬过来，坐标一位没改。</p>
+        </section>
+
+    </main>
+
+</div>
+
+<script src="../assets/layout.js"></script>
+<script src="../assets/board.js"></script>
+<script src="../assets/shida-data.js"></script>
+<script src="../assets/shida.js"></script>
+
+</body>
+</html>
