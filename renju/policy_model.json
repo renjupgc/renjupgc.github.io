@@ -1,0 +1,15 @@
+{
+  "file": "policy_model.onnx",
+  "version": "87ecf92585e7",
+  "bytes": 41806175,
+  "checkpoint": "checkpoints_b40_local\\best.pt",
+  "step": 2500,
+  "best_step": null,
+  "val_acc": 0.45659893240247457,
+  "exported_at": "2026-11-20T20:34:36+08:00",
+  "arch": "otter-local-policy-v1",
+  "input_planes": 18,
+  "elo_min": 1320,
+  "elo_band": 40,
+  "elo_buckets": 10
+}
