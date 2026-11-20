@@ -357,7 +357,7 @@ function bindSide() {
             }
             btn.addEventListener('click', function () {
                 const key = Number(btn.getAttribute('data-b'));
-                const truth = cat(tenResult(S.cur));
+                const truth = cat(resultAt(S.cur, S.n5));
                 const core = CORE[truth] || 3;
                 S.ansB = key;
                 S.phase = 2;
