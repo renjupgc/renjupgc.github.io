@@ -6989,3 +6989,10 @@ table.ratings .r-name a:hover {
     letter-spacing: 0.02em;
     color: var(--faint);
 }
+
+/* 选项小字里属于擦边的那几个，淡一档 */
+.sd-opt .sd-thin {
+    font-style: normal;
+    color: var(--faint);
+    opacity: 0.62;
+}

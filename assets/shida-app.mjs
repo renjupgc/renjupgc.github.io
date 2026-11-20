@@ -31,19 +31,43 @@ const OK_TEN = new Set([
     '黑必胜', '黑近胜', '黑大优', '黑小优', '偏黑', '平衡', '偏白', '白小优'
 ]);
 
-/* 五档：名字、包含的评估 */
+/* 五档：ok 算对，mid 算擦边（半对），all 是选项下面那行小字的完整顺序 */
 const BUCKETS = [
-    { key: 1, name: '黑很好', note: '黑必胜、黑近胜、黑大优',
-      set: ['黑必胜', '黑近胜', '黑大优'] },
-    { key: 2, name: '黑稍好', note: '黑近胜、黑大优、黑小优、偏黑、平衡',
-      set: ['黑近胜', '黑大优', '黑小优', '偏黑', '平衡'] },
-    { key: 3, name: '大致均势', note: '黑小优、偏黑、平衡、偏白、白小优',
-      set: ['黑小优', '偏黑', '平衡', '偏白', '白小优'] },
-    { key: 4, name: '白稍好', note: '白近胜、白大优、白小优、偏白、平衡',
-      set: ['白近胜', '白大优', '白小优', '偏白', '平衡'] },
-    { key: 5, name: '白很好', note: '白必胜、白近胜',
-      set: ['白必胜', '白近胜'] }
+    { key: 1, name: '黑很好',
+      all: ['黑必胜', '黑近胜', '黑大优'],
+      ok: ['黑必胜', '黑近胜', '黑大优'], mid: [] },
+    { key: 2, name: '黑稍好',
+      all: ['黑近胜', '黑大优', '黑小优', '偏黑', '平衡'],
+      ok: ['黑小优', '偏黑'], mid: ['黑近胜', '黑大优', '平衡'] },
+    { key: 3, name: '大致均势',
+      all: ['黑小优', '偏黑', '平衡', '偏白', '白小优'],
+      ok: ['黑小优', '偏黑', '平衡', '偏白', '白小优'], mid: [] },
+    { key: 4, name: '白稍好',
+      all: ['白近胜', '白大优', '白小优', '偏白', '平衡'],
+      ok: ['白小优', '偏白'], mid: ['白近胜', '白大优', '平衡'] },
+    { key: 5, name: '白很好',
+      all: ['白必胜', '白近胜', '白大优'],
+      ok: ['白必胜', '白近胜', '白大优'], mid: [] }
 ];
+
+/* 判一档：ok 算对、mid 算半对，其余算错 */
+function gradeB(key, truth) {
+    const b = bucketOf(key);
+    if (!b) {
+        return 'bad';
+    }
+    if (b.ok.indexOf(truth) >= 0) {
+        return 'ok';
+    }
+    return b.mid.indexOf(truth) >= 0 ? 'mid' : 'bad';
+}
+
+/* 选项小字：属于擦边的几项淡一点 */
+function noteHTML(b) {
+    return b.all.map(function (r) {
+        return b.mid.indexOf(r) >= 0 ? '<i class="sd-thin">' + r + '</i>' : r;
+    }).join('、');
+}
 
 /* 每个评估的「本档」：重叠时以这里为准 */
 const CORE = {
@@ -143,6 +167,12 @@ function noteSpot(op, five) {
         return { dx: d[0] * 0.94, dy: d[1] * 0.94 + (d[1] > 0 ? 0.42 : -0.24), anchor: d[2] };
     }
     return { dx: 0.94, dy: -1.16, anchor: 'start' };
+}
+
+/* 其余打点：左右交错，免得挤成一条 */
+function noteSide(c) {
+    const left = c[0] % 2 === 0;
+    return { dx: left ? -0.46 : 0.46, dy: -0.5, anchor: left ? 'end' : 'start' };
 }
 
 /* 原书标号：a3、c10?、6 */
@@ -249,23 +279,23 @@ function fbB(op) {
     const raw = resultAt(op, S.n5);
     const truth = cat(raw);
     const core = CORE[truth] || 3;
-    const chosen = bucketOf(S.ansB);
-    const fits = chosen && chosen.set.indexOf(truth) >= 0;
-    const exact = S.ansB === core;
-    const name = bucketOf(core).name;
+    const g = gradeB(S.ansB, truth);
+    const exact = g === 'ok';
+    const fits = g === 'mid';
+    const name = exact ? bucketOf(S.ansB).name : bucketOf(core).name;
     const give = '黑方这次给的是 <b>' + S.n5 + ' 打</b>（原书标 ' + labelOf(S.five) + '）。';
     let tip;
     if (exact) {
         tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」，正落在「' + name + '」。';
     } else if (fits) {
-        tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」。你挑的这一档也收了它，算擦边；' +
+        tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」。这一档只算擦边，记半分；' +
             '照书里的表更贴「' + name + '」。';
     } else {
         tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」，该归「' + name + '」。';
     }
     return '<div class="sd-fb">' +
         '<span class="sd-verdict ' + (exact ? 'ok' : (fits ? 'mid' : 'bad')) + '">' +
-        (exact ? '判断正确' : (fits ? '擦边，算对一半' : '判断有误')) + '</span>' +
+        (exact ? '判断正确' : (fits ? '擦边，算半对' : '判断有误')) + '</span>' +
         '<p>' + tip + '</p>' +
         rowsHTML(op, S.n5) +
         '<p class="sd-note">表里到 ' + op.r[op.r.length - 1][1] +
@@ -297,8 +327,8 @@ function sideHTML() {
 
     const bOpen = S.phase === 1;
     html += '<div class="sd-step">第二问 · 局面</div>';
-    html += '<p class="sd-q">白方挑中的一手落在 <em>' +
-        coord(S.five[0], S.five[1]) + '</em>。摊下来，局面算哪一档？</p>';
+    html += '<p class="sd-q">当黑方第五手落子于 <em>' +
+        coord(S.five[0], S.five[1]) + '</em> 处时，局面算哪一档？</p>';
     if (S.phase === 1) {
         html += '<p class="sd-hint">黑方这次给的是几打，先不告诉你；选完再揭。</p>';
     }
@@ -307,19 +337,17 @@ function sideHTML() {
         let cls = 'sd-opt';
         if (!bOpen) {
             const truth = cat(resultAt(op, S.n5));
-            const core = CORE[truth] || 3;
-            const pick = bucketOf(S.ansB);
-            const fits = pick && pick.set.indexOf(truth) >= 0;
-            if (b.key === core) {
+            const g = gradeB(b.key, truth);
+            if (g === 'ok') {
                 cls += ' is-ok';
             } else if (b.key === S.ansB) {
-                cls += fits ? ' is-mid' : ' is-bad';
+                cls += g === 'mid' ? ' is-mid' : ' is-bad';
             } else {
                 cls += ' is-mute';
             }
         }
         html += '<button type="button" class="' + cls + '" data-b="' + b.key + '"' +
-            (bOpen ? '' : ' disabled') + '><b>' + b.name + '</b><span>' + b.note +
+            (bOpen ? '' : ' disabled') + '><b>' + b.name + '</b><span>' + noteHTML(b) +
             '</span></button>';
     });
     html += '</div>';
@@ -335,9 +363,10 @@ function renderScore() {
     if (!el) {
         return;
     }
+    const bOk = Math.round(S.stats.bOk * 10) / 10;
     el.innerHTML = '第 <b>' + S.stats.n + '</b> 局 · 打数对 <b>' + S.stats.aOk + '/' +
-        S.stats.a + '</b> · 局面对 <b>' + S.stats.bOk + '/' + S.stats.b +
-        '</b>（擦边 ' + S.stats.bMid + '）';
+        S.stats.a + '</b> · 局面对 <b>' + bOk + '/' + S.stats.b +
+        '</b>（擦边 ' + S.stats.bMid + ' 个）';
 }
 
 function bindSide() {
@@ -367,13 +396,14 @@ function bindSide() {
             btn.addEventListener('click', function () {
                 const key = Number(btn.getAttribute('data-b'));
                 const truth = cat(resultAt(S.cur, S.n5));
-                const core = CORE[truth] || 3;
+                const g = gradeB(key, truth);
                 S.ansB = key;
                 S.phase = 2;
                 S.stats.b += 1;
-                if (key === core) {
+                if (g === 'ok') {
                     S.stats.bOk += 1;
-                } else if (bucketOf(key).set.indexOf(truth) >= 0) {
+                } else if (g === 'mid') {
+                    S.stats.bOk += 0.5;
                     S.stats.bMid += 1;
                 }
                 render();
@@ -394,12 +424,19 @@ function render() {
     S.board.setMarks(S.phase >= 1 && S.five
         ? [{ i: S.five[0], j: S.five[1], kind: 'warn' }]
         : []);
+
     if (S.phase >= 2 && S.five) {
-        const spot = noteSpot(op, S.five);
-        S.board.setNotes([{
-            i: S.five[0], j: S.five[1], text: labelOf(S.five), tone: 'warn',
-            dx: spot.dx, dy: spot.dy, anchor: spot.anchor
-        }]);
+        /* 答完把整盘打点摊出来，题目那一点用金圈压住 */
+        const list = op.c.map(function (c) {
+            const isFive = c[0] === S.five[0] && c[1] === S.five[1];
+            const spot = isFive ? noteSpot(op, c) : noteSide(c);
+            return {
+                i: c[0], j: c[1], text: labelOf(c), size: isFive ? 0.92 : 0.55,
+                tone: isFive ? 'warn' : (c[3] === 0 ? 'good' : (c[3] === 1 ? 'bad' : 'mute')),
+                dx: spot.dx, dy: spot.dy, anchor: spot.anchor
+            };
+        });
+        S.board.setNotes(list);
     } else {
         S.board.setNotes([]);
     }

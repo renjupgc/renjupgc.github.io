@@ -1093,7 +1093,7 @@
                 'stroke-width': 2.8,
                 'paint-order': 'stroke',
                 'stroke-linejoin': 'round',
-                'font-size': Math.round(R * 0.86 * 10) / 10,
+                'font-size': Math.round(R * (nt.size || 0.86) * 10) / 10,
                 'font-family': 'Georgia, "Songti SC", "SimSun", serif',
                 'font-weight': 600,
                 'text-anchor': nt.anchor || 'start'
