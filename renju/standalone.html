@@ -77,13 +77,14 @@
     overflow: hidden;
     background: #fff;
   }
-  .eb-top, .eb-bottom {
+  .eb-top, .eb-bottom, .eb-draw {
     position: absolute;
     left: 0; right: 0;
-    transition: height .3s ease-out;
+    transition: height .3s ease-out, top .3s ease-out;
   }
-  .eb-top { top: 0; background: #FFFFFF; }
-  .eb-bottom { bottom: 0; background: #14150F; }
+  .eb-top { top: 0; background: #FFFFFF; }        /* 白胜 */
+  .eb-draw { background: #8a8d84; }               /* 和棋：灰色 */
+  .eb-bottom { bottom: 0; background: #14150F; }  /* 黑胜 */
   .eb-mid { position: absolute; left: 0; right: 0; height: 1px; background: rgba(120,125,110,.45); }
   .eb-pill {
     position: absolute;
@@ -296,8 +297,9 @@
     <div class="boardrow">
       <div class="evalbar" title="黑方胜率">
         <div class="eb-track">
-          <div class="eb-top" id="ebTop" style="height:50%"></div>
-          <div class="eb-bottom" id="ebBottom" style="height:50%"></div>
+          <div class="eb-top" id="ebTop" style="height:33.3%"></div>
+          <div class="eb-draw" id="ebDraw" style="top:33.3%;height:33.4%"></div>
+          <div class="eb-bottom" id="ebBottom" style="height:33.3%"></div>
           <div id="ebMids"></div>
         </div>
         <div class="eb-pill" id="ebPill" style="top:50%">50.0%</div>
@@ -658,9 +660,12 @@ async function runInference(job) {
   const feeds = {};
   for (const name in job.feeds) feeds[name] = toTensor(job.feeds[name]);
   const out = await session.run(feeds);
+  // value_pred: 3 类 logits [黑胜, 和棋, 黑负]（新模型）；旧模型只有 1 个标量，做兼容。
+  const vd = out.value_pred.data;
+  const value = vd.length >= 3 ? Array.from(vd.slice(0, 3)) : [Number(vd[0]), null, -Number(vd[0])];
   return {
     logits: new Float32Array(out.policy_logits.data),
-    value: Number(out.value_pred.data[0]),
+    value,   // [黑胜logit, 和棋logit, 黑负logit]
   };
 }
 
@@ -1043,12 +1048,31 @@ function renderBoard() {
 const MID_LINES = Array.from({ length: 9 }, (_, i) => `<div class="eb-mid" style="top:${(i + 1) * 10}%"></div>`).join('');
 el('ebMids').innerHTML = MID_LINES;
 
-function renderBar(blackPct) {
-  const p = Math.max(0, Math.min(100, blackPct));
-  el('ebTop').style.height = `${100 - p}%`;
-  el('ebBottom').style.height = `${p}%`;
-  el('ebPill').style.top = `${100 - p}%`;
-  el('ebPill').textContent = `${p.toFixed(1)}%`;
+/* 三段胜率条：p = [黑胜, 和棋, 白胜]（黑方视角，概率和为 1）。
+   上段白胜、中段和棋(灰)、下段黑胜；药丸位置 = 黑胜+½和，与旧胜率语义连续。 */
+function softmax3(logits) {
+  const m = Math.max(logits[0], logits[1], logits[2]);
+  const e = [Math.exp(logits[0] - m), Math.exp(logits[1] - m), Math.exp(logits[2] - m)];
+  const s = e[0] + e[1] + e[2];
+  return [e[0] / s, e[1] / s, e[2] / s];
+}
+function renderBar(p) {
+  let bw, dr, ww;
+  if (Array.isArray(p) && p.length >= 3) {
+    [bw, dr, ww] = p;
+  } else {
+    // 兼容旧的单一黑胜率数字
+    const b = Math.max(0, Math.min(1, Number(p) / 100));
+    bw = b; dr = 0; ww = 1 - b;
+  }
+  const whitePct = ww * 100, drawPct = dr * 100, blackPct = bw * 100;
+  el('ebTop').style.height = `${whitePct}%`;
+  el('ebDraw').style.top = `${whitePct}%`;
+  el('ebDraw').style.height = `${drawPct}%`;
+  el('ebBottom').style.height = `${blackPct}%`;
+  const pillPct = (bw + 0.5 * dr) * 100;   // 黑方胜率（和棋算半分）
+  el('ebPill').style.top = `${100 - pillPct}%`;
+  el('ebPill').textContent = `${pillPct.toFixed(1)}%`;
 }
 
 function renderList() {
@@ -1275,8 +1299,10 @@ async function analyse() {
     if (seq !== analyseSeq) return;   // 被更新的一次分析取代
     probs = r.probs;
     topMoves = topK(r.probs, 5);
-    const forBlack = r.side === BLACK ? r.value : -r.value;
-    renderBar(Math.max(0, Math.min(100, ((forBlack + 1) / 2) * 100)));
+    // value logits 是"走棋方视角"的 [胜, 和, 负]；转成"黑方视角"的 [黑胜, 和, 白胜]。
+    const pv = softmax3(r.value);
+    const pBlack = r.side === BLACK ? [pv[0], pv[1], pv[2]] : [pv[2], pv[1], pv[0]];
+    renderBar(pBlack);
     renderBoard();
     renderList();
   } catch (err) {
@@ -1474,7 +1500,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitB
   refreshInputs();
   loadRoute();
   renderBoard();
-  renderBar(50);
+  renderBar([1 / 3, 1 / 3, 1 / 3]);
   try {
     // 候选来源都转成绝对 URL —— Worker 里的 importScripts / fetch 不继承页面的相对路径解析
     const abs = (u) => new URL(u, location.href).href;
