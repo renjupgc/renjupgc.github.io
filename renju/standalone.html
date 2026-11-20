@@ -128,16 +128,25 @@
   }
   .ply b { color: var(--paper); font-weight: 700; }
 
-  /* ── 底部三栏 ────────────────────────────────────────────── */
+  /* ── 底部：输入 / 分析占左半，折线图占右半 ─────────────────── */
   footer {
     display: grid;
-    grid-template-columns: 250px 206px minmax(280px, 1fr);
+    /* 电脑端：等级分在上、时控在下（同一列堆叠）；分析结果单列；折线图占一半宽 */
+    grid-template-columns: 1fr 1fr 2fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "elo    result chart"
+      "time   result chart";
     align-items: stretch;
     border-top: 1px solid var(--line);
     background: var(--bg);
   }
   .cell { padding: 12px 14px; border-right: 1px solid var(--line); min-width: 0; }
   .cell:last-child { border-right: none; }
+  footer > .cell:nth-child(1) { grid-area: elo; }
+  footer > .cell:nth-child(2) { grid-area: time; border-top: 1px solid var(--line); }
+  footer > .cell:nth-child(3) { grid-area: result; }
+  footer > .cell:nth-child(4) { grid-area: chart; }
 
   .lbl {
     display: block;
@@ -216,13 +225,25 @@
   .pmove .m { font-weight: 600; color: var(--paper); }
   .pmove .p { font-weight: 700; color: var(--pear); }
 
+  /* 预估思考时间 */
+  .thinkrow {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 8px; padding: 6px 8px;
+    border: 1px solid var(--line); border-radius: 3px;
+    font: 700 11.5px/1 var(--mono);
+  }
+  .thinkrow .k { color: var(--muted); letter-spacing: .04em; }
+  .thinkrow .v { color: var(--pear); font-weight: 700; }
+
   /* 折线图 */
-  .chead { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 6px; }
+  .chead { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 6px; min-height: 17px; }
   .legend { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
   .legend span { font: 700 11px/1 var(--mono); }
   .chartcell { display: flex; flex-direction: column; }
-  .chartwrap { flex: 1; height: 208px; min-height: 170px; min-width: 0; }
-  .chartwrap svg { width: 100%; height: 100%; display: block; }
+  /* 固定高度 + SVG 绝对定位：绝不按 viewBox 内容反推父容器高度。
+     否则手机上被撑高后还原桌面，页脚高度回不去、把棋盘挤小（切换 bug）。 */
+  .chartwrap { position: relative; flex: 0 0 auto; height: 176px; min-width: 0; }
+  .chartwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
   @media (max-width: 900px) {
     .stage { padding: 10px; }
@@ -230,12 +251,21 @@
     .boardrow { height: auto; }
     /* 窄屏上棋盘吃掉剩余宽度，正方形由 aspect-ratio 定高，避免 100% 宽度撑破 */
     .board { flex: 1 1 0; width: auto; height: auto; min-width: 0; }
-    footer { grid-template-columns: 1fr 1fr; }
+    /* 手机端：等级分 / 时控 左右并排，分析结果与折线图各占一整行 */
+    footer {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      grid-template-areas:
+        "elo   time"
+        "result result"
+        "chart chart";
+    }
+    footer > .cell:nth-child(2) { border-top: none; }   /* 时控不再叠在等级分下面 */
     .cell { border-bottom: 1px solid var(--line); }
   }
   @media (max-width: 560px) {
-    footer { grid-template-columns: 1fr; }
-    .cell { border-right: none; }
+    /* 手机上仍保持等级分/时控左右并排（很窄也不改成上下） */
+    .cell { padding: 10px; }
   }
 </style>
 </head>
@@ -267,7 +297,7 @@
 </main>
 
 <footer>
-  <!-- 输入特征 -->
+  <!-- 等级分 -->
   <section class="cell">
     <span class="lbl">等级分</span>
     <div class="row">
@@ -280,8 +310,11 @@
       <span class="val" id="valW">1500</span>
     </div>
     <input type="range" id="eloW" min="0" max="9" step="1" value="4" />
+  </section>
 
-    <span class="lbl" style="margin-top:12px">时控</span>
+  <!-- 时控 -->
+  <section class="cell">
+    <span class="lbl">时控</span>
     <div class="fmtbtns" id="fmtBtns">
       <button data-fmt="blitz">闪电战</button>
       <button data-fmt="rapid" class="on">快棋</button>
@@ -307,6 +340,10 @@
     </div>
     <div class="pcols"><span>落点</span><span>概率</span></div>
     <div id="plist"></div>
+    <div class="thinkrow" title="根据候选概率分布、剩余时间与手数估算，非模型输出">
+      <span class="k">预估思考</span>
+      <span class="v" id="thinkVal">—</span>
+    </div>
   </section>
 
   <!-- Elo 折线图 -->
@@ -348,9 +385,143 @@ let ply = 0;
 let session = null;
 let probs = null;          // 当前局面 225 路概率（真实格点）
 let topMoves = [];         // [{cell, p}]
-let curve = [];            // [{san, color, points:[p...]}]
-let curveLoading = false;
-let busy = false, queued = false;
+let curve = [];            // [{san, color, points:[p...]}]  目标数据
+let displayCurve = [];     // 当前显示的曲线（动画中间态）
+let chartAnimId = 0;       // 动画序号，新动画取代旧动画
+let sweepSeq = 0, analyseSeq = 0;
+
+/* ── 内联 Worker：所有 ONNX 推理都在独立线程跑 ───────────────────────
+   wasm 推理是同步阻塞的；放在主线程时，每落一子要跑 1 次 analyse + 10 次
+   Elo 扫描，页面会卡住几百毫秒。Worker 里串行执行；实时(live)请求可以插到
+   还未开始的扫描之前，且会作废排队中的旧 live 请求。 */
+const WORKER_SRC = `
+let session = null;
+const queue = [];
+let processing = false;
+
+function toTensor(d) {
+  let data = d.data;
+  if (d.type === 'int64') data = (data instanceof BigInt64Array) ? data : BigInt64Array.from(data);
+  else if (d.type === 'float32') data = (data instanceof Float32Array) ? data : Float32Array.from(data);
+  else if (d.type === 'bool') data = (data instanceof Uint8Array) ? data : Uint8Array.from(data);
+  return new ort.Tensor(d.type, data, d.dims);
+}
+
+async function runInference(job) {
+  const feeds = {};
+  for (const name in job.feeds) feeds[name] = toTensor(job.feeds[name]);
+  const out = await session.run(feeds);
+  return {
+    logits: new Float32Array(out.policy_logits.data),
+    value: Number(out.value_pred.data[0]),
+  };
+}
+
+function enqueue(job) {
+  if (job.priority === 'live') {
+    for (let i = queue.length - 1; i >= 0; i--) {
+      if (queue[i].priority === 'live') {
+        postMessage({ type: 'run', id: queue[i].id, superseded: true });
+        queue.splice(i, 1);
+      }
+    }
+    const firstSweep = queue.findIndex((j) => j.priority === 'sweep');
+    if (firstSweep < 0) queue.push(job); else queue.splice(firstSweep, 0, job);
+  } else {
+    queue.push(job);
+  }
+  drain();
+}
+
+async function drain() {
+  if (processing) return;
+  processing = true;
+  while (queue.length) {
+    const job = queue.shift();
+    try {
+      const out = await runInference(job);
+      postMessage({ type: 'run', id: job.id, logits: out.logits, value: out.value }, [out.logits.buffer]);
+    } catch (err) {
+      postMessage({ type: 'run', id: job.id, error: String(err && err.message || err) });
+    }
+  }
+  processing = false;
+}
+
+self.onmessage = async (ev) => {
+  const m = ev.data;
+  if (m.type === 'init') {
+    try {
+      let base = null;
+      for (const b of m.ortBases) {
+        try { importScripts(new URL('ort.min.js', b).href); if (self.ort) { base = b; break; } } catch (e) {}
+      }
+      if (!base || !self.ort) throw new Error('onnxruntime 加载失败');
+      ort.env.wasm.wasmPaths = base;
+      ort.env.wasm.numThreads = 1;
+      let buf = null;
+      for (const url of m.modelUrls) {
+        try { const res = await fetch(url); if (res.ok) { buf = await res.arrayBuffer(); break; } } catch (e) {}
+      }
+      if (!buf) throw new Error('模型加载失败');
+      session = await ort.InferenceSession.create(buf, {
+        executionProviders: ['wasm'], graphOptimizationLevel: 'basic',
+      });
+      postMessage({ type: 'init', ok: true });
+    } catch (err) {
+      postMessage({ type: 'init', ok: false, error: String(err && err.message || err) });
+    }
+    return;
+  }
+  if (m.type === 'run') {
+    if (!session) { postMessage({ type: 'run', id: m.id, error: '模型尚未就绪' }); return; }
+    enqueue(m);
+  }
+};
+`;
+
+let worker = null, workerReady = false, reqSeq = 0;
+const pending = new Map();
+
+function runFeeds(feeds, priority = 'live') {
+  if (!workerReady || !worker) return Promise.reject(new Error('模型尚未就绪'));
+  return new Promise((resolve, reject) => {
+    const id = ++reqSeq;
+    pending.set(id, { resolve, reject });
+    worker.postMessage({ type: 'run', id, priority, feeds });
+  });
+}
+
+function initWorker(ortBases, modelUrls) {
+  const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
+  worker = new Worker(url);
+  worker.onmessage = (ev) => {
+    const m = ev.data;
+    if (m.type === 'run') {
+      const p = pending.get(m.id);
+      if (!p) return;                       // 已作废的请求，忽略回包
+      pending.delete(m.id);
+      if (m.superseded) {
+        p.reject(Object.assign(new Error('superseded'), { superseded: true }));
+      } else if (m.error) {
+        p.reject(new Error(m.error));
+      } else {
+        p.resolve({ logits: m.logits, value: m.value });
+      }
+    }
+  };
+  return new Promise((resolve, reject) => {
+    const onInit = (ev) => {
+      const m = ev.data;
+      if (m.type !== 'init') return;
+      worker.removeEventListener('message', onInit);
+      if (m.ok) { workerReady = true; resolve(); }
+      else reject(new Error(m.error || 'worker 初始化失败'));
+    };
+    worker.addEventListener('message', onInit);
+    worker.postMessage({ type: 'init', ortBases, modelUrls });
+  });
+}
 
 const sideAt = (n) => (n % 2 === 0 ? BLACK : WHITE);
 const boardAt = (n) => {
@@ -409,24 +580,25 @@ const tcBucket = (base) => (base < 60 ? 0 : base < 180 ? 1 : base < 600 ? 2 : ba
 /* ══════════════════════════════════════════════════════════════
    推理
    ══════════════════════════════════════════════════════════════ */
-async function infer(activeElo, opponentElo, remaining) {
+async function infer(activeElo, opponentElo, remaining, priority = 'live') {
   const board = boardAt(ply);
   const side = sideAt(ply);
   const seen = moves.slice(0, ply);
   const base = FORMATS[currentFormat()];
 
+  // 只描述张量，具体构造交给执行端（worker 或主线程）
   const feeds = {
-    board: new ort.Tensor('float32', boardPlanes(board, side, seen), [1, CHANNELS, N, N]),
-    history_ids: new ort.Tensor('int64', historyIds(seen, side), [1, HISTORY_K]),
-    history_mask: new ort.Tensor('bool', historyMask(seen.length), [1, HISTORY_K]),
-    active_elo: new ort.Tensor('int64', BigInt64Array.from([BigInt(eloBucket(activeElo))]), [1]),
-    opponent_elo: new ort.Tensor('int64', BigInt64Array.from([BigInt(eloBucket(opponentElo))]), [1]),
-    time_control: new ort.Tensor('int64', BigInt64Array.from([BigInt(tcBucket(base))]), [1]),
-    clock: new ort.Tensor('float32', Float32Array.from([Math.max(0, remaining) / base, 0]), [1, 2]),
+    board: { type: 'float32', data: boardPlanes(board, side, seen), dims: [1, CHANNELS, N, N] },
+    history_ids: { type: 'int64', data: historyIds(seen, side), dims: [1, HISTORY_K] },
+    history_mask: { type: 'bool', data: historyMask(seen.length), dims: [1, HISTORY_K] },
+    active_elo: { type: 'int64', data: BigInt64Array.from([BigInt(eloBucket(activeElo))]), dims: [1] },
+    opponent_elo: { type: 'int64', data: BigInt64Array.from([BigInt(eloBucket(opponentElo))]), dims: [1] },
+    time_control: { type: 'int64', data: BigInt64Array.from([BigInt(tcBucket(base))]), dims: [1] },
+    clock: { type: 'float32', data: Float32Array.from([Math.max(0, remaining) / base, 0]), dims: [1, 2] },
   };
 
-  const out = await session.run(feeds);
-  const logits = out.policy_logits.data;
+  const out = await runFeeds(feeds, priority);
+  const logits = out.logits;
 
   // 只对空点做 softmax，再映射回真实格点
   const rot = side === WHITE;
@@ -444,7 +616,7 @@ async function infer(activeElo, opponentElo, remaining) {
   const p = new Float64Array(CELLS);
   for (let i = 0; i < cells.length; i++) p[cells[i]] = vals[i] / sum;
 
-  return { probs: p, value: Number(out.value_pred.data[0]), side };
+  return { probs: p, value: out.value, side };
 }
 
 function topK(p, k) {
@@ -452,6 +624,24 @@ function topK(p, k) {
   for (let i = 0; i < CELLS; i++) if (p[i] > 0) arr.push({ cell: i, p: p[i] });
   arr.sort((a, b) => b.p - a.p);
   return arr.slice(0, k);
+}
+
+/* 预估人类思考时间：照搬 getExpectedHumanTime 的启发式。
+   非模型输出，只由候选分布、时控基准、剩余时钟和手数推算。 */
+function expectedThinkSec(preds, baseSeconds, timeLeft, ply = 0) {
+  if (!preds || preds.length === 0) return 3.0;
+  const p1 = preds[0].p;
+  const p2 = preds[1] ? preds[1].p : 0;
+  const diff = Math.max(0, p1 - p2);
+  const difficulty = 1.0 - (diff * 0.5 + p1 * 0.5);
+  const scale = Math.max(5, baseSeconds * 0.04);
+  const clockRatio = baseSeconds > 0 ? timeLeft / baseSeconds : 1.0;
+  const clockFactor = clockRatio >= 0.5 ? 1.0 : Math.max(0.08, clockRatio / 0.5);
+  const openingFactor = Math.min(1, 0.03 + Math.pow(Math.max(0, ply - 4) / 16, 1.5));
+  const raw = 0.4 + difficulty * scale * clockFactor;
+  const estimated = raw * openingFactor;
+  const cap = Math.max(0.3, timeLeft * 0.06);
+  return Math.max(0.1, Math.round(Math.min(estimated, cap) * 10) / 10);
 }
 
 const currentFormat = () => el('fmtBtns').querySelector('.on').dataset.fmt;
@@ -560,11 +750,17 @@ function renderList() {
   el('plist').innerHTML = topMoves.length
     ? topMoves.map((m) => `<div class="pmove"><span class="m">${coord(m.cell)}</span><span class="p">${(m.p * 100).toFixed(1)}%</span></div>`).join('')
     : '<div class="pmove"><span class="m" style="color:var(--muted);font-style:italic">分析中…</span></div>';
+
+  // 预估思考时间随候选分布 / 时钟 / 时控 / 手数一起更新
+  const side = sideAt(ply);
+  const sec = expectedThinkSec(topMoves, FORMATS[currentFormat()], timeOf(side), ply);
+  el('thinkVal').textContent = `${sec.toFixed(1)}s`;
 }
 
 const X_LABELS = Array.from({ length: ELO_BUCKETS }, (_, i) => eloFromBucket(i));
 
-function renderChart() {
+/* 按给定曲线数据画一次折线图（纯绘制，无动画） */
+function paintChart(data) {
   // 按容器的实际像素出图：viewBox 与像素一一对应，图就横向铺满且不失真。
   const wrap = el('chartwrap');
   const chartW = Math.max(240, Math.round(wrap.clientWidth || 380));
@@ -596,7 +792,7 @@ function renderChart() {
 
   let defs = '', gridLines = '', axis = '', areas = '', lines = '', xlabels = '';
 
-  curve.forEach((s, i) => {
+  data.forEach((s, i) => {
     defs += `<linearGradient id="g${i}" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="${s.color}" stop-opacity="0.32" />
       <stop offset="100%" stop-color="${s.color}" stop-opacity="0" /></linearGradient>`;
@@ -617,13 +813,13 @@ function renderChart() {
       font-size="8.5" fill="var(--muted)" font-family="${MONO}">${elo}</text>`;
   });
 
-  [...curve].reverse().forEach((s, ri) => {
-    const si = curve.length - 1 - ri;
+  [...data].reverse().forEach((s, ri) => {
+    const si = data.length - 1 - ri;
     const pts = s.points.map((p, i) => ({ x: xFor(i), y: yFor(p) }));
     areas += `<path d="${areaThrough(pts)}" fill="url(#g${si})" stroke="none" />`;
   });
 
-  curve.forEach((s) => {
+  data.forEach((s) => {
     const pts = s.points.map((p, i) => ({ x: xFor(i), y: yFor(p) }));
     lines += `<path d="${curveThrough(pts)}" fill="none" stroke="${s.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />`;
     lines += pts.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="3.6" fill="${s.color}" stroke="var(--bg)" stroke-width="1" />`).join('');
@@ -631,22 +827,86 @@ function renderChart() {
 
   el('chart').setAttribute('viewBox', `0 0 ${chartW} ${chartH}`);
   el('chart').innerHTML = `<defs>${defs}</defs>${gridLines}${axis}${xlabels}${areas}${lines}`;
-  el('legend').innerHTML = curve.map((s) => `<span style="color:${s.color}">${s.san}</span>`).join('');
+  el('legend').innerHTML = data.map((s) => `<span style="color:${s.color}">${s.san}</span>`).join('');
 }
 
-addEventListener('resize', () => { if (curve.length) renderChart(); });
+/* 数据更新：曲线从当前显示值平滑过渡到新目标值。
+   resize 时传 immediate=true 直接重画（尺寸变了，插值没有意义）。 */
+function renderChart(immediate = false) {
+  const id = ++chartAnimId;
+  const target = curve.map((s) => ({ ...s, points: [...s.points] }));
+
+  // 首次、条数不一致、或要求立即：直接画
+  if (immediate || !displayCurve.length || displayCurve.length !== target.length) {
+    displayCurve = target;
+    paintChart(displayCurve);
+    return;
+  }
+
+  const from = displayCurve.map((s) => [...s.points]);
+  const to = target.map((s) => [...s.points]);
+  const len = Math.min(
+    ...from.map((p) => p.length),
+    ...to.map((p) => p.length),
+  );
+  const t0 = performance.now();
+  const DUR = 420;  // ms
+
+  const frame = (now) => {
+    if (id !== chartAnimId) return;   // 被更新的动画取代
+    const k = Math.min(1, (now - t0) / DUR);
+    const e = 1 - Math.pow(1 - k, 3); // ease-out cubic
+    const mid = target.map((s, si) => ({
+      ...s,
+      points: s.points.map((v, i) => {
+        const a = from[si]?.[i] ?? v;
+        const b = to[si]?.[i] ?? v;
+        return i < len ? a + (b - a) * e : b;
+      }),
+    }));
+    displayCurve = mid;
+    paintChart(mid);
+    if (k < 1) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+addEventListener('resize', () => {
+  fitBoard();
+  if (curve.length) renderChart(true);
+});
+
+/* ══════════════════════════════════════════════════════════════
+   桌面端自适应：棋盘吃掉「页脚之上」的可用高度，方阵跟着窗口长
+   ══════════════════════════════════════════════════════════════ */
+function fitBoard() {
+  const row = document.querySelector('.boardrow');
+  const stage = document.querySelector('.stage');
+  const foot = document.querySelector('footer');
+  if (!row || !stage || !foot) return;
+  if (innerWidth <= 900) { row.style.height = ''; return; }  // 窄屏交给 CSS
+  const cs = getComputedStyle(stage);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  // 用视口高度减页脚，而不是 stage 当前高度：页脚内容（字体/图例）变了也不会算漏
+  const availH = document.documentElement.clientHeight - foot.getBoundingClientRect().height - padY;
+  const availW = stage.clientWidth - padX;
+  // 导航条 30px + 与棋盘的 8px 间距先扣掉，剩下才是棋盘边长
+  const size = Math.max(240, Math.min(760, Math.floor(Math.min(availH - 38, availW - 32))));
+  row.style.height = `${size}px`;
+}
 
 /* ══════════════════════════════════════════════════════════════
    分析
    ══════════════════════════════════════════════════════════════ */
 async function analyse() {
-  if (!session) return;
-  if (busy) { queued = true; return; }
-  busy = true;
+  if (!workerReady) return;
+  const seq = ++analyseSeq;
   try {
     const side = sideAt(ply);
     const active = eloOf(side), opp = eloOf(side === BLACK ? WHITE : BLACK);
-    const r = await infer(active, opp, timeOf(side));
+    const r = await infer(active, opp, timeOf(side), 'live');
+    if (seq !== analyseSeq) return;   // 被更新的一次分析取代
     probs = r.probs;
     topMoves = topK(r.probs, 5);
     const forBlack = r.side === BLACK ? r.value : -r.value;
@@ -654,22 +914,22 @@ async function analyse() {
     renderBoard();
     renderList();
   } catch (err) {
-    console.error(err);
-  } finally {
-    busy = false;
-    if (queued) { queued = false; analyse(); }
+    if (!err.superseded) console.error(err);   // 被抢占是正常的调度行为
   }
 }
 
 async function sweep() {
-  if (!session || curveLoading) return;
-  curveLoading = true;
+  if (!workerReady) return;
+  const seq = ++sweepSeq;          // 新请求让旧扫描作废，避免结果倒灌
   try {
     const side = sideAt(ply);
     const opp = eloOf(side === BLACK ? WHITE : BLACK);
     const remaining = timeOf(side);
     const per = [];
-    for (let b = 0; b < ELO_BUCKETS; b++) per.push((await infer(eloFromBucket(b), opp, remaining)).probs);
+    for (let b = 0; b < ELO_BUCKETS; b++) {
+      per.push((await infer(eloFromBucket(b), opp, remaining, 'sweep')).probs);
+      if (seq !== sweepSeq) return;
+    }
 
     const mean = new Float64Array(CELLS);
     for (const p of per) for (let i = 0; i < CELLS; i++) mean[i] += p[i];
@@ -680,11 +940,11 @@ async function sweep() {
       color: PALETTE[i % PALETTE.length],
       points: per.map((p) => p[m.cell] * 100),
     }));
+    if (seq !== sweepSeq) return;
     renderChart();
+    fitBoard();   // 图例出现会改页脚高度，棋盘跟着重量一次
   } catch (err) {
     console.error(err);
-  } finally {
-    curveLoading = false;
   }
 }
 
@@ -702,7 +962,9 @@ function goTo(n) {
 
 el('board').addEventListener('click', (ev) => {
   const svg = ev.currentTarget.querySelector('svg');
+  if (!svg) return;   // 首帧还没画出来时点空，别炸
   const rect = svg.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
   const x = VIEW.x + ((ev.clientX - rect.left) / rect.width) * VIEW.w;
   const y = VIEW.y + ((ev.clientY - rect.top) / rect.height) * VIEW.h;
   const c = Math.round(x - 0.5), r = Math.round(y - 0.5);
@@ -761,53 +1023,23 @@ el('fmtBtns').addEventListener('click', (ev) => {
 const SITE = 'https://renjupgc.github.io/renju';
 const param = new URLSearchParams(location.search);
 
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
-
-async function loadRuntime() {
-  const bases = [];
-  if (param.get('ort')) bases.push(param.get('ort').replace(/\/?$/, '/'));
-  bases.push('./ort/', `${SITE}/ort/`, 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/');
-  for (const base of bases) {
-    try {
-      await loadScript(`${base}ort.min.js`);
-      if (!window.ort) continue;
-      ort.env.wasm.wasmPaths = new URL(base, location.href).href;
-      ort.env.wasm.numThreads = 1;
-      return;
-    } catch { /* 下一个来源 */ }
-  }
-  throw new Error('onnxruntime 加载失败');
-}
-
-async function fetchModel() {
-  const urls = [];
-  if (param.get('model')) urls.push(param.get('model'));
-  urls.push('./policy_model.onnx', `${SITE}/policy_model.onnx`);
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      return await res.arrayBuffer();
-    } catch { /* 下一个来源 */ }
-  }
-  throw new Error('模型加载失败');
-}
+addEventListener('load', () => { fitBoard(); if (curve.length) renderChart(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitBoard());
 
 (async () => {
+  fitBoard();
+  requestAnimationFrame(() => { fitBoard(); if (curve.length) renderChart(); });
   try {
-    await loadRuntime();
-    session = await ort.InferenceSession.create(await fetchModel(), {
-      executionProviders: ['wasm'],
-      graphOptimizationLevel: 'basic',
-    });
+    // 候选来源都转成绝对 URL —— Worker 里的 importScripts / fetch 不继承页面的相对路径解析
+    const abs = (u) => new URL(u, location.href).href;
+    const ortBases = [];
+    if (param.get('ort')) ortBases.push(abs(param.get('ort').replace(/\/?$/, '/')));
+    ortBases.push(abs('./ort/'), `${SITE}/ort/`, 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/');
+    const modelUrls = [];
+    if (param.get('model')) modelUrls.push(abs(param.get('model')));
+    modelUrls.push(abs('./policy_model.onnx'), `${SITE}/policy_model.onnx`);
+
+    await initWorker(ortBases, modelUrls);
     refreshInputs();
     renderBoard();
     renderBar(50);
