@@ -873,10 +873,11 @@ async function infer(activeElo, opponentElo, remaining, priority = 'live') {
   const side = sideAt(ply);
   const seen = moves.slice(0, ply);
   const base = FORMATS[currentFormat()];
+  const fm = forbiddenMapCached(board);   // 黑方禁手点掩码（真实坐标），填 plane 17 与屏蔽候选共用
 
   // 只描述张量，具体构造交给执行端（worker 或主线程）
   const feeds = {
-    board: { type: 'float32', data: boardPlanes(board, side, seen, forbiddenMapCached(board)), dims: [1, CHANNELS, N, N] },
+    board: { type: 'float32', data: boardPlanes(board, side, seen, fm), dims: [1, CHANNELS, N, N] },
     history_ids: { type: 'int64', data: historyIds(seen, side), dims: [1, HISTORY_K] },
     history_mask: { type: 'bool', data: historyMask(seen.length), dims: [1, HISTORY_K] },
     active_elo: { type: 'int64', data: BigInt64Array.from([BigInt(eloBucket(activeElo))]), dims: [1] },
@@ -888,13 +889,15 @@ async function infer(activeElo, opponentElo, remaining, priority = 'live') {
   const out = await runFeeds(feeds, priority);
   const logits = out.logits;
 
-  // 只对空点做 softmax，再映射回真实格点
+  // 只对空点做 softmax，再映射回真实格点。
+  // 黑方走棋时，禁手点必须作为掩码排除（概率置 0），不能出现在候选/折线里。
   const rot = side === WHITE;
   const cells = [], vals = [];
   let max = -Infinity;
   for (let cc = 0; cc < CELLS; cc++) {
     const real = rot ? rotate(cc) : cc;
     if (board[real] !== EMPTY) continue;
+    if (side === BLACK && fm[real]) continue;   // 黑方禁手点：掩码屏蔽
     cells.push(real);
     vals.push(logits[cc]);
     if (logits[cc] > max) max = logits[cc];
