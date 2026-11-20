@@ -6980,3 +6980,12 @@ table.ratings .r-name a:hover {
 .sd-done + .sd-step {
     margin-top: 15px;
 }
+
+/* 第二问先不揭打数的那句小字 */
+.sd-hint {
+    margin: -3px 0 10px;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: var(--faint);
+}

@@ -253,14 +253,15 @@ function fbB(op) {
     const fits = chosen && chosen.set.indexOf(truth) >= 0;
     const exact = S.ansB === core;
     const name = bucketOf(core).name;
+    const give = '黑方这次给的是 <b>' + S.n5 + ' 打</b>（原书标 ' + labelOf(S.five) + '）。';
     let tip;
     if (exact) {
-        tip = S.n5 + ' 打摊下来是「' + say(raw) + '」，正落在「' + name + '」。';
+        tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」，正落在「' + name + '」。';
     } else if (fits) {
-        tip = S.n5 + ' 打摊下来是「' + say(raw) + '」。你挑的这一档也收了它，算擦边；' +
+        tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」。你挑的这一档也收了它，算擦边；' +
             '照书里的表更贴「' + name + '」。';
     } else {
-        tip = S.n5 + ' 打摊下来是「' + say(raw) + '」，该归「' + name + '」。';
+        tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」，该归「' + name + '」。';
     }
     return '<div class="sd-fb">' +
         '<span class="sd-verdict ' + (exact ? 'ok' : (fits ? 'mid' : 'bad')) + '">' +
@@ -296,9 +297,11 @@ function sideHTML() {
 
     const bOpen = S.phase === 1;
     html += '<div class="sd-step">第二问 · 局面</div>';
-    html += '<p class="sd-q">黑方这次给 <em>' + S.n5 + ' 打</em>，白方挑中的一手落在 <em>' +
-        coord(S.five[0], S.five[1]) + '</em>，原书标作 <em>' + labelOf(S.five) +
-        '</em>。摊下来，局面算哪一档？</p>';
+    html += '<p class="sd-q">白方挑中的一手落在 <em>' +
+        coord(S.five[0], S.five[1]) + '</em>。摊下来，局面算哪一档？</p>';
+    if (S.phase === 1) {
+        html += '<p class="sd-hint">黑方这次给的是几打，先不告诉你；选完再揭。</p>';
+    }
     html += '<div class="sd-opts">';
     BUCKETS.forEach(function (b) {
         let cls = 'sd-opt';
@@ -391,7 +394,7 @@ function render() {
     S.board.setMarks(S.phase >= 1 && S.five
         ? [{ i: S.five[0], j: S.five[1], kind: 'warn' }]
         : []);
-    if (S.phase >= 1 && S.five) {
+    if (S.phase >= 2 && S.five) {
         const spot = noteSpot(op, S.five);
         S.board.setNotes([{
             i: S.five[0], j: S.five[1], text: labelOf(S.five), tone: 'warn',

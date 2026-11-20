@@ -1098,6 +1098,7 @@
                 'font-weight': 600,
                 'text-anchor': nt.anchor || 'start'
             })
+            tx.setAttribute('class', 'board-note');
             tx.textContent = nt.text;
             layer.appendChild(tx);
         }
