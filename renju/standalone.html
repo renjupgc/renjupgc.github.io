@@ -1340,7 +1340,9 @@ function loadRoute() {
     const ms = decodeRoute(q.get('m'));
     if (!ms || !ms.length) return;
     moves = ms;
-    const rawPly = Number(q.get('p'));
+    const rawP = q.get('p');
+    // p 省略 = 停在最后一手；Number(null) 会是 0，必须单独处理，否则局面停在空盘起点
+    const rawPly = rawP === null ? ms.length : Number(rawP);
     ply = Number.isFinite(rawPly) ? Math.max(0, Math.min(ms.length, Math.trunc(rawPly))) : ms.length;
   } catch (e) {}
 }
