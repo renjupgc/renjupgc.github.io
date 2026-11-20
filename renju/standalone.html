@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Otter Renju · 局面分析</title>
 <style>
   :root {
@@ -34,6 +34,10 @@
 
   /* ── 棋盘区：胜率条 + 棋盘 + 导航 ─────────────────────────── */
   .stage {
+    position: sticky;   /* 滚动底部内容时棋盘钉在顶部不动 */
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
     flex: 1;
     display: flex;
     align-items: center;
@@ -244,6 +248,18 @@
      否则手机上被撑高后还原桌面，页脚高度回不去、把棋盘挤小（切换 bug）。 */
   .chartwrap { position: relative; flex: 0 0 auto; height: 176px; min-width: 0; }
   .chartwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .chartwrap svg circle[data-pt] { cursor: pointer; }
+  .chartdetail {
+    margin-top: 6px; min-height: 22px; padding: 4px 8px;
+    border: 1px solid var(--line); border-radius: 3px; background: var(--panel);
+    font: 600 11px/1.4 var(--mono); color: var(--muted);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .chartdetail .hint { font-weight: 400; opacity: .75; }
+  .chartdetail .pt-san { font-weight: 700; }
+  .chartdetail .pt-elo { color: var(--muted); }
+  .chartdetail .pt-prob { color: var(--pear); font-weight: 700; margin-left: auto; }
+  .chartdetail .pt-rank { font-size: 10px; opacity: .7; }
 
   @media (max-width: 900px) {
     .stage { padding: 10px; }
@@ -352,6 +368,7 @@
       <div class="legend" id="legend"></div>
     </div>
     <div class="chartwrap" id="chartwrap"><svg id="chart" preserveAspectRatio="none"></svg></div>
+    <div class="chartdetail" id="chartdetail"><span class="hint">点击折线上的点查看该等级分下的落点概率</span></div>
   </section>
 </footer>
 
@@ -376,6 +393,31 @@ const rotate = (cell) => (N - 1 - Math.floor(cell / N)) * N + (N - 1 - (cell % N
 const eloBucket = (elo) => Math.max(0, Math.min(ELO_BUCKETS - 1, Math.floor((elo - ELO_MIN) / ELO_BAND)));
 const eloFromBucket = (b) => ELO_MIN + b * ELO_BAND + ELO_BAND / 2;
 const fmtClock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+/* 局面路由编码：每手 = 列字母(a-o) + 行号(1-15)，直接拼接，如 h8i9j10。
+   列字母单个、行号 1-2 位且二者交替，所以可以无歧义解析。 */
+function encodeRoute(moves) {
+  return moves.map((cell) => `${COLUMNS[cell % N]}${N - Math.floor(cell / N)}`).join('');
+}
+function decodeRoute(raw) {
+  if (!raw) return [];
+  const out = [], seen = new Set();
+  let i = 0;
+  while (i < raw.length) {
+    const col = COLUMNS.indexOf(raw[i].toLowerCase());
+    if (col < 0) return null;                       // 列字母非法
+    i++;
+    let digits = '';
+    while (i < raw.length && raw[i] >= '0' && raw[i] <= '9' && digits.length < 2) digits += raw[i++];
+    const row = Number(digits);
+    if (!digits || row < 1 || row > N) return null; // 行号非法
+    const cell = (N - row) * N + col;
+    if (seen.has(cell)) return null;                // 重复落点
+    seen.add(cell);
+    out.push(cell);
+  }
+  return out;
+}
 
 /* ══════════════════════════════════════════════════════════════
    状态
@@ -459,15 +501,43 @@ self.onmessage = async (ev) => {
       if (!base || !self.ort) throw new Error('onnxruntime 加载失败');
       ort.env.wasm.wasmPaths = base;
       ort.env.wasm.numThreads = 1;
-      let buf = null;
-      for (const url of m.modelUrls) {
-        try { const res = await fetch(url); if (res.ok) { buf = await res.arrayBuffer(); break; } } catch (e) {}
+
+      // 模型缓存：优先读 Cache Storage，命中就不下载（离线也能用、秒开）。
+      // 缓存键带 manifest 版本号，重导出模型后版本变 → 自动重新下载并替换。
+      const CACHE = 'otter-model-v1';
+      const version = m.version || 'noversion';
+      let cache = null;
+      try { cache = await caches.open(CACHE); } catch (e) {}
+      // 绝对 URL 作缓存键，带版本 query：换版本即为新键，逻辑清晰且 blob worker 下也稳
+      const cacheUrl = new URL('./policy_model.onnx?v=' + encodeURIComponent(version),
+        m.modelUrls[0] || self.location.href).href;
+
+      let buf = null, fromCache = false;
+      if (cache) {
+        try {
+          const hit = await cache.match(cacheUrl);
+          if (hit) { buf = await hit.arrayBuffer(); fromCache = true; }
+        } catch (e) {}
       }
-      if (!buf) throw new Error('模型加载失败');
+      if (!buf) {
+        for (const url of m.modelUrls) {
+          try { const res = await fetch(url); if (res.ok) { buf = await res.arrayBuffer(); break; } } catch (e) {}
+        }
+        if (!buf) throw new Error('模型加载失败');
+        if (cache) {
+          try {
+            // 清掉旧版本缓存，只留当前版本
+            const keys = await cache.keys();
+            for (const k of keys) if (k.url !== cacheUrl) await cache.delete(k);
+            await cache.put(cacheUrl, new Response(buf.slice(0)));
+          } catch (e) {}
+        }
+      }
+      postMessage({ type: 'init', ok: true, cache: fromCache ? 'hit' : 'miss', version });
       session = await ort.InferenceSession.create(buf, {
         executionProviders: ['wasm'], graphOptimizationLevel: 'basic',
       });
-      postMessage({ type: 'init', ok: true });
+      postMessage({ type: 'ready' });
     } catch (err) {
       postMessage({ type: 'init', ok: false, error: String(err && err.message || err) });
     }
@@ -492,7 +562,7 @@ function runFeeds(feeds, priority = 'live') {
   });
 }
 
-function initWorker(ortBases, modelUrls) {
+function initWorker(ortBases, modelUrls, modelVersion) {
   const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
   worker = new Worker(url);
   worker.onmessage = (ev) => {
@@ -513,13 +583,19 @@ function initWorker(ortBases, modelUrls) {
   return new Promise((resolve, reject) => {
     const onInit = (ev) => {
       const m = ev.data;
-      if (m.type !== 'init') return;
-      worker.removeEventListener('message', onInit);
-      if (m.ok) { workerReady = true; resolve(); }
-      else reject(new Error(m.error || 'worker 初始化失败'));
+      if (m.type === 'init' && m.ok === false) {
+        worker.removeEventListener('message', onInit);
+        reject(new Error(m.error || 'worker 初始化失败'));
+        return;
+      }
+      if (m.type === 'ready') {   // session 真正建好才算就绪
+        worker.removeEventListener('message', onInit);
+        workerReady = true;
+        resolve(m);
+      }
     };
     worker.addEventListener('message', onInit);
-    worker.postMessage({ type: 'init', ortBases, modelUrls });
+    worker.postMessage({ type: 'init', ortBases, modelUrls, version: modelVersion });
   });
 }
 
@@ -819,10 +895,12 @@ function paintChart(data) {
     areas += `<path d="${areaThrough(pts)}" fill="url(#g${si})" stroke="none" />`;
   });
 
-  data.forEach((s) => {
+  data.forEach((s, si) => {
     const pts = s.points.map((p, i) => ({ x: xFor(i), y: yFor(p) }));
     lines += `<path d="${curveThrough(pts)}" fill="none" stroke="${s.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />`;
-    lines += pts.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="3.6" fill="${s.color}" stroke="var(--bg)" stroke-width="1" />`).join('');
+    lines += pts.map((p, i) =>
+      `<circle data-pt="${si},${i}" cx="${p.x}" cy="${p.y}" r="4.2" fill="${s.color}" stroke="var(--bg)" stroke-width="1"><title>${s.san} · ${X_LABELS[i]} · ${s.points[i].toFixed(1)}%</title></circle>`
+    ).join('');
   });
 
   el('chart').setAttribute('viewBox', `0 0 ${chartW} ${chartH}`);
@@ -869,6 +947,27 @@ function renderChart(immediate = false) {
     if (k < 1) requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
+}
+
+/* 点击折线上的点：显示该等级分下这个候选落点的概率详情 */
+let selectedPt = null;   // {si, i}
+el('chart').addEventListener('click', (ev) => {
+  const node = ev.target.closest('[data-pt]');
+  if (!node) return;
+  const [si, i] = node.getAttribute('data-pt').split(',').map(Number);
+  const s = curve[si];
+  if (!s) return;
+  selectedPt = { si, i };
+  const rankTxt = si === 0 ? '首选' : `第 ${si + 1} 位`;
+  el('chartdetail').innerHTML =
+    `<span class="pt-san" style="color:${s.color}">${s.san}</span>` +
+    `<span class="pt-rank">${rankTxt}</span>` +
+    `<span class="pt-elo">等级分 ${X_LABELS[i]}</span>` +
+    `<span class="pt-prob">${s.points[i].toFixed(1)}%</span>`;
+});
+function clearChartDetail() {
+  selectedPt = null;
+  el('chartdetail').innerHTML = '<span class="hint">点击折线上的点查看该等级分下的落点概率</span>';
 }
 
 addEventListener('resize', () => {
@@ -941,6 +1040,7 @@ async function sweep() {
       points: per.map((p) => p[m.cell] * 100),
     }));
     if (seq !== sweepSeq) return;
+    clearChartDetail();   // 局面/输入变了，旧的点详情作废
     renderChart();
     fitBoard();   // 图例出现会改页脚高度，棋盘跟着重量一次
   } catch (err) {
@@ -951,11 +1051,46 @@ async function sweep() {
 /* ══════════════════════════════════════════════════════════════
    交互
    ══════════════════════════════════════════════════════════════ */
+/* ── 局面路由：?m=h8i9j10&p=<ply>（p 省略=停在最后一手） ────────── */
+function syncRoute(replace = true) {
+  try {
+    const u = new URL(location.href);
+    if (moves.length) {
+      u.searchParams.set('m', encodeRoute(moves));
+      if (ply < moves.length) u.searchParams.set('p', String(ply));
+      else u.searchParams.delete('p');
+    } else {
+      u.searchParams.delete('m');
+      u.searchParams.delete('p');
+    }
+    if (replace) history.replaceState(null, '', u.pathname + u.search + u.hash);
+    else history.pushState(null, '', u.pathname + u.search + u.hash);
+  } catch (e) {}
+}
+function loadRoute() {
+  try {
+    const q = new URLSearchParams(location.search);
+    const ms = decodeRoute(q.get('m'));
+    if (!ms || !ms.length) return;
+    moves = ms;
+    const rawPly = Number(q.get('p'));
+    ply = Number.isFinite(rawPly) ? Math.max(0, Math.min(ms.length, Math.trunc(rawPly))) : ms.length;
+  } catch (e) {}
+}
+addEventListener('popstate', () => {
+  moves = []; ply = 0;
+  loadRoute();
+  probs = null; topMoves = [];
+  renderBoard(); renderList();
+  analyse(); sweep();
+});
+
 function goTo(n) {
   const next = Math.max(0, Math.min(moves.length, n));
   if (next === ply) return;
   ply = next;
   renderBoard();
+  syncRoute();
   analyse();
   sweep();
 }
@@ -978,6 +1113,7 @@ el('board').addEventListener('click', (ev) => {
   probs = null;
   topMoves = [];
   renderBoard();
+  syncRoute();
   analyse();
   sweep();
 });
@@ -1039,7 +1175,17 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitB
     if (param.get('model')) modelUrls.push(abs(param.get('model')));
     modelUrls.push(abs('./policy_model.onnx'), `${SITE}/policy_model.onnx`);
 
-    await initWorker(ortBases, modelUrls);
+    // 版本号来自 manifest：重导出模型后版本变，Worker 缓存键随之失效
+    let modelVersion = 'noversion';
+    try {
+      for (const u of [abs('./policy_model.json'), `${SITE}/policy_model.json`]) {
+        const r = await fetch(u, { cache: 'no-store' });
+        if (r.ok) { const j = await r.json(); if (j.version) { modelVersion = j.version; break; } }
+      }
+    } catch (e) {}
+
+    const info = await initWorker(ortBases, modelUrls, modelVersion);
+    loadRoute();   // 恢复路由里的局面（落子 / 翻手数都写回路由）
     refreshInputs();
     renderBoard();
     renderBar(50);
