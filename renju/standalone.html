@@ -1429,6 +1429,12 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitB
 (async () => {
   fitBoard();
   requestAnimationFrame(() => { fitBoard(); if (curve.length) renderChart(); });
+  // 局面路由 / 棋盘 / 禁手红叉都是纯前端计算，先恢复显示，不依赖模型加载。
+  // 这样即使模型下载慢或失败，链接里的局面也能立即呈现。
+  loadRoute();
+  refreshInputs();
+  renderBoard();
+  renderBar(50);
   try {
     // 候选来源都转成绝对 URL —— Worker 里的 importScripts / fetch 不继承页面的相对路径解析
     const abs = (u) => new URL(u, location.href).href;
@@ -1449,10 +1455,6 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitB
     } catch (e) {}
 
     const info = await initWorker(ortBases, modelUrls, modelVersion);
-    loadRoute();   // 恢复路由里的局面（落子 / 翻手数都写回路由）
-    refreshInputs();
-    renderBoard();
-    renderBar(50);
     await analyse();
     sweep();
   } catch (err) {
