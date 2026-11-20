@@ -6699,6 +6699,7 @@ table.ratings .r-name a:hover {
 
 .sd-side {
     padding: 16px 16px 18px;
+    scroll-margin-top: 14px;
 }
 
 .sd-head {
@@ -6874,6 +6875,7 @@ table.ratings .r-name a:hover {
     padding: 2.5px 0;
     font-weight: 400;
     text-align: left;
+    white-space: nowrap;
     color: var(--muted);
 }
 
@@ -6939,4 +6941,42 @@ table.ratings .r-name a:hover {
     .sd-acts {
         margin-left: 0;
     }
+}
+
+/* 第一问的结论压成一行，第二问接在原位 */
+.sd-done {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin-top: 11px;
+    padding: 8px 10px;
+    border: 1px solid rgba(77, 114, 86, 0.22);
+    border-radius: 9px;
+    background: rgba(77, 114, 86, 0.07);
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.55;
+    color: #3f6b48;
+}
+
+.sd-done.bad {
+    border-color: rgba(168, 69, 63, 0.22);
+    background: rgba(168, 69, 63, 0.06);
+    color: #a8453f;
+}
+
+.sd-done b {
+    color: inherit;
+    font-weight: 600;
+}
+
+.sd-mark {
+    flex: none;
+    font-size: 12px;
+    line-height: 1.55;
+    font-weight: 700;
+}
+
+.sd-done + .sd-step {
+    margin-top: 15px;
 }

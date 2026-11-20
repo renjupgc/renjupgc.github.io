@@ -327,6 +327,7 @@
             ? readNumPref('points', POINTS_DEF) : clampPoints(opts.points);
         this.pv = null;                       // 引擎给回来的候选点
         this.marks = [];                      // 复盘标注（见 setMarks）
+        this.notes = [];                      // 点旁小字（见 setNotes）
         this.depth = 0;                       // 算到第几层
         this.seq = 0;                         // 每次交给引擎一个新编号
         this.wantKey = '';                    // 当前想算的局面
@@ -1035,6 +1036,16 @@
         this.renderMarks();
     };
 
+    /*
+     * 点旁小字：给某一手或空点标个名字，如原书的「a3」「c8?」。
+     *   [{ i, j, text, tone }]，tone = good | warn | bad | mute
+     * 只影响画面，不参与落子判定；传空数组即清空。
+     */
+    Board.prototype.setNotes = function (list) {
+        this.notes = list || [];
+        this.renderMarks();
+    };
+
     var MARKS = {
         bad: { color: '#b0342c', dash: null, width: 1.8 },
         warn: { color: '#c08a2a', dash: null, width: 1.6 },
@@ -1065,6 +1076,30 @@
                 attrs['stroke-dasharray'] = style.dash;
             }
             layer.appendChild(svgEl('circle', attrs));
+        }
+        var NOTE = { good: '#3f6b48', warn: '#a8863f', bad: '#a8453f', mute: '#6f675b' };
+        for (var q = 0; q < (this.notes || []).length; q++) {
+            var nt = this.notes[q];
+            if (!nt || !nt.text) {
+                continue;
+            }
+            var ux = nt.dx === undefined ? 0.9 : nt.dx;
+            var uy = nt.dy === undefined ? -0.95 : nt.dy;
+            var tx = svgEl('text', {
+                x: px(nt.i) + R * ux,
+                y: py(nt.j) + R * uy,
+                fill: NOTE[nt.tone] || NOTE.mute,
+                stroke: PAPER,
+                'stroke-width': 2.8,
+                'paint-order': 'stroke',
+                'stroke-linejoin': 'round',
+                'font-size': Math.round(R * 0.86 * 10) / 10,
+                'font-family': 'Georgia, "Songti SC", "SimSun", serif',
+                'font-weight': 600,
+                'text-anchor': nt.anchor || 'start'
+            })
+            tx.textContent = nt.text;
+            layer.appendChild(tx);
         }
     };
 

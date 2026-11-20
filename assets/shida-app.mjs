@@ -107,18 +107,6 @@ function resultAt(op, n) {
 
 const tenResult = (op) => resultAt(op, 10);
 
-/* 第二问随机挑一档打数，上限压到 12，免得问出十六打这种没人会用的数 */
-function pickN(op) {
-    const list = [];
-    op.r.forEach(function (row) {
-        const top = Math.min(row[1], 12);
-        for (let n = Math.max(row[0], 2); n <= top; n++) {
-            list.push(n);
-        }
-    });
-    return list.length ? list[Math.floor(Math.random() * list.length)] : 10;
-}
-
 /* 书里最多给到几打还站得住 */
 function maxGood(op) {
     let best = 0;
@@ -130,15 +118,42 @@ function maxGood(op) {
     return best;
 }
 
-/* 第五手就从一个打点里随手取一个 */
+/* 第五手从原书的打点里取一个；打数就照原图写的那个数字，不问到 14 打以上 */
 function pickFive(op) {
-    return op.c.length ? op.c[Math.floor(Math.random() * op.c.length)] : [7, 8, 1];
+    const pool = op.c.filter((c) => c[2] >= 2 && c[2] <= 14);
+    const list = pool.length ? pool : op.c;
+    return list.length ? list[Math.floor(Math.random() * list.length)] : [7, 8, 10, 2, 0];
+}
+
+/* 标号别落在旁边的棋子上：依次试右上、左上、右下、左下、右、左 */
+function noteSpot(op, five) {
+    const occ = {};
+    op.m.forEach(function (m) {
+        occ[m[0] + ',' + m[1]] = 1;
+    });
+    const dirs = [[1, -1, 'start'], [-1, -1, 'end'], [1, 1, 'start'], [-1, 1, 'end'],
+                  [1, 0, 'start'], [-1, 0, 'end']];
+    for (let k = 0; k < dirs.length; k++) {
+        const d = dirs[k];
+        const i = five[0] + d[0];
+        const j = five[1] + d[1];
+        if (i < 0 || i > 14 || j < 0 || j > 14 || occ[i + ',' + j]) {
+            continue;
+        }
+        return { dx: d[0] * 0.94, dy: d[1] * 0.94 + (d[1] > 0 ? 0.42 : -0.24), anchor: d[2] };
+    }
+    return { dx: 0.94, dy: -1.16, anchor: 'start' };
+}
+
+/* 原书标号：a3、c10?、6 */
+function labelOf(c) {
+    return (c[3] === 0 ? 'a' : c[3] === 1 ? 'c' : '') + c[2] + (c[4] ? '?' : '');
 }
 
 function startWith(op) {
     S.cur = op;
     S.five = pickFive(op);
-    S.n5 = pickN(op);
+    S.n5 = S.five[2];
     S.phase = 0;
     S.ansA = null;
     S.ansB = null;
@@ -196,10 +211,9 @@ function rowsHTML(op, pick) {
     return html;
 }
 
-function fbA(op) {
+function whyA(op) {
     const raw = tenResult(op);
     const can = OK_TEN.has(cat(raw));
-    const ok = S.ansA === (can ? 1 : 0);
     const rows = op.r;
     const lo = rows[0][0];
     const hi = rows[rows.length - 1][1];
@@ -217,13 +231,18 @@ function fbA(op) {
     if (!can && maxGood(op)) {
         why += '按表最多给到 ' + maxGood(op) + ' 打。';
     }
-    return '<div class="sd-fb">' +
-        '<span class="sd-verdict ' + (ok ? 'ok' : 'bad') + '">' +
-        (ok ? '判断正确' : '判断有误') + '</span>' +
-        '<p>十打之后是 <b>' + say(raw) + '</b>，' +
-        (can ? '在可给的范围里，所以<b>能</b>直接给十打。' :
-            '已经出了可给的范围，所以<b>不能</b>。') + '</p>' +
-        '<p class="sd-note">' + why + '</p></div>';
+    return why;
+}
+
+/* 第一问答完压成一行，让第二问就落在原位，不用往下翻 */
+function doneHTML(op) {
+    const raw = tenResult(op);
+    const can = OK_TEN.has(cat(raw));
+    const ok = S.ansA === (can ? 1 : 0);
+    return '<div class="sd-done ' + (ok ? 'ok' : 'bad') + '">' +
+        '<span class="sd-mark">' + (ok ? '✓' : '✗') + '</span>' +
+        '<span>十打 → <b>' + say(raw) + '</b>，' + (can ? '能直接给' : '不能给') +
+        (ok ? '' : '；你选了' + (S.ansA ? '「能」' : '「不能」')) + '</span></div>';
 }
 
 function fbB(op) {
@@ -259,64 +278,51 @@ function sideHTML() {
     let html = '<div class="sd-head"><span class="sd-opening">' + op.f + ' · ' + op.n +
         '</span><span class="sd-page">原书 ' + op.p + ' 页</span></div>';
 
-    const can = OK_TEN.has(cat(tenResult(op)));
-    const aOpen = S.phase === 0;
+    if (S.phase === 0) {
+        html += '<div class="sd-step">第一问 · 打数</div>';
+        html += '<p class="sd-q">四手已经摆好。第五手能不能<em>直接给十打</em>？' +
+            '一次摊开十个打点，由白方任挑一个。</p>';
+        html += '<div class="sd-opts">';
+        [[1, '能，直接给十打', '十打之后黑方还站得住'],
+         [0, '不能', '十打把白方喂得太饱']].forEach(function (o) {
+            html += '<button type="button" class="sd-opt" data-a="' + o[0] + '"><b>' +
+                o[1] + '</b><span>' + o[2] + '</span></button>';
+        });
+        html += '</div>';
+        return html;
+    }
 
-    html += '<div class="sd-step">第一问 · 打数</div>';
-    html += '<p class="sd-q">四手已经摆好。第五手能不能<em>直接给十打</em>？' +
-        '一次摊开十个打点，由白方任挑一个。</p>';
+    html += doneHTML(op);
+
+    const bOpen = S.phase === 1;
+    html += '<div class="sd-step">第二问 · 局面</div>';
+    html += '<p class="sd-q">黑方这次给 <em>' + S.n5 + ' 打</em>，白方挑中的一手落在 <em>' +
+        coord(S.five[0], S.five[1]) + '</em>，原书标作 <em>' + labelOf(S.five) +
+        '</em>。摊下来，局面算哪一档？</p>';
     html += '<div class="sd-opts">';
-    [[1, '能，直接给十打', '十打之后黑方还站得住'],
-     [0, '不能', '十打把白方喂得太饱']].forEach(function (o) {
+    BUCKETS.forEach(function (b) {
         let cls = 'sd-opt';
-        if (!aOpen) {
-            if (o[0] === (can ? 1 : 0)) {
+        if (!bOpen) {
+            const truth = cat(resultAt(op, S.n5));
+            const core = CORE[truth] || 3;
+            const pick = bucketOf(S.ansB);
+            const fits = pick && pick.set.indexOf(truth) >= 0;
+            if (b.key === core) {
                 cls += ' is-ok';
-            } else if (o[0] === S.ansA) {
-                cls += ' is-bad';
+            } else if (b.key === S.ansB) {
+                cls += fits ? ' is-mid' : ' is-bad';
             } else {
                 cls += ' is-mute';
             }
         }
-        html += '<button type="button" class="' + cls + '" data-a="' + o[0] + '"' +
-            (aOpen ? '' : ' disabled') + '><b>' + o[1] + '</b><span>' + o[2] +
+        html += '<button type="button" class="' + cls + '" data-b="' + b.key + '"' +
+            (bOpen ? '' : ' disabled') + '><b>' + b.name + '</b><span>' + b.note +
             '</span></button>';
     });
     html += '</div>';
-    if (!aOpen) {
-        html += fbA(op);
-    }
-
-    if (S.phase >= 1) {
-        const bOpen = S.phase === 1;
-        html += '<hr class="sd-sep">';
-        html += '<div class="sd-step">第二问 · 局面</div>';
-        html += '<p class="sd-q">黑方这次给 <em>' + S.n5 + ' 打</em>，白方挑中的一手落在 <em>' +
-            coord(S.five[0], S.five[1]) + '</em>。摊下来，局面算哪一档？</p>';
-        html += '<div class="sd-opts">';
-        BUCKETS.forEach(function (b) {
-            let cls = 'sd-opt';
-            if (!bOpen) {
-                const truth = cat(resultAt(op, S.n5));
-                const core = CORE[truth] || 3;
-                const pick = bucketOf(S.ansB);
-                const fits = pick && pick.set.indexOf(truth) >= 0;
-                if (b.key === core) {
-                    cls += ' is-ok';
-                } else if (b.key === S.ansB) {
-                    cls += fits ? ' is-mid' : ' is-bad';
-                } else {
-                    cls += ' is-mute';
-                }
-            }
-            html += '<button type="button" class="' + cls + '" data-b="' + b.key + '"' +
-                (bOpen ? '' : ' disabled') + '><b>' + b.name + '</b><span>' + b.note +
-                '</span></button>';
-        });
-        html += '</div>';
-        if (S.phase >= 2) {
-            html += fbB(op);
-        }
+    if (S.phase >= 2) {
+        html += fbB(op);
+        html += '<p class="sd-note">' + whyA(op) + '</p>';
     }
     return html;
 }
@@ -385,11 +391,27 @@ function render() {
     S.board.setMarks(S.phase >= 1 && S.five
         ? [{ i: S.five[0], j: S.five[1], kind: 'warn' }]
         : []);
+    if (S.phase >= 1 && S.five) {
+        const spot = noteSpot(op, S.five);
+        S.board.setNotes([{
+            i: S.five[0], j: S.five[1], text: labelOf(S.five), tone: 'warn',
+            dx: spot.dx, dy: spot.dy, anchor: spot.anchor
+        }]);
+    } else {
+        S.board.setNotes([]);
+    }
 
     const side = document.getElementById('sd-side');
     if (side) {
         side.innerHTML = sideHTML();
         bindSide();
+        /* 窄屏上第二问落在棋盘下面，答完第一问把它带到眼前 */
+        if (S.phase === 1 && window.innerWidth <= 820) {
+            const box = side.getBoundingClientRect();
+            if (box.top < 0 || box.top > window.innerHeight * 0.6) {
+                side.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
     }
     renderScore();
 }
