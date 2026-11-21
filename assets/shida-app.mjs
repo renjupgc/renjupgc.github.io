@@ -235,9 +235,18 @@ function startWith(item) {
     render();
 }
 
-/* 一轮 = 每个开局各出一次，顺序打散 */
+/* 一轮出多少题：不是每局都排一次，而是随机取六到九成，顺序打散。
+ * 打点多的开局权重略高（按 0.18 次方），但拉不开太大差距，打点少的照样轮得到。 */
 function stQueue() {
-    return shuffle(ST_OPEN.map(function (o, k) { return k; }));
+    const pool = ST_OPEN.map(function (o, k) {
+        /* 指数竞速法做加权不放回抽样：权重越大，t 越小、越靠前 */
+        const w = Math.pow(Math.max(1, stPoints(o).length), 0.18);
+        return { k: k, t: -Math.log(1 - Math.random()) / w };
+    });
+    pool.sort(function (a, b) { return a.t - b.t; });
+    const n = ST_OPEN.length;
+    const take = Math.max(1, Math.round(n * (0.6 + Math.random() * 0.3)));
+    return shuffle(pool.slice(0, take).map(function (x) { return x.k; }));
 }
 
 function startQuestion() {
@@ -578,8 +587,13 @@ function wsFirstWin(op) {
  * 不受各组局数多少影响（5 打以上那一组局最多，但不能因此霸屏）。
  */
 const WS_QUOTA = [['g2', 55], ['g0', 12], ['g34', 18], ['g5', 15]];
+/* 彗星、游星整局白必胜，抽到只问交换。这两族单列一池，抽中率固定 10%，
+ * 免得它们因为散在各个组里、实际出现得偏多。 */
+const WS_SP_RATE = 10;
 const WS_SRC = {};
 const WS_BAG = {};
+let WS_SP = [];
+let WS_SP_BAG = [];
 
 function wsBucket(op) {
     const s = wsFirstWin(op);
@@ -595,8 +609,13 @@ function wsBucket(op) {
 function wsFill() {
     Object.keys(WS_SRC).forEach(function (k) { delete WS_SRC[k]; });
     Object.keys(WS_BAG).forEach(function (k) { delete WS_BAG[k]; });
+    WS_SP = [];
     OPEN.forEach(function (o) {
         if (!o.c || o.c.length < 2) {
+            return;
+        }
+        if (o.f === '彗星' || o.f === '游星') {
+            WS_SP.push(o);
             return;
         }
         const k = wsBucket(o);
@@ -605,11 +624,19 @@ function wsFill() {
     Object.keys(WS_SRC).forEach(function (k) {
         WS_BAG[k] = shuffle(WS_SRC[k].slice());
     });
+    WS_SP_BAG = shuffle(WS_SP.slice());
 }
 
 function wsPick() {
     if (!WS_SRC.g2) {
         wsFill();
+    }
+    /* 先掷一次：10% 落到彗星、游星那一池（只问交换），其余按四组配额抽 */
+    if (WS_SP.length && Math.random() * 100 < WS_SP_RATE) {
+        if (!WS_SP_BAG.length) {
+            WS_SP_BAG = shuffle(WS_SP.slice());
+        }
+        return WS_SP_BAG.pop();
     }
     let roll = Math.random() * 100;
     let key = 'g5';
