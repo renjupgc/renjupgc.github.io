@@ -22,6 +22,17 @@ const OPEN = (window.SHIDA_OPENINGS || []).filter(function (o) {
     return o && o.m && o.m.length === 4 && o.r && o.r.length;
 });
 
+/* 塔十题库：把每个开局书里 2–14 打的每个打点都单独出成一道题，
+ * 一题就是（开局 + 那一个打点），同一开局会有好几道，问的是不同落点的局面。 */
+const ST_BANK = [];
+OPEN.forEach(function (op) {
+    op.c.forEach(function (five) {
+        if (five[2] >= 2 && five[2] <= 14) {
+            ST_BANK.push({ op: op, five: five });
+        }
+    });
+});
+
 /* 书里的简称归一：黑胜就是黑必胜，黑败就是白必胜，「有望胜」按近胜读 */
 const NORM = {
     '黑胜': '黑必胜', '黑败': '白必胜', '白胜': '白必胜',
@@ -171,13 +182,6 @@ function maxGood(op) {
     return best;
 }
 
-/* 第五手从原书的打点里取一个；打数就照原图写的那个数字，不问到 14 打以上 */
-function pickFive(op) {
-    const pool = op.c.filter((c) => c[2] >= 2 && c[2] <= 14);
-    const list = pool.length ? pool : op.c;
-    return list.length ? list[Math.floor(Math.random() * list.length)] : [7, 8, 10, 2, 0];
-}
-
 /* 标号别落在旁边的棋子上：依次试右上、左上、右下、左下、右、左 */
 function noteSpot(op, five) {
     const occ = {};
@@ -209,9 +213,9 @@ function labelOf(c) {
         (c[5] ? '′' : '') + (c[4] ? '?' : '');
 }
 
-function startWith(op) {
-    S.cur = op;
-    S.five = pickFive(op);
+function startWith(item) {
+    S.cur = item.op;
+    S.five = item.five;
     S.n5 = S.five[2];
     S.phase = 0;
     S.ansA = null;
@@ -220,28 +224,63 @@ function startWith(op) {
     render();
 }
 
+/* 一轮里每个开局先只出一题，分组轮转，避免同开局的两题挨在一起 */
+function stQueue() {
+    const groups = {};
+    ST_BANK.forEach(function (t, k) {
+        const key = t.op.p;
+        (groups[key] || (groups[key] = [])).push(k);
+    });
+    const keys = shuffle(Object.keys(groups));
+    const list = [];
+    let more = true;
+    while (more) {
+        more = false;
+        keys.forEach(function (key) {
+            if (groups[key].length) {
+                list.push(groups[key].pop());
+                more = true;
+            }
+        });
+    }
+    return list;
+}
+
 function startQuestion() {
-    if (!OPEN.length) {
+    if (!ST_BANK.length) {
         return;
     }
     /* 地址栏 ?p=68 指定原书页码，方便对着书看；只认第一次 */
     if (!S.forced) {
         S.forced = true;
         const want = Number(new URLSearchParams(location.search).get('p'));
-        const hit = want ? OPEN.filter((o) => o.p === want)[0] : null;
+        const hit = want ? ST_BANK.filter((t) => t.op.p === want)[0] : null;
         if (hit) {
             startWith(hit);
             return;
         }
     }
     if (!S.queue.length) {
-        S.queue = shuffle(OPEN.map((o, k) => k));
+        S.queue = stQueue();
         /* 新一轮别跟上一题撞上同一个开局 */
-        if (S.cur && S.queue.length > 1 && OPEN[S.queue[S.queue.length - 1]] === S.cur) {
-            S.queue.unshift(S.queue.pop());
+        if (S.cur && S.queue.length > 1) {
+            const last = S.queue[S.queue.length - 1];
+            if (ST_BANK[last].op === S.cur) {
+                let swap = -1;
+                for (let k = S.queue.length - 2; k >= 0; k--) {
+                    if (ST_BANK[S.queue[k]].op !== S.cur) {
+                        swap = k;
+                        break;
+                    }
+                }
+                if (swap >= 0) {
+                    S.queue[S.queue.length - 1] = S.queue[swap];
+                    S.queue[swap] = last;
+                }
+            }
         }
     }
-    startWith(OPEN[S.queue.pop()]);
+    startWith(ST_BANK[S.queue.pop()]);
 }
 
 /* ---------- 文案 ---------- */
@@ -396,7 +435,7 @@ function renderScore() {
         return;
     }
     const bOk = Math.round(S.stats.bOk * 10) / 10;
-    el.innerHTML = '第 <b>' + S.stats.n + '</b> 局 · 打数对 <b>' + S.stats.aOk + '/' +
+    el.innerHTML = '第 <b>' + S.stats.n + '</b> 题 · 打数对 <b>' + S.stats.aOk + '/' +
         S.stats.a + '</b> · 局面对 <b>' + bOk + '/' + S.stats.b +
         '</b>（擦边 ' + S.stats.bMid + ' 个）';
 }
