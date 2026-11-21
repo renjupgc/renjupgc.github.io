@@ -160,8 +160,34 @@
 
 </div>
 
-<script src="assets/layout.js"></script>
-<script src="assets/players.js"></script>
+<script src="assets/layout.js"></script>
+<script>
+(function () {
+    'use strict';
+    /* 棋手索引 assets/players.js 有 66KB，只有真的开始搜索才用得上。
+       先不下载，聚焦搜索框就取；空闲时预取，点下去基本已经就绪。 */
+    function load() {
+        if (window.ZBX_PLAYERS || window.__zbxPlayersLoading) { return; }
+        window.__zbxPlayersLoading = 1;
+        var s = document.createElement('script');
+        s.src = 'assets/players.js';
+        s.onload = function () { if (window.ZBX_PLAYERS_READY) { window.ZBX_PLAYERS_READY(); } };
+        document.head.appendChild(s);
+    }
+    window.ZBX_PLAYERS_LOAD = load;
+    var box = document.getElementById('player-search');
+    if (box) {
+        ['focusin', 'pointerdown'].forEach(function (ev) {
+            box.addEventListener(ev, load, { passive: true });
+        });
+    }
+    if (window.requestIdleCallback) {
+        window.requestIdleCallback(load, { timeout: 5000 });
+    } else {
+        window.addEventListener('load', function () { setTimeout(load, 1500); });
+    }
+})();
+</script>
 
 <!--
     滚动公告的接缝处理

@@ -124,20 +124,38 @@
             '<p class="sf-links"><span class="sf-k">友情链接</span>' + links + '</p>';
     }
 
-    /* 页头滚动后才显现分隔线与投影，静止时保持通透 */
-    function watchSticky() {
-        var head = document.querySelector('.site-head');
-        if (!head || head.dataset.watched === '1') {
+    /*
+     * 页头滚动后才显现分隔线与投影，静止时保持通透。
+     * scroll 回调只写 class，不读尺寸；合并到一次 rAF，避免一帧内反复触发样式重算。
+     */
+    var sticky = { head: null, raf: 0, bound: false };
+
+    function stickyPaint() {
+        sticky.raf = 0;
+        if (!sticky.head) {
             return;
         }
-        head.dataset.watched = '1';
+        sticky.head.classList.toggle('is-stuck', window.pageYOffset > 8);
+    }
 
-        function sync() {
-            head.classList.toggle('is-stuck', window.pageYOffset > 8);
+    function stickySchedule() {
+        if (sticky.raf) {
+            return;
         }
+        sticky.raf = window.requestAnimationFrame ?
+            window.requestAnimationFrame(stickyPaint) : window.setTimeout(stickyPaint, 16);
+    }
 
-        window.addEventListener('scroll', sync, { passive: true });
-        sync();
+    function watchSticky() {
+        sticky.head = document.querySelector('.site-head');
+        if (!sticky.head) {
+            return;
+        }
+        if (!sticky.bound) {
+            sticky.bound = true;
+            window.addEventListener('scroll', stickySchedule, { passive: true });
+        }
+        stickyPaint();
     }
 
     /* 站点图标：避免每页手写 <link>，统一在脚本里挂上 */
@@ -158,35 +176,87 @@
         document.head.appendChild(link);
     }
 
-    /* 长文阅读进度：顶部一条赭金细线 */
-    function renderProgress() {
-        var bar = document.getElementById('read-progress');
-        if (!bar) {
-            bar = document.createElement('div');
-            bar.id = 'read-progress';
-            bar.className = 'read-progress';
-            bar.setAttribute('aria-hidden', 'true');
-            document.body.appendChild(bar);
-        }
+    /*
+     * 长文阅读进度：顶部一条赭金细线
+     * ------------------------------------------------------------
+     * 原来 scroll 回调每次都读 article.offsetTop / offsetHeight。上一帧刚写过
+     * transform，布局已经失效，这一读就是一次强制重排——长文章相当于每帧
+     * 重排整页，低端机滚动明显掉帧。
+     * 现在几何只在需要时量一次（首次、resize、load、站内换页、文章尺寸变化），
+     * 滚动里只读 pageYOffset，并合并到一次 rAF。
+     */
+    var prog = { bar: null, ro: null, raf: 0, bound: false, top: 0, total: 0 };
 
-        function sync() {
+    function progPaint() {
+        prog.raf = 0;
+        if (!prog.bar) {
+            return;
+        }
+        if (prog.total <= 1) {
+            prog.bar.style.transform = 'scaleX(0)';
+            return;
+        }
+        var done = (window.pageYOffset - prog.top) / prog.total;
+        prog.bar.style.transform = 'scaleX(' + Math.min(1, Math.max(0, done)) + ')';
+    }
+
+    function progSchedule() {
+        if (prog.raf) {
+            return;
+        }
+        prog.raf = window.requestAnimationFrame ?
+            window.requestAnimationFrame(progPaint) : window.setTimeout(progPaint, 16);
+    }
+
+    /* 只更新缓存，不动观察器，免得回调里 disconnect/observe 自己触发自己 */
+    function progRead() {
+        var article = document.querySelector('main article');
+        if (!article) {
+            prog.top = 0;
+            prog.total = 0;
+            return;
+        }
+        prog.top = article.offsetTop;
+        prog.total = article.offsetHeight - window.innerHeight * 0.6;
+    }
+
+    function progMeasure() {
+        progRead();
+        if (prog.bar && window.ResizeObserver) {
             var article = document.querySelector('main article');
-            if (!article) {
-                bar.style.transform = 'scaleX(0)';
-                return;
+            if (!prog.ro) {
+                prog.ro = new window.ResizeObserver(function () {
+                    progRead();
+                    progSchedule();
+                });
             }
-            var top = article.offsetTop;
-            var total = article.offsetHeight - window.innerHeight * 0.6;
-            var done = (window.pageYOffset - top) / (total > 1 ? total : 1);
-            bar.style.transform = 'scaleX(' + Math.min(1, Math.max(0, done)) + ')';
+            prog.ro.disconnect();
+            if (article) {
+                prog.ro.observe(article);
+            }
+        }
+        progSchedule();
+    }
+
+    function renderProgress() {
+        prog.bar = document.getElementById('read-progress');
+        if (!prog.bar) {
+            prog.bar = document.createElement('div');
+            prog.bar.id = 'read-progress';
+            prog.bar.className = 'read-progress';
+            prog.bar.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(prog.bar);
         }
 
-        if (!window.__zbxScrollBarInit) {
-            window.__zbxScrollBarInit = 1;
-            window.addEventListener('scroll', sync, { passive: true });
-            window.addEventListener('resize', sync);
+        if (!prog.bound) {
+            prog.bound = true;
+            window.addEventListener('scroll', progSchedule, { passive: true });
+            window.addEventListener('resize', progMeasure);
+            window.addEventListener('orientationchange', progMeasure);
+            window.addEventListener('load', progMeasure);
+            document.addEventListener('zbx:navigate', progMeasure);
         }
-        sync();
+        progMeasure();
     }
 
     renderHeader();
@@ -898,44 +968,59 @@
 })();
 
 /*
- * 访问统计：所有引用本文件的页面自动带上，无需逐页加 <script>。
- * 统计脚本自身会在 admin 页、本地预览与 DNT 环境下自行退出。
+ * 按需注入的附属脚本
+ * ------------------------------------------------------------
+ * 下面几个脚本都不参与首屏渲染，早先一进页面就同时排队下载，在低端机和
+ * 弱网下会跟正文、样式抢带宽与主线程：
+ *
+ * - account.js  只负责右上角登录态，尽早注入（访客不会因此下载 Supabase SDK，
+ *               见 assets/supabase-client.js 的说明）；
+ * - zayu-cloud.js 各页自己会判断有没有要渲染的区块，保持原有时机；
+ * - visit-log.js 纯统计，等 load 之后、浏览器空闲时再加载，不占首屏。
  */
 (function () {
     'use strict';
     var base = (document.body && document.body.getAttribute('data-base')) || '';
 
-    /* 云服务统一入口：先加载，账号、杂豫内容与访问埋点共用同一个客户端实例 */
-    if (!window.__zbxSbLoaded) {
-        window.__zbxSbLoaded = true;
-        var c = document.createElement('script');
-        c.src = base + 'assets/supabase-client.js';
-        c.async = true;
-        document.head.appendChild(c);
+    function add(src) {
+        var s = document.createElement('script');
+        s.src = base + src;
+        s.async = true;
+        document.head.appendChild(s);
     }
 
     /* 全站右上角账号：登录 / 注册 / 会话，进度随账号同步到云端 */
     if (!window.__zbxAccountLoaded) {
         window.__zbxAccountLoaded = true;
-        var a = document.createElement('script');
-        a.src = base + 'assets/account.js';
-        a.async = true;
-        document.head.appendChild(a);
+        add('assets/account.js');
     }
-
-    if (window.__zbxVisitLoaded) { return; }
-    window.__zbxVisitLoaded = true;
-    var s = document.createElement('script');
-    s.src = base + 'assets/visit-log.js';
-    s.async = true;
-    document.head.appendChild(s);
 
     /* 杂豫数据：云端优先，静态页面兜底 */
     if (!window.__zbxZayuCloudLoaded) {
         window.__zbxZayuCloudLoaded = true;
-        var z = document.createElement('script');
-        z.src = base + 'assets/zayu-cloud.js';
-        z.async = true;
-        document.head.appendChild(z);
+        add('assets/zayu-cloud.js');
+    }
+
+    /* 访问统计：首屏之后再做 */
+    function idle(fn) {
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(fn, { timeout: 3000 });
+        } else {
+            window.setTimeout(fn, 300);
+        }
+    }
+
+    function trackLater() {
+        if (window.__zbxVisitLoaded) {
+            return;
+        }
+        window.__zbxVisitLoaded = true;
+        add('assets/visit-log.js');
+    }
+
+    if (document.readyState === 'complete') {
+        idle(trackLater);
+    } else {
+        window.addEventListener('load', function () { idle(trackLater); });
     }
 })();

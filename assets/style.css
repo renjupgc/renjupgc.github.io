@@ -153,9 +153,10 @@ main.is-entering > * {
     z-index: 60;
     margin: 0 -28px;
     padding: 14px 28px 12px;
-    background: rgba(246, 242, 233, 0.84);
-    -webkit-backdrop-filter: saturate(150%) blur(12px);
-    backdrop-filter: saturate(150%) blur(12px);
+    /* 这里原来叠了 backdrop-filter: blur(12px)。sticky 页头横跨整屏，
+       模糊区随滚动逐帧重算，低端机上是掉帧主因；背景本来就是接近不透明的
+       暖纸色，改成高不透明度单色后观感几乎无差，滚动明显更顺。 */
+    background: rgba(246, 242, 233, 0.97);
     border-bottom: 1px solid transparent;
     transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
@@ -3583,9 +3584,8 @@ table.ratings .r-name a:hover {
     align-items: center;
     gap: 11px;
     padding: 9px 11px 9px 10px;
-    background: rgba(255, 253, 247, 0.94);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    background: rgba(255, 253, 247, 0.97);
+    /* 音乐盒是常驻 fixed 元素，背景模糊会随每次滚动重算，去掉后几乎看不出差别 */
     border: 1px solid var(--line);
     border-radius: 12px;
     box-shadow:

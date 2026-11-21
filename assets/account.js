@@ -77,20 +77,27 @@
     /* 配置是懒加载的：先确保 supabase-config.js 到位，否则页面刚打开那几百毫秒
        会把「还没加载」误判成「没填配置」，已登录用户会瞬间显示成未登录。 */
     var cfgLoaded = false;
-    var configReady = new Promise(function (resolve) {
-        if (window.ZBX_SUPABASE && window.ZBX_SUPABASE.url) {
-            cfgLoaded = true;
-            resolve();
-            return;
-        }
-        var s = document.createElement('script');
-        s.src = base() + 'assets/supabase-config.js';
-        s.async = true;
-        s.onload = function () { cfgLoaded = true; resolve(); };
-        s.onerror = function () { cfgLoaded = true; resolve(); };
-        document.head.appendChild(s);
-        setTimeout(resolve, 3000);
-    });
+    var configPromise = null;
+
+    /* 进站就先取配置会给每页多加一个请求；访客用不到，改成谁需要谁调用 */
+    function configReady() {
+        if (configPromise) { return configPromise; }
+        configPromise = new Promise(function (resolve) {
+            if (window.ZBX_SUPABASE && window.ZBX_SUPABASE.url) {
+                cfgLoaded = true;
+                resolve();
+                return;
+            }
+            var s = document.createElement('script');
+            s.src = base() + 'assets/supabase-config.js';
+            s.async = true;
+            s.onload = function () { cfgLoaded = true; resolve(); };
+            s.onerror = function () { cfgLoaded = true; resolve(); };
+            document.head.appendChild(s);
+            setTimeout(resolve, 3000);
+        });
+        return configPromise;
+    }
 
     function configured() {
         var cfg = window.ZBX_SUPABASE;
@@ -248,6 +255,7 @@
             writeCache();
             closePanel();
             render();
+            bindAuthEvents().catch(function () { /* 配置错误在点登录时才提示 */ });
             emit(action);
             return sessionInfo();
         });
@@ -314,15 +322,23 @@
             render();
         }
 
-        return configReady.then(function () {
+        /* 本机既没有缓存账号，也没有 supabase 会话痕迹 = 访客。
+           连配置文件都不必取，更不为一个「未登录」去下载并初始化
+           100KB+ 的 SDK：等用户真的点开登录框时，client() 会按需加载。 */
+        if (!cached.user && !hasStoredToken()) {
+            state.ready = true;
+            render();
+            return Promise.resolve(sessionInfo());
+        }
+
+        return configReady().then(function () {
             if (!configured()) {
                 /* 还没填配置：保持未登录外观，点登录会给明确提示 */
                 state.ready = true;
                 render();
                 return sessionInfo();
             }
-            var allowRetry = !!cached.user || hasStoredToken();
-            return getStoredSession(allowRetry).then(function (session) {
+            return getStoredSession(true).then(function (session) {
                 if (!session) {
                     clearLocal();
                     state.ready = true;
@@ -807,8 +823,14 @@
     document.addEventListener('zbx:account', function () { render(); });
 
     /* 会话自动续期 / 被踢下线 / 别的标签页登录时同步本地状态 */
+    var authBound = false;
+
     function bindAuthEvents() {
+        if (authBound) { return Promise.resolve(); }
         return client().then(function (sb) {
+            /* 客户端真的建起来才算绑定成功，失败下次登录还能再试 */
+            if (authBound) { return; }
+            authBound = true;
             sb.auth.onAuthStateChange(function (event, session) {
                 /* 回调里直接再调 supabase 会去抢同一把锁，容易卡住；
                    统一挪到下一轮事件循环再处理。 */
@@ -837,10 +859,7 @@
         });
     }
 
-    configReady.then(function () {
-        if (!configured()) { return; }
-        bindAuthEvents().catch(function () { /* 配置错误在点登录时才提示 */ });
-    });
+    /* 会话续期监听只在确实登录后才有意义，放在 applySession 里绑定 */
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () { render(); });

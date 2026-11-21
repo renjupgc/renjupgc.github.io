@@ -400,7 +400,35 @@
 </div>
 
 <script src="assets/layout.js"></script>
-<script src="assets/predict.js"></script>
+<script>
+(function () {
+    'use strict';
+    /* 胜率数据 assets/predict.js 是 355KB 的纯 JSON。原来同步加载，解析要占掉
+       首屏几百毫秒；只有真的要算预测时才用得上，所以改成按需取：
+       用户一动棋手输入框就下载，浏览器空闲时再预取兜底。 */
+    function load() {
+        if (window.ZBX_PREDICT || window.__zbxPredictLoading) { return; }
+        window.__zbxPredictLoading = 1;
+        var s = document.createElement('script');
+        s.src = 'assets/predict.js';
+        s.onload = function () { if (window.ZBX_WP_INIT) { window.ZBX_WP_INIT(); } };
+        document.head.appendChild(s);
+    }
+    window.ZBX_PREDICT_LOAD = load;
+    ['wp-a', 'wp-b'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) { return; }
+        ['focus', 'pointerdown', 'input'].forEach(function (ev) {
+            el.addEventListener(ev, load, { passive: true });
+        });
+    });
+    if (window.requestIdleCallback) {
+        window.requestIdleCallback(load, { timeout: 4000 });
+    } else {
+        window.addEventListener('load', function () { setTimeout(load, 1500); });
+    }
+})();
+</script>
 <script src="assets/predict-app.js"></script>
 <script>
 (function () {

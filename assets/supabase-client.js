@@ -8,7 +8,8 @@
  *
  * 对外暴露：
  *   window.ZBX_SB_GET(force)   Promise<client>，失败不缓存，可以再调一次重试
- *   window.ZBX_SB_READY        Promise<client>，兼容旧调用（首次尝试的结果）
+ *   window.ZBX_SB_READY        兼容旧调用的惰性对象，.then/.catch/await 都行，
+ *                              但只有真的有人等它时才去下载 SDK
  *   window.ZBX_SUPABASE_CLIENT  客户端实例（就绪后才有值）
  *
  * 两条链路都可能因为网络抖动失败（国内直连 supabase.co 尤其不稳）：
@@ -170,9 +171,25 @@
 
     window.ZBX_SB_GET = getClient;
 
-    /* 兼容旧调用点：拿到的是第一次尝试的 Promise */
-    window.ZBX_SB_READY = getClient();
+    /*
+     * 兼容旧调用点：ZBX_SB_READY 仍然可以 .then / .catch / await，
+     * 但脚本载入时不再主动建连——真的有人等它时才去下载 SDK。
+     * 访客页面因此完全不用碰 CDN 上那 100KB+ 的 SDK。
+     */
+    var readyPromise = null;
 
-    /* 避免未处理的 Promise 拒绝告警；具体错误由各调用点 catch */
-    window.ZBX_SB_READY.catch(function () {});
+    function ready() {
+        if (!readyPromise) {
+            readyPromise = getClient();
+            /* 避免未处理的 Promise 拒绝告警；具体错误由各调用点 catch */
+            readyPromise.catch(function () {});
+        }
+        return readyPromise;
+    }
+
+    window.ZBX_SB_READY = {
+        then: function (a, b) { return ready().then(a, b); },
+        'catch': function (b) { return ready().catch(b); },
+        'finally': function (f) { return ready().finally(f); }
+    };
 })();

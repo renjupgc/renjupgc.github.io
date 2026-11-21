@@ -82,27 +82,39 @@
 
     /* 云数据库写入：Supabase 的 site_visits 表做持久化审计。
      * 访客未登录，所以这张表对 anon 开放 insert、读只给管理员（见 supabase/schema.sql）。
-     * 失败不影响主流程；原 ntfy 通道继续保留，兼容 admin 现有统计面板。 */
+     * 失败不影响主流程；原 ntfy 通道继续保留，兼容 admin 现有统计面板。
+     *
+     * 这里不再为这张审计表去拉 SDK：低端机与弱网下，为一个后台用的表下载并初始化
+     * 100KB+ 的 supabase-js 并不划算。页面本来就在用云（杂豫数据、已登录）时
+     * 客户端已经在内存里，顺手补写一笔；否则只走 ntfy，admin 面板读的是归档
+     * 出来的 data/visits.ndjson，不受影响。 */
+    var cloudQueue = [];
+    var cloudTried = false;
+
+    function flushCloud() {
+        if (!cloudQueue.length) { return; }
+        var sb = window.ZBX_SUPABASE_CLIENT;
+        if (!sb) { cloudQueue.length = 0; return; }
+        var rows = cloudQueue.splice(0, cloudQueue.length);
+        try {
+            sb.from('site_visits').insert(rows).then(function () {}, function () {});
+        } catch (e) { /* 云写入失败不影响埋点 */ }
+    }
+
     function cloudWrite(obj) {
-        var waited = 0;
-        function deliver() {
-            if (!window.ZBX_SB_READY) {
-                /* supabase-client.js 由 layout.js 先注入；给它几秒加载，逾期就跳过云写入 */
-                if (waited++ < 40) { setTimeout(deliver, 100); return; }
-                return;
-            }
-            window.ZBX_SB_READY.then(function (sb) {
-                return sb.from('site_visits').insert({
-                    visitor_id: obj.v || 'anon',
-                    session_id: obj.s || null,
-                    page: obj.p || null,
-                    kind: obj.k || 'evt',
-                    host: obj.h || null,
-                    payload: obj
-                });
-            }).catch(function () { /* 云写入失败不影响埋点 */ });
-        }
-        deliver();
+        cloudQueue.push({
+            visitor_id: obj.v || 'anon',
+            session_id: obj.s || null,
+            page: obj.p || null,
+            kind: obj.k || 'evt',
+            host: obj.h || null,
+            payload: obj
+        });
+        if (cloudQueue.length > 24) { cloudQueue.shift(); }
+        if (cloudTried) { return; }
+        cloudTried = true;
+        /* 留出首屏时间；这期间页面若自己建好了客户端就一并补写 */
+        setTimeout(flushCloud, 8000);
     }
 
     var pending = [];
@@ -244,14 +256,40 @@
             l: (navigator.language || '').slice(0, 12),
             ua: (navigator.userAgent || '').slice(0, 160)
         });
-        window.addEventListener('scroll', onScroll, { passive: true });
+        /* 滚动监听只绑一次：站内换页会重新调用 pv() */
+        if (!window.__zbxScrollTracked) {
+            window.__zbxScrollTracked = 1;
+            window.addEventListener('scroll', onScroll, { passive: true });
+            window.addEventListener('resize', measureDoc);
+            window.addEventListener('orientationchange', measureDoc);
+            window.addEventListener('load', measureDoc);
+            document.addEventListener('zbx:navigate', measureDoc);
+        }
+        measureDoc();
+    }
+
+    /* 文档尺寸缓存：原来每次滚动都读 scrollHeight，等于每帧强制重排一次 */
+    var docH = 0;
+    var viewH = 0;
+    var scrollRaf = 0;
+
+    function measureDoc() {
+        var doc = document.documentElement;
+        docH = doc.scrollHeight;
+        viewH = window.innerHeight;
+    }
+
+    function paintScroll() {
+        scrollRaf = 0;
+        var h = docH - viewH;
+        var v = h > 60 ? Math.round(Math.min(1, (window.pageYOffset || 0) / h) * 100) : 100;
+        if (v > maxScroll) { maxScroll = v; }
     }
 
     function onScroll() {
-        var doc = document.documentElement;
-        var h = doc.scrollHeight - window.innerHeight;
-        var v = h > 60 ? Math.round(Math.min(1, (window.pageYOffset || doc.scrollTop) / h) * 100) : 100;
-        if (v > maxScroll) { maxScroll = v; }
+        if (scrollRaf) { return; }
+        scrollRaf = window.requestAnimationFrame ?
+            window.requestAnimationFrame(paintScroll) : window.setTimeout(paintScroll, 60);
     }
 
     function bye() {

@@ -697,14 +697,35 @@
             .replace(/"/g, '&quot;');
     }
 
+    /*
+     * 面板被页面脚本清空时补渲染。
+     * 原来每次 DOM 变动都跑一遍 querySelectorAll + innerHTML 序列化：动态页面
+     * （打谱、背词、做题）上等于每改一次 DOM 就把整棵子树转成字符串，低端机
+     * 明显吃 CPU。现在合并到一帧处理一次，且只看有没有内容，不序列化。
+     */
     function watch() {
         if (!window.MutationObserver) { return; }
-        new window.MutationObserver(function () {
+        var pending = false;
+
+        function flush() {
+            pending = false;
             var boxes = document.querySelectorAll('[data-zbx-progress]');
-            if (!boxes.length) { return; }
-            var empty = false;
-            Array.prototype.forEach.call(boxes, function (b) { if (!b.innerHTML.trim()) { empty = true; } });
-            if (empty) { render(); }
+            for (var i = 0; i < boxes.length; i++) {
+                if (!boxes[i].firstChild || !boxes[i].textContent.trim()) {
+                    render();
+                    return;
+                }
+            }
+        }
+
+        new window.MutationObserver(function () {
+            if (pending) { return; }
+            pending = true;
+            if (window.requestAnimationFrame) {
+                window.requestAnimationFrame(flush);
+            } else {
+                window.setTimeout(flush, 50);
+            }
         }).observe(document.body, { childList: true, subtree: true });
     }
 
