@@ -272,3 +272,47 @@ grant usage, select on sequence public.site_visits_id_seq to anon, authenticated
 --   select tablename, rowsecurity from pg_tables
 --    where schemaname = 'public' and tablename in ('profiles', 'user_progress');
 --   select tgname from pg_trigger where not tgisinternal;
+
+
+-- ---------- 11. 管理员查看全部账号 ----------
+-- 后台「账号」页用。security definer + 内部判 zbx_is_admin()：
+-- 管理员能拿到全站账号，普通登录用户调用直接抛 no permission。
+-- 单文件版本见 supabase/accounts.sql（只补这一段时跑那份即可）。
+create or replace function public.zbx_admin_accounts()
+returns table (
+    id              uuid,
+    username        text,
+    nick            text,
+    role            text,
+    created_at      timestamptz,
+    last_sign_in_at timestamptz,
+    synced_at       timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    if not public.zbx_is_admin() then
+        raise exception 'no permission' using errcode = '42501';
+    end if;
+
+    return query
+        select u.id,
+               coalesce(p.username, '')::text   as username,
+               coalesce(p.nick, '')::text       as nick,
+               coalesce(p.role, 'user')::text   as role,
+               u.created_at,
+               u.last_sign_in_at,
+               pr.updated_at                    as synced_at
+        from auth.users u
+        left join public.profiles p        on p.id = u.id
+        left join public.user_progress pr  on pr.user_id = u.id
+        order by u.created_at desc nulls last;
+end;
+$$;
+
+revoke all on function public.zbx_admin_accounts() from public;
+grant execute on function public.zbx_admin_accounts() to authenticated;
+
+notify pgrst, 'reload schema';

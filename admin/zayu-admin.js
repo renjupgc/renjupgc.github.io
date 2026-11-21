@@ -11,11 +11,12 @@
   var KINDS = ['competition', 'qipu', 'person', 'person_page', 'rating'];
   var LABEL = {
     competition: '比赛与台次', qipu: '棋谱', person: '人物介绍',
-    person_page: '棋手个人主页', rating: '等级分'
+    person_page: '棋手个人主页', rating: '等级分', accounts: '账号'
   };
   var S = {
     kind: 'competition', docs: {}, cur: null, work: null, ord: 0,
-    loaded: false, filter: '', chess: null, rtReady: false
+    loaded: false, filter: '', chess: null, rtReady: false,
+    accounts: null, accErr: ''
   };
 
   /* ---------- 小工具 ---------- */
@@ -215,6 +216,12 @@
   }
 
   function renderStat() {
+    if (S.kind === 'accounts') {
+      var accs = S.accounts || [];
+      $('stat').innerHTML = '<span>账号 <b>' + accs.length + '</b> 个</span>' +
+        '<span>管理员 <b>' + accs.filter(function (a) { return a.role === 'admin'; }).length + '</b> 个</span>';
+      return;
+    }
     $('stat').innerHTML = KINDS.map(function (k) {
       return '<span>' + LABEL[k] + ' <b>' + (S.docs[k] || []).length + '</b> 条</span>';
     }).join('');
@@ -256,7 +263,89 @@
     if (kind === 'rating') { return [x.region, x.uni].filter(Boolean).join(' · '); }
     return '';
   }
+  /* ---------- 账号（只读，管理员可见全站账号） ---------- */
+  function fmtDate(v) {
+    if (!v) { return ''; }
+    var d = new Date(v);
+    if (isNaN(d.getTime())) { return String(v); }
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function accName(a) { return a.username || ('未命名 ' + String(a.id || '').slice(0, 8)); }
+  function accFind(id) {
+    var list = S.accounts || [];
+    for (var i = 0; i < list.length; i++) { if (String(list[i].id) === id) { return list[i]; } }
+    return null;
+  }
+  function loadAccounts(force) {
+    if (S.accounts && !force) { renderList(); renderPane(); return Promise.resolve(); }
+    S.accounts = null; S.accErr = '';
+    renderList(); renderPane(); renderStat();
+    msg('正在读取账号…');
+    return rpc('zbx_admin_accounts', { p_token: token() }).then(function (res) {
+      if (!res || !res.ok) { throw new Error((res && res.err) || '读取账号失败'); }
+      S.accounts = Array.isArray(res.rows) ? res.rows : [];
+      renderList(); renderPane(); renderStat();
+      msg('共 ' + S.accounts.length + ' 个账号。这里只能看，不能改。', 'ok');
+    }).catch(function (e) {
+      S.accErr = errText(e);
+      renderList(); renderPane(); renderStat();
+      msg(S.accErr, 'err');
+    });
+  }
+  function renderAccList() {
+    var list = S.accounts;
+    if (list === null) {
+      $('list-title').textContent = '账号';
+      $('doclist').innerHTML = '<p class="hint" style="padding:6px">' +
+        esc(S.accErr || '正在读取账号…') + '</p>';
+      return;
+    }
+    var f = S.filter.trim().toLowerCase();
+    var shown = f ? list.filter(function (a) {
+      return (accName(a) + ' ' + (a.nick || '') + ' ' + (a.role || '')).toLowerCase().indexOf(f) >= 0;
+    }) : list;
+    $('list-title').textContent = '账号 · ' + list.length + ' 个';
+    $('doclist').innerHTML = shown.map(function (a) {
+      return '<button type="button" class="d' + (S.cur === String(a.id) ? ' on' : '') +
+        '" data-doc="' + esc(String(a.id)) + '">' + esc(accName(a)) +
+        '<small>' + esc([a.nick && a.nick !== a.username ? a.nick : '',
+          a.role === 'admin' ? '管理员' : '普通账号',
+          fmtDate(a.created_at)].filter(Boolean).join(' · ')) + '</small></button>';
+    }).join('') || '<p class="hint" style="padding:6px">' +
+      (f ? '没有匹配的账号。' : '站内还没有注册账号。') + '</p>';
+  }
+  function accPane() {
+    if (S.accounts === null) {
+      return '<div class="empty"><b>' + (S.accErr ? '读不到账号' : '正在读取账号…') + '</b>' +
+        esc(S.accErr || '稍等一下，正在从云端取账号列表。') + '</div>';
+    }
+    var a = S.cur ? accFind(S.cur) : null;
+    if (!a) {
+      return '<div class="empty"><b>站内共 ' + S.accounts.length + ' 个账号</b>' +
+        (S.accounts.length ? '从左侧选一个，看它的用户名、角色、注册时间与最近同步。'
+          : '目前还没有人注册。') + '</div>';
+    }
+    var rows = [
+      ['用户名', accName(a)],
+      ['昵称', a.nick || '—'],
+      ['角色', a.role === 'admin' ? '管理员' : '普通账号'],
+      ['注册', fmtDate(a.created_at) || '—'],
+      ['最近登录', fmtDate(a.last_sign_in_at) || '—'],
+      ['最近同步', fmtDate(a.synced_at) || '还没同步过'],
+      ['账号 ID', String(a.id || '')]
+    ];
+    return '<div class="pane-head"><div class="grow"><b>账号</b> · ' + esc(accName(a)) + '</div></div>' +
+      '<div class="kvlist">' + rows.map(function (r) {
+        return '<div class="kvrow"><span class="kvk" style="flex-basis:4.6em">' + esc(r[0]) + '</span>' +
+          '<span class="kvv">' + esc(r[1]) + '</span></div>';
+      }).join('') + '</div>' +
+      '<p class="hint">账号资料在注册时写入，这里只读。改角色或删账号请到 Supabase 控制台。</p>';
+  }
+
   function renderList() {
+    if (S.kind === 'accounts') { renderAccList(); return; }
     var list = S.docs[S.kind] || [];
     var f = S.filter.trim().toLowerCase();
     var shown = f ? list.filter(function (d) {
@@ -272,6 +361,7 @@
   }
 
   function selectDoc(id) {
+    if (S.kind === 'accounts') { S.cur = id; renderList(); renderPane(); return; }
     var list = S.docs[S.kind] || [], found = null;
     for (var i = 0; i < list.length; i++) { if (list[i].doc_id === id) { found = list[i]; break; } }
     if (!found) { S.cur = null; S.work = null; S.infoState = null; renderList(); renderPane(); return; }
@@ -285,14 +375,19 @@
     Array.prototype.forEach.call($('tabs').querySelectorAll('button'), function (b) {
       b.classList.toggle('on', b.getAttribute('data-kind') === kind);
     });
-    var sid = suggestId(kind);
+    var acc = kind === 'accounts';
+    $('new-id').parentNode.style.display = acc ? 'none' : '';
+    $('search').placeholder = acc ? '搜索用户名、昵称或角色…' : '搜索姓名、比赛或轮次…';
+    var sid = acc ? '' : suggestId(kind);
     $('new-id').placeholder = sid ? ('新 ID，留空即 ' + sid) : '新内容 ID（姓名）';
-    renderList(); renderPane();
+    renderList(); renderPane(); renderStat();
+    if (acc) { loadAccounts(); }
   }
 
   /* ---------- 编辑区调度 ---------- */
   function renderPane() {
     var pane = $('pane');
+    if (S.kind === 'accounts') { pane.innerHTML = accPane(); return; }
     if (!S.work) {
       pane.innerHTML = '<div class="empty"><b>从左侧选一条，或直接新建</b>' +
         '左侧列表里点一条即可修改；也可以新建一条。' +
@@ -1242,7 +1337,7 @@
     var a = act.getAttribute('data-act');
 
     if (a === 'login') { window.ZBX_ACCOUNT.openPanel('login'); }
-    else if (a === 'refresh') { guard(loadAll)(); }
+    else if (a === 'refresh') { guard(S.kind === 'accounts' ? function () { return loadAccounts(true); } : loadAll)(); }
     else if (a === 'recalc') { guard(recalc)(); }
     else if (a === 'add') { guard(addDoc)(); }
     else if (a === 'addnew') { guard(addDoc)(); }

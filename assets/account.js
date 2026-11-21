@@ -508,6 +508,29 @@
         });
     }
 
+    /* 后台：列出站内全部账号。走 security definer 的 zbx_admin_accounts()，
+       函数内部自校验管理员身份，普通账号调用只会拿到「没有权限」。 */
+    function adminAccounts() {
+        return client().then(function (sb) {
+            return sb.rpc('zbx_admin_accounts');
+        }).then(function (r) {
+            if (r.error) {
+                var code = r.error.code, text = String(r.error.message || '');
+                if (code === 'PGRST202' || /could not find the function/i.test(text)) {
+                    return {
+                        ok: false,
+                        err: '数据库还没有 zbx_admin_accounts 函数：请在 Supabase SQL Editor 执行 supabase/accounts.sql，再刷新本页。'
+                    };
+                }
+                if (code === '42501' || /no permission|permission denied|row-level security/i.test(text)) {
+                    return { ok: false, err: '只有管理员能查看账号列表。' };
+                }
+                return { ok: false, err: docErr(r) || '读取账号失败' };
+            }
+            return { ok: true, rows: r.data || [] };
+        });
+    }
+
     /* 后台：读全部（含未公开的草稿类） */
     function adminAllDocs() {
         return client().then(function (sb) {
@@ -589,6 +612,8 @@
                 return publicDocs(params.p_kind);
             case 'zbx_admin_all_docs':
                 return adminAllDocs();
+            case 'zbx_admin_accounts':
+                return adminAccounts();
             case 'zbx_admin_save_docs':
                 return adminSaveDocs(params.p_kind, params.p_rows);
             case 'zbx_admin_delete_doc':
