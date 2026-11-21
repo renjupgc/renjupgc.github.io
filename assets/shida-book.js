@@ -163,14 +163,20 @@
 
         /* ---------- 盘上标注：数字落在交叉点上 ---------- */
 
+        /*
+         * 只在「摆满四手、还没走第五手」的时候标；第五手一落就收掉，
+         * 免得和后面自己摆的子混在一起。看的是当前翻到第几手，
+         * 所以按 < 退回来复看四手形时，打点又会回来。
+         */
         function drawMarks(b, rows) {
-            if (!markBox || !markBox.checked) {
+            var live = b.getMoves().slice(0, b.getCursor());
+            if (!markBox || !markBox.checked || live.length > 4) {
                 b.setMarks([]);
                 b.setNotes([]);
                 return;
             }
             var taken = {};
-            b.getMoves().forEach(function (m) { taken[m.i + ',' + m.j] = 1; });
+            live.forEach(function (m) { taken[m.i + ',' + m.j] = 1; });
             var notes = [];
             rows.forEach(function (r) {
                 if (taken[r.p.i + ',' + r.p.j]) {
@@ -233,7 +239,9 @@
                     ? rows.length + ' 个 · 打数 ' + rows[0].c[2] + '–' + rows[rows.length - 1].c[2]
                     : '';
             }
-            bandBox.textContent = '盘上的数字就是打数，颜色是输赢；点一个摆上第五手。' +
+            bandBox.textContent = (b.getCursor() > 4
+                ? '第五手已经摆上，盘上不再标打点；点一个换一手。'
+                : '盘上的数字就是打数，颜色是输赢；点一个摆上第五手。') +
                 (op.rp ? '带 ′ 的点查原书右栏。' : '');
 
             listBox.innerHTML = rows.map(function (r) {
