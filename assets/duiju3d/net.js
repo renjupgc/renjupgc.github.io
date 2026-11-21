@@ -36,7 +36,7 @@
                     /* 心跳没有补发价值，关键落子、拍钟和同步消息必须保留。 */
                     if (msg.t === 'ping') { return; }
                     sendQueue.push(msg);
-                    if (sendQueue.length > 300) { sendQueue.shift(); }
+                    if (sendQueue.length > 1000) { sendQueue.shift(); }
                     return;
                 }
                 try { impl.send(msg); } catch (e) {

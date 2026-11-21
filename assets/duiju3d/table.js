@@ -19,6 +19,7 @@
 
     var THREE = window.THREE;
     if (!THREE) { return; }
+    var TEXTURE_ANISOTROPY = 16;
 
     /* ---------- 尺寸（1 单位 = 一格 = 3cm） ---------- */
 
@@ -53,7 +54,7 @@
     function texFromCanvas(c, repeat) {
         var t = new THREE.CanvasTexture(c);
         t.encoding = THREE.sRGBEncoding;
-        t.anisotropy = 16;
+        t.anisotropy = TEXTURE_ANISOTROPY;
         t.magFilter = THREE.LinearFilter;
         t.minFilter = THREE.LinearMipmapLinearFilter;
         t.generateMipmaps = true;
@@ -100,49 +101,87 @@
         return c;
     }
 
-    /* 棋盘面：木底 + 15×15 线 + 五个星位 */
+    /* 棋盘面：4K 高清榧木纹理 + 与三维坐标严格对齐的 15×15 网格。
+       不再使用高频随机噪点，避免缩小时发糊、发脏。 */
     function boardCanvas() {
-        var S = 2048;
-        var c = woodCanvas(S, S, '#c2914f', '#7d5222', '#dfbd86', 70);
-        var x = c.getContext('2d');
-
-        var pad = Math.round(S * (2 / 18));
+        var S = 4096;
+        var c = canvas2d(S, S), x = c.getContext('2d');
+        var boardWidth = 18.36;
+        var margin = (boardWidth - (N - 1)) / 2;
+        var pad = S * margin / boardWidth;
         var step = (S - pad * 2) / (N - 1);
-        var lw = 4.4;
 
-        /* 边部压暗一点，像打磨过的棋盘边 */
-        var g = x.createRadialGradient(S / 2, S / 2, S * 0.32, S / 2, S / 2, S * 0.78);
-        g.addColorStop(0, 'rgba(90,58,22,0)');
-        g.addColorStop(1, 'rgba(90,58,22,0.22)');
-        x.fillStyle = g;
+        var base = x.createLinearGradient(0, 0, S, S);
+        base.addColorStop(0, '#d7ad68');
+        base.addColorStop(0.45, '#c99a55');
+        base.addColorStop(1, '#b98543');
+        x.fillStyle = base;
         x.fillRect(0, 0, S, S);
 
-        x.strokeStyle = 'rgba(26,15,4,0.96)';
-        x.lineWidth = lw;
-        x.lineCap = 'square';
-        for (var i = 0; i < N; i++) {
-            var p = pad + i * step;
-
+        /* 细而连续的纵向木纹，低对比度，不干扰棋线。 */
+        for (var i = 0; i < 150; i++) {
+            var gx = (i / 150) * S + rnd(-8, 8);
+            var amp = rnd(3, 18);
+            var freq = rnd(0.0015, 0.004);
+            var ph = Math.random() * 6.28;
             x.beginPath();
-            x.moveTo(pad, p);
-            x.lineTo(S - pad, p);
-            x.stroke();
-
-            x.beginPath();
-            x.moveTo(p, pad);
-            x.lineTo(p, S - pad);
+            for (var py = 0; py <= S; py += 16) {
+                var px = gx + Math.sin(py * freq + ph) * amp;
+                if (py === 0) { x.moveTo(px, py); } else { x.lineTo(px, py); }
+            }
+            x.strokeStyle = i % 3 === 0 ? 'rgba(112,72,28,0.10)' : 'rgba(246,220,166,0.10)';
+            x.lineWidth = rnd(1.2, 4.5);
             x.stroke();
         }
 
-        /* 星位 */
+        /* 边缘轻微压暗，模拟打磨后的棋盘边框。 */
+        var edge = x.createRadialGradient(S / 2, S / 2, S * 0.34, S / 2, S / 2, S * 0.76);
+        edge.addColorStop(0, 'rgba(70,42,12,0)');
+        edge.addColorStop(1, 'rgba(70,42,12,0.18)');
+        x.fillStyle = edge;
+        x.fillRect(0, 0, S, S);
+
+        /* 棋线：先画极浅的压痕，再画清晰主线。 */
+        var lw = 6.5;
+        x.lineCap = 'square';
+        for (var pass = 0; pass < 2; pass++) {
+            x.strokeStyle = pass === 0 ? 'rgba(255,236,190,0.28)' : 'rgba(35,22,9,0.96)';
+            x.lineWidth = pass === 0 ? lw + 2 : lw;
+            var offset = pass === 0 ? 1.5 : 0;
+            for (var j = 0; j < N; j++) {
+                var p = pad + j * step + offset;
+                x.beginPath(); x.moveTo(pad, p); x.lineTo(S - pad, p); x.stroke();
+                x.beginPath(); x.moveTo(p, pad); x.lineTo(p, S - pad); x.stroke();
+            }
+        }
+
         var stars = [[3, 3], [3, 11], [11, 3], [11, 11], [7, 7]];
-        x.fillStyle = 'rgba(28,17,6,0.92)';
+        x.fillStyle = 'rgba(30,18,7,0.98)';
         stars.forEach(function (s) {
             x.beginPath();
-            x.arc(pad + s[0] * step, pad + s[1] * step, lw * 2.1, 0, 6.2832);
+            x.arc(pad + s[0] * step, pad + s[1] * step, 14, 0, 6.2832);
             x.fill();
         });
+        return c;
+    }
 
+    /* 白子贝壳纹理：极细的暖色生长纹，近看有材质，远看干净。 */
+    function shellCanvas() {
+        var w = 1024, h = 512;
+        var c = canvas2d(w, h), x = c.getContext('2d');
+        x.fillStyle = '#f4efe2';
+        x.fillRect(0, 0, w, h);
+        for (var i = 0; i < 90; i++) {
+            var y = (i / 90) * h + rnd(-2, 2);
+            x.beginPath();
+            for (var px = 0; px <= w; px += 12) {
+                var py = y + Math.sin(px * 0.012 + i) * rnd(1, 4);
+                if (px === 0) { x.moveTo(px, py); } else { x.lineTo(px, py); }
+            }
+            x.strokeStyle = i % 2 ? 'rgba(205,190,160,0.16)' : 'rgba(255,252,244,0.22)';
+            x.lineWidth = rnd(0.6, 1.8);
+            x.stroke();
+        }
         return c;
     }
 
@@ -198,6 +237,12 @@
         r2.addColorStop(1, 'rgba(170,196,220,0)');
         x.fillStyle = r2;
         x.fillRect(0, 0, w, h);
+
+        /* 两块柔光箱反射，让黑子和白子都有清晰、自然的高光带。 */
+        x.fillStyle = 'rgba(255,250,238,0.95)';
+        x.fillRect(w * 0.16, h * 0.10, w * 0.22, h * 0.16);
+        x.fillStyle = 'rgba(220,232,245,0.75)';
+        x.fillRect(w * 0.66, h * 0.18, w * 0.16, h * 0.12);
         return c;
     }
 
@@ -236,6 +281,7 @@
             powerPreference: 'high-performance'
         });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3));
+        TEXTURE_ANISOTROPY = renderer.capabilities.getMaxAnisotropy();
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.18;
@@ -246,7 +292,7 @@
         scene.background = new THREE.Color(0x0a0908);
         scene.fog = new THREE.Fog(0x0a0908, 120, 320);
 
-        var camera = new THREE.PerspectiveCamera(56, 1, 0.6, 900);
+        var camera = new THREE.PerspectiveCamera(50, 1, 0.6, 900);
         camera.position.set(0, 72, 58);
 
         /* 环境反射 */
@@ -263,9 +309,9 @@
 
         /* ---------- 光 ---------- */
 
-        scene.add(new THREE.HemisphereLight(0x4b4438, 0x0f0c08, 0.55));
+        scene.add(new THREE.HemisphereLight(0x6a6254, 0x14100a, 0.72));
 
-        var key = new THREE.SpotLight(0xffdfb0, 1.15, 260, 0.8, 0.9, 1.4);
+        var key = new THREE.SpotLight(0xffe3b8, 1.45, 260, 0.82, 0.85, 1.3);
         key.position.set(6, 96, 26);
         key.target.position.set(0, TABLE_TOP, 0);
         key.castShadow = true;
@@ -276,7 +322,7 @@
         key.shadow.camera.far = 220;
         scene.add(key, key.target);
 
-        var fill = new THREE.DirectionalLight(0x9fb6cc, 0.22);
+        var fill = new THREE.DirectionalLight(0xb8c8d8, 0.38);
         fill.position.set(-46, 42, -30);
         scene.add(fill);
 
@@ -381,8 +427,9 @@
             new THREE.PlaneGeometry(18.36, 18.36),
             new THREE.MeshStandardMaterial({
                 map: texFromCanvas(boardCanvas()),
-                roughness: 0.42,
-                metalness: 0.02
+                roughness: 0.58,
+                metalness: 0,
+                envMapIntensity: 0.45
             })
         );
         boardFace.rotation.x = -Math.PI / 2;
@@ -392,26 +439,41 @@
 
         /* ---------- 棋子 ---------- */
 
-        var stoneGeo = new THREE.SphereGeometry(STONE_R, 40, 22);
-        stoneGeo.scale(1, 0.42, 1);
+        /* 双凸透镜形棋子，比压扁球体更接近真实云子/蛤碁石。 */
+        var stoneProfile = [
+            new THREE.Vector2(0.001, -0.120),
+            new THREE.Vector2(0.160, -0.148),
+            new THREE.Vector2(0.300, -0.112),
+            new THREE.Vector2(0.372, -0.040),
+            new THREE.Vector2(0.385, 0.000),
+            new THREE.Vector2(0.372, 0.040),
+            new THREE.Vector2(0.300, 0.112),
+            new THREE.Vector2(0.160, 0.148),
+            new THREE.Vector2(0.001, 0.120)
+        ];
+        var stoneGeo = new THREE.LatheGeometry(stoneProfile, 64);
         stoneGeo.computeVertexNormals();
 
         var blackStoneMat = new THREE.MeshPhysicalMaterial({
-            color: 0x0a0a0c,
-            roughness: 0.16,
-            metalness: 0.0,
-            clearcoat: 1,
-            clearcoatRoughness: 0.06,
-            envMapIntensity: 1.9
-        });
-        var whiteStoneMat = new THREE.MeshPhysicalMaterial({
-            color: 0xfbf7ec,
-            roughness: 0.26,
+            color: 0x1a1c20,
+            roughness: 0.20,
             metalness: 0.0,
             clearcoat: 0.9,
-            clearcoatRoughness: 0.1,
-            envMapIntensity: 1.45
+            clearcoatRoughness: 0.10,
+            envMapIntensity: 1.35
         });
+        var whiteStoneMat = new THREE.MeshPhysicalMaterial({
+            color: 0xf6f1e4,
+            map: texFromCanvas(shellCanvas()),
+            roughness: 0.30,
+            metalness: 0.0,
+            clearcoat: 0.65,
+            clearcoatRoughness: 0.14,
+            envMapIntensity: 1.05
+        });
+        /* 棋子材质稍后才挂到实例上，这里先做色彩空间转换，避免黑子发灰。 */
+        if (blackStoneMat.color.convertSRGBToLinear) { blackStoneMat.color.convertSRGBToLinear(); }
+        if (whiteStoneMat.color.convertSRGBToLinear) { whiteStoneMat.color.convertSRGBToLinear(); }
 
         var stoneLayer = new THREE.Group();
         scene.add(stoneLayer);
@@ -492,19 +554,35 @@
 
         function fillBowl(bowl, color) {
             var heap = bowl.userData.heap;
-            while (heap.children.length) { heap.remove(heap.children[0]); }
-            /* 四层共 132 颗，棋罐加深加大，足够一整盘使用。 */
-            for (var i = 0; i < 132; i++) {
-                var m = stoneMesh(color);
+            while (heap.children.length) {
+                var old = heap.children[0];
+                heap.remove(old);
+                if (old.dispose) { old.dispose(); }
+            }
+            /* 132 颗用 InstancedMesh 一次绘制，容量足且不掉帧。 */
+            var count = 132;
+            var inst = new THREE.InstancedMesh(stoneGeo, color === 'black' ? blackStoneMat : whiteStoneMat, count);
+            var mat4 = new THREE.Matrix4();
+            var pos = new THREE.Vector3();
+            var quat = new THREE.Quaternion();
+            var scl = new THREE.Vector3(1, 1, 1);
+            var euler = new THREE.Euler();
+            for (var i = 0; i < count; i++) {
                 var layer = Math.floor(i / 33);
                 var a = i * 2.399963 + rnd(-0.16, 0.16);
                 var r = Math.sqrt(Math.random()) * (2.72 - layer * 0.17);
                 var h = 0.58 + layer * 0.38 + (1 - r / 2.72) * 0.18 + rnd(-0.06, 0.06);
-                m.position.set(Math.cos(a) * r, h, Math.sin(a) * r);
-                m.rotation.set(rnd(-0.36, 0.36), rnd(0, 6.28), rnd(-0.36, 0.36));
-                m.castShadow = layer >= 2;
-                heap.add(m);
+                pos.set(Math.cos(a) * r, h, Math.sin(a) * r);
+                euler.set(rnd(-0.36, 0.36), rnd(0, 6.28), rnd(-0.36, 0.36));
+                quat.setFromEuler(euler);
+                mat4.compose(pos, quat, scl);
+                inst.setMatrixAt(i, mat4);
             }
+            inst.instanceMatrix.needsUpdate = true;
+            inst.castShadow = true;
+            inst.receiveShadow = true;
+            heap.add(inst);
+            bowl.userData.heapMesh = inst;
         }
 
         /* ---------- 棋钟 ---------- */
@@ -795,8 +873,8 @@
         /* ---------- 相机与视角 ---------- */
 
         var VIEW = {
-            black: { pos: new THREE.Vector3(0, 39.8, 31.0), look: new THREE.Vector3(0, 27.4, -4.2) },
-            white: { pos: new THREE.Vector3(0, 39.8, -31.0), look: new THREE.Vector3(0, 27.4, 4.2) },
+            black: { pos: new THREE.Vector3(0, 37.2, 27.0), look: new THREE.Vector3(0, 24.8, -1.2) },
+            white: { pos: new THREE.Vector3(0, 37.2, -27.0), look: new THREE.Vector3(0, 24.8, 1.2) },
             stand: { pos: new THREE.Vector3(3, 48, 35), look: new THREE.Vector3(0, 23.2, -3) }
         };
 
@@ -900,10 +978,10 @@
                 {
                     d: 200, to: bowlTop.clone().add(new THREE.Vector3(0, -1.5, 0)), e: easeInOutSine,
                     onEnd: function () {
-                        /* 从棋罐顶层真正取出一颗，而不是凭空生成棋子。 */
-                        var heap = bowl.userData.heap;
-                        stone = heap.children.length ? heap.children[heap.children.length - 1] : stoneMesh(o.color);
-                        if (stone.parent) { stone.parent.remove(stone); }
+                        /* 从棋罐顶层真正取出一颗：实例数减一，手中出现同色棋子。 */
+                        var inst = bowl.userData.heapMesh;
+                        if (inst && inst.count > 0) { inst.count -= 1; }
+                        stone = stoneMesh(o.color);
                         stoneLayer.add(stone);
                         stone.position.copy(handGroup.position);
                         stone.scale.setScalar(1);
@@ -1017,13 +1095,12 @@
         /* ---------- 悬停提示 ---------- */
 
         var ghost = new THREE.Mesh(
-            new THREE.SphereGeometry(STONE_R * 1.06, 24, 16),
+            stoneGeo,
             new THREE.MeshStandardMaterial({
                 color: 0xffffff, transparent: true, opacity: 0.26,
                 roughness: 0.3, depthWrite: false
             })
         );
-        ghost.geometry.scale(1, 0.42, 1);
         ghost.visible = false;
         scene.add(ghost);
 
@@ -1219,7 +1296,12 @@
             pickClock: pickClock,
             playMove: playMove,
             isAnimating: function () { return !!anim; },
-            cancelAnimation: function () { anim = null; handGroup.visible = false; },
+            cancelAnimation: function () {
+                var held = anim && anim.stone ? anim.stone() : null;
+                if (held && held.parent) { held.parent.remove(held); }
+                anim = null;
+                handGroup.visible = false;
+            },
             dispose: function () {
                 try { renderer.dispose(); } catch (e) { /* noop */ }
             },

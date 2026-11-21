@@ -74,9 +74,9 @@
     function fmtClock(ms) {
         if (!S.conf.main) { return '∞'; }
         ms = Math.max(0, ms);
-        var t = ms / 1000;
-        var m = Math.floor(t / 60);
-        var s = t - m * 60;
+        var tenths = Math.floor(ms / 100);
+        var m = Math.floor(tenths / 600);
+        var s = (tenths % 600) / 10;
         return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1);
     }
 
@@ -137,7 +137,7 @@
         for (var i = 0; i < snap.moves.length && i < N * N; i++) {
             var m = snap.moves[i];
             var x = Number(m.x), y = Number(m.y), c = Number(m.c);
-            if (x < 0 || x >= N || y < 0 || y >= N || (c !== BLACK && c !== WHITE)) { continue; }
+            if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || x >= N || y < 0 || y >= N || (c !== BLACK && c !== WHITE)) { continue; }
             var k = y * N + x;
             if (seen[k]) { continue; }
             seen[k] = 1;
@@ -260,6 +260,7 @@
         if (el.clockMeName) { el.clockMeName.textContent = '我 · ' + colorName(S.myColor); }
         if (el.clockPeerName) { el.clockPeerName.textContent = '对手 · ' + (S.peerName || '棋友'); }
         T.setSeat(S.myColor === BLACK ? 'black' : 'white');
+        T.sit();
         T.setPeer(S.peerName, true);
         resetGame();
         S.running = BLACK;
@@ -401,6 +402,11 @@
 
     function pressClock(color, remote) {
         if (S.phase !== 'seated') { return; }
+        if (!remote && !S.pendingPress) {
+            toast('先落子，再拍钟');
+            DJ_AUDIO.nope();
+            return;
+        }
         if (!remote && S.running !== color) {
             toast('现在不是你的用时');
             DJ_AUDIO.nope();
@@ -471,7 +477,7 @@
 
     function peerMove(m) {
         if (S.busy) { S.queue.push(m); return; }
-        if (S.phase !== 'seated' && S.phase !== 'over') { return; }
+        if (S.phase !== 'seated') { return; }
         if (cellAt(m.x, m.y)) { return; }
 
         S.busy = true;
@@ -654,6 +660,14 @@
         S.running = 0;
         S.busy = false;
         S.queue = [];
+        /* 释放座位，保留原执子偏好，房间才能接下一位棋友。 */
+        if (S.myColor) { S.want = S.myColor === BLACK ? 'black' : 'white'; }
+        S.myColor = 0;
+        S.peerId = '';
+        S.peerName = '';
+        S.pendingPress = false;
+        S.autoPress = 0;
+        S.result = null;
         if (T) {
             T.setPeer(S.peerName, false);
             T.setWin(null);
