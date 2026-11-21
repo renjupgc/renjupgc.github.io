@@ -170,12 +170,12 @@ function tableAt(tab, n) {
     return null;
 }
 
-/* 一个打点自己的结果：带撇号的点查 rp，表里没写到就按原图的 a/c 归类 */
+/* 一个打点自己的结果：带撇号的点查 rp，其余查 r；落在表外就按原图标记归类
+ * （a 记黑胜、c 记黑败、无前缀记平衡）。
+ * 注意这里不能拿 resultAt 外推「表外一律黑败」：那张表是「给几打」的总账，
+ * 表尾之后写不下的过渡点（例如恒缅的 4 打）本身是平衡，外推会把它们全判成白必胜。 */
 function pointRes(op, c) {
-    if (!c[5]) {
-        return resultAt(op, c[2]);
-    }
-    const hit = tableAt(op.rp, c[2]);
+    const hit = tableAt((c[5] && op.rp) ? op.rp : op.r, c[2]);
     if (hit) {
         return hit;
     }
@@ -289,13 +289,16 @@ function startQuestion() {
 /* ---------- 文案 ---------- */
 
 /* 打数表：highlight 那一档加粗标出来 */
-function rowsHTML(op, pick, prime) {
+function rowsHTML(op, pick, point) {
+    const prime = point && point[5];
     const tab = (prime && op.rp) ? op.rp : op.r;
     const rows = tab.map(function (row) {
         return { a: row[0], b: row[1], res: row[2], hit: row[0] <= pick && pick <= row[1] };
     });
     if (!rows.some((r) => r.hit)) {
-        const made = { a: pick, b: pick, res: tableAt(tab, pick) || '黑败', hit: true, guess: true };
+        /* 表里没写到这一打：用这一点自己的评估，跟判分走同一个口径 */
+        const made = { a: pick, b: pick, res: pointRes(op, point || [0, 0, pick]),
+            hit: true, guess: true };
         let at = rows.findIndex((r) => r.a > pick);
         if (at < 0) {
             rows.push(made);
@@ -309,7 +312,7 @@ function rowsHTML(op, pick, prime) {
     rows.forEach(function (r) {
         const lab = (r.a === r.b ? String(r.a) : r.a + '–' + r.b) + ' 打';
         html += '<tr class="' + (r.hit ? 'is-pick' : '') + '"><td>' + lab +
-            '</td><td class="res">' + r.res + (r.guess ? '（按表推）' : '') + '</td></tr>';
+            '</td><td class="res">' + r.res + (r.guess ? '（按点推）' : '') + '</td></tr>';
     });
     html += '</table>';
     return html;
@@ -371,9 +374,10 @@ function fbB(op) {
         '<span class="sd-verdict ' + (exact ? 'ok' : (fits ? 'mid' : 'bad')) + '">' +
         (exact ? '判断正确' : (fits ? '擦边，算半对' : '判断有误')) + '</span>' +
         '<p>' + tip + '</p>' +
-        rowsHTML(op, S.n5, S.five[5]) +
+        rowsHTML(op, S.n5, S.five) +
         '<p class="sd-note">表里到 ' + ((S.five[5] && op.rp) ? op.rp : op.r).slice(-1)[0][1] +
-        ' 打为止，再往上书里一律记黑败。</p></div>';
+        ' 打为止；表外的点按原书标记归类（a 记黑胜、c 记黑败、无前缀记平衡），' +
+        '十打这种摊到表外的总账才一律记黑败。</p></div>';
 }
 
 /* ---------- 视图 ---------- */
