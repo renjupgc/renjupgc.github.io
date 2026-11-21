@@ -29,6 +29,7 @@
 
     /* 客户端：supabase-client.js 由 layout.js 先注入，这里等它即可 */
     function ensureCloud() {
+        if (window.ZBX_SB_GET) { return window.ZBX_SB_GET(); }
         if (window.ZBX_SB_READY) { return window.ZBX_SB_READY; }
         if (!window.__zbxZayuCloudLoad) {
             window.__zbxZayuCloudLoad = 1;
@@ -47,22 +48,42 @@
         });
     }
 
-    function rpcDocs(kind) {
-        if (cache[kind] && Date.now() - cache[kind].t < TTL) {
-            return Promise.resolve(cache[kind].v);
-        }
+    function wait(ms) {
+        return new Promise(function (resolve) { setTimeout(resolve, ms); });
+    }
+
+    function sortDocs(rows) {
+        return rows.slice().sort(function (a, b) {
+            var oa = Number(a.ord || 0), ob = Number(b.ord || 0);
+            return oa - ob || String(a.doc_id).localeCompare(String(b.doc_id));
+        });
+    }
+
+    /* 网络抖动时重试一次；只有真的拿到数据才写缓存，
+       拿不到就沿用上次的成功结果（没有就返回空，页面照旧用静态兜底）。 */
+    function fetchDocs(kind, attempt) {
         return ensureCloud().then(function (sb) {
             /* 表是 zayu_docs，行形状与旧接口一致：{kind, doc_id, data, ord} */
             return sb.from('zayu_docs').select('kind,doc_id,data,ord').eq('kind', kind);
         }).then(function (res) {
-            var docs = (res && !res.error && Array.isArray(res.data)) ? res.data.slice() : [];
-            docs.sort(function (a, b) {
-                var oa = Number(a.ord || 0), ob = Number(b.ord || 0);
-                return oa - ob || String(a.doc_id).localeCompare(String(b.doc_id));
-            });
+            if (res && !res.error && Array.isArray(res.data)) { return sortDocs(res.data); }
+            if (attempt < 1) { return wait(600).then(function () { return fetchDocs(kind, attempt + 1); }); }
+            return null;
+        }, function () {
+            if (attempt < 1) { return wait(600).then(function () { return fetchDocs(kind, attempt + 1); }); }
+            return null;
+        });
+    }
+
+    function rpcDocs(kind) {
+        if (cache[kind] && Date.now() - cache[kind].t < TTL) {
+            return Promise.resolve(cache[kind].v);
+        }
+        return fetchDocs(kind, 0).then(function (docs) {
+            if (!docs) { return cache[kind] ? cache[kind].v : []; }
             cache[kind] = { t: Date.now(), v: docs };
             return docs;
-        }).catch(function () { return []; });
+        });
     }
 
     function byId(docs, id) {

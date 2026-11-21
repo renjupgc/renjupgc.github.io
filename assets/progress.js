@@ -127,6 +127,8 @@
     var E = null;
     var cloudTimer = 0;
     var cloudBusy = false;
+    var syncFail = false;   /* 连续重试仍失败：提示改成「稍后自动重试」 */
+    var loadedFor = '';     /* 已经拉过云端档案的账号，避免重复请求 */
 
     function profile() {
         if (!curUser) { return null; }
@@ -154,65 +156,114 @@
 
     function cloudRpc(name, params) {
         var a = account();
-        if (!a || typeof a.rpc !== 'function' || !a.token()) {
+        if (!a || typeof a.rpc !== 'function') {
             return Promise.resolve(null);
         }
+        /* 以「会话是否可用」判断，而不是只看 token 字符串：
+           刷新页面时 token 可能比账号状态晚几毫秒就位。 */
+        var ok = typeof a.canSync === 'function' ? a.canSync() : !!(a.token && a.token());
+        if (!ok) { return Promise.resolve(null); }
         return a.rpc(name, params);
+    }
+
+    function canSync() {
+        var a = account();
+        if (!a) { return false; }
+        return typeof a.canSync === 'function' ? a.canSync() : !!(a.token && a.token());
     }
 
     function scheduleCloudSave() {
         if (!curUser) { return; }
         window.clearTimeout(cloudTimer);
         flagSaved(true);
-        cloudTimer = window.setTimeout(saveCloud, 450);
+        cloudTimer = window.setTimeout(function () { saveCloud(false); }, 450);
+    }
+
+    /* 同步失败不会静悄悄丢掉：按 2s / 6s / 15s 再试，
+       仍不行就把提示改成「稍后自动重试」，下次做题还会继续尝试。 */
+    var saveRetry = 0;
+
+    function retrySave() {
+        if (saveRetry >= 3) { syncFail = true; render(); return; }
+        saveRetry += 1;
+        window.clearTimeout(cloudTimer);
+        cloudTimer = window.setTimeout(function () {
+            if (canSync()) { saveCloud(true); }
+        }, [2000, 6000, 15000][saveRetry - 1]);
     }
 
     function saveCloud(force) {
-        var a = account();
-        var token = a && typeof a.token === 'function' ? a.token() : '';
-        if (!curUser || !token) { return Promise.resolve(false); }
+        if (!curUser || !canSync()) {
+            if (curUser) { retrySave(); }
+            return Promise.resolve(false);
+        }
         if (cloudBusy && !force) {
             window.clearTimeout(cloudTimer);
             cloudTimer = window.setTimeout(function () { saveCloud(false); }, 600);
             return Promise.resolve(false);
         }
         cloudBusy = true;
-        return cloudRpc('zbx_progress_save', { p_token: token, p_data: envelope() })
+        return cloudRpc('zbx_progress_save', { p_data: envelope() })
             .then(function (res) {
                 cloudBusy = false;
                 if (res && res.ok) {
+                    saveRetry = 0;
+                    syncFail = false;
                     flagSaved(false);
                     return true;
                 }
+                retrySave();
                 return false;
             })
             .catch(function () {
                 cloudBusy = false;
+                retrySave();
                 return false;
             });
     }
 
     function loadCloud() {
-        var a = account();
-        var token = a && typeof a.token === 'function' ? a.token() : '';
-        if (!curUser || !token) { render(); return Promise.resolve(false); }
+        if (!curUser || !canSync()) { render(); return Promise.resolve(false); }
+        loadedFor = curUser;
         var localEnglish = E && typeof E === 'object' ? E : null;
-        return cloudRpc('zbx_progress_load', { p_token: token }).then(function (res) {
+        /* 只有本机真的存过档，才谈得上「本地比云端新」；
+           否则空白档案的 at（模块加载时间）会把云端的分数压掉。 */
+        var localAt = 0;
+        try {
+            if (window.localStorage.getItem(KEY)) { localAt = Number(D.at) || 0; }
+        } catch (e) { /* 隐私模式 */ }
+        return cloudRpc('zbx_progress_load', {}).then(function (res) {
             if (!res || res.ok === false) { render(); return false; }
             /* 正常返回是 {ok,data:{v,at,progress,english}}；account.rpc 的 unwrap
                剥掉信封后，res 本身就是档案对象，两种形状都要认。 */
             var data = res.data && typeof res.data === 'object' && !res.progress ? res.data : res;
+            var cloud = null;
             if (data && typeof data === 'object' && data.progress) {
-                D = normalizeStore(data.progress);
-                E = data.english && typeof data.english === 'object' ? data.english : null;
+                cloud = data;
             } else if (data && data.users) {
                 /* 兼容最早的直接档案结构 */
-                D = normalizeStore(data);
+                cloud = { progress: data, at: Number(data.at) || 0 };
             } else {
                 /* 第一次登录：把本机缓存带上去，不丢旧分 */
                 if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
                 return saveCloud(true).then(function () { render(); return true; });
             }
+
+            var cloudAt = Number(cloud.at || (cloud.progress && cloud.progress.at)) || 0;
+            /* 本机比云端新（离线期间做过题）：以本机为准推上去，别把新分数冲掉 */
+            if (localAt > cloudAt + 2000 && D.users[curUser]) {
+                if (!E && cloud.english && typeof cloud.english === 'object') { E = cloud.english; }
+                return saveCloud(true).then(function () { render(); return true; });
+            }
+
+            var cloudStore = normalizeStore(cloud.progress);
+            /* 云端没有的本地其它账号（同一浏览器多人用）保留，不被覆盖掉 */
+            Object.keys(D.users).forEach(function (name) {
+                if (!cloudStore.users[name]) { cloudStore.users[name] = D.users[name]; }
+            });
+            D = cloudStore;
+            E = cloud.english && typeof cloud.english === 'object' ? cloud.english : null;
+
             /* 云端若还没有连珠英语那段（老档案），别把本机已有背词记录清空 */
             if (!E && localEnglish) { E = localEnglish; }
             if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
@@ -220,6 +271,7 @@
             render();
             return true;
         }).catch(function () {
+            loadedFor = '';
             render();
             return false;
         });
@@ -630,7 +682,7 @@
                 (curUser ? '<button type="button" data-act="reset">清空进度</button>' : '') +
                 '</div>' +
                 '<p class="zbx-prog-tip zbx-prog-hint">' +
-                (dirty ? '正在同步到云端…' :
+                (dirty ? (syncFail ? '云端暂时连不上，稍后会自动重试；本机记录已经保存。' : '正在同步到云端…') :
                     (curUser ? '已同步到云端，换设备登录同一个账号就能接着做题。' :
                         '不再需要导出 / 导入备份文件。')) +
                 '</p>' +
@@ -659,27 +711,51 @@
     /* 账号就绪后从云端取档案；登录 / 退出切换时重新取对应账号的数据 */
     document.addEventListener('zbx:account', function (e) {
         var detail = e && e.detail ? e.detail : {};
-        if (detail.action === 'restore') { return; } /* 启动流程统一处理 */
         var name = detail.user || '';
-        if (name !== curUser) {
-            curUser = name;
-            D = loadStore();
-            E = null;
-            if (curUser && !D.users[curUser]) { D.users[curUser] = blankProfile(); }
+        if (name === curUser) {
+            /* restore / 续期后重复触发：只补一次没做完的云端读取 */
+            if (curUser && loadedFor !== curUser) { loadCloud(); }
+            return;
         }
-        if (curUser) { loadCloud(); } else { render(); }
+        curUser = name;
+        D = loadStore();
+        E = null;
+        loadedFor = '';
+        syncFail = false;
+        if (curUser) {
+            if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
+            loadCloud();
+        } else {
+            render();
+        }
     });
 
+    /* account.js 由 layout.js 异步注入，可能比本文件晚到：
+       先等 ZBX_ACCOUNT_READY，等不到就轮询一会儿，别直接当成未登录。 */
     function start() {
         render();
         watch();
-        if (window.ZBX_ACCOUNT_READY) {
-            window.ZBX_ACCOUNT_READY.then(function (info) {
-                curUser = (info && info.user) || '';
-                if (!curUser) { render(); return; }
-                loadCloud();
-            });
+
+        function adopt(info) {
+            var name = (info && info.user) ||
+                (window.ZBX_ACCOUNT && window.ZBX_ACCOUNT.user ? window.ZBX_ACCOUNT.user() : '');
+            if (!name) { render(); return; }
+            if (name === curUser && loadedFor === name) { return; }
+            curUser = name;
+            if (!D.users[curUser]) { D.users[curUser] = blankProfile(); }
+            loadCloud();
         }
+
+        function waitAccount(tries) {
+            if (window.ZBX_ACCOUNT_READY) {
+                window.ZBX_ACCOUNT_READY.then(adopt);
+                return;
+            }
+            if (tries > 75) { render(); return; }   /* 15 秒还没到就按未登录显示 */
+            window.setTimeout(function () { waitAccount(tries + 1); }, 200);
+        }
+
+        waitAccount(0);
     }
 
     if (document.readyState === 'loading') {

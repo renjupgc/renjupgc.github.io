@@ -1328,12 +1328,31 @@
         }
         if (window.ZBX_ACCOUNT_READY) {
             window.ZBX_ACCOUNT_READY.then(function (info) {
-                var n = info && info.user ? info.user() : '';
+                if (!el('en-app')) { return; }
+                /* info.user 是字符串，不是函数 */
+                var n = (info && info.user) ||
+                    (window.ZBX_ACCOUNT && window.ZBX_ACCOUNT.user ? window.ZBX_ACCOUNT.user() : '');
                 if (n && validName(n)) { enterAfterCloud(n); } else { showGate(); }
             });
             return;
         }
+        /* account.js 由 layout.js 异步注入，可能还没到，也可能它恢复会话后
+           发的事件已经先过去了；先显示登录入口，同时盯一会儿账号状态。 */
         showGate();
+        watchAccount(0);
+    }
+
+    /* 账号晚到时补一次接手；正常登录 / 退出仍走 zbx:account 事件 */
+    function watchAccount(tries) {
+        if (!el('en-app')) { return; }
+        var acc = window.ZBX_ACCOUNT;
+        var n = acc && acc.user ? acc.user() : '';
+        if (n && validName(n)) {
+            if (n !== state.user) { enterAfterCloud(n); }
+            return;
+        }
+        if (tries > 25) { return; }   /* 5 秒还没登录，就一直停在登录入口 */
+        window.setTimeout(function () { watchAccount(tries + 1); }, 200);
     }
 
     window.ZBX_EN = { boot: boot };

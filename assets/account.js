@@ -100,8 +100,11 @@
     /* ---------- 客户端 ---------- */
 
     function client() {
+        /* ZBX_SB_GET 每次失败都不缓存，网络恢复后再调用一次就能接上；
+           ZBX_SB_READY 是旧接口，只作为兜底。 */
+        if (window.ZBX_SB_GET) { return window.ZBX_SB_GET(); }
         if (window.ZBX_SB_READY) { return window.ZBX_SB_READY; }
-        if (!window.__zbxSbLoad) {
+        if (!window.__zbxSbLoad && !window.__zbxSbLoaded) {
             window.__zbxSbLoad = true;
             var s = document.createElement('script');
             s.src = base() + 'assets/supabase-client.js';
@@ -181,10 +184,16 @@
             'User already registered': '这个用户名已经被注册，换个名字或去登录。',
             'Email not confirmed': '这个账号还需要邮箱确认才能登录，请先在 Supabase 后台关闭 Confirm email。',
             'Signups not allowed for this instance': 'Supabase 项目关闭了注册，请到 Authentication 里打开 Allow new users to sign up。',
-            'Failed to fetch': '连不上 Supabase，检查网络或确认 assets/supabase-config.js 里的 url 填对了。',
-            'Load failed': '连不上 Supabase，检查网络或确认 assets/supabase-config.js 里的 url 填对了。'
+            'Failed to fetch': '连不上 Supabase（网络不通或项目地址不对）。请换一个网络再试，或检查 assets/supabase-config.js 里的 url。',
+            'Load failed': '连不上 Supabase（网络不通或项目地址不对）。请换一个网络再试，或检查 assets/supabase-config.js 里的 url。'
         };
         if (map[msg]) { return new Error(map[msg]); }
+        if (/failed to fetch|network\s?error|network request failed|load failed/i.test(msg)) {
+            return new Error('连不上 Supabase（网络不通或项目地址不对）。请换一个网络再试，或检查 assets/supabase-config.js 里的 url。');
+        }
+        if (/timed?\s?out|timeout|abort/i.test(msg)) {
+            return new Error('连接 Supabase 超时，多半是网络不稳。请稍后重试。');
+        }
         if (/duplicate key|unique/i.test(msg)) { return new Error('这个用户名已经被注册，换个名字或去登录。'); }
         if (/relation .* does not exist|schema cache/i.test(msg)) {
             return new Error('数据库表还没建好，请先在 Supabase SQL Editor 里执行 supabase/schema.sql。');
@@ -244,6 +253,58 @@
         });
     }
 
+    function wait(ms) {
+        return new Promise(function (resolve) { window.setTimeout(resolve, ms); });
+    }
+
+    /* localStorage 里是否还留着 supabase 的会话（用来判断「本来登录过」） */
+    function hasStoredToken() {
+        try {
+            for (var i = 0; i < window.localStorage.length; i++) {
+                var k = window.localStorage.key(i);
+                if (k && /^sb-.*-auth-token/.test(k)) { return true; }
+            }
+        } catch (e) { /* 隐私模式下忽略 */ }
+        return false;
+    }
+
+    /* 取会话。本地明明有会话痕迹却拿不到时，显式续期再试几次：
+       supabase 的 getSession 在续期请求抖动时会返回 null，一次抖动就把人
+       踢成「未登录」，这是刷新后掉登录的主因。 */
+    function getStoredSession(allowRetry, tries) {
+        tries = tries || 1;
+        return client().then(function (sb) {
+            return sb.auth.getSession().then(function (r) {
+                var session = r && r.data ? r.data.session : null;
+                if (session) { return session; }
+                if (!allowRetry || tries >= 3) { return null; }
+                return wait(400 * tries).then(function () {
+                    return sb.auth.refreshSession().then(function (rr) {
+                        var next = rr && rr.data ? rr.data.session : null;
+                        if (next) { return next; }
+                        return getStoredSession(true, tries + 1);
+                    }, function () {
+                        return getStoredSession(true, tries + 1);
+                    });
+                });
+            });
+        });
+    }
+
+    /* 启动时网络失败：先按缓存显示，后台慢慢再试，连上就补一次 restore */
+    function retryRestore(n) {
+        if (n > 3 || state.uid || !configured()) { return; }
+        window.setTimeout(function () {
+            if (state.uid || !configured()) { return; }
+            getStoredSession(true).then(function (session) {
+                if (!session) { retryRestore(n + 1); return null; }
+                return applySession(session, 'restore').catch(function () { retryRestore(n + 1); });
+            }, function () {
+                retryRestore(n + 1);
+            });
+        }, 1200 * (n + 1));
+    }
+
     function restore() {
         var cached = readCache();
         if (cached.user) {
@@ -260,10 +321,8 @@
                 render();
                 return sessionInfo();
             }
-            return client().then(function (sb) {
-                return sb.auth.getSession();
-            }).then(function (r) {
-                var session = r && r.data ? r.data.session : null;
+            var allowRetry = !!cached.user || hasStoredToken();
+            return getStoredSession(allowRetry).then(function (session) {
                 if (!session) {
                     clearLocal();
                     state.ready = true;
@@ -276,9 +335,10 @@
                 });
             });
         }).catch(function () {
-            /* 网络失败时保留缓存展示，但不把用户当成已登录去写云端 */
+            /* 网络失败时保留缓存展示，后台继续尝试恢复会话 */
             state.ready = true;
             render();
+            retryRestore(0);
             return sessionInfo();
         });
     }
@@ -353,13 +413,18 @@
         emit('logout');
         if (!configured()) { return Promise.resolve(true); }
         return client().then(function (sb) {
-            return sb.auth.signOut();
+            /* 网络不通时普通的 signOut 不会清掉本地会话，刷新后又被自动登录；
+               失败就退回 scope=local，至少本机是真退出了。 */
+            return sb.auth.signOut().catch(function () {
+                return sb.auth.signOut({ scope: 'local' }).catch(function () { /* 忽略 */ });
+            });
         }).then(function () { return true; })
             .catch(function () { return false; });
     }
 
     function sessionInfo() {
         return {
+            uid: state.uid,
             user: state.user,
             nick: state.nick || state.user,
             role: state.role,
@@ -741,23 +806,40 @@
     document.addEventListener('zbx:navigate', function () { render(); });
     document.addEventListener('zbx:account', function () { render(); });
 
-    /* 会话自动续期 / 被踢下线（token 失效）时同步本地状态 */
+    /* 会话自动续期 / 被踢下线 / 别的标签页登录时同步本地状态 */
+    function bindAuthEvents() {
+        return client().then(function (sb) {
+            sb.auth.onAuthStateChange(function (event, session) {
+                /* 回调里直接再调 supabase 会去抢同一把锁，容易卡住；
+                   统一挪到下一轮事件循环再处理。 */
+                window.setTimeout(function () {
+                    if (session && session.user) {
+                        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' ||
+                            event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+                            if (!state.uid || state.uid !== session.user.id) {
+                                /* 首次恢复，或另一个标签页换了账号：走完整流程 */
+                                applySession(session, state.ready ? 'login' : 'restore')
+                                    .catch(function () { /* 档案读不到不影响登录态 */ });
+                            } else {
+                                state.token = session.access_token || state.token;
+                            }
+                        }
+                        return;
+                    }
+                    if (event === 'SIGNED_OUT' && state.user) {
+                        clearLocal();
+                        state.ready = true;
+                        render();
+                        emit('logout');
+                    }
+                }, 0);
+            });
+        });
+    }
+
     configReady.then(function () {
         if (!configured()) { return; }
-        client().then(function (sb) {
-            sb.auth.onAuthStateChange(function (event, session) {
-                if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-                    if (session && state.uid) { state.token = session.access_token || state.token; }
-                    return;
-                }
-                if (event === 'SIGNED_OUT' && state.user) {
-                    clearLocal();
-                    state.ready = true;
-                    render();
-                    emit('logout');
-                }
-            });
-        }).catch(function () { /* 配置错误在点登录时才提示 */ });
+        bindAuthEvents().catch(function () { /* 配置错误在点登录时才提示 */ });
     });
 
     if (document.readyState === 'loading') {
@@ -780,6 +862,9 @@
         isAdmin: function () { return state.role === 'admin'; },
         token: function () { return state.token; },
         uid: function () { return state.uid; },
+        /* 云端是否可读写：有会话才成立。进度模块用它判断现在能不能同步，
+           避免刚刷新页面那几百毫秒把本地数据当成「未登录」丢掉。 */
+        canSync: function () { return !!(state.uid && state.token); },
         info: sessionInfo,
         login: login,
         signup: signup,
