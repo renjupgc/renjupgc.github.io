@@ -431,10 +431,12 @@
 
     var API = 'https://renjuonline.top';
     var ENDPOINTS = [
-        function (url) { return 'https://r.jina.ai/' + url; },            // 静态站点主通道：带 CORS 的只读代理
-        function (url) { return url; },                                   // 接口若已开放跨域则直连
+        function (url) { return url; },                                   // 直连：接口已开放 CORS，最快最稳
+        function (url) { return 'https://r.jina.ai/' + url; },            // 直连不通时的只读代理
         function (url) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url); }
     ];
+    // 首个请求可能撞上函数冷启动（要加载 4.5 MB 模型），给足时间；后续通道放宽到 30 秒。
+    var TIMEOUTS = [45000, 30000, 30000];
     var $ = function (id) { return document.getElementById(id); };
 
     function buildUrl(path, params) {
@@ -466,7 +468,9 @@
                 return Promise.reject(lastErr || new Error('接口不可用'));
             }
             var ctrl = new AbortController();
-            var timer = setTimeout(function () { ctrl.abort(); }, 20000);
+            var ms = TIMEOUTS[i] || 30000;
+            var secs = Math.round(ms / 1000);
+            var timer = setTimeout(function () { ctrl.abort(); }, ms);
             return fetch(ENDPOINTS[i](url), { signal: ctrl.signal, cache: 'no-store' })
                 .then(function (r) {
                     if (!r.ok) { throw new Error('HTTP ' + r.status); }
@@ -480,6 +484,10 @@
                 })
                 .catch(function (e) {
                     clearTimeout(timer);
+                    // 超时被 abort 时浏览器只给 “signal is aborted without reason”，换成能读懂的话
+                    if (e && (e.name === 'AbortError' || /aborted/i.test(e.message || ''))) {
+                        e = new Error('接口 ' + secs + ' 秒未响应（首次访问可能要等模型冷启动）');
+                    }
                     lastErr = e;
                     return attempt(i + 1);
                 });
@@ -867,6 +875,8 @@
     })();
     // 默认局面：黑1手 h8（网址带 moves 参数时会被覆盖）
     if (!$('pred-moves').value.trim()) { $('pred-moves').value = 'h8'; }
+    // 预热：先打一次 /health 唤醒 serverless 实例，免得首次预测卡在冷启动
+    fetchViaProxy(buildUrl('/health', { _: Date.now() })).catch(function () { /* 预热失败不影响正式请求 */ });
     loadRules();
     setupInputBoard();
     fillFromUrl();
