@@ -19,7 +19,21 @@
 <meta name="twitter:description" content="潘冠臣谈连珠的片段箴言：取自微信对话、「杂论」文章与人物报道，逐条释义，配以练习；附全书云图、系统总结、二十题习题，与一个不用密钥的猜术语小游戏。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
+<meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#f6f2e9">
+<style>
+/* 杂想暂时只对管理员开放：正文默认隐藏，账号状态明确后再决定是否放开 */
+#zx-gate{max-width:520px;margin:64px auto;padding:26px 24px 22px;background:#fffdf7;border:1px solid #e0d4bd;border-radius:14px;text-align:center;box-shadow:0 10px 26px rgba(60,44,18,.07)}
+#zx-gate h2{margin:0 0 8px;font-size:20px;letter-spacing:.02em}
+#zx-gate p{margin:0 0 10px;font-family:var(--sans);font-size:14px;line-height:1.8;color:#6b5b44}
+#zx-gate .zx-lock-actions{display:flex;gap:10px;justify-content:center;margin:18px 0 12px}
+#zx-gate .zx-lock-btn{font:600 14px/1 var(--sans);cursor:pointer;border:1px solid #b08d57;border-radius:999px;padding:11px 22px;background:#8a6a2f;color:#fff8e9;text-decoration:none}
+#zx-gate .zx-lock-btn:hover{background:#75571f}
+#zx-gate .zx-lock-btn.ghost{background:transparent;color:#7a5c22}
+#zx-gate .zx-lock-btn.ghost:hover{background:rgba(176,141,87,.12)}
+#zx-gate .zx-lock-hint{font-size:12px;color:#9a8a72;margin-bottom:0}
+#zx-gate[hidden],#zx-main[hidden]{display:none!important}
+</style>
 <link rel="stylesheet" href="assets/style.css">
 <link rel="stylesheet" href="assets/zaxiang.css">
 </head>
@@ -30,7 +44,18 @@
 
     <div id="site-header"></div>
 
-    <main class="zx">
+    <section id="zx-gate" aria-labelledby="zx-lock-title">
+        <h2 id="zx-lock-title">需要管理员账号</h2>
+        <p id="zx-lock-note">杂想暂时只对管理员开放。请先用管理员账号登录。</p>
+        <p class="zx-lock-actions">
+            <button type="button" class="zx-lock-btn" id="zx-lock-login">管理员登录</button>
+            <a class="zx-lock-btn ghost" href="index.html">回首页</a>
+        </p>
+        <p class="zx-lock-hint">登录后仍停在这里，说明这个账号不是管理员。</p>
+        <noscript><p class="zx-lock-hint">需要开启 JavaScript 才能登录。</p></noscript>
+    </section>
+
+    <main class="zx" id="zx-main" hidden>
 
         <header class="page-head">
             <p class="eyebrow">栏目</p>
@@ -1528,6 +1553,58 @@
 <script src="assets/zx-bank.js"></script>
 <script src="assets/zx-ai.js"></script>
 <script src="assets/zaxiang-game.js"></script>
+
+<script>
+/* 杂想暂时只对管理员开放 ------------------------------------------------------
+ * 正文默认 hidden，账号状态明确后：管理员放开，其他人只看到登录提示。
+ * 这只是「访客看不到」：正文仍在这份 HTML 里，懂技术的人查看源码能读到。
+ * 要真正挡住，需要服务端校验（例如 Cloudflare Access 或带鉴权的接口）。
+ */
+(function () {
+    var main = document.getElementById('zx-main');
+    var gate = document.getElementById('zx-gate');
+    var note = document.getElementById('zx-lock-note');
+    var btn = document.getElementById('zx-lock-login');
+    if (!main || !gate) { return; }
+
+    var settled = false, tries = 0;
+
+    function unlock() {
+        settled = true;
+        gate.hidden = true;
+        main.hidden = false;
+    }
+    function block(text) {
+        settled = true;
+        main.hidden = true;
+        gate.hidden = false;
+        if (note && text) { note.textContent = text; }
+    }
+    function check() {
+        var acc = window.ZBX_ACCOUNT;
+        if (!acc || typeof acc.ready !== 'function' || !acc.ready()) { return false; }
+        if (acc.isAdmin()) { unlock(); return true; }
+        block(acc.user()
+            ? '当前账号「' + acc.nick() + '」不是管理员。换管理员账号登录后再看。'
+            : '杂想暂时只对管理员开放。请先用管理员账号登录。');
+        return true;
+    }
+    if (btn) {
+        btn.addEventListener('click', function () {
+            if (window.ZBX_ACCOUNT && window.ZBX_ACCOUNT.openPanel) {
+                window.ZBX_ACCOUNT.openPanel('login');
+            }
+        });
+    }
+    document.addEventListener('zbx:account', function () { check(); });
+
+    (function loop() {
+        if (check() || settled) { return; }
+        if (++tries > 120) { block('账号状态读取失败：检查网络后刷新重试。'); return; }
+        setTimeout(loop, 125);
+    })();
+})();
+</script>
 
 </body>
 </html>
