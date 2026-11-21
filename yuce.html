@@ -512,30 +512,19 @@
         $('pred-raw').hidden = true;
     }
 
-    /* 只认 renju 规则：gomoku 与「混合」规则（Gomoku - Pro / Gomoku - Swap 2 /
-     * Swap gomoku + Taraguchi-10）一律不进下拉，落子预测也只服务 renju 局面。 */
-    function isRenjuRule(name) {
-        return !!name && !/gomoku/i.test(name);
-    }
-
     function loadRules() {
-        // 带时间戳绕开 r.jina.ai 等代理缓存，避免拿到旧的全量规则表
-        fetchViaProxy(buildUrl('/rules', { _: Date.now() })).then(function (list) {
+        fetchViaProxy(buildUrl('/rules', {})).then(function (list) {
             if (!Array.isArray(list) || !list.length) { return; }
             var sel = $('pred-rule');
             var current = sel.value;
-            var names = list
-                .filter(function (r) { return r && isRenjuRule(r.name); })
-                .map(function (r) { return r.name; });
-            if (!names.length) { return; }
             sel.innerHTML = '';
-            names.forEach(function (name) {
+            list.forEach(function (r) {
                 var op = document.createElement('option');
-                op.value = name;
-                op.textContent = name;
+                op.value = r.name;
+                op.textContent = r.name;
                 sel.appendChild(op);
             });
-            if (names.indexOf(current) >= 0) { sel.value = current; }
+            if (list.some(function (r) { return r.name === current; })) { sel.value = current; }
         }).catch(function () { /* 保留内置规则选项 */ });
     }
 
