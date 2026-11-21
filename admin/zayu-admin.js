@@ -246,7 +246,7 @@
     }
     if (kind === 'qipu') {
       return [x.event, Array.isArray(x.moves) ? x.moves.length + ' 手' : '',
-        x.rules].filter(Boolean).join(' · ');
+        x.rules, x.m5a ? '5A ' + x.m5a : ''].filter(Boolean).join(' · ');
     }
     if (kind === 'person') { return [x.dan, x.tag].filter(Boolean).join(' · '); }
     if (kind === 'person_page') {
@@ -378,7 +378,7 @@
   var INFO_PH = {
     '主办': '河南省高校棋类协会',
     '裁判': '潘冠臣',
-    '规则': '五手两打',
+    '规则': '五手两打 / 塔拉山口-10',
     '用时': '30 分钟，共用时后 5 分钟包干',
     '棋手': '8 人',
     '轮次': '3 轮',
@@ -513,18 +513,18 @@
       field('黑方（先手）姓名', 'p1', w.p1 || '', 'text', 'placeholder="例如：宋之杰"') +
       field('白方（后手）姓名', 'p2', w.p2 || '', 'text', 'placeholder="例如：张晋超"') +
       '</div>';
-    var ex = selectField('交换 / 规则', 'rules', w.rules || '', [
-      ['', '无交换'], ['五手两打', '五手两打'], ['三手交换', '三手交换'],
-      ['三手交换五手两打', '三手交换 + 五手两打'], ['自由开局', '自由开局']
-    ]);
+    var ex = selectField('规则', 'rules', w.rules || '', ruleList(w.rules || ''));
     var result = selectField('胜负结果', '_result', resultKey(w), [
       ['p1', '黑方（先手）胜'], ['p2', '白方（后手）胜'], ['draw', '和棋'], ['', '未定']
     ]);
-    var info = '<h3>交换与胜负</h3><div class="grid2">' + ex + result + '</div>' +
-      '<p class="hint" style="color:var(--muted);font-size:12px">选好胜负后会自动填写结果文字和胜者，不用手动改其它字段。</p>';
+    var m5a = field('5A（第五手被拿掉的点）', 'm5a', w.m5a || '', 'text',
+      'placeholder="例如：H8，多个点用空格分开"');
+    var info = '<h3>规则与胜负</h3><div class="grid2">' + ex + result + '</div>' + m5a +
+      '<p class="hint" style="color:var(--muted);font-size:12px">5A 填两打里被去掉的那一点；' +
+      '塔拉山口-10 填被否掉的第五手点，多个用空格分开。选好胜负会自动填写结果文字和胜者。</p>';
     var board = '<h3>在棋盘上录入落子<span class="badge">点交叉点落子，黑先白后自动交替</span></h3>' +
       '<div class="steps"><span><b>1</b> 填好双方姓名</span><span><b>2</b> 点棋盘落子</span>' +
-      '<span><b>3</b> 选交换与胜负</span><span><b>4</b> 点「保存修改」</span></div>' +
+      '<span><b>3</b> 选规则与胜负</span><span><b>4</b> 点「保存修改」</span></div>' +
       '<div class="chess-layout"><div class="chess-board-wrap">' +
       '<div class="board" id="chess-host"></div>' +
       '<div class="chess-ctrl">' +
@@ -616,6 +616,23 @@
    * 外观、坐标、手数标记与访客复盘时看到的完全一样。 */
   var COLS = 'ABCDEFGHIJKLMNO';
   function coord(i, j) { return COLS.charAt(i) + (15 - j); }
+
+  /* 5A 只认棋盘坐标（A–O、1–15），可写多个点；写错就报错，别把脏值存进棋谱 */
+  function norm5a(v) {
+    var raw = String(v == null ? '' : v).toUpperCase()
+      .replace(/[，,、\/|;；]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!raw) { return ''; }
+    var out = [];
+    raw.split(' ').forEach(function (pt) {
+      var m = /^([A-O])(1[0-5]|[1-9])$/.exec(pt.replace(/^5A[:：]?/, ''));
+      if (!m) {
+        throw new Error('5A 要写成棋盘坐标（A–O 与 1–15），例如 H8；「' + pt + '」看不懂');
+      }
+      var one = m[1] + m[2];
+      if (out.indexOf(one) < 0) { out.push(one); }
+    });
+    return out.join(' ');
+  }
   function movesOfBoard(b) {
     if (!b) { return []; }
     return b.getMoves().map(function (m) { return coord(m.i, m.j); });
@@ -695,12 +712,17 @@
       (turns ? ' · ' + turns + '手' : ' · 空') + '</button>';
   }
 
+  /* 比赛棋谱只记这两种规则；遇到旧数据里的其它写法原样留一项，免得保存时被清掉 */
+  var RULES = ['五手两打', '塔拉山口-10'];
+  function ruleList(v) {
+    var arr = [['', '（未填）']].concat(RULES.map(function (r) { return [r, r]; }));
+    if (v && RULES.indexOf(v) < 0) { arr.push([v, v]); }
+    return arr;
+  }
   function ruleOptions(v) {
-    return [['', '无交换'], ['五手两打', '五手两打'], ['三手交换', '三手交换'],
-      ['三手交换五手两打', '三手交换 + 五手两打'], ['自由开局', '自由开局']]
-      .map(function (o) {
-        return '<option value="' + esc(o[0]) + '"' + (o[0] === v ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
-      }).join('');
+    return ruleList(v).map(function (o) {
+      return '<option value="' + esc(o[0]) + '"' + (o[0] === v ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+    }).join('');
   }
   function resultOptions(v) {
     return [['p1', '黑方（先手）胜'], ['p2', '白方（后手）胜'], ['draw', '和棋'], ['', '未定']]
@@ -790,8 +812,10 @@
       '<span class="vs">黑先白后</span></div>' +
       '<div class="grid2">' +
       '<div class="field"><label>胜负</label><select id="rec-result">' + resultOptions(rk) + '</select></div>' +
-      '<div class="field"><label>交换 / 规则</label><select id="rec-rules">' + ruleOptions(doc ? (doc.rules || '') : '') + '</select></div>' +
+      '<div class="field"><label>规则</label><select id="rec-rules">' + ruleOptions(doc ? (doc.rules || '') : '') + '</select></div>' +
       '</div>' +
+      '<div class="field"><label>5A（第五手被拿掉的点）</label><input type="text" id="rec-m5a" value="' +
+      esc(doc ? (doc.m5a || '') : '') + '" placeholder="例如：H8，多个点用空格分开"></div>' +
       '<div class="field"><label>这一格对应哪份棋谱</label><select id="rec-link">' +
       links.map(function (o) {
         return '<option value="' + esc(o[0]) + '"' + (o[0] === curLink ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
@@ -819,13 +843,15 @@
     var s1 = $('rec-p1'), s2 = $('rec-p2');
     if (s1) { s1.focus(); s1.select(); }
     /* 弹窗里输入框自己保存到 REC，避免关掉再开会丢 */
-    [['rec-p1', 'p1'], ['rec-p2', 'p2'], ['rec-result', 'rk'], ['rec-rules', 'rules']].forEach(function (p) {
+    [['rec-p1', 'p1'], ['rec-p2', 'p2'], ['rec-result', 'rk'],
+      ['rec-rules', 'rules'], ['rec-m5a', 'm5a']].forEach(function (p) {
       var el = p[0] ? $(p[0]) : null;
       if (!el) { return; }
       el.addEventListener('input', function () { REC[p[1]] = el.value; });
       el.addEventListener('change', function () { REC[p[1]] = el.value; });
     });
     REC.p1 = black; REC.p2 = white; REC.rk = rk; REC.rules = doc ? (doc.rules || '') : '';
+    REC.m5a = doc ? (doc.m5a || '') : '';
   }
 
   function closeRecorder() {
@@ -882,6 +908,8 @@
     doc.p1 = p1;
     doc.p2 = p2;
     doc.rules = rules;
+    var m5a = norm5a(($('rec-m5a') || {}).value || '');
+    if (m5a) { doc.m5a = m5a; } else { delete doc.m5a; }
     doc.moves = moves;
     doc.turns = moves.length;
 
@@ -974,6 +1002,8 @@
         else { w.result = ''; w.resultText = ''; w.winner = ''; }
         delete w._result;
       }
+      w.m5a = norm5a(w.m5a);
+      if (!w.m5a) { delete w.m5a; }
       w.turns = (w.moves || []).length;
       w.roundLabel = '第 ' + num(w.round, 1) + ' 轮';
       w.id = num(S.cur, 0);
@@ -1051,7 +1081,7 @@
     }
     var seed = {};
     if (S.kind === 'competition') { seed = { title: id, date: '', info: [], intro: '', rounds: ['编号', '姓名', 'R1', '积分', '对手分', '中间对手分', '胜局数', '名次'], rows: [], qipu_ids: [] }; }
-    else if (S.kind === 'qipu') { seed = { event: '', date: '', round: 1, board: 1, p1: '', p2: '', rules: '', moves: [], winner: '', result: '' }; }
+    else if (S.kind === 'qipu') { seed = { event: '', date: '', round: 1, board: 1, p1: '', p2: '', rules: '', m5a: '', moves: [], winner: '', result: '' }; }
     else if (S.kind === 'person') { seed = { name: id, facts: [], honors: [], links: [] }; }
     else if (S.kind === 'person_page') { seed = { name: id, title: id, region: '', unit: '', dan: '', stats: [], bioHtml: '<p></p>' }; }
     else if (S.kind === 'rating') { seed = { name: id, rank: '', rating: '', region: '', uni: '' }; }

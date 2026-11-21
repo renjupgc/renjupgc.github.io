@@ -172,7 +172,8 @@
             (d.event || '') + ' · ' + (d.roundLabel || '') + ' · ' + d.turns + ' 手'));
         lead.appendChild(el('h3', 'qp-title', headline(d)));
         lead.appendChild(el('p', 'qp-meta',
-            [d.date, d.rules, d.board ? '第 ' + d.board + ' 台' : '']
+            [d.date, d.rules, d.board ? '第 ' + d.board + ' 台' : '',
+                d.m5a ? '5A 拿掉 ' + d.m5a : '']
                 .filter(Boolean).join(' · ')));
         head.appendChild(lead);
 
