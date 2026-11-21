@@ -170,11 +170,39 @@ function tableAt(tab, n) {
     return null;
 }
 
-/* 一个打点自己的结果：带撇号的点查 rp，其余查 r；落在表外就按原图标记归类
- * （a 记黑胜、c 记黑败、无前缀记平衡）。
+/* 原书有些打点不写 a/c，只写「x 打 xx%」——那个百分数是黑方胜率。
+ * 按胜率归档：50% 平衡、51–60 偏黑、61–70 黑小优、71–80 黑大优、
+ * 81–90 黑近胜、91 以上黑必胜；往白那边 49–41 偏白、40–31 白小优、
+ * 30–21 白大优、20–11 白近胜、10 以下白必胜。 */
+const PCT_BANDS = [
+    [91, 100, '黑必胜'], [81, 90, '黑近胜'], [71, 80, '黑大优'], [61, 70, '黑小优'],
+    [51, 60, '偏黑'], [50, 50, '平衡'], [41, 49, '偏白'], [31, 40, '白小优'],
+    [21, 30, '白大优'], [11, 20, '白近胜'], [0, 10, '白必胜']
+];
+
+/* 百分点 → 档次；没标或标得不合法就返回 null，交给后面的表/标记去定 */
+function pctRes(p) {
+    const n = Math.round(Number(p));
+    if (!(n >= 0 && n <= 100)) {
+        return null;
+    }
+    for (let k = 0; k < PCT_BANDS.length; k++) {
+        if (PCT_BANDS[k][0] <= n && n <= PCT_BANDS[k][1]) {
+            return PCT_BANDS[k][2];
+        }
+    }
+    return null;
+}
+
+/* 一个打点自己的结果：原书标了百分比的按百分比归档；否则查表（带撇号查 rp、
+ * 其余查 r），落在表外再按原图标记归类（a 记黑胜、c 记黑败、无前缀记平衡）。
  * 注意这里不能拿 resultAt 外推「表外一律黑败」：那张表是「给几打」的总账，
  * 表尾之后写不下的过渡点（例如恒缅的 4 打）本身是平衡，外推会把它们全判成白必胜。 */
 function pointRes(op, c) {
+    const byPct = c[6] == null ? null : pctRes(c[6]);
+    if (byPct) {
+        return byPct;
+    }
     const hit = tableAt((c[5] && op.rp) ? op.rp : op.r, c[2]);
     if (hit) {
         return hit;
@@ -222,6 +250,11 @@ function noteSide() {
 function labelOf(c) {
     return (c[3] === 0 ? 'a' : c[3] === 1 ? 'c' : '') + c[2] +
         (c[5] ? '′' : '') + (c[4] ? '?' : '');
+}
+
+/* 只标了百分比的那些点，补一句「· 50%」 */
+function pctText(c) {
+    return (c && c[6] != null && pctRes(c[6])) ? ' · ' + c[6] + '%' : '';
 }
 
 function startWith(item) {
@@ -360,7 +393,8 @@ function fbB(op) {
     const exact = g === 'ok';
     const fits = g === 'mid';
     const name = exact ? bucketOf(S.ansB).name : bucketOf(core).name;
-    const give = '黑方这次给的是 <b>' + S.n5 + ' 打</b>（原书标 ' + labelOf(S.five) + '）。';
+    const give = '黑方这次给的是 <b>' + S.n5 + ' 打</b>（原书标 ' + labelOf(S.five) +
+        pctText(S.five) + '）。';
     let tip;
     if (exact) {
         tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」，正落在「' + name + '」。';
@@ -370,11 +404,16 @@ function fbB(op) {
     } else {
         tip = give + S.n5 + ' 打摊下来是「' + say(raw) + '」，该归「' + name + '」。';
     }
+    const pctNote = S.five[6] == null ? '' :
+        '<p class="sd-note">这一点原书只标了 ' + S.n5 + ' 打 ' + S.five[6] +
+        '%（黑方胜率），按胜率归档：50% 平衡、51–60 偏黑、41–49 偏白、' +
+        '31–40 白小优、61–70 黑小优。</p>';
     return '<div class="sd-fb">' +
         '<span class="sd-verdict ' + (exact ? 'ok' : (fits ? 'mid' : 'bad')) + '">' +
         (exact ? '判断正确' : (fits ? '擦边，算半对' : '判断有误')) + '</span>' +
         '<p>' + tip + '</p>' +
         rowsHTML(op, S.n5, S.five) +
+        pctNote +
         '<p class="sd-note">表里到 ' + ((S.five[5] && op.rp) ? op.rp : op.r).slice(-1)[0][1] +
         ' 打为止；表外的点按原书标记归类（a 记黑胜、c 记黑败、无前缀记平衡），' +
         '十打这种摊到表外的总账才一律记黑败。</p></div>';

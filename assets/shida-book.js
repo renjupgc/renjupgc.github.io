@@ -84,8 +84,34 @@
             (c[5] ? '′' : '') + (c[4] ? '?' : '');
     }
 
-    /* 这一点自己的评估：带 ′ 的查原书右栏，表里没写到就按 a/c/无前缀归 */
+    /* 原书有的点只写「x 打 xx%」（黑方胜率），按胜率归档：
+     * 50% 平衡、51–60 偏黑、61–70 黑小优、71–80 黑大优、81–90 黑近胜、91+ 黑必胜；
+     * 49–41 偏白、40–31 白小优、30–21 白大优、20–11 白近胜、10 以下白必胜。 */
+    var PCT = [
+        [91, 100, '黑必胜'], [81, 90, '黑近胜'], [71, 80, '黑大优'], [61, 70, '黑小优'],
+        [51, 60, '偏黑'], [50, 50, '平衡'], [41, 49, '偏白'], [31, 40, '白小优'],
+        [21, 30, '白大优'], [11, 20, '白近胜'], [0, 10, '白必胜']
+    ];
+    function pctRes(p) {
+        var n = Math.round(Number(p));
+        if (!(n >= 0 && n <= 100)) {
+            return null;
+        }
+        for (var k = 0; k < PCT.length; k++) {
+            if (PCT[k][0] <= n && n <= PCT[k][1]) {
+                return PCT[k][2];
+            }
+        }
+        return null;
+    }
+
+    /* 这一点自己的评估：标了百分比的按胜率归档；带 ′ 的查原书右栏；
+     * 表里没写到就按 a/c/无前缀归（无前缀是中间档，别外推成黑败） */
     function resOf(op, c) {
+        var byPct = c[6] == null ? null : pctRes(c[6]);
+        if (byPct) {
+            return byPct;
+        }
         var tab = (c[5] && op.rp) ? op.rp : op.r;
         for (var k = 0; k < tab.length; k++) {
             if (tab[k][0] <= c[2] && c[2] <= tab[k][1]) {
@@ -247,7 +273,8 @@
             listBox.innerHTML = rows.map(function (r) {
                 return '<button class="kj-sd-chip is-' + tone(r.res) + '" type="button" data-i="' +
                     r.p.i + '" data-j="' + r.p.j + '" title="原书 ' + esc(label(r.c)) + ' · ' +
-                    r.c[2] + ' 打 · ' + esc(r.res) + '">' +
+                    r.c[2] + ' 打' + (r.c[6] != null ? ' ' + r.c[6] + '%' : '') + ' · ' +
+                    esc(r.res) + '">' +
                     '<b>' + r.c[2] + '</b>' +
                     '<span class="kj-sd-at">' + coord(r.p) + (r.c[5] ? '′' : '') + '</span>' +
                     '<span class="kj-sd-res">' + esc(r.res) + '</span>' +
