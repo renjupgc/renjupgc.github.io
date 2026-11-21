@@ -135,6 +135,31 @@ function resultAt(op, n) {
 
 const tenResult = (op) => resultAt(op, 10);
 
+/* 只查表，不外推 */
+function tableAt(tab, n) {
+    if (!tab) {
+        return null;
+    }
+    for (let k = 0; k < tab.length; k++) {
+        if (tab[k][0] <= n && n <= tab[k][1]) {
+            return tab[k][2];
+        }
+    }
+    return null;
+}
+
+/* 一个打点自己的结果：带撇号的点查 rp，表里没写到就按原图的 a/c 归类 */
+function pointRes(op, c) {
+    if (!c[5]) {
+        return resultAt(op, c[2]);
+    }
+    const hit = tableAt(op.rp, c[2]);
+    if (hit) {
+        return hit;
+    }
+    return c[3] === 0 ? '黑胜' : c[3] === 1 ? '黑败' : '平衡';
+}
+
 /* 书里最多给到几打还站得住 */
 function maxGood(op) {
     let best = 0;
@@ -180,7 +205,8 @@ function noteSide() {
 
 /* 原书标号：a3、c10?、6 */
 function labelOf(c) {
-    return (c[3] === 0 ? 'a' : c[3] === 1 ? 'c' : '') + c[2] + (c[4] ? '?' : '');
+    return (c[3] === 0 ? 'a' : c[3] === 1 ? 'c' : '') + c[2] +
+        (c[5] ? '′' : '') + (c[4] ? '?' : '');
 }
 
 function startWith(op) {
@@ -221,12 +247,13 @@ function startQuestion() {
 /* ---------- 文案 ---------- */
 
 /* 打数表：highlight 那一档加粗标出来 */
-function rowsHTML(op, pick) {
-    const rows = op.r.map(function (row) {
+function rowsHTML(op, pick, prime) {
+    const tab = (prime && op.rp) ? op.rp : op.r;
+    const rows = tab.map(function (row) {
         return { a: row[0], b: row[1], res: row[2], hit: row[0] <= pick && pick <= row[1] };
     });
     if (!rows.some((r) => r.hit)) {
-        const made = { a: pick, b: pick, res: resultAt(op, pick), hit: true, guess: true };
+        const made = { a: pick, b: pick, res: tableAt(tab, pick) || '黑败', hit: true, guess: true };
         let at = rows.findIndex((r) => r.a > pick);
         if (at < 0) {
             rows.push(made);
@@ -234,7 +261,9 @@ function rowsHTML(op, pick) {
             rows.splice(at, 0, made);
         }
     }
-    let html = '<table class="sd-table"><tr><th>打数</th><th>书上评估</th></tr>';
+    let html = '<div class="sd-table-cap">' + (prime ? '撇号那一点的打数表（原书 ′ 栏）' : '打数表') +
+        '</div>';
+    html += '<table class="sd-table"><tr><th>打数</th><th>书上评估</th></tr>';
     rows.forEach(function (r) {
         const lab = (r.a === r.b ? String(r.a) : r.a + '–' + r.b) + ' 打';
         html += '<tr class="' + (r.hit ? 'is-pick' : '') + '"><td>' + lab +
@@ -279,7 +308,7 @@ function doneHTML(op) {
 }
 
 function fbB(op) {
-    const raw = resultAt(op, S.n5);
+    const raw = pointRes(op, S.five);
     const truth = cat(raw);
     const core = CORE[truth] || 3;
     const g = gradeB(S.ansB, truth);
@@ -300,8 +329,8 @@ function fbB(op) {
         '<span class="sd-verdict ' + (exact ? 'ok' : (fits ? 'mid' : 'bad')) + '">' +
         (exact ? '判断正确' : (fits ? '擦边，算半对' : '判断有误')) + '</span>' +
         '<p>' + tip + '</p>' +
-        rowsHTML(op, S.n5) +
-        '<p class="sd-note">表里到 ' + op.r[op.r.length - 1][1] +
+        rowsHTML(op, S.n5, S.five[5]) +
+        '<p class="sd-note">表里到 ' + ((S.five[5] && op.rp) ? op.rp : op.r).slice(-1)[0][1] +
         ' 打为止，再往上书里一律记黑败。</p></div>';
 }
 
@@ -339,7 +368,7 @@ function sideHTML() {
     BUCKETS.forEach(function (b) {
         let cls = 'sd-opt';
         if (!bOpen) {
-            const truth = cat(resultAt(op, S.n5));
+            const truth = cat(pointRes(op, S.five));
             const g = gradeB(b.key, truth);
             if (g === 'ok') {
                 cls += ' is-ok';
@@ -398,7 +427,7 @@ function bindSide() {
             }
             btn.addEventListener('click', function () {
                 const key = Number(btn.getAttribute('data-b'));
-                const truth = cat(resultAt(S.cur, S.n5));
+                const truth = cat(pointRes(S.cur, S.five));
                 const g = gradeB(key, truth);
                 S.ansB = key;
                 S.phase = 2;
@@ -478,13 +507,25 @@ const W = {
 /* 书里的打点摊成一张表：n 是第几打，res 是这一打的结果 */
 function wsCands(op) {
     return op.c.map(function (c) {
-        return { i: c[0], j: c[1], n: c[2], res: cat(resultAt(op, c[2])), raw: c };
+        return { i: c[0], j: c[1], n: c[2], res: cat(pointRes(op, c)), raw: c };
     });
 }
 
 /* 黑方最强的两手 = 打数最小的两个点 */
 function wsTop2(op) {
-    return wsCands(op).sort(function (a, b) { return a.n - b.n; }).slice(0, 2);
+    const list = wsCands(op).sort(function (a, b) {
+        if (a.n !== b.n) {
+            return a.n - b.n;
+        }
+        return WSCORE[b.res] - WSCORE[a.res];
+    });
+    const out = [];
+    list.forEach(function (c) {
+        if (out.length < 2 && !out.some((o) => o.n === c.n)) {
+            out.push(c);
+        }
+    });
+    return out;
 }
 
 /* 白方最舒服的两手：白优在前，同档时打数大的更松，排前面 */

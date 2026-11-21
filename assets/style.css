@@ -6862,6 +6862,18 @@ table.ratings .r-name a:hover {
     color: #a8453f;
 }
 
+.sd-table-cap {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+}
+
+.sd-table-cap + .sd-table {
+    margin-top: 2px;
+}
+
 .sd-table {
     width: 100%;
     margin-top: 8px;
