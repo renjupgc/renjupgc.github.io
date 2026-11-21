@@ -689,6 +689,38 @@ function wsAnswerSwap(word) {
     wsRender();
 }
 
+/* 棋盘自身的 8 种对称（以盘心为轴）。只拿「能把这个局面原样映回自己」的
+ * 那几种来比：局面若不对称，任何镜像点都是另一个真正的打点，不该拦；
+ * 局面若关于某条轴/对角线对称，两点落在同一轨道上才是同一个打点的镜像。
+ * 五手两打要的是两个不同的打点，所以第二种情况直接退回重选。 */
+const WS_SYM = [
+    function (i, j) { return [14 - i, j]; },
+    function (i, j) { return [i, 14 - j]; },
+    function (i, j) { return [14 - i, 14 - j]; },
+    function (i, j) { return [j, i]; },
+    function (i, j) { return [14 - j, 14 - i]; },
+    function (i, j) { return [14 - j, i]; },
+    function (i, j) { return [j, 14 - i]; }
+];
+/* 这个局面的自同构：把四手原样映回自己的那些变换 */
+function wsSym(op) {
+    const stones = (op && op.m) || [];
+    const seen = {};
+    stones.forEach(function (s) { seen[s[0] + ',' + s[1] + ',' + s[2]] = 1; });
+    return WS_SYM.filter(function (f) {
+        return stones.every(function (s) {
+            const p = f(s[0], s[1]);
+            return seen[p[0] + ',' + p[1] + ',' + s[2]] === 1;
+        });
+    });
+}
+function wsMirror(op, a, b) {
+    return wsSym(op).some(function (f) {
+        const p = f(a.i, a.j);
+        return p[0] === b.i && p[1] === b.j;
+    });
+}
+
 function wsPoint(p) {
     const op = W.op;
     if (!p || p.i < 0 || p.i > 14 || p.j < 0 || p.j > 14) {
@@ -701,6 +733,11 @@ function wsPoint(p) {
         return;
     }
     if (W.picks.length >= 2 || W.picks.some(function (q) { return q.i === p.i && q.j === p.j; })) {
+        return;
+    }
+    if (W.picks.length === 1 && wsMirror(op, W.picks[0], p)) {
+        W.msg = '这两点在当前局面上互为对称，等于同一个打点，换一个。';
+        wsRender();
         return;
     }
     W.picks.push({ i: p.i, j: p.j });
