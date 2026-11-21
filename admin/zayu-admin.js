@@ -518,10 +518,11 @@
       ['p1', '黑方（先手）胜'], ['p2', '白方（后手）胜'], ['draw', '和棋'], ['', '未定']
     ]);
     var m5a = field('5A（第五手被拿掉的点）', 'm5a', w.m5a || '', 'text',
-      'placeholder="例如：H8，多个点用空格分开"');
+      'placeholder="坐标 H8 或 第5手，多个用空格分开"');
     var info = '<h3>规则与胜负</h3><div class="grid2">' + ex + result + '</div>' + m5a +
-      '<p class="hint" style="color:var(--muted);font-size:12px">5A 填两打里被去掉的那一点；' +
-      '塔拉山口-10 填被否掉的第五手点，多个用空格分开。选好胜负会自动填写结果文字和胜者。</p>';
+      '<p class="hint" style="color:var(--muted);font-size:12px">5A 填被拿掉的那一点：' +
+      '棋盘坐标（H8）或第几手（5、第五手）都行，多个用空格分开。' +
+      '选好胜负会自动填写结果文字和胜者。</p>';
     var board = '<h3>在棋盘上录入落子<span class="badge">点交叉点落子，黑先白后自动交替</span></h3>' +
       '<div class="steps"><span><b>1</b> 填好双方姓名</span><span><b>2</b> 点棋盘落子</span>' +
       '<span><b>3</b> 选规则与胜负</span><span><b>4</b> 点「保存修改」</span></div>' +
@@ -617,19 +618,46 @@
   var COLS = 'ABCDEFGHIJKLMNO';
   function coord(i, j) { return COLS.charAt(i) + (15 - j); }
 
-  /* 5A 只认棋盘坐标（A–O、1–15），可写多个点；写错就报错，别把脏值存进棋谱 */
+  /* 5A 支持两种写法，可混填多个，用空格分开：
+   *   棋盘坐标 H8（A–O 与 1–15）；
+   *   第几手 5 / 第5手 / 第五手，统一记成「第5手」。
+   * 写别的就报错，别把脏值存进棋谱。 */
+  var CN_NUM = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+
+  /* 「第五手」「十二」「二十」这类中文数字，认不出就返回 0 */
+  function cnNum(t) {
+    if (/^十$/.test(t)) { return 10; }
+    var a = /^([一二三四五六七八九])?十([一二三四五六七八九])?$/.exec(t);
+    if (a) { return (a[1] ? CN_NUM[a[1]] : 1) * 10 + (a[2] ? CN_NUM[a[2]] : 0); }
+    if (t.length === 1 && CN_NUM[t]) { return CN_NUM[t]; }
+    return 0;
+  }
+
   function norm5a(v) {
     var raw = String(v == null ? '' : v).toUpperCase()
       .replace(/[，,、\/|;；]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (!raw) { return ''; }
     var out = [];
     raw.split(' ').forEach(function (pt) {
-      var m = /^([A-O])(1[0-5]|[1-9])$/.exec(pt.replace(/^5A[:：]?/, ''));
-      if (!m) {
-        throw new Error('5A 要写成棋盘坐标（A–O 与 1–15），例如 H8；「' + pt + '」看不懂');
+      var w = pt.replace(/^5A[:：]?/, '');
+      var m = /^([A-O])(1[0-5]|[1-9])$/.exec(w);
+      if (m) {
+        var one = m[1] + m[2];
+        if (out.indexOf(one) < 0) { out.push(one); }
+        return;
       }
-      var one = m[1] + m[2];
-      if (out.indexOf(one) < 0) { out.push(one); }
+      var n = /^第?([0-9]{1,3})手?$/.exec(w);
+      var num = n ? parseInt(n[1], 10) : 0;
+      if (!num) {
+        n = /^第?([一二三四五六七八九十]{1,3})手?$/.exec(w);
+        num = n ? cnNum(n[1]) : 0;
+      }
+      if (!num) {
+        throw new Error('5A 要填棋盘坐标（例如 H8）或第几手（例如 5、第五手）；「' +
+          pt + '」看不懂');
+      }
+      var mv = '第' + num + '手';
+      if (out.indexOf(mv) < 0) { out.push(mv); }
     });
     return out.join(' ');
   }
@@ -815,7 +843,7 @@
       '<div class="field"><label>规则</label><select id="rec-rules">' + ruleOptions(doc ? (doc.rules || '') : '') + '</select></div>' +
       '</div>' +
       '<div class="field"><label>5A（第五手被拿掉的点）</label><input type="text" id="rec-m5a" value="' +
-      esc(doc ? (doc.m5a || '') : '') + '" placeholder="例如：H8，多个点用空格分开"></div>' +
+      esc(doc ? (doc.m5a || '') : '') + '" placeholder="坐标 H8 或 第5手，多个用空格分开"></div>' +
       '<div class="field"><label>这一格对应哪份棋谱</label><select id="rec-link">' +
       links.map(function (o) {
         return '<option value="' + esc(o[0]) + '"' + (o[0] === curLink ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
