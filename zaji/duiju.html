@@ -357,7 +357,7 @@
 
 .dj-custom-clock {
     display: none;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr;
     gap: 10px;
     margin: 10px 0 0;
 }
@@ -375,11 +375,12 @@
 
 .dj-seg {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
 }
 
 .dj-seg button {
-    flex: 1;
+    flex: 1 0 72px;
     padding: 9px 0;
     border-radius: 9px;
     border: 1px solid rgba(201, 168, 111, 0.26);
@@ -488,6 +489,7 @@
 @media (max-width: 460px) {
     .dj-two { display: block; }
     .dj-col + .dj-col { margin-top: 10px; }
+    .dj-custom-clock { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {
@@ -591,20 +593,27 @@
                     </div>
 
                     <div class="dj-field">
-                        <label>用时</label>
+                        <label>计时方式</label>
                         <div class="dj-seg">
-                            <button type="button" data-preset="std" class="is-on">10 分 + 5 秒</button>
-                            <button type="button" data-preset="fast">5 分 + 3 秒</button>
-                            <button type="button" data-preset="long">15 分 + 10 秒</button>
+                            <button type="button" data-preset="main30" class="is-on">包干 30 分</button>
+                            <button type="button" data-preset="main60">包干 60 分</button>
+                            <button type="button" data-preset="inc20">20 分 + 5 秒</button>
+                            <button type="button" data-preset="inc45">45 分 + 30 秒</button>
                             <button type="button" data-preset="custom">自定义</button>
-                            <button type="button" data-preset="none">不限时</button>
                         </div>
                         <div class="dj-custom-clock" id="dj-custom-clock">
                             <div class="dj-field">
-                                <label for="dj-main-minutes">每方基本用时（分钟）</label>
-                                <input id="dj-main-minutes" type="number" min="1" max="180" step="1" value="10" inputmode="numeric">
+                                <label>计时规则</label>
+                                <div class="dj-seg" id="dj-clock-mode">
+                                    <button type="button" data-clock-mode="sudden" class="is-on">包干</button>
+                                    <button type="button" data-clock-mode="increment">加秒</button>
+                                </div>
                             </div>
                             <div class="dj-field">
+                                <label for="dj-main-minutes">每方基本用时（分钟）</label>
+                                <input id="dj-main-minutes" type="number" min="1" max="180" step="1" value="30" inputmode="numeric">
+                            </div>
+                            <div class="dj-field" id="dj-custom-inc">
                                 <label for="dj-inc-seconds">每手加秒（秒）</label>
                                 <input id="dj-inc-seconds" type="number" min="0" max="60" step="1" value="5" inputmode="numeric">
                             </div>
@@ -616,7 +625,7 @@
                         <button type="button" class="dj-btn dj-btn-gold" id="dj-join">进房间</button>
                     </div>
 
-                    <p class="dj-note"><b>无禁手五子棋</b>，黑先，连成五个或更多即胜。落子后要自己<b>拍钟</b>，时间才交给对方；六秒没拍，钟替你拍。</p>
+                    <p class="dj-note"><b>无禁手五子棋</b>，黑先，连成五个或更多即胜。先落座者选择计时方式，双方同步。落子后要自己<b>拍钟</b>，时间才交给对方；六秒没拍，钟替你拍。</p>
                 </div>
 
                 <div class="dj-card" id="dj-lobby-wait" hidden>
@@ -651,8 +660,8 @@
                     <h2>怎么下</h2>
                     <p><b>落子</b>：鼠标移到交叉点上会出现一颗半透明的子，点一下就伸手去棋盒里拿子、落到那个点。拖动可以转一点头，滚轮靠近或退远。</p>
                     <p><b>拍钟</b>：真下棋的时候，落完子得用手背拍一下棋钟，时间才交给对方。这里一样——落完子那块「拍钟」会亮起来，点它、点右边桌上的钟、或者按空格都行。六秒不拍，钟替你拍。</p>
-                    <p><b>棋钟</b>：开局前可选择预设，也可以自定义每方 1–180 分钟、每手加 0–60 秒。落子后用完加秒，时间归零判负；刷新页面会自动回房并同步双方时间。</p>
-                    <p><b>全屏</b>：点右下方「全屏」或按 F，可以把整张棋桌铺满屏幕，再按一次退出。</p>
+                    <p><b>棋钟</b>：包干可选每方 30 或 60 分钟，加秒可选 20+5 或 45+30，也可分别自定义。包干只扣基本用时；加秒制在拍钟后增加对应秒数，时间归零判负。</p>
+                    <p><b>全屏</b>：点右下方「全屏」或按 F，进入浏览器原生全屏并尽量锁定横屏。视角固定，只有你拖动或缩放时才会移动。</p>
                     <p><b>联机</b>：房间号就是频道号，两个人报同一个号就在同一张桌。对局中刷新网页会自动恢复原座位和棋局，不用重新报房间号。实时服务连不上时会自动切到本机模式，同一个浏览器开两个标签页也能对下。</p>
                     <p><b>规则</b>：无禁手五子棋，15 路，黑先，连成五个或更多即胜，填满棋盘未成五者算和。</p>
                     <div class="dj-row">

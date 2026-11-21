@@ -20,19 +20,19 @@
     var WHITE = 2, BLACK = 1;
 
     var PRESETS = [
-        { id: 'std', label: '10 分 + 5 秒', main: 600000, inc: 5000 },
-        { id: 'fast', label: '5 分 + 3 秒', main: 300000, inc: 3000 },
-        { id: 'long', label: '15 分 + 10 秒', main: 900000, inc: 10000 },
-        { id: 'custom', label: '自定义', main: 600000, inc: 5000 },
-        { id: 'none', label: '不限时', main: 0, inc: 0 }
+        { id: 'main30', label: '包干 30 分', mode: 'sudden', main: 1800000, inc: 0 },
+        { id: 'main60', label: '包干 60 分', mode: 'sudden', main: 3600000, inc: 0 },
+        { id: 'inc20', label: '20 分 + 5 秒', mode: 'increment', main: 1200000, inc: 5000 },
+        { id: 'inc45', label: '45 分 + 30 秒', mode: 'increment', main: 2700000, inc: 30000 },
+        { id: 'custom', label: '自定义', mode: 'sudden', main: 1800000, inc: 0 }
     ];
 
     var S = {
         id: '',
         name: '',
         want: 'any',
-        preset: 'std',
-        conf: { main: 600000, inc: 5000 },
+        preset: 'main30',
+        conf: { mode: 'sudden', main: 1800000, inc: 0 },
         code: '',
         net: null,
         myColor: 0,          // 1 黑 2 白
@@ -127,7 +127,11 @@
 
     function restoreSnapshot(snap) {
         if (!snap || !snap.conf || !Array.isArray(snap.moves)) { return; }
-        var conf = { main: Math.max(0, Number(snap.conf.main) || 0), inc: Math.max(0, Number(snap.conf.inc) || 0) };
+        var conf = {
+            mode: snap.conf.mode === 'increment' ? 'increment' : 'sudden',
+            main: Math.max(0, Number(snap.conf.main) || 0),
+            inc: Math.max(0, Number(snap.conf.inc) || 0)
+        };
         resetGame(conf);
         var seen = new Uint8Array(N * N);
         for (var i = 0; i < snap.moves.length && i < N * N; i++) {
@@ -235,6 +239,8 @@
         lastClocks = { 1: '', 2: '' };
         clockDigest = '';
         if (T) {
+            if (T.cancelAnimation) { T.cancelAnimation(); }
+            if (S.myColor && T.refillBowls) { T.refillBowls(); }
             T.clearStones();
             T.setWin(null);
             T.markLast(null);
@@ -247,6 +253,7 @@
 
     function beginSeated() {
         S.phase = 'seated';
+        S.lastPingFromPeer = performance.now();
         showOverlay(null);
         el.hud.hidden = false;
         el.code.textContent = S.code;
@@ -516,7 +523,11 @@
         S.peerId = S.myColor === BLACK ? m.white : m.black;
         S.peerName = (m.names && m.names[S.myColor === BLACK ? m.white : m.black]) || '棋友';
         var conf = m.conf || S.conf;
-        S.conf = { main: conf.main | 0, inc: conf.inc | 0 };
+        S.conf = {
+            mode: conf.mode === 'increment' ? 'increment' : 'sudden',
+            main: conf.main | 0,
+            inc: conf.inc | 0
+        };
         S.phase = 'seated';
         beginSeated();
         if (pendingRestore && pendingRestore.code === S.code) {
@@ -529,7 +540,7 @@
 
     function dispatch(m) {
         if (!m || !m.t) { return; }
-        if (m.t !== 'ping') { S.lastPingFromPeer = performance.now(); }
+        S.lastPingFromPeer = performance.now();
 
         switch (m.t) {
             case 'hello':
@@ -565,7 +576,7 @@
                         t: 'assign',
                         black: seats.me === BLACK ? S.id : m.id,
                         white: seats.me === BLACK ? m.id : S.id,
-                        conf: { main: S.conf.main, inc: S.conf.inc },
+                        conf: { mode: S.conf.mode, main: S.conf.main, inc: S.conf.inc },
                         names: names
                     };
                     /* 广播收不到自己发的，房主也得照这份座位表坐下 */
@@ -679,13 +690,16 @@
         S.want = saved ? (saved.want || 'any') : el.seatBtns.filter(function (b) { return b.classList.contains('is-on'); })[0].dataset.want;
         S.preset = saved ? (saved.preset || 'custom') : el.presetBtns.filter(function (b) { return b.classList.contains('is-on'); })[0].dataset.preset;
         var p = PRESETS.filter(function (x) { return x.id === S.preset; })[0] || PRESETS[0];
-        S.conf = saved ? { main: saved.conf.main, inc: saved.conf.inc } : { main: p.main, inc: p.inc };
+        S.conf = saved
+            ? { mode: saved.conf.mode === 'increment' ? 'increment' : 'sudden', main: saved.conf.main, inc: saved.conf.inc }
+            : { mode: p.mode, main: p.main, inc: p.inc };
         if (!saved && S.preset === 'custom') {
-            var minutes = Math.max(1, Math.min(180, Math.round(Number(el.mainMinutes.value) || 10)));
-            var increment = Math.max(0, Math.min(60, Math.round(Number(el.incSeconds.value) || 0)));
+            var minutes = Math.max(1, Math.min(180, Math.round(Number(el.mainMinutes.value) || 30)));
+            var mode = selectedClockMode();
+            var increment = mode === 'increment' ? Math.max(0, Math.min(60, Math.round(Number(el.incSeconds.value) || 0))) : 0;
             el.mainMinutes.value = minutes;
             el.incSeconds.value = increment;
-            S.conf = { main: minutes * 60000, inc: increment * 1000 };
+            S.conf = { mode: mode, main: minutes * 60000, inc: increment * 1000 };
         }
         pendingRestore = saved;
 
@@ -694,6 +708,7 @@
             localStorage.setItem('zbx-dj-preset', S.preset);
             localStorage.setItem('zbx-dj-main', String(S.conf.main / 60000));
             localStorage.setItem('zbx-dj-inc', String(S.conf.inc / 1000));
+            localStorage.setItem('zbx-dj-clock-mode', S.conf.mode);
         } catch (e) { /* 隐私模式忽略 */ }
 
         if (S.net) { S.net.close(); }
@@ -715,10 +730,17 @@
             onStatus: function (mode) {
                 if (mode === 'online') {
                     el.waitNote.textContent = '房间已开好，把号子告诉棋友，等他进来。';
+                    if (S.myColor) {
+                        toast('连接已恢复，正在同步棋局');
+                        send({ t: 'hello', id: S.id, name: S.name, want: S.want });
+                    }
                 } else if (mode === 'local') {
                     el.waitNote.textContent = '实时服务没连上，已切到本机模式：同一个浏览器开两个标签页，进同一个房间号可以对下。';
-                } else if (mode === 'slow') {
-                    el.waitNote.textContent = '实时服务响应很慢，正在换本机模式…';
+                } else if (mode === 'reconnecting') {
+                    el.waitNote.textContent = '连接中断，正在自动重连；棋局已保留。';
+                    if (S.myColor) { toast('网络波动，正在自动重连'); }
+                } else if (mode === 'error') {
+                    el.waitNote.textContent = '暂时无法连接，请检查网络后刷新，棋局会尝试恢复。';
                 }
             }
         });
@@ -825,39 +847,54 @@
     /* ---------- 全屏 ---------- */
 
     function isFullscreen() {
-        return document.fullscreenElement === el.stage || el.stage.classList.contains('dj-fullscreen');
+        return document.fullscreenElement === el.stage;
     }
 
     function updateFullscreenButton() {
         if (el.fullscreenBtn) { el.fullscreenBtn.textContent = isFullscreen() ? '退出全屏' : '全屏'; }
+        if (!isFullscreen() && screen.orientation && screen.orientation.unlock) {
+            try { screen.orientation.unlock(); } catch (e) { /* 部分浏览器不允许解锁 */ }
+        }
         if (T) { window.setTimeout(function () { if (T) { T.resize(); } }, 60); }
     }
 
-    function fallbackFullscreen(on) {
-        el.stage.classList.toggle('dj-fullscreen', on);
-        document.body.style.overflow = on ? 'hidden' : '';
-        updateFullscreenButton();
+    function lockLandscape() {
+        if (screen.orientation && screen.orientation.lock) {
+            try {
+                var locked = screen.orientation.lock('landscape');
+                if (locked && locked.catch) { locked.catch(function () { /* 桌面端可能不支持锁向 */ }); }
+            } catch (e) { /* 全屏仍然可用 */ }
+        }
     }
 
     function toggleFullscreen() {
-        if (document.fullscreenElement === el.stage) {
+        if (isFullscreen()) {
             if (document.exitFullscreen) { document.exitFullscreen(); }
             return;
         }
-        if (el.stage.classList.contains('dj-fullscreen')) { fallbackFullscreen(false); return; }
-        if (el.stage.requestFullscreen) {
-            try {
-                var request = el.stage.requestFullscreen();
-                if (request && request.catch) { request.catch(function () { fallbackFullscreen(true); }); }
-            } catch (e) { fallbackFullscreen(true); }
-        } else {
-            fallbackFullscreen(true);
+        if (!el.stage.requestFullscreen) {
+            toast('当前浏览器不支持原生全屏，请横屏后使用最新版浏览器');
+            return;
         }
+        try {
+            var request = el.stage.requestFullscreen({ navigationUI: 'hide' });
+            if (request && request.then) {
+                request.then(lockLandscape).catch(function () { toast('浏览器未允许全屏，请再点一次'); });
+            } else {
+                lockLandscape();
+            }
+        } catch (e) { toast('浏览器未允许全屏，请再点一次'); }
+    }
+
+    function selectedClockMode() {
+        var selected = el.clockModeBtns.filter(function (b) { return b.classList.contains('is-on'); })[0];
+        return selected && selected.dataset.clockMode === 'increment' ? 'increment' : 'sudden';
     }
 
     function updateCustomClock() {
         var selected = el.presetBtns.filter(function (b) { return b.classList.contains('is-on'); })[0];
         el.customClock.classList.toggle('is-on', !!selected && selected.dataset.preset === 'custom');
+        el.customInc.hidden = selectedClockMode() !== 'increment';
     }
 
     function bindUI() {
@@ -885,6 +922,14 @@
             b.addEventListener('click', function () {
                 el.seatBtns.forEach(function (o) { o.classList.remove('is-on'); });
                 b.classList.add('is-on');
+            });
+        });
+
+        el.clockModeBtns.forEach(function (b) {
+            b.addEventListener('click', function () {
+                el.clockModeBtns.forEach(function (o) { o.classList.remove('is-on'); });
+                b.classList.add('is-on');
+                updateCustomClock();
             });
         });
 
@@ -975,7 +1020,7 @@
         /* 动画按小步走，免得切回标签页时一跳；
            棋钟按真实流逝算——切到别的窗口不等于时间停了。 */
         var dt = Math.min(0.06, span);
-        var dtReal = Math.min(600, span);
+        var dtReal = Math.max(0, span);
 
         stepClocks(dtReal);
         if (S.code && now - lastSessionSave > 2000) {
@@ -988,6 +1033,10 @@
         if (S.pingAt > 4 && S.net && (S.phase === 'seated' || S.phase === 'waiting')) {
             S.pingAt = 0;
             send({ t: 'ping' });
+        }
+        if (S.phase === 'seated' && S.lastPingFromPeer && performance.now() - S.lastPingFromPeer > 20000) {
+            S.lastPingFromPeer = performance.now();
+            send({ t: 'hello', id: S.id, name: S.name, want: S.want });
         }
 
         T.frame(dt);
@@ -1026,8 +1075,10 @@
         el.seatBtns = Array.prototype.slice.call(document.querySelectorAll('[data-want]'));
         el.presetBtns = Array.prototype.slice.call(document.querySelectorAll('[data-preset]'));
         el.customClock = $('dj-custom-clock');
+        el.customInc = $('dj-custom-inc');
         el.mainMinutes = $('dj-main-minutes');
         el.incSeconds = $('dj-inc-seconds');
+        el.clockModeBtns = Array.prototype.slice.call(document.querySelectorAll('[data-clock-mode]'));
 
         el.press = $('dj-press');
         el.resign = $('dj-resign');
@@ -1096,8 +1147,15 @@
                     b.classList.toggle('is-on', b.dataset.preset === preset);
                 });
             }
-            el.mainMinutes.value = localStorage.getItem('zbx-dj-main') || '10';
+            if (!el.presetBtns.some(function (b) { return b.classList.contains('is-on'); })) {
+                el.presetBtns[0].classList.add('is-on');
+            }
+            el.mainMinutes.value = localStorage.getItem('zbx-dj-main') || '30';
             el.incSeconds.value = localStorage.getItem('zbx-dj-inc') || '5';
+            var savedMode = localStorage.getItem('zbx-dj-clock-mode') || 'sudden';
+            el.clockModeBtns.forEach(function (b) {
+                b.classList.toggle('is-on', b.dataset.clockMode === savedMode);
+            });
             updateCustomClock();
         } catch (e) { /* noop */ }
 

@@ -54,6 +54,9 @@
         var t = new THREE.CanvasTexture(c);
         t.encoding = THREE.sRGBEncoding;
         t.anisotropy = 16;
+        t.magFilter = THREE.LinearFilter;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        t.generateMipmaps = true;
         if (repeat) {
             t.wrapS = t.wrapT = THREE.RepeatWrapping;
             t.repeat.set(repeat[0], repeat[1]);
@@ -232,7 +235,7 @@
             alpha: false,
             powerPreference: 'high-performance'
         });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3));
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.18;
@@ -446,10 +449,10 @@
         var bowlR = 3.05;
         var bowlProfile = [
             new THREE.Vector2(0.02, 0.02),
-            new THREE.Vector2(2.1, 0.06),
-            new THREE.Vector2(2.52, 0.5),
-            new THREE.Vector2(2.86, 1.15),
-            new THREE.Vector2(3.02, 1.72)
+            new THREE.Vector2(2.35, 0.06),
+            new THREE.Vector2(2.88, 0.5),
+            new THREE.Vector2(3.25, 1.15),
+            new THREE.Vector2(3.48, 1.82)
         ];
         var bowlGeo = new THREE.LatheGeometry(bowlProfile, 48);
         var bowlMat = new THREE.MeshStandardMaterial({
@@ -468,7 +471,7 @@
 
             /* 内壁的暗影 */
             var inner = new THREE.Mesh(
-                new THREE.CircleGeometry(2.78, 40),
+                new THREE.CircleGeometry(3.2, 48),
                 new THREE.MeshStandardMaterial({ color: 0x140c06, roughness: 1 })
             );
             inner.rotation.x = -Math.PI / 2;
@@ -490,16 +493,16 @@
         function fillBowl(bowl, color) {
             var heap = bowl.userData.heap;
             while (heap.children.length) { heap.remove(heap.children[0]); }
-            /* 三层共 78 颗，远看是装满的棋罐，近看也有自然的堆叠。 */
-            for (var i = 0; i < 78; i++) {
+            /* 四层共 132 颗，棋罐加深加大，足够一整盘使用。 */
+            for (var i = 0; i < 132; i++) {
                 var m = stoneMesh(color);
-                var layer = Math.floor(i / 26);
-                var a = i * 2.399963 + rnd(-0.18, 0.18);
-                var r = Math.sqrt(Math.random()) * (2.28 - layer * 0.2);
-                var h = 0.72 + layer * 0.48 + (1 - r / 2.28) * 0.22 + rnd(-0.08, 0.08);
+                var layer = Math.floor(i / 33);
+                var a = i * 2.399963 + rnd(-0.16, 0.16);
+                var r = Math.sqrt(Math.random()) * (2.72 - layer * 0.17);
+                var h = 0.58 + layer * 0.38 + (1 - r / 2.72) * 0.18 + rnd(-0.06, 0.06);
                 m.position.set(Math.cos(a) * r, h, Math.sin(a) * r);
-                m.rotation.set(rnd(-0.45, 0.45), rnd(0, 6.28), rnd(-0.45, 0.45));
-                m.castShadow = layer === 2;
+                m.rotation.set(rnd(-0.36, 0.36), rnd(0, 6.28), rnd(-0.36, 0.36));
+                m.castShadow = layer >= 2;
                 heap.add(m);
             }
         }
@@ -755,24 +758,21 @@
             handModel.add(bone(t0, t1, 0.42, 0.36, handSkin), bone(t1, t2, 0.36, 0.31, handSkin));
             handModel.add(joint(t0, 0.44, handSkin), joint(t1, 0.38, handSkin), joint(t2, 0.32, handSkin));
 
-            /* 腕与袖口。
-               不下往前臂——机位就在座位上，自己的小臂几乎贴着镜头，
-               画出来会变成一根横在眼前的黑筒，反倒把手挡住。
-               只留一截腕子收进袖口，剩下交给想象。 */
+            /* 腕、前臂和衣袖连续延伸到画面外，不再出现悬浮的“断手”。
+               手臂随手腕一起移动，末端始终位于玩家肩侧。 */
             var wrist = V(0.03, 2.66, 4.0);
             handModel.add(bone(V(0.04, 2.58, 4.7), wrist, 1.26, 1.14, handSkin));
             handModel.add(joint(V(0.03, 2.62, 4.5), 1.24, handSkin));
 
-            var forearm = bone(V(0.03, 2.66, 4.1), V(0.16, 2.92, 6.6), 1.18, 1.42, handSkin);
+            var forearm = bone(wrist, V(0.34, 3.45, 12.8), 1.14, 1.52, handSkin);
             handModel.add(forearm);
 
-            var sleeve = bone(V(0.08, 2.76, 5.5), V(0.3, 3.12, 8.2), 1.48, 1.62, sleeveMat);
+            var sleeve = bone(V(0.22, 3.2, 10.4), V(1.1, 5.6, 31.0), 1.55, 2.35, sleeveMat);
             handModel.add(sleeve);
-            handModel.add(joint(V(0.3, 3.12, 8.2), 1.62, sleeveMat));
 
-            var cuff = new THREE.Mesh(new THREE.CylinderGeometry(1.56, 1.5, 1.0, 22, 1, true), sleeveMat);
-            cuff.position.set(0.08, 2.78, 5.62);
-            cuff.rotation.x = Math.atan2(0.2, 2.4);
+            var cuff = new THREE.Mesh(new THREE.CylinderGeometry(1.58, 1.45, 1.15, 24), sleeveMat);
+            cuff.position.set(0.18, 3.1, 9.9);
+            cuff.rotation.x = Math.atan2(0.85, 8.8);
             handModel.add(cuff);
         })();
 
@@ -833,15 +833,8 @@
             var pos = b.pos.clone();
             var look = b.look.clone();
 
-            if (view.mode === 'stand') {
-                /* 站着的全景自己慢慢转一点，像在打量这间屋子 */
-                view.orbit += dt * 0.055;
-                var a = Math.sin(view.orbit) * 0.34 + view.yaw;
-                var r = pos.length();
-                pos.applyAxisAngle(new THREE.Vector3(0, 1, 0), a);
-                look.applyAxisAngle(new THREE.Vector3(0, 1, 0), a);
-            } else {
-                /* 坐着：绕注视点转一点头，再呼吸 */
+            if (view.mode !== 'stand') {
+                /* 坐着：只有玩家拖动或缩放时才改变视角，没有自动摇摆。 */
                 var pivot = look.clone();
                 var off = pos.clone().sub(pivot);
                 off.multiplyScalar(view.zoom);
@@ -849,10 +842,6 @@
                 var right = new THREE.Vector3(-off.z, 0, off.x).normalize();
                 off.applyAxisAngle(right, -view.pitch);
                 pos = pivot.clone().add(off);
-
-                var br = Math.sin(view.idle * 1.15) * 0.055;
-                pos.y += br;
-                pos.x += Math.sin(view.idle * 0.63) * 0.09;
             }
 
             var k = 1 - Math.pow(0.0009, dt);
@@ -911,21 +900,22 @@
                 {
                     d: 200, to: bowlTop.clone().add(new THREE.Vector3(0, -1.5, 0)), e: easeInOutSine,
                     onEnd: function () {
-                        stone = stoneMesh(o.color);
-                        stone.position.copy(handGroup.position);
-                        stone.scale.setScalar(0.001);
+                        /* 从棋罐顶层真正取出一颗，而不是凭空生成棋子。 */
+                        var heap = bowl.userData.heap;
+                        stone = heap.children.length ? heap.children[heap.children.length - 1] : stoneMesh(o.color);
+                        if (stone.parent) { stone.parent.remove(stone); }
                         stoneLayer.add(stone);
+                        stone.position.copy(handGroup.position);
+                        stone.scale.setScalar(1);
+                        stone.userData.held = true;
                         if (o.onGrab) { o.onGrab(); }
                     }
                 },
                 {
                     d: 260, to: bowlTop.clone().add(new THREE.Vector3(0, 0.5, 0)), e: easeOutCubic,
                     onStart: function () {
-                        /* 捏起来，棋子跟着手 */
-                        if (stone) {
-                            stone.userData.held = true;
-                            stone.userData.grow = 0;
-                        }
+                        /* 手指合拢，棋子跟随整只手抬离棋罐。 */
+                        if (stone) { stone.userData.held = true; }
                     }
                 },
                 { d: 520, to: target.clone().add(new THREE.Vector3(0, 2.4, 0)), arc: 1.9, e: easeInOutCubic },
@@ -973,7 +963,6 @@
 
         function stepAnim(dt) {
             if (!anim) { return; }
-
             var seg = anim.segs[anim.i];
             if (!seg) { anim = null; return; }
 
@@ -1165,11 +1154,14 @@
 
         /* ---------- 座位 ---------- */
 
+        function refillBowls() {
+            fillBowl(bowlNear, view.seat);
+            fillBowl(bowlFar, view.seat === 'black' ? 'white' : 'black');
+        }
+
         function setSeat(color) {
             view.seat = color === 'white' ? 'white' : 'black';
-            /* 近处棋盒放自己的子，远处放对手的 */
-            fillBowl(bowlNear, color);
-            fillBowl(bowlFar, color === 'black' ? 'white' : 'black');
+            refillBowls();
             /* 对手永远在对座 */
             peerGroup.position.z = view.seat === 'black' ? -27 : 27;
             peerGroup.rotation.y = view.seat === 'black' ? 0 : Math.PI;
@@ -1214,6 +1206,7 @@
             resize: resize,
             frame: frame,
             setSeat: setSeat,
+            refillBowls: refillBowls,
             sit: sit,
             stand: stand,
             look: function (dx, dy) {
@@ -1226,6 +1219,7 @@
             pickClock: pickClock,
             playMove: playMove,
             isAnimating: function () { return !!anim; },
+            cancelAnimation: function () { anim = null; handGroup.visible = false; },
             dispose: function () {
                 try { renderer.dispose(); } catch (e) { /* noop */ }
             },

@@ -1,22 +1,14 @@
 /*
  * 连珠杂箱 · 3D 对局的联机层
- * ------------------------------------------------------------
- * 房间号就是频道名，两个人进同一个号就在同一张桌子上。
- * 走站上已有的 Supabase 实时通道（broadcast），不落库、不留档，
- * 落子只在两台浏览器之间传，频道一关就散。
- *
- *   在线：supabase.channel('zbx-duiju3d-<房间号>')，public 频道，
- *         只发广播、不读表，所以不需要建任何数据库对象。
- *   兜底：实时服务连不上时降级成 BroadcastChannel —— 同一个浏览器
- *         开两个标签页也能对下，只是跨设备就不行了，界面上会说明。
- *
- * 所有消息都是同一个格式：{ t: '类型', ... }，见 app.js 里的 dispatch。
+ * Supabase 实时广播负责跨设备联机；断线后自动重连，消息先入队，
+ * 恢复后由 app.js 重新同步完整棋局。实时服务初次连接多次失败时才
+ * 降级到 BroadcastChannel，避免对局中途误切成本机模式造成分房。
  */
 (function () {
     'use strict';
 
     var PREFIX = 'zbx-duiju3d-';
-    var SUBSCRIBE_TIMEOUT = 9000;
+    var SUBSCRIBE_TIMEOUT = 12000;
 
     function connect(opts) {
         var code = String(opts.code || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
@@ -24,6 +16,16 @@
         var closed = false;
         var ready = false;
         var impl = null;
+        var retryTimer = 0;
+        var connectTimer = 0;
+        var pendingCleanup = null;
+        var generation = 0;
+        var attempts = 0;
+        var everOnline = false;
+
+        function status(mode) {
+            if (opts.onStatus) { opts.onStatus(mode); }
+        }
 
         var net = {
             mode: 'pending',
@@ -31,16 +33,30 @@
             send: function (msg) {
                 if (closed || !msg) { return; }
                 if (!ready) {
+                    /* 心跳没有补发价值，关键落子、拍钟和同步消息必须保留。 */
+                    if (msg.t === 'ping') { return; }
                     sendQueue.push(msg);
-                    if (sendQueue.length > 40) { sendQueue.shift(); }
+                    if (sendQueue.length > 300) { sendQueue.shift(); }
                     return;
                 }
-                try { impl.send(msg); } catch (e) { /* 忽略单条失败 */ }
+                try { impl.send(msg); } catch (e) {
+                    if (msg.t !== 'ping') { sendQueue.push(msg); }
+                }
             },
             close: function () {
                 closed = true;
                 ready = false;
-                try { if (impl) { impl.close(); } } catch (e) { /* noop */ }
+                generation += 1;
+                window.clearTimeout(retryTimer);
+                window.clearTimeout(connectTimer);
+                if (pendingCleanup) {
+                    try { pendingCleanup(); } catch (e) { /* noop */ }
+                    pendingCleanup = null;
+                }
+                if (impl) {
+                    try { impl.close(); } catch (e) { /* noop */ }
+                    impl = null;
+                }
             }
         };
 
@@ -49,9 +65,12 @@
             impl = transport;
             net.mode = mode;
             ready = true;
-            if (opts.onStatus) { opts.onStatus(mode); }
-            sendQueue.forEach(function (m) { try { impl.send(m); } catch (e) { /* noop */ } });
+            status(mode);
+            var queued = sendQueue;
             sendQueue = [];
+            queued.forEach(function (m) {
+                try { impl.send(m); } catch (e) { sendQueue.push(m); }
+            });
         }
 
         function localFallback() {
@@ -60,7 +79,7 @@
             try {
                 bc = new BroadcastChannel(PREFIX + 'local-' + code);
             } catch (e) {
-                if (opts.onStatus) { opts.onStatus('error'); }
+                status('error');
                 return;
             }
             bc.onmessage = function (ev) {
@@ -72,24 +91,54 @@
             }, 'local');
         }
 
+        function scheduleReconnect() {
+            if (closed) { return; }
+            attempts += 1;
+            status('reconnecting');
+            var delay = Math.min(12000, 700 * Math.pow(2, attempts));
+            retryTimer = window.setTimeout(startRemote, delay);
+        }
+
         function startRemote() {
+            if (closed) { return; }
             var getClient = window.ZBX_SB_GET;
-            if (typeof getClient !== 'function') {
-                localFallback();
-                return;
+            if (typeof getClient !== 'function') { localFallback(); return; }
+
+            var gen = ++generation;
+            var failed = false;
+            var subscribed = false;
+            var sb = null;
+            var ch = null;
+            ready = false;
+
+            function cleanup() {
+                window.clearTimeout(connectTimer);
+                if (ch && sb) {
+                    try { sb.removeChannel(ch); } catch (e) { /* noop */ }
+                }
+                ch = null;
+                pendingCleanup = null;
+            }
+            pendingCleanup = cleanup;
+
+            function fail() {
+                if (closed || failed || gen !== generation) { return; }
+                failed = true;
+                cleanup();
+                ready = false;
+                impl = null;
+                net.mode = 'reconnecting';
+                /* 已经成功联机过就始终重连，绝不中途切到本机频道。 */
+                if (everOnline || attempts < 2) { scheduleReconnect(); }
+                else { localFallback(); }
             }
 
-            var settled = false;
-            var timer = window.setTimeout(function () {
-                if (settled) { return; }
-                settled = true;
-                if (opts.onStatus) { opts.onStatus('slow'); }
-                localFallback();
-            }, SUBSCRIBE_TIMEOUT);
+            connectTimer = window.setTimeout(fail, SUBSCRIBE_TIMEOUT);
 
-            getClient().then(function (sb) {
-                if (closed) { return; }
-                var ch = sb.channel(PREFIX + code, {
+            getClient().then(function (client) {
+                if (closed || failed || gen !== generation) { return; }
+                sb = client;
+                ch = sb.channel(PREFIX + code, {
                     config: {
                         broadcast: { self: false },
                         presence: { key: opts.id }
@@ -97,35 +146,31 @@
                 });
 
                 ch.on('broadcast', { event: 'm' }, function (payload) {
-                    if (!closed && payload && opts.onMessage) { opts.onMessage(payload.payload); }
+                    if (!closed && !failed && gen === generation && payload && opts.onMessage) {
+                        opts.onMessage(payload.payload);
+                    }
                 });
 
-                ch.subscribe(function (status) {
-                    if (closed) { return; }
-                    if (status === 'SUBSCRIBED') {
-                        if (settled) { return; }
-                        settled = true;
-                        window.clearTimeout(timer);
+                ch.subscribe(function (state) {
+                    if (closed || failed || gen !== generation) { return; }
+                    if (state === 'SUBSCRIBED') {
+                        if (subscribed) { return; }
+                        subscribed = true;
+                        window.clearTimeout(connectTimer);
+                        pendingCleanup = null;
+                        everOnline = true;
+                        attempts = 0;
                         boot({
                             send: function (m) {
                                 ch.send({ type: 'broadcast', event: 'm', payload: m });
                             },
-                            close: function () { try { sb.removeChannel(ch); } catch (e) { /* noop */ } }
+                            close: cleanup
                         }, 'online');
-                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                        if (settled) { return; }
-                        settled = true;
-                        window.clearTimeout(timer);
-                        try { sb.removeChannel(ch); } catch (e) { /* noop */ }
-                        localFallback();
+                    } else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT' || state === 'CLOSED') {
+                        fail();
                     }
                 });
-            }).catch(function () {
-                if (settled) { return; }
-                settled = true;
-                window.clearTimeout(timer);
-                localFallback();
-            });
+            }).catch(fail);
         }
 
         startRemote();
