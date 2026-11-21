@@ -510,12 +510,12 @@
                 var data = normalizeStore(pack.data);
                 hmac(canonical(data)).then(function (sig) {
                     if (sig !== pack.sig) {
-                        notify('签名不对：文件被改过，或不是本站点导出的。已拒绝导入。', 'bad');
+                        notify('签名不对：文件被改过，或非本站导出，已拒绝导入。', 'bad');
                         resolve(false);
                         return;
                     }
                     if (!consistent(data)) {
-                        notify('档案内部对不上：分数和历史记录不一致，已拒绝导入。', 'bad');
+                        notify('档案内部对不上：分数与历史记录不一致，已拒绝导入。', 'bad');
                         resolve(false);
                         return;
                     }
@@ -524,7 +524,7 @@
                     names.forEach(function (name) { D.users[name] = data.users[name]; });
                     save();
                     render();
-                    notify('读档成功：' + names.join('、') + ' 的分数已按用户名恢复。', 'ok');
+                    notify('读档成功：' + names.join('、') + ' 的分数已恢复。', 'ok');
                     resolve(true);
                 });
             };
@@ -535,12 +535,12 @@
 
     function reset() {
         if (!curUser) { notify('先登录账号。', 'bad'); return; }
-        if (!window.confirm('清空「' + curUser + '」的云端进度？四项分数都会回到 1000，英语背词记录也一起清空。')) { return; }
+        if (!window.confirm('清空「' + curUser + '」的云端进度？四项分数回到 1000，英语背词记录一并清空。')) { return; }
         D.users[curUser] = blankProfile();
         E = null;
         save();
         render();
-        notify('进度已清空，云端会在片刻后更新。', 'ok');
+        notify('进度已清空，云端稍后更新。', 'ok');
     }
 
     /* ---------- 面板 ---------- */
@@ -655,7 +655,7 @@
         return '<span>用户名</span>' +
             '<input type="text" maxlength="16" data-act="username" placeholder="填名字" value="' + escHtml(curUser) + '">' +
             '<button type="button" data-act="setuser">' + (curUser ? '切换' : '进入') + '</button>' +
-            (curUser ? '<b>' + escHtml(curUser) + '</b>' : '<span>未登录，分数不会记</span>');
+            (curUser ? '<b>' + escHtml(curUser) + '</b>' : '<span>未登录，分数不记录</span>');
     }
 
     function render() {
@@ -677,14 +677,14 @@
                     : '<button type="button" data-act="login">登录 / 注册</button>') +
                 '</div>' +
                 (curUser ? '<div class="zbx-prog-grid">' + cells + '</div>' :
-                    '<p class="zbx-prog-tip">登录后就能开始记分，分数会按账号同步到云端。</p>') +
+                    '<p class="zbx-prog-tip">登录后开始记分，分数按账号同步到云端。</p>') +
                 '<div class="zbx-prog-btns">' +
                 (curUser ? '<button type="button" data-act="reset">清空进度</button>' : '') +
                 '</div>' +
                 '<p class="zbx-prog-tip zbx-prog-hint">' +
-                (dirty ? (syncFail ? '云端暂时连不上，稍后会自动重试；本机记录已经保存。' : '正在同步到云端…') :
-                    (curUser ? '已同步到云端，换设备登录同一个账号就能接着做题。' :
-                        '不再需要导出 / 导入备份文件。')) +
+                (dirty ? (syncFail ? '云端暂时连不上，稍后自动重试；本机记录已保存。' : '正在同步到云端…') :
+                    (curUser ? '已同步到云端，换设备登录即可接着做题。' :
+                        '无需导出 / 导入备份文件。')) +
                 '</p>' +
                 '<p class="zbx-prog-note" role="status" aria-live="polite"></p>';
         });

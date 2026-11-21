@@ -497,7 +497,7 @@
     function renderCards(main) {
         var q = state.queue;
         if (!q.length) {
-            main.innerHTML = emptySession('还没有到期要复习的词', '去「今日学习」拿一批新词，或者换个词库。');
+            main.innerHTML = emptySession('还没有到期要复习的词', '去「今日学习」拿新词，或换个词库。');
             return;
         }
         if (state.idx >= q.length) {
@@ -517,7 +517,7 @@
                 + '  <p class="en-kicker">' + (state.mode === 'review' ? '复习完成' : '这一轮走完了') + '</p>'
                 + '  <h2 class="en-done-num">' + state.sess.n + ' <small>词</small></h2>'
                 + '  <p class="en-done-line">答对 ' + state.sess.ok + '，没记住 ' + state.sess.bad + '，正确率 ' + acc + '%</p>'
-                + '  <p class="en-done-line">进度已记入账号，换设备登录同一个账号即可接着背。</p>'
+                + '  <p class="en-done-line">进度已记入账号，换设备登录同账号即可接着背。</p>'
                 + '  <div class="en-done-btns">'
                 + '    <button type="button" class="en-btn en-btn-main" data-act="mode" data-mode="study">再来一轮</button>'
                 + '    <button type="button" class="en-btn en-btn-ghost" data-act="mode" data-mode="review">只复习</button>'
@@ -595,7 +595,7 @@
         if (!state.spell) { startSpell(); return; }
         var sp = state.spell;
         if (!sp.keys.length) {
-            main.innerHTML = emptySession('还没有学过的词可以拼', '先在「今日学习」里过一遍，认识的词才会进拼写池。');
+            main.innerHTML = emptySession('还没有学过的词可以拼', '先在「今日学习」过一遍，认识的词才进拼写池。');
             return;
         }
         if (sp.i >= sp.keys.length) {

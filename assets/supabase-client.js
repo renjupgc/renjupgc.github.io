@@ -75,7 +75,7 @@
     function loadFirst(urls, i) {
         i = i || 0;
         if (i >= urls.length) {
-            return Promise.reject(new Error('Supabase SDK 加载失败，请检查网络或换用其他网络环境'));
+            return Promise.reject(new Error('Supabase SDK 加载失败，请检查网络后重试'));
         }
         return loadScript(urls[i]).catch(function () { return loadFirst(urls, i + 1); });
     }
@@ -130,7 +130,7 @@
         return waitConfig.then(function () {
             var cfg = window.ZBX_SUPABASE || {};
             if (!cfg.url || !cfg.anonKey) {
-                throw new Error('尚未配置 Supabase：请打开 assets/supabase-config.js，填入 url 与 anonKey');
+                throw new Error('尚未配置 Supabase：请在 assets/supabase-config.js 填入 url 与 anonKey');
             }
             if (window.supabase && window.supabase.createClient) { return null; }
             return loadFirst(SDK_URLS);

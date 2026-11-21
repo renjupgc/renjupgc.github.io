@@ -182,17 +182,17 @@
         var map = {
             'Invalid login credentials': '用户名或密码不对。',
             'User already registered': '这个用户名已经被注册，换个名字或去登录。',
-            'Email not confirmed': '这个账号还需要邮箱确认才能登录，请先在 Supabase 后台关闭 Confirm email。',
-            'Signups not allowed for this instance': 'Supabase 项目关闭了注册，请到 Authentication 里打开 Allow new users to sign up。',
-            'Failed to fetch': '连不上 Supabase（网络不通或项目地址不对）。请换一个网络再试，或检查 assets/supabase-config.js 里的 url。',
-            'Load failed': '连不上 Supabase（网络不通或项目地址不对）。请换一个网络再试，或检查 assets/supabase-config.js 里的 url。'
+            'Email not confirmed': '账号还需邮箱确认：请在 Supabase 后台关闭 Confirm email。',
+            'Signups not allowed for this instance': '项目关闭了注册：请在 Supabase Authentication 里开启 Allow new users to sign up。',
+            'Failed to fetch': '连不上 Supabase：检查网络，或核对 assets/supabase-config.js 里的 url。',
+            'Load failed': '连不上 Supabase：检查网络，或核对 assets/supabase-config.js 里的 url。'
         };
         if (map[msg]) { return new Error(map[msg]); }
         if (/failed to fetch|network\s?error|network request failed|load failed/i.test(msg)) {
-            return new Error('连不上 Supabase（网络不通或项目地址不对）。请换一个网络再试，或检查 assets/supabase-config.js 里的 url。');
+            return new Error('连不上 Supabase：检查网络，或核对 assets/supabase-config.js 里的 url。');
         }
         if (/timed?\s?out|timeout|abort/i.test(msg)) {
-            return new Error('连接 Supabase 超时，多半是网络不稳。请稍后重试。');
+            return new Error('连接 Supabase 超时，请稍后重试。');
         }
         if (/duplicate key|unique/i.test(msg)) { return new Error('这个用户名已经被注册，换个名字或去登录。'); }
         if (/relation .* does not exist|schema cache/i.test(msg)) {
@@ -353,9 +353,9 @@
     }
 
     function login(user, pw) {
-        if (state.busy) { return Promise.reject(new Error('正在处理，请稍候')); }
+        if (state.busy) { return Promise.reject(new Error('处理中…')); }
         var name = String(user || '').trim();
-        if (!name || !pw) { return Promise.reject(new Error('用户名和密码都要填。')); }
+        if (!name || !pw) { return Promise.reject(new Error('用户名和密码必填。')); }
         state.busy = true;
         return client().then(function (sb) {
             return sb.auth.signInWithPassword({ email: emailOf(name), password: String(pw) });
@@ -368,11 +368,11 @@
     }
 
     function signup(user, pw, nick) {
-        if (state.busy) { return Promise.reject(new Error('正在处理，请稍候')); }
+        if (state.busy) { return Promise.reject(new Error('处理中…')); }
         var name = String(user || '').trim();
         var pass = String(pw || '');
-        if (!name) { return Promise.reject(new Error('用户名要填。')); }
-        if (pass.length < 6) { return Promise.reject(new Error('密码至少 6 位（Supabase 的下限）。')); }
+        if (!name) { return Promise.reject(new Error('用户名必填。')); }
+        if (pass.length < 6) { return Promise.reject(new Error('密码至少 6 位。')); }
 
         state.busy = true;
         var sbRef = null;
@@ -398,8 +398,8 @@
                 if (sbUser && Array.isArray(sbUser.identities) && sbUser.identities.length === 0) {
                     throw new Error('这个用户名已经被注册，换个名字或去登录。');
                 }
-                throw new Error('注册信息已提交，但项目还开着「邮箱确认」，本站用的合成邮箱收不到信。' +
-                    '请到 Supabase → Authentication → Sign In / Providers → Email，关掉 Confirm email 后再试。');
+                throw new Error('注册已提交，但项目开着邮箱确认，本站合成邮箱收不到信。' +
+                    '请在 Supabase → Authentication → Sign In / Providers → Email 关闭 Confirm email 后重试。');
             }
             return applySession(session, 'signup');
         }).catch(function (err) {
@@ -543,8 +543,8 @@
     function recalcRatings() {
         return Promise.resolve({
             ok: false,
-            err: '等级分重算还没迁到 Supabase。请在本机跑 python tools/recompute_ratings.py，' +
-                '再把算好的 rating 文档用后台「保存修改」写回去。'
+            err: '等级分重算还没迁到 Supabase。请在本地运行 python tools/recompute_ratings.py，' +
+                '再用后台「保存修改」写回 rating 文档。'
         });
     }
 
@@ -704,7 +704,7 @@
             '<div class="za-dialog" role="dialog" aria-modal="true" aria-label="账号">' +
             '<button type="button" class="za-close" data-za="close" aria-label="关闭">×</button>' +
             '<h2>' + (isSignup ? '注册账号' : '登录') + '</h2>' +
-            '<p>进度保存在云端，登录后在任意设备接着用。</p>' +
+            '<p>进度存于云端，登录后任意设备接着用。</p>' +
             '<div class="za-tabs">' +
             '<button type="button" data-za="tab" data-mode="login"' +
             (isSignup ? '' : ' class="is-on"') + '>登录</button>' +
@@ -730,7 +730,7 @@
     function errText(err) {
         var s = String((err && err.message) || err || '操作失败');
         if (s === 'bad credentials') { return '用户名或密码不对。'; }
-        if (s === 'invalid username') { return '用户名需 2–20 位，可用中文、字母、数字、下划线或短横。'; }
+        if (s === 'invalid username') { return '用户名 2–20 位，可用中文、字母、数字、下划线或短横。'; }
         if (s === 'invalid password') { return '密码需 6–64 位。'; }
         if (s === 'username taken') { return '这个用户名已经被注册，换个名字或去登录。'; }
         return s;
@@ -767,7 +767,7 @@
             return;
         }
         if (act === 'logout') {
-            if (window.confirm('退出登录？本机的进度缓存会保留，下次登录会从云端恢复。')) {
+            if (window.confirm('退出登录？本机进度会保留，下次登录从云端恢复。')) {
                 logout().catch(function () {});
             }
         }
@@ -781,7 +781,7 @@
         var pw = f.elements.pw.value;
         var nick = f.elements.nick ? f.elements.nick.value : '';
         if (!USER_RE.test(user.trim())) {
-            drawPanel('用户名需 2–20 位，可用中文、字母、数字、下划线或短横。');
+            drawPanel('用户名 2–20 位，可用中文、字母、数字、下划线或短横。');
             return;
         }
         if (state.panel === 'signup' && pw.length < 6) {
