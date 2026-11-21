@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>打谱 - 连珠杂箱</title>
-<meta name="description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
+<meta name="description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；摆满四手还带出《漱星阁开局指南》里这一路的打点与打数。局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/zaji/dapu.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
 <meta property="og:title" content="打谱">
-<meta property="og:description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
+<meta property="og:description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；摆满四手还带出《漱星阁开局指南》里这一路的打点与打数。局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
 <meta property="og:url" content="https://renjupgc.github.io/zaji/dapu.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="打谱">
-<meta name="twitter:description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
+<meta name="twitter:description" content="连珠（五子棋）打谱小工具：点着摆棋、按手数翻看，摆到第三手自动报出开局名（溪月、瑞星、明星等二十六种）并检索站内同型局；摆满四手还带出《漱星阁开局指南》里这一路的打点与打数。局面写进地址栏可分享，棋盘图也能直接认成棋谱。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
@@ -34,7 +34,7 @@
         <header class="page-head">
             <p class="eyebrow">杂技</p>
             <h1 class="page-title">打谱</h1>
-            <p class="page-desc">点着摆棋、按手数翻看，摆到第三手认开局、找同型局；手上只有一张图的话，交给下面的识别。</p>
+            <p class="page-desc">点着摆棋、按手数翻看，摆到第三手认开局、找同型局，摆满四手带出书里的打点；手上只有一张图的话，交给下面的识别。</p>
         </header>
 
         <section>
@@ -50,7 +50,7 @@
 
         <section class="kaiju" id="kaiju">
             <h2>开局</h2>
-            <p class="kaiju-lead">连珠的前三手决定了开局的名字：第一手在天元、第二手贴在 3×3 以内、第三手在 5×5 以内，把旋转和镜像重复的形并掉，正好二十六种。摆到第三手，下面就会报出名字；摆得越多，右边的同型局比对得越准。</p>
+            <p class="kaiju-lead">连珠的前三手决定了开局的名字：第一手在天元、第二手贴在 3×3 以内、第三手在 5×5 以内，把旋转和镜像重复的形并掉，正好二十六种。摆到第三手，下面就会报出名字；摆满四手，还会带出书里这一路的打数。</p>
 
             <div class="kj-grid">
                 <div class="kj-card">
@@ -73,6 +73,23 @@
             <details class="kj-book" open>
                 <summary>二十六种开局 · 点一个摆到盘上</summary>
                 <div class="kj-book-wrap" id="kj-book"></div>
+            </details>
+
+            <details class="kj-shida" open>
+                <summary>开局库 · 打点<small>249 局，取自《漱星阁开局指南》2026.10.25 打数表</small></summary>
+                <div class="kj-sd" id="kj-sd">
+                    <div class="kj-sd-head">
+                        <b id="kj-sd-name">—</b>
+                        <span class="kj-sd-page" id="kj-sd-page"></span>
+                        <label class="kj-sd-tog"><input type="checkbox" id="kj-sd-mark" checked>盘上标出打点</label>
+                    </div>
+                    <p class="kj-sd-band" id="kj-sd-band">摆到白 4，这里给出书里这一路的打数。</p>
+                    <ol class="kj-sd-list" id="kj-sd-list"></ol>
+                    <details class="kj-book kj-sd-all">
+                        <summary>249 局 · 点一个摆到盘上</summary>
+                        <div class="kj-book-wrap" id="kj-sd-book"></div>
+                    </details>
+                </div>
             </details>
         </section>
 
@@ -115,6 +132,8 @@
 <script src="../assets/openings-data.js"></script>
 <script src="../assets/openings.js"></script>
 <script src="../assets/kaiju.js"></script>
+<script src="../assets/shida-data.js"></script>
+<script src="../assets/shida-book.js"></script>
 <script>
 /*
  * 局面链接
