@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D 对局 - 连珠杂箱</title>
+<meta name="description" content="坐下来下一盘：三维对局室、从棋盒里捏子落子、走完一手自己拍钟，两个人在同一个房间号里联机。">
+<!-- zbx:seo -->
+<link rel="canonical" href="https://renjupgc.github.io/zaji/duiju.html">
+<meta property="og:site_name" content="连珠杂箱">
+<meta property="og:type" content="website">
+<meta property="og:title" content="3D 对局">
+<meta property="og:description" content="坐下来下一盘：三维对局室、从棋盒里捏子落子、走完一手自己拍钟，两个人在同一个房间号里联机。">
+<meta property="og:url" content="https://renjupgc.github.io/zaji/duiju.html">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="3D 对局">
+<meta name="twitter:description" content="坐下来下一盘：三维对局室、从棋盒里捏子落子、走完一手自己拍钟，两个人在同一个房间号里联机。">
+<meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
+<!-- /zbx:seo -->
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+/* 页面专属样式：站内换页只换 <main>，所以必须写在 <head> 的 <style> 里，
+   layout.js 换页时会把它带到新页面；外链样式表带不过去。 */
+/* ==========================================================================
+   连珠杂箱 — 3D 对局（zaji/duiju.html 专用）
+   --------------------------------------------------------------------------
+   只作用于 .dj-* 命名空间，不碰全站样式。
+   舞台是深色的对局室，界面走「暖纸 + 赭金」，与环境里的木色、灯光呼应。
+   ========================================================================== */
+
+.dj-stage {
+    position: relative;
+    height: 70vh;
+    min-height: 440px;
+    max-height: 760px;
+    margin: 0 0 6px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: #0b0a09;
+    box-shadow: 0 30px 70px -52px rgba(30, 20, 4, 0.9), inset 0 0 0 1px rgba(246, 242, 233, 0.06);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: crosshair;
+}
+
+.dj-stage canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* 暗角，让画面中间更聚光 */
+.dj-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 48%, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+/* ---------- 顶栏 ---------- */
+
+.dj-hud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-family: var(--sans);
+    color: #f2ead9;
+}
+
+.dj-hud[hidden] { display: none; }
+
+.dj-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+}
+
+.dj-room {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(18, 15, 11, 0.62);
+    border: 1px solid rgba(201, 168, 111, 0.24);
+    backdrop-filter: blur(8px);
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+    color: #cfc3ac;
+}
+
+.dj-room b {
+    font-family: var(--mono);
+    font-size: 15px;
+    letter-spacing: 0.16em;
+    color: #f0d9a8;
+}
+
+.dj-room button {
+    pointer-events: auto;
+    font: inherit;
+    font-size: 12px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(201, 168, 111, 0.35);
+    background: transparent;
+    color: #d8c8a8;
+    cursor: pointer;
+}
+
+.dj-room button:hover { background: rgba(201, 168, 111, 0.16); }
+
+/* 棋钟 */
+.dj-clocks {
+    display: flex;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.dj-clock {
+    min-width: 132px;
+    padding: 8px 14px 9px;
+    border-radius: 12px;
+    background: rgba(14, 12, 9, 0.66);
+    border: 1px solid rgba(201, 168, 111, 0.2);
+    backdrop-filter: blur(8px);
+    text-align: right;
+    transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+}
+
+.dj-clock span {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: #a2988a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dj-clock b {
+    display: block;
+    margin-top: 2px;
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: #e8dcc4;
+}
+
+.dj-clock.is-active {
+    background: rgba(58, 40, 16, 0.72);
+    border-color: rgba(224, 186, 116, 0.65);
+    box-shadow: 0 0 0 1px rgba(224, 186, 116, 0.2), 0 10px 30px -18px rgba(224, 186, 116, 0.5);
+}
+
+.dj-clock.is-active b { color: #ffe6ae; }
+
+.dj-clock.is-low b { color: #ef8f7f; }
+
+/* ---------- 底栏 ---------- */
+
+.dj-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+}
+
+.dj-hint {
+    margin: 0;
+    max-width: 60%;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: rgba(14, 12, 9, 0.6);
+    border: 1px solid rgba(201, 168, 111, 0.18);
+    backdrop-filter: blur(8px);
+    font-size: 13px;
+    line-height: 1.6;
+    color: #ded2ba;
+    transition: opacity 0.2s;
+}
+
+.dj-hint em {
+    font-style: normal;
+    color: #f2d9a8;
+}
+
+.dj-actions {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.dj-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1;
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(201, 168, 111, 0.28);
+    background: rgba(18, 15, 11, 0.66);
+    color: #e4d8c0;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: background 0.18s, transform 0.12s, border-color 0.18s;
+}
+
+.dj-btn:hover { background: rgba(201, 168, 111, 0.2); }
+.dj-btn:active { transform: translateY(1px); }
+.dj-btn[hidden] { display: none; }
+
+.dj-btn-gold {
+    border-color: rgba(224, 186, 116, 0.7);
+    background: linear-gradient(180deg, rgba(176, 141, 87, 0.92), rgba(138, 106, 57, 0.92));
+    color: #1d1709;
+    font-weight: 600;
+}
+
+.dj-btn-gold:hover { background: linear-gradient(180deg, #c39c60, #96733d); }
+
+.dj-btn-gold.is-pulse {
+    animation: dj-pulse 1.15s ease-in-out infinite;
+}
+
+@keyframes dj-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(224, 186, 116, 0.55); }
+    50% { box-shadow: 0 0 0 9px rgba(224, 186, 116, 0); }
+}
+
+/* ---------- 浮层（大厅 / 结果 / 说明） ---------- */
+
+.dj-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: radial-gradient(85% 70% at 50% 42%, rgba(10, 9, 7, 0.3), rgba(8, 7, 6, 0.8));
+    backdrop-filter: blur(2px);
+    z-index: 5;
+    overflow: auto;
+}
+
+.dj-overlay[hidden] { display: none; }
+
+.dj-card {
+    width: 100%;
+    max-width: 430px;
+    max-height: calc(100% - 4px);
+    overflow: auto;
+    padding: 24px 24px 20px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(28, 24, 18, 0.96), rgba(18, 15, 11, 0.98));
+    border: 1px solid rgba(201, 168, 111, 0.28);
+    box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.9);
+    color: #e8dcc4;
+    font-family: var(--sans);
+}
+
+.dj-card h2 {
+    margin: 0 0 4px;
+    font-family: var(--serif);
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #f4e7cd;
+}
+
+.dj-card .dj-sub {
+    margin: 0 0 18px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #a2988a;
+}
+
+.dj-field {
+    margin: 0 0 11px;
+}
+
+.dj-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: #a89d8b;
+}
+
+.dj-two {
+    display: flex;
+    gap: 10px;
+}
+
+.dj-col {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.dj-field input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 9px;
+    border: 1px solid rgba(201, 168, 111, 0.26);
+    background: rgba(255, 253, 247, 0.06);
+    color: #f2ead9;
+    font-family: var(--sans);
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    outline: none;
+}
+
+.dj-field input:focus {
+    border-color: rgba(224, 186, 116, 0.7);
+    background: rgba(255, 253, 247, 0.1);
+}
+
+.dj-field input::placeholder { color: #7b7264; }
+
+#dj-code {
+    font-family: var(--mono);
+    font-size: 19px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+
+.dj-seg {
+    display: flex;
+    gap: 6px;
+}
+
+.dj-seg button {
+    flex: 1;
+    padding: 9px 0;
+    border-radius: 9px;
+    border: 1px solid rgba(201, 168, 111, 0.26);
+    background: rgba(255, 253, 247, 0.04);
+    color: #cbbfa8;
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.16s;
+}
+
+.dj-seg button:hover { border-color: rgba(224, 186, 116, 0.6); }
+
+.dj-seg button.is-on {
+    border-color: rgba(224, 186, 116, 0.8);
+    background: rgba(224, 186, 116, 0.16);
+    color: #ffe6ae;
+}
+
+.dj-card .dj-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.dj-card .dj-row .dj-btn { flex: 1; }
+
+.dj-card .dj-note {
+    margin: 12px 0 0;
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: #90887a;
+}
+
+.dj-card .dj-note b { color: #cbb995; font-weight: 600; }
+
+/* 结果卡 */
+.dj-result-card { text-align: center; }
+
+.dj-result-card .dj-verdict {
+    margin: 2px 0 6px;
+    font-family: var(--serif);
+    font-size: 30px;
+    letter-spacing: 0.1em;
+    color: #f6dc9f;
+}
+
+.dj-result-card .dj-verdict.is-lose { color: #cbb9a2; }
+
+.dj-result-card p { margin: 0 0 4px; font-size: 13px; color: #a2988a; line-height: 1.7; }
+
+/* 说明 */
+.dj-help {
+    max-width: 470px;
+    text-align: left;
+}
+
+.dj-help p {
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.85;
+    color: #b6ab97;
+}
+
+.dj-help p b { color: #e6d6b6; font-weight: 600; }
+
+/* 载入 */
+.dj-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0b0a09;
+    color: #a2988a;
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    z-index: 9;
+    transition: opacity 0.5s;
+}
+
+.dj-loading[hidden] { display: none; }
+
+/* 吐司 */
+.dj-toast {
+    position: absolute;
+    left: 50%;
+    top: 84px;
+    transform: translateX(-50%);
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(24, 19, 12, 0.9);
+    border: 1px solid rgba(224, 186, 116, 0.4);
+    color: #ffeaC0;
+    font-family: var(--sans);
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.dj-toast.is-on { opacity: 1; transform: translateX(-50%) translateY(2px); }
+
+@media (max-width: 460px) {
+    .dj-two { display: block; }
+    .dj-col + .dj-col { margin-top: 10px; }
+}
+
+@media (max-width: 720px) {
+    .dj-stage { height: 68vh; min-height: 400px; }
+
+    .dj-top { padding: 10px; gap: 8px; }
+    .dj-room { font-size: 11px; padding: 6px 9px; }
+    .dj-room b { font-size: 13px; }
+    .dj-clock { min-width: 96px; padding: 6px 10px 7px; }
+    .dj-clock b { font-size: 17px; }
+    .dj-bottom { padding: 10px; flex-direction: column; align-items: stretch; gap: 8px; }
+    .dj-hint { max-width: none; font-size: 12px; padding: 7px 11px; }
+    .dj-actions { justify-content: flex-end; flex-wrap: wrap; }
+    .dj-btn { padding: 9px 12px; font-size: 12.5px; }
+    .dj-card { padding: 20px 18px 16px; }
+}
+
+</style>
+</head>
+
+<body data-nav="杂技" data-base="../">
+
+<div class="container">
+
+    <div id="site-header"></div>
+
+    <main>
+
+        <header class="page-head">
+            <p class="eyebrow">杂技</p>
+            <h1 class="page-title">3D 对局</h1>
+            <p class="page-desc">不是那种点一下就冒出一颗子的网页棋盘。这里有张桌子、两只棋盒、一台棋钟，你得坐下、伸手、捏子、落子，走完一手自己去拍钟。报同一个房间号，两个人各坐一边。</p>
+        </header>
+
+        <div class="dj-stage" id="dj-stage">
+            <canvas id="dj-canvas"></canvas>
+            <div class="dj-vignette"></div>
+
+            <div class="dj-loading" id="dj-loading">正在摆桌子…</div>
+
+            <!-- 对局界面 -->
+            <div class="dj-hud" id="dj-hud" hidden>
+
+                <div class="dj-top">
+                    <div class="dj-room">
+                        房间 <b id="dj-room-code">——</b>
+                        <button type="button" id="dj-copy">复制邀请</button>
+                    </div>
+
+                    <div class="dj-clocks">
+                        <div class="dj-clock" id="dj-clock-peer">
+                            <span>对手</span><b>—:—</b>
+                        </div>
+                        <div class="dj-clock" id="dj-clock-me">
+                            <span>我方</span><b>—:—</b>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dj-bottom">
+                    <p class="dj-hint" id="dj-hint">点棋盘落子。</p>
+                    <div class="dj-actions">
+                        <button type="button" class="dj-btn dj-btn-gold" id="dj-press">拍钟</button>
+                        <button type="button" class="dj-btn" id="dj-anim">动画：细</button>
+                        <button type="button" class="dj-btn" id="dj-sound">声音：开</button>
+                        <button type="button" class="dj-btn" id="dj-resign">认输</button>
+                        <button type="button" class="dj-btn" id="dj-help-btn">说明</button>
+                        <button type="button" class="dj-btn" id="dj-leave">离开</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="dj-toast" id="dj-toast"></div>
+
+            <!-- 大厅 -->
+            <div class="dj-overlay" id="dj-lobby">
+                <div class="dj-card" id="dj-lobby-form">
+                    <h2>进房间，落座</h2>
+                    <p class="dj-sub">报同一个房间号就坐在同一张桌子两边。先到的定用时和颜色，后到的补另一个座。</p>
+
+                    <div class="dj-field dj-two">
+                        <div class="dj-col">
+                            <label for="dj-name">你的名字</label>
+                            <input id="dj-name" type="text" maxlength="12" placeholder="棋友" autocomplete="off">
+                        </div>
+                        <div class="dj-col">
+                            <label for="dj-code">房间号</label>
+                            <input id="dj-code" type="text" maxlength="8" placeholder="六位号子" autocomplete="off" spellcheck="false">
+                        </div>
+                    </div>
+
+                    <div class="dj-field">
+                        <label>坐哪边</label>
+                        <div class="dj-seg">
+                            <button type="button" data-want="black" class="is-on">执黑</button>
+                            <button type="button" data-want="white">执白</button>
+                            <button type="button" data-want="any">都行</button>
+                        </div>
+                    </div>
+
+                    <div class="dj-field">
+                        <label>用时</label>
+                        <div class="dj-seg">
+                            <button type="button" data-preset="std" class="is-on">10 分 + 5 秒</button>
+                            <button type="button" data-preset="fast">5 分 + 3 秒</button>
+                            <button type="button" data-preset="long">15 分 + 10 秒</button>
+                            <button type="button" data-preset="none">不限时</button>
+                        </div>
+                    </div>
+
+                    <div class="dj-row">
+                        <button type="button" class="dj-btn" id="dj-gen">开一间</button>
+                        <button type="button" class="dj-btn dj-btn-gold" id="dj-join">进房间</button>
+                    </div>
+
+                    <p class="dj-note"><b>无禁手五子棋</b>，黑先，连成五个或更多即胜。落子后要自己<b>拍钟</b>，时间才交给对方；六秒没拍，钟替你拍。</p>
+                </div>
+
+                <div class="dj-card" id="dj-lobby-wait" hidden>
+                    <h2>等人落座</h2>
+                    <p class="dj-sub" id="dj-wait-note">房间已开好，把号子告诉棋友，等他进来。</p>
+                    <div class="dj-field">
+                        <label>房间号</label>
+                        <input id="dj-wait-code" type="text" readonly value="——————">
+                    </div>
+                    <div class="dj-row">
+                        <button type="button" class="dj-btn" id="dj-cancel">退出去</button>
+                        <button type="button" class="dj-btn dj-btn-gold" id="dj-copy2">复制邀请链接</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果 -->
+            <div class="dj-overlay" id="dj-result" hidden>
+                <div class="dj-card dj-result-card">
+                    <h2 class="dj-verdict" id="dj-verdict">你赢了</h2>
+                    <p id="dj-verdict-detail">黑方连成五子。</p>
+                    <div class="dj-row">
+                        <button type="button" class="dj-btn" id="dj-quit">离开房间</button>
+                        <button type="button" class="dj-btn dj-btn-gold" id="dj-again">再来一局</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 说明 -->
+            <div class="dj-overlay" id="dj-help" hidden>
+                <div class="dj-card dj-help">
+                    <h2>怎么下</h2>
+                    <p><b>落子</b>：鼠标移到交叉点上会出现一颗半透明的子，点一下就伸手去棋盒里拿子、落到那个点。拖动可以转一点头，滚轮靠近或退远。</p>
+                    <p><b>拍钟</b>：真下棋的时候，落完子得用手背拍一下棋钟，时间才交给对方。这里一样——落完子那块「拍钟」会亮起来，点它、点右边桌上的钟、或者按空格都行。六秒不拍，钟替你拍。</p>
+                    <p><b>棋钟</b>：屏幕下沿还有一块大的。用完加秒，走完一手加几秒，时间归零判负。桌子上那块表是真的会走字，两个人看到的是同一盘时间。</p>
+                    <p><b>联机</b>：房间号就是频道号，两个人报同一个号就在同一张桌。不落库、不留谱，人散了这一局就没了。实时服务连不上时会自动切到本机模式，同一个浏览器开两个标签页也能对下。</p>
+                    <p><b>规则</b>：无禁手五子棋，15 路，黑先，连成五个或更多即胜，填满棋盘未成五者算和。</p>
+                    <div class="dj-row">
+                        <button type="button" class="dj-btn" id="dj-help-close">知道了</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section>
+            <h2>为什么做成这样</h2>
+            <p>线上五子棋大多是俯视的二维棋盘，点哪儿哪儿冒子，快是快，但和下棋这件事其实没什么关系。真正坐到桌前的时候，你看棋盘是有角度的，子是从棋盒里一颗颗拿出来的，落下去有声音，时间是被自己的手拍走的。</p>
+            <p>这页就照这个来做：机位在座椅高度，略略俯视；两只棋盒放在各自右手边，黑子白子分开；一颗子从盒里被捏起来，沿着一条弧线过盘，落下时木头响一声；走完一手，手还得伸到旁边把钟拍掉。对手坐在对面，轮到他时，手从他那一侧伸过来。</p>
+            <p>技术上没有服务端：房间号就是一条实时广播频道的名字，落子只在你和对手两台浏览器之间传。所以它也不需要注册、不需要存档，把房间号念给对方听就能开局。</p>
+        </section>
+
+        <div data-zbx-progress></div>
+
+    </main>
+
+</div>
+
+<script src="../assets/layout.js"></script>
+<script src="../assets/supabase-client.js"></script>
+<script src="../assets/vendor/three.min.js"></script>
+<script src="../assets/duiju3d/audio.js"></script>
+<script src="../assets/duiju3d/table.js"></script>
+<script src="../assets/duiju3d/net.js"></script>
+<script src="../assets/duiju3d/app.js"></script>
+
+</body>
+</html>
