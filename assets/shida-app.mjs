@@ -22,16 +22,27 @@ const OPEN = (window.SHIDA_OPENINGS || []).filter(function (o) {
     return o && o.m && o.m.length === 4 && o.r && o.r.length;
 });
 
-/* 塔十题库：把每个开局书里 2–14 打的每个打点都单独出成一道题，
- * 一题就是（开局 + 那一个打点），同一开局会有好几道，问的是不同落点的局面。 */
-const ST_BANK = [];
-OPEN.forEach(function (op) {
-    op.c.forEach(function (five) {
-        if (five[2] >= 2 && five[2] <= 14) {
-            ST_BANK.push({ op: op, five: five });
-        }
-    });
-});
+/* 塔十出题池：每个开局只算一份名额，局内再轮换它自己的打点（2–14 打）。
+ * 这样打点多的开局不会霸屏，打点少的开局同样有机会轮到。 */
+function stPoints(op) {
+    return op.c.filter(function (c) { return c[2] >= 2 && c[2] <= 14; });
+}
+
+const ST_OPEN = OPEN.filter(function (op) { return stPoints(op).length > 0; });
+const ST_BAG = {};
+
+/* 取这个开局下一个还没用过的打点；一轮用完就重新洗 */
+function stPull(op) {
+    let bag = ST_BAG[op.p];
+    if (!bag || !bag.length) {
+        bag = ST_BAG[op.p] = shuffle(stPoints(op).slice());
+    }
+    return bag.pop();
+}
+
+function stItem(op) {
+    return { op: op, five: stPull(op) };
+}
 
 /* 书里的简称归一：黑胜就是黑必胜，黑败就是白必胜，「有望胜」按近胜读 */
 const NORM = {
@@ -224,39 +235,22 @@ function startWith(item) {
     render();
 }
 
-/* 一轮里每个开局先只出一题，分组轮转，避免同开局的两题挨在一起 */
+/* 一轮 = 每个开局各出一次，顺序打散 */
 function stQueue() {
-    const groups = {};
-    ST_BANK.forEach(function (t, k) {
-        const key = t.op.p;
-        (groups[key] || (groups[key] = [])).push(k);
-    });
-    const keys = shuffle(Object.keys(groups));
-    const list = [];
-    let more = true;
-    while (more) {
-        more = false;
-        keys.forEach(function (key) {
-            if (groups[key].length) {
-                list.push(groups[key].pop());
-                more = true;
-            }
-        });
-    }
-    return list;
+    return shuffle(ST_OPEN.map(function (o, k) { return k; }));
 }
 
 function startQuestion() {
-    if (!ST_BANK.length) {
+    if (!ST_OPEN.length) {
         return;
     }
     /* 地址栏 ?p=68 指定原书页码，方便对着书看；只认第一次 */
     if (!S.forced) {
         S.forced = true;
         const want = Number(new URLSearchParams(location.search).get('p'));
-        const hit = want ? ST_BANK.filter((t) => t.op.p === want)[0] : null;
+        const hit = want ? ST_OPEN.filter((o) => o.p === want)[0] : null;
         if (hit) {
-            startWith(hit);
+            startWith(stItem(hit));
             return;
         }
     }
@@ -265,10 +259,10 @@ function startQuestion() {
         /* 新一轮别跟上一题撞上同一个开局 */
         if (S.cur && S.queue.length > 1) {
             const last = S.queue[S.queue.length - 1];
-            if (ST_BANK[last].op === S.cur) {
+            if (ST_OPEN[last] === S.cur) {
                 let swap = -1;
                 for (let k = S.queue.length - 2; k >= 0; k--) {
-                    if (ST_BANK[S.queue[k]].op !== S.cur) {
+                    if (ST_OPEN[S.queue[k]] !== S.cur) {
                         swap = k;
                         break;
                     }
@@ -280,7 +274,7 @@ function startQuestion() {
             }
         }
     }
-    startWith(ST_BANK[S.queue.pop()]);
+    startWith(stItem(ST_OPEN[S.queue.pop()]));
 }
 
 /* ---------- 文案 ---------- */
@@ -649,7 +643,7 @@ function wsStart() {
     W.phase = 0;
     W.swap = null;
     W.picks = [];
-    W.swapOnly = op.f === '彗星' || op.f === '游星';
+    W.swapOnly = W.op.f === '彗星' || W.op.f === '游星';
     W.res = null;
     W.msg = '';
     W.stats.n += 1;
