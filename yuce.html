@@ -333,11 +333,11 @@
                     </label>
                     <label class="pred-field">
                         <span>假先 tf</span>
-                        <input id="pred-tf" list="pred-players" required>
+                        <input id="pred-tf" list="pred-players" autocomplete="off" required>
                     </label>
                     <label class="pred-field">
                         <span>假后 ts</span>
-                        <input id="pred-ts" list="pred-players" required>
+                        <input id="pred-ts" list="pred-players" autocomplete="off" required>
                     </label>
                     <label class="pred-field">
                         <span>假先当前执色 tf_color</span>
@@ -916,6 +916,9 @@
     loadRules();
     setupInputBoard();
     fillFromUrl();
+    // 没带链接参数时，默认给出王鑫宇对李致阳；带参数则以参数为准
+    if (!$('pred-tf').value.trim()) { $('pred-tf').value = '王鑫宇'; }
+    if (!$('pred-ts').value.trim()) { $('pred-ts').value = '李致阳'; }
     setMoves(getMoves());
     // 双方填好后自动预测（空棋盘也预测）
     if ($('pred-tf').value.trim() && $('pred-ts').value.trim()) {
