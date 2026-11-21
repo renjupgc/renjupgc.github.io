@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>胜率与落子预测 - 连珠杂箱</title>
-<meta name="description" content="胜率预测按等级分、交手记录与战绩推算胜平负与赔率；落子预测按日期、规则、双方与手顺，用神经网络给出下一手分布与胜平负。">
+<meta name="description" content="赛前与赛中同一模型：给出两位棋手的胜平负概率与下一手概率分布（含开局交换动作），空棋盘即赛前预测。">
 <!-- zbx:seo -->
 <link rel="canonical" href="https://renjupgc.github.io/yuce.html">
 <meta property="og:site_name" content="连珠杂箱">
 <meta property="og:type" content="website">
 <meta property="og:title" content="胜率与落子预测">
-<meta property="og:description" content="胜率预测按等级分、交手记录与战绩推算胜平负与赔率；落子预测按日期、规则、双方与手顺，用神经网络给出下一手分布与胜平负。">
+<meta property="og:description" content="赛前与赛中同一模型：给出两位棋手的胜平负概率与下一手概率分布（含开局交换动作），空棋盘即赛前预测。">
 <meta property="og:url" content="https://renjupgc.github.io/yuce.html">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="胜率与落子预测">
-<meta name="twitter:description" content="胜率预测按等级分、交手记录与战绩推算胜平负与赔率；落子预测按日期、规则、双方与手顺，用神经网络给出下一手分布与胜平负。">
+<meta name="twitter:description" content="赛前与赛中同一模型：给出两位棋手的胜平负概率与下一手概率分布（含开局交换动作），空棋盘即赛前预测。">
 <meta name="twitter:image" content="https://renjupgc.github.io/assets/img/og-cover.png">
 <!-- /zbx:seo -->
 <meta name="theme-color" content="#f6f2e9">
@@ -280,7 +280,7 @@
         <header class="page-head">
             <p class="eyebrow">杂技</p>
             <h1 class="page-title">胜率与落子预测</h1>
-            <p class="page-desc">胜率预测按等级分、交手记录与各自战绩推算两位棋手的胜平负与赔率；落子预测按日期、规则、双方与手顺，用神经网络给出下一手概率分布与胜平负；没有局面（空棋盘）时自动改用赛前胜率预测。</p>
+            <p class="page-desc">赛前与赛中同一个模型：按日期、规则、双方与手顺，给出胜平负概率和下一手概率分布（含开局「交换」动作）；棋盘空着就是赛前预测，落子后自动变成局面预测。</p>
         </header>
 
         <div class="pc-tabs" role="tablist" aria-label="预测方式">
@@ -754,23 +754,24 @@
         });
     }
 
-    function render(data, prematch) {
-        // 空棋盘或赛前模型返回：只出胜平负，不出下一手分布
-        prematch = !!(prematch || data.board_empty || data.source === 'prematch');
+    function render(data) {
         var rule = data.rule || {};
         var tf = data.tentative_first || {};
         var ts = data.tentative_second || {};
         var val = data.value || data.probabilities || {};
         var moves = getMoves();
         var policy = data.policy_top_moves || [];
-        drawBoard('pred-board', moves, policy.length ? policy[0].move : '', false, policy);
+        var boardEmpty = !!data.board_empty;
+        var topMove = (policy.length && policy[0].move !== 'swap') ? policy[0].move : '';
+        drawBoard('pred-board', moves, topMove, false, policy);
         var meta = [
             ['日期', data.timestamp],
             ['规则', rule.name],
             ['手数', data.move_count === undefined || data.move_count === null ? 0 : data.move_count],
-            ['预测来源', prematch ? '赛前模型 · 等级分 + 交手' : '局面网络'],
-            ['下一手', prematch ? '—' : data.next_to_move],
-            ['假先执色', prematch ? '—' : data.tf_current_color]
+            ['预测来源', boardEmpty ? '赛前 · 空棋盘' : '局面'],
+            ['下一手', data.next_to_move],
+            ['假先执色', data.tf_current_color],
+            ['可交换', data.swap_available ? '是' : '否']
         ];
         $('pred-meta').innerHTML = meta.map(function (m) {
             return '<div><b>' + esc(m[0]) + '</b><span>' + esc(m[1]) + '</span></div>';
@@ -788,20 +789,17 @@
             '<p>编号 ' + esc(ts.id) + ' · 等级分 ' + esc(ts.rating) + ' · RD ' + esc(ts.rd) + '</p>' +
             '</article>';
 
-        var policy = prematch ? [] : (data.policy_top_moves || []);
         var maxProb = policy.reduce(function (m, x) { return Math.max(m, Number(x.prob) || 0); }, 0) || 1;
-        $('pred-policy-title').textContent = prematch ? '落子预测 · 暂无局面' : '下一手分布';
-        $('pred-policy').innerHTML = prematch
-            ? '<p class="pred-note">棋盘上还没有落子，没有局面可交给神经网络，已改用<b>赛前胜率预测</b>'
-              + '（等级分 + 交手记录 + 战绩）。先在棋盘上落子，就会给出下一手概率分布。</p>'
-            : policy.map(function (x) {
+        $('pred-policy-title').textContent = boardEmpty ? '开局预测（含交换）' : '下一手分布（含交换）';
+        $('pred-policy').innerHTML = policy.map(function (x) {
+            var label = (x.move === 'swap') ? '交换 swap' : x.move;
             var w = Math.max(2, (Number(x.prob) || 0) / maxProb * 100);
-            return '<div class="pred-row pred-move-row"><span class="pred-label">' + esc(x.move) + '</span>' +
+            return '<div class="pred-row pred-move-row"><span class="pred-label">' + esc(label) + '</span>' +
                 '<span class="pred-track"><span class="pred-fill" style="display:block;width:' + w + '%"></span></span>' +
                 '<span class="pred-num">' + pct(x.prob) + '</span></div>';
         }).join('');
 
-        $('pred-value-title').textContent = prematch ? '赛前胜平负预期' : '对局结果预期';
+        $('pred-value-title').textContent = boardEmpty ? '赛前胜平负预期' : '对局结果预期';
         var valueRows = [
             [esc(tf.name) + ' 胜', val.tf_win, 'is-win'],
             ['和棋', val.draw, 'is-draw'],
@@ -828,14 +826,11 @@
         $('pred-submit').disabled = true;
 
         syncUrl(p);
-        // 没有局面（未落子）→ 赛前胜率预测 /predict；有局面 → 落子预测 /predict_board
+        // 赛前与赛中同一个模型、同一个接口：空棋盘就是赛前预测
         var noBoard = !getMoves().length;
-        var url = noBoard
-            ? buildUrl('/predict', { time: p.time, rule: p.rule, tf: p.tf, ts: p.ts })
-            : buildUrl('/predict_board', p);
-        fetchViaProxy(url).then(function (data) {
-            render(data, noBoard);
-            setState(noBoard ? '赛前预测完成（暂无局面）' : '预测完成', false);
+        fetchViaProxy(buildUrl('/predict', p)).then(function (data) {
+            render(data);
+            setState(noBoard ? '赛前预测完成' : '预测完成', false);
         }).catch(function (e) {
             showError('预测失败：' + (e && e.message ? e.message : e) + '。请检查网络后重试。');
             setState('', false);
@@ -873,16 +868,15 @@
         var day = String(d.getDate()).padStart(2, '0');
         $('pred-time').value = d.getFullYear() + '-' + m + '-' + day;
     })();
-    // 默认局面：黑1手 h8（网址带 moves 参数时会被覆盖）
-    if (!$('pred-moves').value.trim()) { $('pred-moves').value = 'h8'; }
+    // 默认空棋盘：直接给赛前预测，落子后自动切到局面预测
     // 预热：先打一次 /health 唤醒 serverless 实例，免得首次预测卡在冷启动
     fetchViaProxy(buildUrl('/health', { _: Date.now() })).catch(function () { /* 预热失败不影响正式请求 */ });
     loadRules();
     setupInputBoard();
     fillFromUrl();
     setMoves(getMoves());
-    // 仅当网址带有完整参数时自动预测；否则留空由用户落子后自行触发
-    if (getMoves().length && $('pred-tf').value.trim() && $('pred-ts').value.trim()) {
+    // 双方填好后自动预测（空棋盘也预测）
+    if ($('pred-tf').value.trim() && $('pred-ts').value.trim()) {
         run();
     }
 })();
