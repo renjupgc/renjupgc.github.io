@@ -246,7 +246,8 @@
     }
     if (kind === 'qipu') {
       return [x.event, Array.isArray(x.moves) ? x.moves.length + ' 手' : '',
-        x.rules, x.m5a ? '5A ' + x.m5a : ''].filter(Boolean).join(' · ');
+        x.rules, x.swap ? '交换 ' + x.swap : '',
+        x.m5a ? '5A ' + x.m5a : ''].filter(Boolean).join(' · ');
     }
     if (kind === 'person') { return [x.dan, x.tag].filter(Boolean).join(' · '); }
     if (kind === 'person_page') {
@@ -517,11 +518,13 @@
     var result = selectField('胜负结果', '_result', resultKey(w), [
       ['p1', '黑方（先手）胜'], ['p2', '白方（后手）胜'], ['draw', '和棋'], ['', '未定']
     ]);
+    var swap = '<div id="swap-box">' + swapField(w.rules || '', w.swap || '') + '</div>';
     var m5a = field('5A（第五手被拿掉的点）', 'm5a', w.m5a || '', 'text',
       'placeholder="坐标 H8 或 第5手，多个用空格分开"');
-    var info = '<h3>规则与胜负</h3><div class="grid2">' + ex + result + '</div>' + m5a +
-      '<p class="hint" style="color:var(--muted);font-size:12px">5A 填被拿掉的那一点：' +
-      '棋盘坐标（H8）或第几手（5、第五手）都行，多个用空格分开。' +
+    var info = '<h3>规则与胜负</h3><div class="grid2">' + ex + result + '</div>' + swap + m5a +
+      '<p class="hint" style="color:var(--muted);font-size:12px">交换情况按规则填：' +
+      '五手两打填 1 位，塔拉山口-10 填前五手共 5 位；+ 表示交换，- 表示不交换。' +
+      '5A 填被拿掉的那一点：棋盘坐标（H8）或第几手（5、第五手）都行，多个用空格分开。' +
       '选好胜负会自动填写结果文字和胜者。</p>';
     var board = '<h3>在棋盘上录入落子<span class="badge">点交叉点落子，黑先白后自动交替</span></h3>' +
       '<div class="steps"><span><b>1</b> 填好双方姓名</span><span><b>2</b> 点棋盘落子</span>' +
@@ -661,6 +664,71 @@
     });
     return out.join(' ');
   }
+  /* 黑白交换：+ 交换、- 不交换。
+   * 五手两打记 1 位（整局是否换过先后手），塔拉山口-10 记前五手共 5 位。 */
+  var SWAP_OPTS = [['', '（未填）'], ['-', '不交换 -'], ['+', '交换 +']];
+
+  function normSwap(v, rules) {
+    var raw = String(v == null ? '' : v)
+      .replace(/＋/g, '+').replace(/[－—–−]/g, '-')
+      .replace(/[，,、\/|;；\s]+/g, '');
+    if (!raw) { return ''; }
+    if (!/^[+-]+$/.test(raw)) {
+      throw new Error('交换情况只填 + 或 -（+ 交换、- 不交换）；「' + v + '」看不懂');
+    }
+    var need = rules === '塔拉山口-10' ? 5 : (rules ? 1 : 0);
+    if (need ? raw.length !== need : (raw.length !== 1 && raw.length !== 5)) {
+      throw new Error(rules === '塔拉山口-10'
+        ? '塔拉山口-10 要填前五手的交换情况，正好 5 位，例如 +-+--；填了 ' + raw.length + ' 位'
+        : '五手两打只填 1 位（+ 交换、- 不交换），例如 -；填了 ' + raw.length + ' 位');
+    }
+    return raw;
+  }
+
+  /* 编辑器里的控件：塔拉山口-10 用 5 位文本框，其余用一个下拉；
+   * 老数据里存着多位值时继续用文本框，免得下拉把原值吞掉。 */
+  function swapField(rules, value) {
+    var v = value || '';
+    if (rules === '塔拉山口-10' || v.length > 1) {
+      return field('前五手交换情况（+ 交换 / - 不交换）', 'swap', v, 'text',
+        'placeholder="例如 +-+--，正好 5 位"');
+    }
+    return selectField('是否交换（+ 交换 / - 不交换）', 'swap', v, SWAP_OPTS);
+  }
+
+  /* 弹窗里的同名控件：值直接挂在 REC 上，不走 data-bind */
+  function swapFieldRec(rules, value) {
+    var v = value || '';
+    if (rules === '塔拉山口-10' || v.length > 1) {
+      return '<div class="field"><label>前五手交换情况（+ 交换 / - 不交换）</label>' +
+        '<input type="text" id="rec-swap" value="' + esc(v) + '" placeholder="例如 +-+--，正好 5 位"></div>';
+    }
+    return '<div class="field"><label>是否交换（+ 交换 / - 不交换）</label>' +
+      '<select id="rec-swap">' + SWAP_OPTS.map(function (o) {
+        return '<option value="' + esc(o[0]) + '"' + (o[0] === v ? ' selected' : '') + '>' +
+          esc(o[1]) + '</option>';
+      }).join('') + '</select></div>';
+  }
+
+  function bindRecSwap() {
+    var el = $('rec-swap');
+    if (!el || !REC) { return; }
+    el.addEventListener('input', function () { REC.swap = el.value; });
+    el.addEventListener('change', function () { REC.swap = el.value; });
+  }
+
+  /* 规则一改，交换情况的填法跟着换 */
+  function refreshSwapBox() {
+    /* 弹窗与编辑器各有一个容器，哪边在就刷哪边 */
+    var rbox = $('rec-swap-box');
+    if (rbox && REC) {
+      rbox.innerHTML = swapFieldRec(REC.rules || '', REC.swap || '');
+      bindRecSwap();
+    }
+    var box = $('swap-box');
+    if (box && S.work) { box.innerHTML = swapField(S.work.rules || '', S.work.swap || ''); }
+  }
+
   function movesOfBoard(b) {
     if (!b) { return []; }
     return b.getMoves().map(function (m) { return coord(m.i, m.j); });
@@ -842,6 +910,8 @@
       '<div class="field"><label>胜负</label><select id="rec-result">' + resultOptions(rk) + '</select></div>' +
       '<div class="field"><label>规则</label><select id="rec-rules">' + ruleOptions(doc ? (doc.rules || '') : '') + '</select></div>' +
       '</div>' +
+      '<div id="rec-swap-box">' +
+      swapFieldRec(doc ? (doc.rules || '') : '', doc ? (doc.swap || '') : '') + '</div>' +
       '<div class="field"><label>5A（第五手被拿掉的点）</label><input type="text" id="rec-m5a" value="' +
       esc(doc ? (doc.m5a || '') : '') + '" placeholder="坐标 H8 或 第5手，多个用空格分开"></div>' +
       '<div class="field"><label>这一格对应哪份棋谱</label><select id="rec-link">' +
@@ -880,6 +950,15 @@
     });
     REC.p1 = black; REC.p2 = white; REC.rk = rk; REC.rules = doc ? (doc.rules || '') : '';
     REC.m5a = doc ? (doc.m5a || '') : '';
+    REC.swap = doc ? (doc.swap || '') : '';
+    bindRecSwap();
+    var rr = $('rec-rules');
+    if (rr) {
+      rr.addEventListener('change', function () {
+        REC.rules = rr.value;
+        refreshSwapBox();
+      });
+    }
   }
 
   function closeRecorder() {
@@ -938,6 +1017,8 @@
     doc.rules = rules;
     var m5a = norm5a(($('rec-m5a') || {}).value || '');
     if (m5a) { doc.m5a = m5a; } else { delete doc.m5a; }
+    var sw = normSwap(($('rec-swap') || {}).value || '', rules);
+    if (sw) { doc.swap = sw; } else { delete doc.swap; }
     doc.moves = moves;
     doc.turns = moves.length;
 
@@ -1032,6 +1113,8 @@
       }
       w.m5a = norm5a(w.m5a);
       if (!w.m5a) { delete w.m5a; }
+      w.swap = normSwap(w.swap, w.rules);
+      if (!w.swap) { delete w.swap; }
       w.turns = (w.moves || []).length;
       w.roundLabel = '第 ' + num(w.round, 1) + ' 轮';
       w.id = num(S.cur, 0);
@@ -1109,7 +1192,7 @@
     }
     var seed = {};
     if (S.kind === 'competition') { seed = { title: id, date: '', info: [], intro: '', rounds: ['编号', '姓名', 'R1', '积分', '对手分', '中间对手分', '胜局数', '名次'], rows: [], qipu_ids: [] }; }
-    else if (S.kind === 'qipu') { seed = { event: '', date: '', round: 1, board: 1, p1: '', p2: '', rules: '', m5a: '', moves: [], winner: '', result: '' }; }
+    else if (S.kind === 'qipu') { seed = { event: '', date: '', round: 1, board: 1, p1: '', p2: '', rules: '', swap: '', m5a: '', moves: [], winner: '', result: '' }; }
     else if (S.kind === 'person') { seed = { name: id, facts: [], honors: [], links: [] }; }
     else if (S.kind === 'person_page') { seed = { name: id, title: id, region: '', unit: '', dan: '', stats: [], bioHtml: '<p></p>' }; }
     else if (S.kind === 'rating') { seed = { name: id, rank: '', rating: '', region: '', uni: '' }; }
@@ -1142,6 +1225,7 @@
     if (!bind) { return; }
     var v = t.value;
     setPath(S.work, bind, v);
+    if (bind === 'rules') { refreshSwapBox(); }
     if (bind.indexOf('infoExtra') === 0) { flushInfo(); }
     var kindAttr = t.getAttribute('data-bind');
     if (kindAttr === '_result') {

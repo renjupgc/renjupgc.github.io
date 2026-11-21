@@ -154,6 +154,13 @@
             function (td) { td.setAttribute('aria-expanded', 'false'); });
     }
 
+    /* 黑白交换：+ 交换、- 不交换；五手两打 1 位，塔拉山口-10 前五手 5 位 */
+    function swapText(v) {
+        if (!v) { return ''; }
+        return String(v).length > 1 ? '前五手交换 ' + v :
+            (v === '+' ? '已交换先后手' : '未交换先后手');
+    }
+
     function headline(d) {
         if (d.winner) { return d.winner + ' 胜 ' + (d.winner === d.p1 ? d.p2 : d.p1); }
         return d.p1 + ' 对 ' + d.p2 + '（' + (d.resultText || '未分胜负') + '）';
@@ -173,7 +180,7 @@
         lead.appendChild(el('h3', 'qp-title', headline(d)));
         lead.appendChild(el('p', 'qp-meta',
             [d.date, d.rules, d.board ? '第 ' + d.board + ' 台' : '',
-                d.m5a ? '5A 拿掉 ' + d.m5a : '']
+                swapText(d.swap), d.m5a ? '5A 拿掉 ' + d.m5a : '']
                 .filter(Boolean).join(' · ')));
         head.appendChild(lead);
 
