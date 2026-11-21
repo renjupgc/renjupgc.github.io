@@ -764,6 +764,8 @@
         var boardEmpty = !!data.board_empty;
         var topMove = (policy.length && policy[0].move !== 'swap') ? policy[0].move : '';
         drawBoard('pred-board', moves, topMove, false, policy);
+        var tacticLabel = data.tactic === 'win' ? '可直接连五'
+            : (data.tactic === 'block' ? '必须堵五' : '—');
         var meta = [
             ['日期', data.timestamp],
             ['规则', rule.name],
@@ -771,7 +773,8 @@
             ['预测来源', boardEmpty ? '赛前 · 空棋盘' : '局面'],
             ['下一手', data.next_to_move],
             ['假先执色', data.tf_current_color],
-            ['可交换', data.swap_available ? '是' : '否']
+            ['可交换', data.swap_available ? '是' : '否'],
+            ['战术', tacticLabel]
         ];
         $('pred-meta').innerHTML = meta.map(function (m) {
             return '<div><b>' + esc(m[0]) + '</b><span>' + esc(m[1]) + '</span></div>';
