@@ -4,9 +4,9 @@
  * 把 assets/shida-data.js 里 249 个开局的打数表接到打谱棋盘上：摆满前四手，
  * 就用这四手的形去书里认这一路（八种对称都试一遍，所以摆在哪、摆成什么朝向
  * 都认得出），然后
- *   1. 在盘上把书里每个打点标出来（小字写打数，最紧的两手加圈），
- *   2. 在右边列出这一路的打数表：坐标、原书标号、打数、评估，
- *   3. 点一行就把这一手摆上去当第五手（超过四手的部分先退掉）。
+ *   1. 在盘上把书里每个打点标出来——数字正落在交叉点上，颜色是评估，
+ *   2. 在开局卡上补一行小开局名（寒预、寒通这种），
+ *   3. 在右边列出这一路的打点，点一下就把这一手摆上去当第五手（超过四手的先退掉）。
  * 下面还有一份按族分组的 249 局清单，点一个就把那四手摆回盘上。
  *
  * 站内换页只换 <main>，本文件不会重跑，所以用 MutationObserver 盯着这一节
@@ -101,12 +101,6 @@
         return GOOD[r] ? 'good' : BAD[r] ? 'bad' : 'warn';
     }
 
-    function bands(tab) {
-        return (tab || []).map(function (b) {
-            return (b[0] === b[1] ? b[0] : b[0] + '–' + b[1]) + ' 打 ' + b[2];
-        }).join(' · ');
-    }
-
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"]/g, function (ch) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch];
@@ -115,19 +109,21 @@
 
     function boot() {
         var box = document.getElementById('kj-sd');
-        var nameBox = document.getElementById('kj-sd-name');
-        if (!box || !nameBox || box.dataset.ready === '1') {
+        var listBox = document.getElementById('kj-sd-list');
+        if (!box || !listBox || box.dataset.ready === '1') {
             return;
         }
         box.dataset.ready = '1';
 
-        var pageBox = document.getElementById('kj-sd-page');
+        var aliasBox = document.getElementById('kj-alias');
+        var subBox = document.getElementById('kj-sub-name');
+        var subMetaBox = document.getElementById('kj-sub-meta');
+        var metaBox = document.getElementById('kj-sd-meta');
         var bandBox = document.getElementById('kj-sd-band');
-        var listBox = document.getElementById('kj-sd-list');
         var bookBox = document.getElementById('kj-sd-book');
         var markBox = document.getElementById('kj-sd-mark');
         var host = document.querySelector('.board[data-board]');
-        if (!pageBox || !bandBox || !listBox) {
+        if (!bandBox) {
             return;
         }
 
@@ -165,7 +161,7 @@
             }
         }
 
-        /* ---------- 盘上标注 ---------- */
+        /* ---------- 盘上标注：数字落在交叉点上 ---------- */
 
         function drawMarks(b, rows) {
             if (!markBox || !markBox.checked) {
@@ -176,49 +172,44 @@
             var taken = {};
             b.getMoves().forEach(function (m) { taken[m.i + ',' + m.j] = 1; });
             var notes = [];
-            var marks = [];
-            var firstByN = {};
             rows.forEach(function (r) {
                 if (taken[r.p.i + ',' + r.p.j]) {
                     return;
                 }
                 notes.push({
-                    i: r.p.i, j: r.p.j, text: String(r.c[2]), size: 0.74,
-                    tone: tone(r.res), dx: 0.46, dy: -0.66, anchor: 'start'
+                    i: r.p.i, j: r.p.j, text: String(r.c[2]),
+                    size: 0.84, tone: tone(r.res),
+                    dx: 0, dy: 0.3, anchor: 'middle'
                 });
-                if (!firstByN[r.c[2]]) { firstByN[r.c[2]] = r; }
             });
-            Object.keys(firstByN).map(function (n) { return firstByN[n]; })
-                .sort(function (a, b2) { return a.c[2] - b2.c[2]; })
-                .slice(0, 2)
-                .forEach(function (r) {
-                    marks.push({ i: r.p.i, j: r.p.j, kind: 'good' });
-                });
-            b.setMarks(marks);
+            b.setMarks([]);
             b.setNotes(notes);
         }
 
         /* ---------- 渲染 ---------- */
 
+        function clearAlias() {
+            if (aliasBox) { aliasBox.hidden = true; }
+            if (subBox) { subBox.textContent = ''; }
+            if (subMetaBox) { subMetaBox.textContent = ''; }
+        }
+
         function paint(b) {
             var moves = b.getMoves();
             var hit = match(moves);
+
             if (!hit) {
-                nameBox.textContent = '—';
-                pageBox.textContent = '';
+                clearAlias();
+                if (metaBox) { metaBox.textContent = ''; }
                 bandBox.textContent = moves.length >= 4
-                    ? '这一路书里没记：前四手对不上 249 局里的任何一路。'
-                    : '摆到白 4，这里给出书里这一路的打数。';
+                    ? '前四手对不上书里的 249 局，这一路没有打点表。'
+                    : '摆到白 4，这里给出书里这一路的打点。';
                 listBox.innerHTML = '';
                 drawMarks(b, []);
                 return;
             }
 
             var op = hit.op;
-            nameBox.textContent = op.f + ' · ' + op.n;
-            pageBox.textContent = '原书 ' + op.p + ' 页 · 十打 ' + (op.t || '—');
-            bandBox.textContent = bands(op.r) + (op.rp ? ' ｜ ′ 栏：' + bands(op.rp) : '');
-
             var rows = [];
             op.c.forEach(function (c) {
                 var p = pointOf(op, hit, c[0], c[1]);
@@ -230,14 +221,29 @@
                 return a.c[2] - b2.c[2] || a.p.i - b2.p.i || b2.p.j - a.p.j;
             });
 
+            /* 开局卡的第二行：这一路在小书里的名字 */
+            if (aliasBox) { aliasBox.hidden = false; }
+            if (subBox) { subBox.textContent = op.n; }
+            if (subMetaBox) {
+                subMetaBox.textContent = '原书 ' + op.p + ' 页 · 十打 ' + (op.t || '—');
+            }
+
+            if (metaBox) {
+                metaBox.textContent = rows.length
+                    ? rows.length + ' 个 · 打数 ' + rows[0].c[2] + '–' + rows[rows.length - 1].c[2]
+                    : '';
+            }
+            bandBox.textContent = '盘上的数字就是打数，颜色是输赢；点一个摆上第五手。' +
+                (op.rp ? '带 ′ 的点查原书右栏。' : '');
+
             listBox.innerHTML = rows.map(function (r) {
-                return '<li><button class="kj-sd-row" type="button" data-i="' + r.p.i +
-                    '" data-j="' + r.p.j + '">' +
-                    '<span class="kj-sd-at">' + coord(r.p) + '</span>' +
-                    '<span class="kj-sd-lab">' + esc(label(r.c)) + '</span>' +
-                    '<span class="kj-sd-n">' + r.c[2] + ' 打</span>' +
-                    '<span class="kj-sd-res is-' + tone(r.res) + '">' + esc(r.res) + '</span>' +
-                    '</button></li>';
+                return '<button class="kj-sd-chip is-' + tone(r.res) + '" type="button" data-i="' +
+                    r.p.i + '" data-j="' + r.p.j + '" title="原书 ' + esc(label(r.c)) + ' · ' +
+                    r.c[2] + ' 打 · ' + esc(r.res) + '">' +
+                    '<b>' + r.c[2] + '</b>' +
+                    '<span class="kj-sd-at">' + coord(r.p) + (r.c[5] ? '′' : '') + '</span>' +
+                    '<span class="kj-sd-res">' + esc(r.res) + '</span>' +
+                    '</button>';
             }).join('');
 
             drawMarks(b, rows);

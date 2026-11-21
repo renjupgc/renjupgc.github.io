@@ -4158,9 +4158,9 @@ table.ratings .r-name a:hover {
 
 .kj-grid {
     display: grid;
-    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
     gap: 16px;
-    align-items: start;
+    align-items: stretch;
 }
 
 .kj-card {
@@ -4209,8 +4209,62 @@ table.ratings .r-name a:hover {
     color: var(--faint);
 }
 
-.kj-side {
-    min-width: 0;
+.kj-alias {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding: 8px 12px;
+    background: var(--gold-tint);
+    border-radius: 8px;
+}
+
+.kj-alias[hidden] {
+    display: none;
+}
+
+.kj-alias-l {
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    color: var(--gold-deep);
+}
+
+.kj-alias b {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: var(--ink);
+}
+
+.kj-alias i {
+    font-style: normal;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+}
+
+/* 同型局单独一节，整幅排 */
+.same {
+    margin: 0 0 42px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line-soft);
+}
+
+.same-lead {
+    max-width: 64ch;
+    margin: 0 0 18px;
+    font-size: 13.5px;
+    line-height: 1.9;
+    color: var(--ink-3);
+}
+
+.same .kj-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    column-gap: 34px;
 }
 
 .kj-side-head {
@@ -4381,35 +4435,15 @@ table.ratings .r-name a:hover {
     color: var(--gold-deep);
 }
 
-/* ---------- 打谱页：开局库打点 ---------- */
-
-.kj-shida {
-    margin: 18px 0 0;
-    padding-top: 14px;
-    border-top: 1px solid var(--line-soft);
-}
-
-.kj-shida > summary {
-    font-family: var(--sans);
-    font-size: 12.5px;
-    letter-spacing: .04em;
-    color: var(--ink-3);
-    cursor: pointer;
-}
-
-.kj-shida > summary:hover {
-    color: var(--gold-deep);
-}
-
-.kj-shida > summary small {
-    margin-left: 8px;
-    font-size: 11.5px;
-    letter-spacing: 0;
-    color: var(--faint);
-}
+/* ---------- 打谱页：局库打点 ---------- */
 
 .kj-sd {
-    margin: 12px 0 0;
+    min-width: 0;
+    padding: 16px 18px 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
 }
 
 .kj-sd-head {
@@ -4417,22 +4451,22 @@ table.ratings .r-name a:hover {
     flex-wrap: wrap;
     align-items: baseline;
     gap: 10px;
-    padding-bottom: 8px;
+    padding-bottom: 9px;
     border-bottom: 1px solid var(--line-soft);
 }
 
 .kj-sd-head b {
-    font-family: var(--serif);
-    font-size: 19px;
+    font-family: var(--sans);
+    font-size: 12.5px;
     font-weight: 600;
-    letter-spacing: .05em;
-    color: var(--ink);
+    letter-spacing: .14em;
+    color: var(--ink-2);
 }
 
-.kj-sd-page {
+.kj-sd-meta {
     font-family: var(--mono);
     font-size: 11px;
-    letter-spacing: .04em;
+    letter-spacing: .03em;
     color: var(--gold-deep);
 }
 
@@ -4452,82 +4486,84 @@ table.ratings .r-name a:hover {
 }
 
 .kj-sd-band {
-    margin: 8px 0 10px;
-    font-size: 12px;
+    margin: 9px 0 12px;
+    font-size: 11.5px;
     line-height: 1.7;
-    color: var(--ink-3);
+    color: var(--muted);
 }
 
 .kj-sd-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: 0 16px;
-    max-height: 264px;
-    overflow: auto;
-    margin: 0 0 4px;
-    padding: 0;
-    list-style: none;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 6px;
 }
 
 .kj-sd-list:empty {
     display: none;
 }
 
-.kj-sd-row {
-    display: grid;
-    grid-template-columns: 36px 44px minmax(0, 1fr) auto;
-    align-items: baseline;
+.kj-sd-chip {
+    display: flex;
+    align-items: center;
     gap: 6px;
-    width: 100%;
-    padding: 6px 4px;
+    padding: 5px 9px 5px 5px;
     font: inherit;
     text-align: left;
-    background: none;
-    border: 0;
-    border-bottom: 1px solid var(--line-soft);
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 999px;
     cursor: pointer;
+    transition: border-color .16s ease, background .16s ease;
 }
 
-.kj-sd-row:hover {
+.kj-sd-chip:hover {
+    border-color: var(--gold);
     background: var(--gold-tint);
+}
+
+.kj-sd-chip b {
+    flex: none;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 20px;
+    text-align: center;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
 }
 
 .kj-sd-at {
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 11.5px;
     color: var(--ink-2);
 }
 
-.kj-sd-lab {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--faint);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.kj-sd-n {
-    font-family: var(--sans);
-    font-size: 11.5px;
-    color: var(--muted);
-}
 
 .kj-sd-res {
-    font-size: 12px;
-    font-weight: 600;
+    margin-left: auto;
+    font-family: var(--sans);
+    font-size: 11px;
+    white-space: nowrap;
 }
 
-.kj-sd-res.is-good {
-    color: #3f6b48;
+.kj-sd-chip.is-good .kj-sd-res { color: #3f6b48; }
+.kj-sd-chip.is-bad .kj-sd-res { color: #a8453f; }
+.kj-sd-chip.is-warn .kj-sd-res { color: #a8863f; }
+
+.kj-sd-all {
+    margin-top: 22px;
 }
 
-.kj-sd-res.is-bad {
-    color: #a8453f;
-}
-
-.kj-sd-res.is-warn {
-    color: #a8863f;
+.kj-sd-all > summary small {
+    margin-left: 8px;
+    font-size: 11.5px;
+    letter-spacing: 0;
+    color: var(--faint);
 }
 
 @media (max-width: 760px) {
@@ -4544,8 +4580,7 @@ table.ratings .r-name a:hover {
     }
 
     .kj-sd-list {
-        grid-template-columns: minmax(0, 1fr);
-        max-height: 320px;
+        grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
     }
 
     .kj-sd-tog {

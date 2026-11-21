@@ -169,7 +169,7 @@
         out.family = hit.family;
         out.familyName = hit.familyName;
         out.why = '第二手' + (hit.family === 'direct' ? '贴在正侧，是直指' : '贴在斜角，是斜指') +
-            '；第三手在' + out.third + '，' + hit.star + '形，' + hit.code + ' ' + hit.full;
+            '；第三手在' + out.third + '，' + hit.star + '形';
         return out;
     }
 

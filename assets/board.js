@@ -1039,6 +1039,8 @@
     /*
      * 点旁小字：给某一手或空点标个名字，如原书的「a3」「c8?」。
      *   [{ i, j, text, tone }]，tone = good | warn | bad | mute
+     * 默认写在点的右上方，dx/dy 以格距为单位；dx:0 / anchor:'middle' 就是压在
+     * 交叉点上（打谱页写打数就这么用）。
      * 只影响画面，不参与落子判定；传空数组即清空。
      */
     Board.prototype.setNotes = function (list) {

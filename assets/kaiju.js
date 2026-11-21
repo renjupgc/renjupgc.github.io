@@ -89,10 +89,7 @@
 
             var bits = [];
             if (r.ok) {
-                bits.push(r.familyName);
-                bits.push(r.star + '形');
-                bits.push(r.note);
-                bits.push('第三手 ' + r.third);
+                bits.push('此形 ' + r.note);
                 if (!r.center) { bits.push('首手不在天元，按首手为原点判'); }
             } else if (r.familyName) {
                 bits.push(r.familyName);

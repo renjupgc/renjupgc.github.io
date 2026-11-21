@@ -50,7 +50,7 @@
 
         <section class="kaiju" id="kaiju">
             <h2>开局</h2>
-            <p class="kaiju-lead">连珠的前三手决定了开局的名字：第一手在天元、第二手贴在 3×3 以内、第三手在 5×5 以内，把旋转和镜像重复的形并掉，正好二十六种。摆到第三手，下面就会报出名字；摆满四手，还会带出书里这一路的打数。</p>
+            <p class="kaiju-lead">连珠的前三手决定了开局的名字：第一手在天元、第二手贴在 3×3 以内、第三手在 5×5 以内，把旋转和镜像重复的形并掉，正好二十六种。摆到第三手，左边报开局；摆满四手，还会带出书里这一路的小开局名与打点。</p>
 
             <div class="kj-grid">
                 <div class="kj-card">
@@ -58,15 +58,23 @@
                         <b id="kj-name">—</b>
                         <span class="kj-code" id="kj-code"></span>
                     </div>
+                    <p class="kj-alias" id="kj-alias" hidden>
+                        <span class="kj-alias-l">小开局</span>
+                        <b id="kj-sub-name"></b>
+                        <i id="kj-sub-meta"></i>
+                    </p>
                     <p class="kj-why" id="kj-why">摆到第三手，这里会给出开局名。</p>
                     <p class="kj-meta" id="kj-meta"></p>
                 </div>
 
-                <div class="kj-side">
-                    <div class="kj-side-head">同型局<small id="kj-side-note"></small></div>
-                    <ol class="kj-list" id="kj-list">
-                        <li class="kj-empty">摆几手再看</li>
-                    </ol>
+                <div class="kj-sd" id="kj-sd">
+                    <div class="kj-sd-head">
+                        <b>打点</b>
+                        <span class="kj-sd-meta" id="kj-sd-meta"></span>
+                        <label class="kj-sd-tog"><input type="checkbox" id="kj-sd-mark" checked>盘上标出</label>
+                    </div>
+                    <p class="kj-sd-band" id="kj-sd-band">摆到白 4，这里给出书里这一路的打点。</p>
+                    <div class="kj-sd-list" id="kj-sd-list"></div>
                 </div>
             </div>
 
@@ -75,22 +83,19 @@
                 <div class="kj-book-wrap" id="kj-book"></div>
             </details>
 
-            <details class="kj-shida" open>
-                <summary>开局库 · 打点<small>249 局，取自《漱星阁开局指南》2026.10.25 打数表</small></summary>
-                <div class="kj-sd" id="kj-sd">
-                    <div class="kj-sd-head">
-                        <b id="kj-sd-name">—</b>
-                        <span class="kj-sd-page" id="kj-sd-page"></span>
-                        <label class="kj-sd-tog"><input type="checkbox" id="kj-sd-mark" checked>盘上标出打点</label>
-                    </div>
-                    <p class="kj-sd-band" id="kj-sd-band">摆到白 4，这里给出书里这一路的打数。</p>
-                    <ol class="kj-sd-list" id="kj-sd-list"></ol>
-                    <details class="kj-book kj-sd-all">
-                        <summary>249 局 · 点一个摆到盘上</summary>
-                        <div class="kj-book-wrap" id="kj-sd-book"></div>
-                    </details>
-                </div>
+            <details class="kj-book kj-sd-all" open>
+                <summary>开局库 249 局 · 点一个摆到盘上<small>《漱星阁开局指南》2026.10.25 打数表，按族分</small></summary>
+                <div class="kj-book-wrap" id="kj-sd-book"></div>
             </details>
+        </section>
+
+        <section class="same" id="same">
+            <h2>同型局</h2>
+            <p class="same-lead">拿当前局面去站内录了手顺的对局里比，形最像的六局列在下面。点一行，那一局就摆回棋盘；局面本来就写在地址栏里，顺手就能发给棋友。</p>
+            <div class="kj-side-head">按形相似度排<small id="kj-side-note"></small></div>
+            <ol class="kj-list" id="kj-list">
+                <li class="kj-empty">摆几手再看</li>
+            </ol>
         </section>
 
         <section class="scan" id="scan">
