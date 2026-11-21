@@ -82,7 +82,7 @@ const CORE = {
 };
 
 const S = {
-    mode: 'ws',        // 'ws' 五手两打 | 'st' 塔拉山口-10
+    mode: 'st',        // 'st' 塔拉山口-10 | 'ws' 五手两打
     queue: [],
     cur: null,
     five: null,
