@@ -1,12 +1,12 @@
 {
   "file": "policy_model.onnx",
-  "version": "0e6cd0cf6603",
+  "version": "67e0b27e4489",
   "bytes": 41806379,
-  "checkpoint": "checkpoints_all4\\best.pt",
-  "step": 5000,
+  "checkpoint": "checkpoints_renju_all\\best.pt",
+  "step": 7500,
   "best_step": null,
-  "val_acc": 0.46171875,
-  "exported_at": "2026-11-21T09:43:19+08:00",
+  "val_acc": 0.506640625,
+  "exported_at": "2026-11-21T11:01:33+08:00",
   "arch": "otter-local-policy-v2-value3",
   "value_classes": [
     "mover_loss",
@@ -15,6 +15,6 @@
   ],
   "input_planes": 18,
   "elo_min": 1200,
-  "elo_band": 60,
+  "elo_band": 80,
   "elo_buckets": 10
 }
