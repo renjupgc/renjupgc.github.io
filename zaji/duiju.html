@@ -33,18 +33,38 @@
 
 .dj-stage {
     position: relative;
-    height: 70vh;
-    min-height: 440px;
-    max-height: 760px;
+    height: 76vh;
+    min-height: 500px;
+    max-height: 860px;
     margin: 0 0 6px;
-    border-radius: var(--radius-lg);
+    border: 1px solid rgba(180, 145, 88, 0.28);
+    border-radius: 22px;
     overflow: hidden;
-    background: #0b0a09;
-    box-shadow: 0 30px 70px -52px rgba(30, 20, 4, 0.9), inset 0 0 0 1px rgba(246, 242, 233, 0.06);
+    background: radial-gradient(circle at 50% 30%, #242017, #090908 72%);
+    box-shadow: 0 32px 80px -46px rgba(30, 20, 4, 0.95), 0 0 0 5px rgba(94, 72, 39, 0.06);
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
     cursor: crosshair;
+    isolation: isolate;
+}
+
+.dj-stage:fullscreen,
+.dj-stage.dj-fullscreen {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+}
+
+.dj-stage.dj-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
 }
 
 .dj-stage canvas {
@@ -128,12 +148,13 @@
 }
 
 .dj-clock {
-    min-width: 132px;
-    padding: 8px 14px 9px;
-    border-radius: 12px;
-    background: rgba(14, 12, 9, 0.66);
-    border: 1px solid rgba(201, 168, 111, 0.2);
-    backdrop-filter: blur(8px);
+    min-width: 140px;
+    padding: 10px 16px 11px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(34, 30, 23, 0.88), rgba(12, 12, 10, 0.78));
+    border: 1px solid rgba(201, 168, 111, 0.25);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), inset 0 1px rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(14px);
     text-align: right;
     transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
 }
@@ -212,10 +233,11 @@
     font-family: var(--sans);
     font-size: 13px;
     line-height: 1;
-    padding: 10px 15px;
-    border-radius: 10px;
-    border: 1px solid rgba(201, 168, 111, 0.28);
-    background: rgba(18, 15, 11, 0.66);
+    padding: 11px 16px;
+    border-radius: 11px;
+    border: 1px solid rgba(201, 168, 111, 0.3);
+    background: linear-gradient(180deg, rgba(42, 37, 29, 0.88), rgba(18, 16, 12, 0.82));
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 6px 18px rgba(0, 0, 0, 0.14);
     color: #e4d8c0;
     cursor: pointer;
     backdrop-filter: blur(8px);
@@ -332,6 +354,17 @@
 }
 
 .dj-field input::placeholder { color: #7b7264; }
+
+.dj-custom-clock {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 10px 0 0;
+}
+
+.dj-custom-clock.is-on { display: grid; }
+.dj-custom-clock .dj-field { margin: 0; }
+.dj-custom-clock input { font-family: var(--mono); }
 
 #dj-code {
     font-family: var(--mono);
@@ -521,6 +554,7 @@
                         <button type="button" class="dj-btn" id="dj-anim">动画：细</button>
                         <button type="button" class="dj-btn" id="dj-sound">声音：开</button>
                         <button type="button" class="dj-btn" id="dj-resign">认输</button>
+                        <button type="button" class="dj-btn" id="dj-fullscreen" title="全屏对局（F）">全屏</button>
                         <button type="button" class="dj-btn" id="dj-help-btn">说明</button>
                         <button type="button" class="dj-btn" id="dj-leave">离开</button>
                     </div>
@@ -562,7 +596,18 @@
                             <button type="button" data-preset="std" class="is-on">10 分 + 5 秒</button>
                             <button type="button" data-preset="fast">5 分 + 3 秒</button>
                             <button type="button" data-preset="long">15 分 + 10 秒</button>
+                            <button type="button" data-preset="custom">自定义</button>
                             <button type="button" data-preset="none">不限时</button>
+                        </div>
+                        <div class="dj-custom-clock" id="dj-custom-clock">
+                            <div class="dj-field">
+                                <label for="dj-main-minutes">每方基本用时（分钟）</label>
+                                <input id="dj-main-minutes" type="number" min="1" max="180" step="1" value="10" inputmode="numeric">
+                            </div>
+                            <div class="dj-field">
+                                <label for="dj-inc-seconds">每手加秒（秒）</label>
+                                <input id="dj-inc-seconds" type="number" min="0" max="60" step="1" value="5" inputmode="numeric">
+                            </div>
                         </div>
                     </div>
 
@@ -606,8 +651,9 @@
                     <h2>怎么下</h2>
                     <p><b>落子</b>：鼠标移到交叉点上会出现一颗半透明的子，点一下就伸手去棋盒里拿子、落到那个点。拖动可以转一点头，滚轮靠近或退远。</p>
                     <p><b>拍钟</b>：真下棋的时候，落完子得用手背拍一下棋钟，时间才交给对方。这里一样——落完子那块「拍钟」会亮起来，点它、点右边桌上的钟、或者按空格都行。六秒不拍，钟替你拍。</p>
-                    <p><b>棋钟</b>：屏幕下沿还有一块大的。用完加秒，走完一手加几秒，时间归零判负。桌子上那块表是真的会走字，两个人看到的是同一盘时间。</p>
-                    <p><b>联机</b>：房间号就是频道号，两个人报同一个号就在同一张桌。不落库、不留谱，人散了这一局就没了。实时服务连不上时会自动切到本机模式，同一个浏览器开两个标签页也能对下。</p>
+                    <p><b>棋钟</b>：开局前可选择预设，也可以自定义每方 1–180 分钟、每手加 0–60 秒。落子后用完加秒，时间归零判负；刷新页面会自动回房并同步双方时间。</p>
+                    <p><b>全屏</b>：点右下方「全屏」或按 F，可以把整张棋桌铺满屏幕，再按一次退出。</p>
+                    <p><b>联机</b>：房间号就是频道号，两个人报同一个号就在同一张桌。对局中刷新网页会自动恢复原座位和棋局，不用重新报房间号。实时服务连不上时会自动切到本机模式，同一个浏览器开两个标签页也能对下。</p>
                     <p><b>规则</b>：无禁手五子棋，15 路，黑先，连成五个或更多即胜，填满棋盘未成五者算和。</p>
                     <div class="dj-row">
                         <button type="button" class="dj-btn" id="dj-help-close">知道了</button>
@@ -620,7 +666,7 @@
             <h2>为什么做成这样</h2>
             <p>线上五子棋大多是俯视的二维棋盘，点哪儿哪儿冒子，快是快，但和下棋这件事其实没什么关系。真正坐到桌前的时候，你看棋盘是有角度的，子是从棋盒里一颗颗拿出来的，落下去有声音，时间是被自己的手拍走的。</p>
             <p>这页就照这个来做：机位在座椅高度，略略俯视；两只棋盒放在各自右手边，黑子白子分开；一颗子从盒里被捏起来，沿着一条弧线过盘，落下时木头响一声；走完一手，手还得伸到旁边把钟拍掉。对手坐在对面，轮到他时，手从他那一侧伸过来。</p>
-            <p>技术上没有服务端：房间号就是一条实时广播频道的名字，落子只在你和对手两台浏览器之间传。所以它也不需要注册、不需要存档，把房间号念给对方听就能开局。</p>
+            <p>技术上没有服务端：房间号就是一条实时广播频道的名字，落子只在你和对手两台浏览器之间传。它不需要注册，把房间号念给对方听就能开局；当前标签页会暂存座位与棋局，刷新后自动回房并和对手重新同步。</p>
         </section>
 
         <div data-zbx-progress></div>

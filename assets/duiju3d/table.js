@@ -490,13 +490,16 @@
         function fillBowl(bowl, color) {
             var heap = bowl.userData.heap;
             while (heap.children.length) { heap.remove(heap.children[0]); }
-            for (var i = 0; i < 26; i++) {
+            /* 三层共 78 颗，远看是装满的棋罐，近看也有自然的堆叠。 */
+            for (var i = 0; i < 78; i++) {
                 var m = stoneMesh(color);
-                var a = Math.random() * 6.2832;
-                var r = Math.sqrt(Math.random()) * 2.05;
-                var h = 1.35 + (1 - r / 2.05) * 0.75 + rnd(-0.12, 0.12);
+                var layer = Math.floor(i / 26);
+                var a = i * 2.399963 + rnd(-0.18, 0.18);
+                var r = Math.sqrt(Math.random()) * (2.28 - layer * 0.2);
+                var h = 0.72 + layer * 0.48 + (1 - r / 2.28) * 0.22 + rnd(-0.08, 0.08);
                 m.position.set(Math.cos(a) * r, h, Math.sin(a) * r);
-                m.rotation.set(rnd(-0.5, 0.5), rnd(0, 6.28), rnd(-0.5, 0.5));
+                m.rotation.set(rnd(-0.45, 0.45), rnd(0, 6.28), rnd(-0.45, 0.45));
+                m.castShadow = layer === 2;
                 heap.add(m);
             }
         }
