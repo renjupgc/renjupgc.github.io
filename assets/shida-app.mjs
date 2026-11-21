@@ -491,12 +491,12 @@ function bindSide() {
  *   疏星、瑞星      纯平衡      → 视情况
  *   丘月、斜月      黑小优      → 视情况
  *   长星、流星      白优        → 视情况 / 不交换
- *   彗星、游星      白必胜      → 不交换
+ *   彗星、游星      白必胜      → 不交换（只问交换，答完即止）
  *   其余                         → 交换
  *
- * 两打：书里 1 打、2 打那两个点就是黑方该先摆出来的两手。用户点两下即判。
- * 若白方最舒服的两手本身就是白必胜（黑方怎么给都挡不住），把这两点亮在盘
- * 上，换成用户执白挑一手：哪一手对白更好。
+ * 两打：书里 1 打、2 打那两个点就是黑方该先摆出来的两手。用户点两下即判，
+ * 所有题都在盘上打点，没有替用户挑好再二选一的题。
+ * 彗星、游星整局白必胜，底下的打点没有讨论价值：抽到这两族只问交换，答完结束。
  *
  * 判分：踩中 1、2 打算对；两手都没越过白小优算擦边（半分）；任一手落到
  * 白大优 / 白近胜 / 白必胜算错。
@@ -536,8 +536,8 @@ const W = {
     seen: {},
     phase: 0,        // 0 未答交换；1 待点两打；2 已判
     swap: null,
+    swapOnly: false, // 彗星、游星：只问交换，答完即止
     picks: [],
-    mode2: 'free',   // 'free' 自己点 | 'pick2' 二选一
     res: null,
     msg: '',
     stats: { n: 0, s: 0, sOk: 0, t: 0, tOk: 0, tMid: 0 }
@@ -565,14 +565,6 @@ function wsTop2(op) {
         }
     });
     return out;
-}
-
-/* 白方最舒服的两手：白优在前，同档时打数大的更松，排前面 */
-function wsBestWhite(op) {
-    return wsCands(op).sort(function (a, b) {
-        const d = WSCORE[a.res] - WSCORE[b.res];
-        return d !== 0 ? d : b.n - a.n;
-    }).slice(0, 2);
 }
 
 /* 书里第一个「黑胜」档从几打起；没有这一档就是整局都到不了黑胜 */
@@ -657,7 +649,7 @@ function wsStart() {
     W.phase = 0;
     W.swap = null;
     W.picks = [];
-    W.mode2 = 'free';
+    W.swapOnly = op.f === '彗星' || op.f === '游星';
     W.res = null;
     W.msg = '';
     W.stats.n += 1;
@@ -667,15 +659,12 @@ function wsStart() {
 function wsAnswerSwap(word) {
     const op = W.op;
     W.swap = word;
-    W.phase = 1;
     W.stats.s += 1;
     if (swapRule(op.f).take.indexOf(word) >= 0) {
         W.stats.sOk += 1;
     }
-    /* 白方最舒服的两手本身就是白必胜，就把这俩亮出来改问「哪一手对白更好」 */
-    const two = wsBestWhite(op);
-    W.mode2 = two.length === 2 && two.every(function (c) { return c.res === '白必胜'; })
-        ? 'pick2' : 'free';
+    /* 彗星、游星整局白必胜，不讨论底下的打点，答完交换就结束 */
+    W.phase = W.swapOnly ? 2 : 1;
     wsRender();
 }
 
@@ -688,14 +677,6 @@ function wsPoint(p) {
         return;
     }
     if (op.m.some(function (m) { return m[0] === p.i && m[1] === p.j; })) {
-        return;
-    }
-    if (W.mode2 === 'pick2') {
-        const top = wsTop2(op);
-        const k = top.findIndex(function (c) { return c.i === p.i && c.j === p.j; });
-        if (k >= 0) {
-            wsChoose(k);
-        }
         return;
     }
     if (W.picks.length >= 2 || W.picks.some(function (q) { return q.i === p.i && q.j === p.j; })) {
@@ -741,22 +722,6 @@ function wsGrade() {
     }
 }
 
-function wsChoose(k) {
-    const two = wsBestWhite(W.op);
-    const me = two[k];
-    const other = two[1 - k];
-    /* 你执白：白优越大越好；同为白必胜时，书里打数大的那手更松，对白更有利 */
-    const mine = WSCORE[me.res];
-    const theirs = WSCORE[other.res];
-    const ok = mine < theirs || (mine === theirs && me.n >= other.n);
-    W.res = { kind: ok ? 'ok' : 'bad', top: two, pick2: true, k: k };
-    W.phase = 2;
-    W.stats.t += 1;
-    if (ok) {
-        W.stats.tOk += 1;
-    }
-}
-
 /* ---------- 两打的视图 ---------- */
 
 const TAG_TEXT = {
@@ -798,13 +763,7 @@ function wsFB() {
     }).join('、');
     const mineTxt = wsPickText();
     let tip;
-    if (res.pick2) {
-        const a = res.top[0];
-        const b = res.top[1];
-        tip = '你执白，这两点是盘上最舒服的两手，都是白必胜：' +
-            coord(a.i, a.j) + ' 记 ' + a.n + ' 打，' + coord(b.i, b.j) + ' 记 ' + b.n +
-            ' 打。摊得越多白方越松，所以 ' + coord(a.i, a.j) + ' 更值得拿。';
-    } else if (res.kind === 'ok') {
+    if (res.kind === 'ok') {
         tip = res.allWin
             ? '黑必胜的点不止两个，你给的两手都在里面，够了。书里排在最前的是 ' + two + '。'
             : '正是书里的两打：' + two + '。';
@@ -819,14 +778,10 @@ function wsFB() {
         tip = '你给的是 ' + mineTxt + '，其中' + words +
             '，白方接着走就把局面收下了。书里的两打是 ' + two + '。';
     }
-    const head = res.pick2
-        ? (res.kind === 'ok' ? '选对了' : '选错了')
-        : (res.kind === 'ok' ? '两打正确' : (res.kind === 'mid' ? '擦边，算半对' : '判断有误'));
-    const note = res.pick2
-        ? '这题换了边：你执白，只挑一手。'
-        : '金圈是书里的两打，圈里的数字就是第几打；你点的位置若不在两打里，' +
-          '盘上会写出它自己的打数，书里没记的写 c（黑败）。你点的那几手用绿圈标出，' +
-          '已经送掉的（或书里没记的）用红圈。';
+    const head = res.kind === 'ok' ? '两打正确' : (res.kind === 'mid' ? '擦边，算半对' : '判断有误');
+    const note = '金圈是书里的两打，圈里的数字就是第几打；你点的位置若不在两打里，' +
+        '盘上会写出它自己的打数，书里没记的写 c（黑败）。你点的那几手用绿圈标出，' +
+        '已经送掉的（或书里没记的）用红圈。';
     return '<div class="sd-fb">' +
         '<span class="sd-verdict ' + res.kind + '">' + head + '</span>' +
         '<p>' + tip + '</p>' +
@@ -854,35 +809,25 @@ function wsSideHTML() {
     }
 
     html += wsDoneHTML();
-    html += '<div class="sd-step">第二问 · ' +
-        (W.mode2 === 'pick2' ? '挑一手' : '五手两打') + '</div>';
+    if (W.swapOnly) {
+        html += '<p class="sd-note">这一路书里记白必胜，底下每一手都是白方收局，' +
+            '没有值得讨论的两打；这题到交换为止。</p>';
+        html += '<p class="sd-note">' + swapRule(op.f).why + '</p>';
+        return html;
+    }
 
-    if (W.mode2 === 'pick2') {
-        html += '<p class="sd-q">盘上 <em>A</em>、<em>B</em> 是白方最舒服的两手，都是白必胜。' +
-            '轮到你执白挑一个：哪个对你更好？</p>';
-        if (W.phase === 1) {
-            html += '<div class="sd-opts sd-opts-row">';
-            wsBestWhite(op).forEach(function (c, k) {
-                html += '<button type="button" class="sd-opt" data-c="' + k +
-                    '"><b>' + 'AB'.charAt(k) + '</b><span>' + coord(c.i, c.j) +
-                    '</span></button>';
-            });
-            html += '</div>';
-            html += '<p class="sd-hint">两手都是白必胜，挑白方拿得更松的那手。</p>';
+    html += '<div class="sd-step">第二问 · 五手两打</div>';
+    html += '<p class="sd-q">白方走了 <em>' + coord(op.m[3][0], op.m[3][1]) +
+        '</em>。轮到你给两打：在盘上点两个点。</p>';
+    if (W.phase === 1) {
+        html += '<p class="sd-hint">' + (W.picks.length
+            ? '已点 ' + W.picks.length + ' 个，再点 ' + (2 - W.picks.length) + ' 个。'
+            : '点到交叉点上，两个点凑齐立刻判。') + '</p>';
+        if (W.msg) {
+            html += '<p class="sd-hint sd-warn">' + W.msg + '</p>';
         }
-    } else {
-        html += '<p class="sd-q">白方走了 <em>' + coord(op.m[3][0], op.m[3][1]) +
-            '</em>。轮到你给两打：在盘上点两个点。</p>';
-        if (W.phase === 1) {
-            html += '<p class="sd-hint">' + (W.picks.length
-                ? '已点 ' + W.picks.length + ' 个，再点 ' + (2 - W.picks.length) + ' 个。'
-                : '点到交叉点上，两个点凑齐立刻判。') + '</p>';
-            if (W.msg) {
-                html += '<p class="sd-hint sd-warn">' + W.msg + '</p>';
-            }
-            if (W.picks.length) {
-                html += '<button type="button" class="sd-next sd-ghost" data-w="again">重选</button>';
-            }
+        if (W.picks.length) {
+            html += '<button type="button" class="sd-next sd-ghost" data-w="again">重选</button>';
         }
     }
 
@@ -921,12 +866,7 @@ function wsRender() {
         notes.push({ i: c.i, j: c.j, text: text, size: size, tone: tone, dx: dx, dy: dy, anchor: anchor });
     };
 
-    if (W.phase === 1 && W.mode2 === 'pick2') {
-        wsBestWhite(op).forEach(function (c, k) {
-            marks.push({ i: c.i, j: c.j, kind: 'warn' });
-            push(c, 'AB'.charAt(k), 0.95, 'warn', 0, 0.19, 'middle');
-        });
-    } else if (W.phase === 1) {
+    if (W.phase === 1) {
         W.picks.forEach(function (p, k) {
             marks.push({ i: p.i, j: p.j, kind: 'warn' });
             push({ i: p.i, j: p.j }, String(k + 1), 0.95, 'warn', 0, 0.19, 'middle');
@@ -940,24 +880,17 @@ function wsRender() {
             push(c, String(c.n), 0.9, 'warn', 0, 0.19, 'middle');
             marks.push({ i: c.i, j: c.j, kind: 'warn' });
         });
-        if (W.res.pick2) {
-            const me = top[W.res.k];
-            if (me) {
-                marks.push({ i: me.i, j: me.j, kind: W.res.kind === 'ok' ? 'good' : 'bad' });
+        W.picks.forEach(function (p, k) {
+            const isTop = top.some(function (t) { return t.i === p.i && t.j === p.j; });
+            const c = W.res && W.res.mine ? W.res.mine[k] : null;
+            /* 这一点自己的成色：没记或越过白小优是红的，还没送掉就是绿的 */
+            const tone = (!c || WS_BAD.has(c.res)) ? 'bad' : 'good';
+            marks.push({ i: p.i, j: p.j, kind: isTop ? 'good' : tone });
+            if (!isTop) {
+                /* 不是最紧的两手：把这一点自己的打数写出来，书里没记的写 c */
+                push({ i: p.i, j: p.j }, c ? String(c.n) : 'c', 0.9, tone, 0, 0.19, 'middle');
             }
-        } else {
-            W.picks.forEach(function (p, k) {
-                const isTop = top.some(function (t) { return t.i === p.i && t.j === p.j; });
-                const c = W.res.mine[k];
-                /* 这一点自己的成色：没记或越过白小优是红的，还没送掉就是绿的 */
-                const tone = (!c || WS_BAD.has(c.res)) ? 'bad' : 'good';
-                marks.push({ i: p.i, j: p.j, kind: isTop ? 'good' : tone });
-                if (!isTop) {
-                    /* 不是最紧的两手：把这一点自己的打数写出来，书里没记的写 c */
-                    push({ i: p.i, j: p.j }, c ? String(c.n) : 'c', 0.9, tone, 0, 0.19, 'middle');
-                }
-            });
-        }
+        });
     }
 
     S.board.setMarks(marks);
@@ -988,17 +921,6 @@ function wsBind() {
                 } else if (what === 'again') {
                     W.picks = [];
                     W.msg = '';
-                    wsRender();
-                }
-            });
-        });
-
-    Array.prototype.forEach.call(
-        document.querySelectorAll('#sd-side [data-c]'),
-        function (btn) {
-            btn.addEventListener('click', function () {
-                if (W.phase === 1 && W.mode2 === 'pick2') {
-                    wsChoose(Number(btn.getAttribute('data-c')));
                     wsRender();
                 }
             });
