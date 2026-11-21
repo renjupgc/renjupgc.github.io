@@ -94,11 +94,31 @@
     }
 
     /* ---------- 赛事列表 ---------- */
+    /* 日期字符串归一成 yyyymmdd 便于比较：
+       "2026-11-14" / "2026.11.14" / "2026年11月14日" 都认，只到月份时按当月 0 日排 */
+    function dateKey(v) {
+        var m = String(v == null ? '' : v).match(/(\d{4})\D+(\d{1,2})(?:\D+(\d{1,2}))?/);
+        if (!m) { return 0; }
+        return (+m[1]) * 10000 + (+m[2]) * 100 + (+(m[3] || 0));
+    }
+
+    /* 赛事按日期倒序（最近一场在前），与静态列表一致；
+       没有日期或认不出的放末尾，同日期仍按后台顺序 ord */
+    function sortByDate(docs) {
+        return docs.slice().sort(function (a, b) {
+            var da = dateKey((a.data || {}).date);
+            var db = dateKey((b.data || {}).date);
+            if (da !== db) { return db - da; }
+            var oa = Number(a.ord || 0), ob = Number(b.ord || 0);
+            return oa - ob || String(a.doc_id).localeCompare(String(b.doc_id));
+        });
+    }
+
     function renderCompetitionList(docs) {
         var list = document.querySelector('.tournament-list');
         /* 云端有数据就以云端为准（增删都即时生效）；云端为空才保留静态列表。 */
         if (!list || !docs.length) { return; }
-        list.innerHTML = docs.map(function (d) {
+        list.innerHTML = sortByDate(docs).map(function (d) {
             var r = d.data || {};
             var id = d.doc_id;
             var url = r.url || ('zayu/' + id + '.html');
