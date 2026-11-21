@@ -791,13 +791,24 @@
 
         var maxProb = policy.reduce(function (m, x) { return Math.max(m, Number(x.prob) || 0); }, 0) || 1;
         $('pred-policy-title').textContent = boardEmpty ? '开局预测（含交换）' : '下一手分布（含交换）';
-        $('pred-policy').innerHTML = policy.map(function (x) {
+        var rowsHtml = policy.map(function (x) {
             var label = (x.move === 'swap') ? '交换 swap' : x.move;
             var w = Math.max(2, (Number(x.prob) || 0) / maxProb * 100);
             return '<div class="pred-row pred-move-row"><span class="pred-label">' + esc(label) + '</span>' +
                 '<span class="pred-track"><span class="pred-fill" style="display:block;width:' + w + '%"></span></span>' +
                 '<span class="pred-num">' + pct(x.prob) + '</span></div>';
         }).join('');
+
+        // 「交换」是独立的动作，概率再低也单独列出来，方便评估是否值得换
+        var hasSwapRow = policy.some(function (x) { return x.move === 'swap'; });
+        if (!hasSwapRow && data.swap_prob !== null && data.swap_prob !== undefined) {
+            var sp = Number(data.swap_prob) || 0;
+            rowsHtml += '<div class="pred-row pred-move-row"><span class="pred-label">交换 swap</span>' +
+                '<span class="pred-track"><span class="pred-fill" style="display:block;width:' +
+                Math.max(2, sp / maxProb * 100) + '%"></span></span>' +
+                '<span class="pred-num">' + pct(sp) + '</span></div>';
+        }
+        $('pred-policy').innerHTML = rowsHtml;
 
         $('pred-value-title').textContent = boardEmpty ? '赛前胜平负预期' : '对局结果预期';
         var valueRows = [
