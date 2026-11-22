@@ -527,8 +527,8 @@
             /* 台签缩小并向桌面内侧移动，底座稳稳落在桌面上；牌面朝东（+X）。 */
             myPlayerSign.scale.setScalar(0.72);
             peerPlayerSign.scale.setScalar(0.72);
-            myPlayerSign.position.set(-13.8, TABLE_TOP + 2.36, nearZ * 0.62);
-            peerPlayerSign.position.set(-13.8, TABLE_TOP + 2.36, -nearZ * 0.62);
+            myPlayerSign.position.set(-13.8, TABLE_TOP + 2.11, nearZ * 0.62);
+            peerPlayerSign.position.set(-13.8, TABLE_TOP + 2.11, -nearZ * 0.62);
             myPlayerSign.rotation.set(0, Math.PI / 2, 0);
             peerPlayerSign.rotation.set(0, Math.PI / 2, 0);
         }
