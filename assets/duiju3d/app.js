@@ -278,6 +278,7 @@
         T.setSeat(S.myColor === BLACK ? 'black' : 'white');
         T.sit();
         T.setPeer(S.peerName, true);
+        T.setPlayerNames(S.name || '棋友', S.aiMode ? '十段高手' : (S.peerName || '棋友'));
         resetGame();
         S.running = BLACK;
         if (el.stage && el.stage.scrollIntoView) {
