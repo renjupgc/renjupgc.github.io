@@ -524,8 +524,11 @@
         }
         function positionPlayerSigns() {
             var nearZ = view.seat === 'black' ? 15.5 : -15.5;
-            myPlayerSign.position.set(-20.0, TABLE_TOP + 3.3, nearZ);
-            peerPlayerSign.position.set(-20.0, TABLE_TOP + 3.3, -nearZ);
+            /* 台签缩小并向桌面内侧移动，底座稳稳落在桌面上；牌面朝东（+X）。 */
+            myPlayerSign.scale.setScalar(0.72);
+            peerPlayerSign.scale.setScalar(0.72);
+            myPlayerSign.position.set(-13.8, TABLE_TOP + 2.36, nearZ * 0.62);
+            peerPlayerSign.position.set(-13.8, TABLE_TOP + 2.36, -nearZ * 0.62);
             myPlayerSign.rotation.set(0, Math.PI / 2, 0);
             peerPlayerSign.rotation.set(0, Math.PI / 2, 0);
         }
@@ -1006,16 +1009,21 @@
         peerIdleGroup.add(peerIdleModel);
         peerIdleGroup.visible = true;
         scene.add(peerIdleGroup);
-        function orientArm(group, model, side) {
-            var rest = restOf(side);
-            var shoulderZ = side === 'peer' ? peerGroup.position.z : (view.seat === 'black' ? 27 : -27);
-            var shoulderX = side === 'peer' ? 0 : 0;
-            var dx = shoulderX - rest.x;
-            var dz = shoulderZ - rest.z;
-            group.position.copy(rest);
-            group.rotation.set(0, Math.atan2(dx, dz), 0);
-            model.scale.set(1, 1, Math.sqrt(dx * dx + dz * dz) / 31);
+        function updateArmTransform(group, model, side) {
+            /* 每帧以固定肩点反解整条手臂方向：完整三维四元数同时处理俯仰与偏航，
+               袖管末端始终落在肩部，不会只在水平面转向而与身体脱节。 */
+            var shoulderZ = side === 'peer' ? peerGroup.position.z + 0.4 : -peerGroup.position.z - 0.4;
+            var shoulder = new THREE.Vector3(0, 32.3, shoulderZ);
+            var delta = shoulder.sub(group.position);
+            var distance = Math.max(8, delta.length());
+            var direction = delta.normalize();
+            group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction);
+            model.scale.set(1, 1, distance / 31);
             model.rotation.set(0, 0, 0);
+        }
+        function orientArm(group, model, side) {
+            group.position.copy(restOf(side));
+            updateArmTransform(group, model, side);
         }
 
         /* r128 没有色彩管理：材质里写的十六进制会被当成线性值，
@@ -1155,7 +1163,7 @@
                     }
                 }
             ];
-            anim = { segs: segs, i: 0, t: 0, speed: 1, from: rest.clone(), sign: side === 'me' ? 1 : -1, stone: function () { return stone; } };
+            anim = { segs: segs, i: 0, t: 0, speed: 1, from: rest.clone(), sign: side === 'me' ? 1 : -1, side: side, stone: function () { return stone; } };
         }
 
         function playMove(o) {
@@ -1173,7 +1181,7 @@
                 if (stone) {
                     stone.userData.held = false;
                     stone.userData.settle = 1;
-                    stone.position.set(target.x + rnd(-0.03, 0.03), BOARD_TOP + STONE_HALF, target.z + rnd(-0.03, 0.03));
+                    stone.position.set(target.x, BOARD_TOP + STONE_HALF, target.z);
                     stone.rotation.y = rnd(0, 6.28);
                     stones[o.x + ',' + o.y] = stone;
                 }
@@ -1257,6 +1265,7 @@
                 from: rest.clone(),
                 mid: rest.clone(),
                 sign: sign,
+                side: side,
                 stone: function () { return stone; }
             };
 
@@ -1280,11 +1289,8 @@
                 pos.y += Math.sin(Math.PI * e) * seg.arc;
             }
             handGroup.position.copy(pos);
-
-            /* 手随行进方向稍微转一点 */
-            var sway = Math.sin(Math.PI * e) * 0.16 * anim.sign;
-            handGroup.rotation.z = sway * 0.35;
-            handModel.rotation.x = -0.08 * Math.sin(Math.PI * e);
+            /* 肩点固定、手腕沿平滑路径移动；每帧更新完整三维姿态，不叠加摆动或随机扰动。 */
+            updateArmTransform(handGroup, handModel, anim.side);
 
             var st = anim.stone();
             if (st && st.userData.held) {
