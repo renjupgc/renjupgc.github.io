@@ -1182,7 +1182,7 @@
                     stone.userData.held = false;
                     stone.userData.settle = 1;
                     stone.position.set(target.x, BOARD_TOP + STONE_HALF, target.z);
-                    stone.rotation.y = rnd(0, 6.28);
+                    stone.rotation.y = ((o.x * 7 + o.y * 11) % 12) * Math.PI / 6;
                     stones[o.x + ',' + o.y] = stone;
                 }
                 if (o.onPlace) { o.onPlace(stone); }
@@ -1239,7 +1239,7 @@
                         if (stone) {
                             stone.userData.held = false;
                             stone.userData.settle = 1;
-                            stone.position.set(target.x + rnd(-0.03, 0.03), BOARD_TOP + STONE_HALF, target.z + rnd(-0.03, 0.03));
+                            stone.position.set(target.x, BOARD_TOP + STONE_HALF, target.z);
                             stone.rotation.y = rnd(0, 6.28);
                             stones[o.x + ',' + o.y] = stone;
                         }
