@@ -241,8 +241,8 @@
           <input id="timeControl" type="text" value="120+2" spellcheck="false">
         </div>
         <div class="field">
-          <label>时钟 (空格=黑 白 / 逗号=每步)</label>
-          <input id="clocksInput" type="text" value="" placeholder="95 110 或 114,118,113" spellcheck="false">
+          <label>时钟 (黑,白)</label>
+          <input id="clocksInput" type="text" value="" placeholder="95,110" spellcheck="false">
         </div>
       </div>
       <div class="field">
@@ -638,23 +638,14 @@ async function runInference() {
   const tcParts = (document.getElementById("timeControl").value || "120+2").split("+");
   const tInit = Math.max(1, parseFloat(tcParts[0]) || 120);
   const inc = Math.max(0, parseFloat(tcParts[1]) || 0);
-  const rawClk = (document.getElementById("clocksInput").value || "").replace(/[\[\]]/g, "").trim();
+  const rawClk = (document.getElementById("clocksInput").value || "").trim();
   let bClk = tInit, wClk = tInit;
   if (rawClk) {
-    if (rawClk.includes(",")) {
-      const clkParts = rawClk.split(",").map(s => s.trim()).filter(Boolean).map(v => Math.max(0, parseFloat(v) || 0));
-      const limit = Math.min(state.ply, clkParts.length);
-      for (let i = 0; i < limit; i++) {
-        if (i % 2 === 0) bClk = clkParts[i];
-        else wClk = clkParts[i];
-      }
-    } else {
-      const clkParts = rawClk.split(/\s+/).filter(Boolean).map(v => Math.max(0, parseFloat(v) || 0));
-      if (clkParts.length === 1) {
-        bClk = clkParts[0]; wClk = clkParts[0];
-      } else if (clkParts.length >= 2) {
-        bClk = clkParts[0]; wClk = clkParts[1];
-      }
+    const clkParts = rawClk.split(",").map(s => s.trim()).filter(Boolean).map(v => Math.max(0, parseFloat(v) || 0));
+    if (clkParts.length === 1) {
+      bClk = clkParts[0]; wClk = clkParts[0];
+    } else if (clkParts.length >= 2) {
+      bClk = clkParts[0]; wClk = clkParts[1];
     }
   }
 
