@@ -1053,7 +1053,7 @@
                         stone = stoneMesh(o.color);
                         stoneLayer.add(stone);
                         stone.position.copy(handGroup.position);
-                        stone.position.y -= 0.42;
+                        /* 棋子中心对准指尖捏取点，沿手的轨迹自然抬出棋罐。 */
                         stone.scale.setScalar(0.28);
                         stone.userData.grow = 0;
                         stone.userData.held = true;
@@ -1144,7 +1144,7 @@
             var st = anim.stone();
             if (st && st.userData.held) {
                 st.position.copy(pos);
-                st.position.y -= 0.42;
+                /* 与手指捏取点保持一致，确保落子时棋子始终在掌前。 */
                 if (st.userData.grow < 1) {
                     st.userData.grow = Math.min(1, st.userData.grow + dt * 6);
                     st.scale.setScalar(easeOutCubic(st.userData.grow));
