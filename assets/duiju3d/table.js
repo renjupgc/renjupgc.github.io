@@ -948,13 +948,21 @@
                 [V(-0.72, 2.30, 1.36), V(-0.72, 1.45, 0.92), V(-0.60, 0.66, 0.62), 0.31],
                 [V(-1.45, 2.22, 1.20), V(-1.42, 1.60, 0.88), V(-1.20, 0.94, 0.72), 0.28]
             ];
+            var nailMat = new THREE.MeshStandardMaterial({ color: 0xe9cbb9, roughness: 0.42, metalness: 0 });
             f.forEach(function (g) {
                 var a = g[0], b = g[1], c = g[2], r = g[3];
                 handModel.add(bone(a, b, r, r * 0.94, handSkin));
-                handModel.add(bone(b, c, r * 0.94, r * 0.82, handSkin));
+                handModel.add(bone(b, c, r * 0.94, r * 0.78, handSkin));
                 handModel.add(joint(a, r * 1.08, handSkin));
                 handModel.add(joint(b, r * 0.96, handSkin));
                 handModel.add(joint(c, r * 0.86, handSkin));
+                /* 小而贴合指尖的甲面、指节过渡，让手指不再像几根光滑圆柱。 */
+                var nail = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), nailMat);
+                nail.scale.set(r * 0.47, 0.075, r * 0.72);
+                nail.position.set(c.x, c.y + r * 0.66, c.z + 0.035);
+                nail.rotation.x = -0.16;
+                nail.castShadow = true;
+                handModel.add(nail);
             });
 
             /* 拇指 */
@@ -978,10 +986,17 @@
             var sleeve = bone(V(0.22, 3.2, 10.4), V(1.1, 5.6, 31.0), 1.55, 2.35, sleeveMat);
             handModel.add(sleeve);
 
-            var cuff = new THREE.Mesh(new THREE.CylinderGeometry(1.58, 1.45, 1.15, 24), sleeveMat);
-            cuff.position.set(0.18, 3.1, 9.9);
-            cuff.rotation.x = Math.atan2(0.85, 8.8);
+            /* 袖口圆环与前臂同轴，包住腕部而不是横着悬空。 */
+            var cuffMat = new THREE.MeshStandardMaterial({ color: 0x252d36, roughness: 0.76 });
+            var cuff = new THREE.Mesh(new THREE.CylinderGeometry(1.56, 1.50, 1.0, 28), cuffMat);
+            cuff.position.set(0.18, 3.22, 10.55);
+            cuff.rotation.x = Math.PI / 2;
+            cuff.castShadow = true;
             handModel.add(cuff);
+            var cuffEdge = new THREE.Mesh(new THREE.TorusGeometry(1.53, 0.09, 8, 28), sleeveMat);
+            cuffEdge.position.set(0.18, 3.22, 10.02);
+            cuffEdge.rotation.x = Math.PI / 2;
+            handModel.add(cuffEdge);
         })();
 
         /* 对手手臂常驻显示：不再在每次落子时才突然出现。
