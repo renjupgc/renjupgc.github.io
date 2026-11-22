@@ -241,8 +241,8 @@
           <input id="timeControl" type="text" value="120+2" spellcheck="false">
         </div>
         <div class="field">
-          <label>剩余 (黑,白)</label>
-          <input id="clocksInput" type="text" value="95,110" spellcheck="false">
+          <label>时钟 (每步剩余秒)</label>
+          <input id="clocksInput" type="text" value="" placeholder="114,118,113,114" spellcheck="false">
         </div>
       </div>
       <div class="field">
@@ -624,9 +624,23 @@ async function runInference() {
   const tcParts = (document.getElementById("timeControl").value || "120+2").split("+");
   const tInit = Math.max(1, parseFloat(tcParts[0]) || 120);
   const inc = Math.max(0, parseFloat(tcParts[1]) || 0);
-  const clkParts = (document.getElementById("clocksInput").value || "").split(/[,/+\s]+/).filter(Boolean);
-  const bClk = clkParts.length >= 1 ? Math.max(0, parseFloat(clkParts[0])) : tInit;
-  const wClk = clkParts.length >= 2 ? Math.max(0, parseFloat(clkParts[1])) : bClk;
+  const clkParts = (document.getElementById("clocksInput").value || "")
+    .replace(/[\[\]]/g, "")
+    .split(/[,/+\s]+/)
+    .filter(Boolean)
+    .map(v => Math.max(0, parseFloat(v) || 0));
+  let bClk = tInit, wClk = tInit;
+  if (clkParts.length === 1) {
+    bClk = clkParts[0]; wClk = clkParts[0];
+  } else if (clkParts.length === 2 && state.ply > 2) {
+    bClk = clkParts[0]; wClk = clkParts[1];
+  } else if (clkParts.length >= 2) {
+    const limit = Math.min(state.ply, clkParts.length);
+    for (let i = 0; i < limit; i++) {
+      if (i % 2 === 0) bClk = clkParts[i];
+      else wClk = clkParts[i];
+    }
+  }
 
   const sElo = active === 1 ? bElo : wElo;
   const oElo = active === 1 ? wElo : bElo;
