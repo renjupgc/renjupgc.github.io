@@ -920,11 +920,13 @@
             var forearm = bone(wrist, V(0.34, 3.45, 12.8), 1.14, 1.52, handSkin);
             handModel.add(forearm);
 
-            var sleeve = bone(V(0.22, 3.2, 10.4), V(1.1, 5.6, 31.0), 1.55, 2.35, sleeveMat);
+            /* 袖管收短并贴近前臂：对手侧旋转 180° 后，袖口正好接到肩胸边缘，
+               不会整段穿进躯干后被身体完全遮住。 */
+            var sleeve = bone(V(0.22, 3.2, 4.2), V(0.62, 4.3, 8.8), 1.48, 1.9, sleeveMat);
             handModel.add(sleeve);
 
-            var cuff = new THREE.Mesh(new THREE.CylinderGeometry(1.58, 1.45, 1.15, 24), sleeveMat);
-            cuff.position.set(0.18, 3.1, 9.9);
+            var cuff = new THREE.Mesh(new THREE.CylinderGeometry(1.52, 1.42, 1.0, 24), sleeveMat);
+            cuff.position.set(0.18, 3.1, 4.0);
             cuff.rotation.x = Math.atan2(0.85, 8.8);
             handModel.add(cuff);
         })();
@@ -1079,6 +1081,18 @@
 
             var stone = o.prePicked && pickedStone ? pickedStone : null;
             if (stone) { pickedStone = null; stone.userData.held = true; }
+            /* 预先从棋罐取子的路径也必须完成“移动—下压—放子—收手”；
+               旧逻辑只有一段移动动画，没有 onPlace，导致棋盘永远不落子。 */
+            function placeHeldStone() {
+                if (stone) {
+                    stone.userData.held = false;
+                    stone.userData.settle = 1;
+                    stone.position.set(target.x + rnd(-0.03, 0.03), BOARD_TOP + STONE_HALF, target.z + rnd(-0.03, 0.03));
+                    stone.rotation.y = rnd(0, 6.28);
+                    stones[o.x + ',' + o.y] = stone;
+                }
+                if (o.onPlace) { o.onPlace(stone); }
+            }
 
             handGroup.visible = true;
             handGroup.position.copy(rest);
@@ -1090,7 +1104,16 @@
             var bowlTop = bowl.position.clone().add(new THREE.Vector3(0, 3.0, 0));
 
             var segs = o.prePicked && stone ? [
-                { d: 540, to: target.clone().add(new THREE.Vector3(0, 2.5, 0)), arc: 1.9, e: easeInOutCubic }
+                { d: 540, to: target.clone().add(new THREE.Vector3(0, 2.5, 0)), arc: 1.9, e: easeInOutCubic },
+                { d: 210, to: target.clone().add(new THREE.Vector3(0, 0.62, 0)), e: easeInOutCubic },
+                { d: 130, to: target.clone().add(new THREE.Vector3(0, STONE_HALF + 0.08, 0)), e: easeOutCubic,
+                    onEnd: placeHeldStone },
+                { d: 480, to: rest.clone(), arc: 1.6, e: easeInOutCubic,
+                    onEnd: function () {
+                        handGroup.visible = false;
+                        if (o.onDone) { o.onDone(); }
+                    }
+                }
             ] : [
                 { d: 430, to: bowlTop.clone(), arc: 2.2, e: easeInOutCubic },
                 {
@@ -1329,7 +1352,7 @@
             var gy = hit.z + HALF;
             var x = Math.round(gx), y = Math.round(gy);
             if (x < 0 || x >= N || y < 0 || y >= N) { return null; }
-            if (Math.abs(gx - x) > 0.46 || Math.abs(gy - y) > 0.46) { return null; }
+            if (Math.abs(gx - x) > 0.56 || Math.abs(gy - y) > 0.56) { return null; }
             return { x: x, y: y };
         }
 
