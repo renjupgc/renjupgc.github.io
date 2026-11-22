@@ -516,14 +516,16 @@
         /* 双凸透镜形棋子，比压扁球体更接近真实云子/蛤碁石。
            按参考图做成略扁的片状：中间厚、边缘薄，整体比标准棋子更扁平。 */
         var stoneProfile = [
-            new THREE.Vector2(0.12, -0.188),
-            new THREE.Vector2(0.27, -0.178),
-            new THREE.Vector2(0.39, -0.125),
+            new THREE.Vector2(0.001, -0.188),
+            new THREE.Vector2(0.15, -0.182),
+            new THREE.Vector2(0.30, -0.158),
+            new THREE.Vector2(0.405, -0.105),
             new THREE.Vector2(0.455, -0.045),
             new THREE.Vector2(0.455, 0.045),
-            new THREE.Vector2(0.39, 0.125),
-            new THREE.Vector2(0.27, 0.178),
-            new THREE.Vector2(0.12, 0.188)
+            new THREE.Vector2(0.405, 0.105),
+            new THREE.Vector2(0.30, 0.158),
+            new THREE.Vector2(0.15, 0.182),
+            new THREE.Vector2(0.001, 0.188)
         ];
         var stoneGeo = new THREE.LatheGeometry(stoneProfile, 96);
         stoneGeo.computeVertexNormals();
