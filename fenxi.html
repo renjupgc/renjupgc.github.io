@@ -31,10 +31,10 @@
   }
   .app {
     width: 100%;
-    max-width: 1040px;
+    max-width: 1160px;
     display: grid;
-    grid-template-columns: minmax(300px, 560px) 1fr;
-    gap: 14px;
+    grid-template-columns: minmax(420px, 620px) minmax(320px, 1fr);
+    gap: 16px;
     align-items: start;
   }
   .board-wrap {
@@ -163,9 +163,12 @@
     font-variant-numeric: tabular-nums;
   }
   .move-list {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  @media (max-width: 860px) {
+    .move-list { grid-template-columns: 1fr; }
   }
   .move-item {
     display: grid;
@@ -690,15 +693,19 @@ async function runInference() {
 
   // Unified action softmax (stone 0..224 + 交换 225 + 多打 226..450) summing to 100%
   const nProp = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
+  const inPropOnly = state.ply === 4 && proposals.length > 0 && nProp > 0;
   const useSwap = state.ply >= 1 && state.ply <= 5 && proposals.length === 0;
   const useProp = state.ply === 4 && nProp > 0;
+  const useStone = !inPropOnly;
 
   const unifiedLogits = new Float32Array(451);
   unifiedLogits.fill(-Infinity);
 
-  for (let i = 0; i < 225; i++) {
-    if (state.board[i] === 0 && !(active === 1 && state.forb[i])) {
-      unifiedLogits[i] = logitsAction[i];
+  if (useStone) {
+    for (let i = 0; i < 225; i++) {
+      if (state.board[i] === 0 && !(active === 1 && state.forb[i])) {
+        unifiedLogits[i] = logitsAction[i];
+      }
     }
   }
   if (useSwap) {
@@ -738,14 +745,14 @@ async function runInference() {
     }
   }
 
-  const stoneIndices = Array.from({ length: 225 }, (_, i) => i)
+  const topStoneMoves = useStone ? Array.from({ length: 225 }, (_, i) => i)
     .filter(i => unifiedLogits[i] > -Infinity)
     .sort((a, b) => unifiedProbs[b] - unifiedProbs[a])
-    .slice(0, 5);
-  const topStoneMoves = stoneIndices.map(idx => {
-    const c = xyToCoord(idx % N, Math.floor(idx / N));
-    return [c.toUpperCase(), unifiedProbs[idx], "stone", c];
-  });
+    .slice(0, 6)
+    .map(idx => {
+      const c = xyToCoord(idx % N, Math.floor(idx / N));
+      return [c.toUpperCase(), unifiedProbs[idx], "stone", c];
+    }) : [];
 
   lastTopMoves = [...pinnedSpecial, ...topStoneMoves];
 
