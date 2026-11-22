@@ -28,8 +28,8 @@
     var TABLE_TOP = 23.5;         // 桌面高度 ≈ 70cm
     var BOARD_T = 0.7;
     var BOARD_TOP = TABLE_TOP + BOARD_T;
-    var STONE_R = 0.425;
-    var STONE_HALF = 0.172;
+    var STONE_R = 0.455;
+    var STONE_HALF = 0.188;
 
     var SEAT_SIGN = { black: 1, white: -1 };   // 视角在 +z / -z
 
@@ -154,6 +154,25 @@
                 x.beginPath(); x.moveTo(p, pad); x.lineTo(p, S - pad); x.stroke();
             }
         }
+
+        /* 棋盘坐标：上/下 A–O，左/右 1–15。 */
+        x.save();
+        x.fillStyle = 'rgba(45,29,13,0.92)';
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.font = '600 38px Georgia, "Times New Roman", serif';
+        for (var ci = 0; ci < N; ci++) {
+            var cp = pad + ci * step, letter = String.fromCharCode(65 + ci);
+            x.fillText(letter, cp, pad * 0.48);
+            x.fillText(letter, cp, S - pad * 0.48);
+        }
+        x.font = '600 36px Georgia, "Times New Roman", serif';
+        for (var ri = 0; ri < N; ri++) {
+            var rp = pad + ri * step, number = String(ri + 1);
+            x.fillText(number, pad * 0.48, rp);
+            x.fillText(number, S - pad * 0.48, rp);
+        }
+        x.restore();
 
         var stars = [[3, 3], [3, 11], [11, 3], [11, 11], [7, 7]];
         x.fillStyle = 'rgba(30,18,7,0.98)';
@@ -497,15 +516,14 @@
         /* 双凸透镜形棋子，比压扁球体更接近真实云子/蛤碁石。
            按参考图做成略扁的片状：中间厚、边缘薄，整体比标准棋子更扁平。 */
         var stoneProfile = [
-            new THREE.Vector2(0.001, -0.140),
-            new THREE.Vector2(0.180, -0.172),
-            new THREE.Vector2(0.330, -0.132),
-            new THREE.Vector2(0.405, -0.050),
-            new THREE.Vector2(0.425, 0.000),
-            new THREE.Vector2(0.405, 0.050),
-            new THREE.Vector2(0.330, 0.132),
-            new THREE.Vector2(0.180, 0.172),
-            new THREE.Vector2(0.001, 0.140)
+            new THREE.Vector2(0.12, -0.188),
+            new THREE.Vector2(0.27, -0.178),
+            new THREE.Vector2(0.39, -0.125),
+            new THREE.Vector2(0.455, -0.045),
+            new THREE.Vector2(0.455, 0.045),
+            new THREE.Vector2(0.39, 0.125),
+            new THREE.Vector2(0.27, 0.178),
+            new THREE.Vector2(0.12, 0.188)
         ];
         var stoneGeo = new THREE.LatheGeometry(stoneProfile, 96);
         stoneGeo.computeVertexNormals();
@@ -513,21 +531,21 @@
         /* 云子质感：黑子如墨玉，白子如温润羊脂玉；清亮高光与细腻表面
            保留天然石材的通透感，避免金属或塑料质感。 */
         var blackStoneMat = new THREE.MeshPhysicalMaterial({
-            color: 0x030405,
-            roughness: 0.17,
+            color: 0x000000,
+            roughness: 0.13,
             metalness: 0.0,
-            clearcoat: 0.96,
-            clearcoatRoughness: 0.09,
-            envMapIntensity: 1.42,
-            reflectivity: 0.72
+            clearcoat: 0.98,
+            clearcoatRoughness: 0.055,
+            envMapIntensity: 1.18,
+            reflectivity: 0.78
         });
         var whiteStoneMat = new THREE.MeshPhysicalMaterial({
             color: 0xf4efe2,
             map: texFromCanvas(shellCanvas()),
-            roughness: 0.22,
+            roughness: 0.17,
             metalness: 0.0,
-            clearcoat: 0.92,
-            clearcoatRoughness: 0.11,
+            clearcoat: 0.98,
+            clearcoatRoughness: 0.075,
             envMapIntensity: 1.28,
             reflectivity: 0.68
         });
@@ -755,18 +773,7 @@
         shoulders.castShadow = true;
         peerGroup.add(shoulders);
 
-        [-1, 1].forEach(function (sg) {
-            var a = new THREE.Vector3(sg * 6.6, 31.2, 0.8);
-            var b = new THREE.Vector3(sg * 8.0, 25.4, 3.0);
-            var c = new THREE.Vector3(sg * 6.2, 21.0, 5.6);
-            peerGroup.add(bone(a, b, 2.2, 1.95, clothMat));
-            peerGroup.add(bone(b, c, 1.95, 1.6, clothMat));
-            peerGroup.add(joint(a, 2.3, clothMat), joint(b, 2.0, clothMat));
-            var hd = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 12), skinMat);
-            hd.scale.set(1, 0.8, 1.25);
-            hd.position.copy(c);
-            peerGroup.add(hd);
-        });
+        /* 对手的活动手臂由唯一的 handGroup 驱动，避免静态手臂与动画手叠加。 */
 
         /* 衣领 */
         var collar = new THREE.Mesh(new THREE.TorusGeometry(3.1, 0.55, 8, 26), clothMat);
@@ -1021,6 +1028,44 @@
          *   speed 1 = 正常，2.4 = 快速
          *   onPlace / onGrab / onDone
          */
+        var pickedStone = null;
+
+        function takeStone(side, color, onDone) {
+            if (anim || pickedStone) { return; }
+            side = side === 'peer' ? 'peer' : 'me';
+            var bowl = bowlOf(side), rest = restOf(side);
+            var top = bowl.position.clone().add(new THREE.Vector3(0, 3.0, 0));
+            var stone = null;
+            handGroup.visible = true;
+            handGroup.position.copy(rest);
+            var turn = view.seat === 'white' ? Math.PI : 0;
+            handGroup.rotation.set(0, (side === 'me' ? 0.5 : Math.PI + 0.5) + turn, 0);
+            handModel.rotation.set(0, 0, 0);
+            var segs = [
+                { d: 380, to: top.clone(), arc: 1.8, e: easeInOutCubic },
+                { d: 260, to: top.clone().add(new THREE.Vector3(0, -1.45, 0)), e: easeInOutSine,
+                    onEnd: function () {
+                        var inst = bowl.userData.heapMesh;
+                        if (inst && inst.count > 0) { inst.count -= 1; inst.instanceMatrix.needsUpdate = true; }
+                        stone = stoneMesh(color);
+                        stoneLayer.add(stone);
+                        stone.position.copy(handGroup.position);
+                        stone.userData.held = true;
+                        stone.userData.grow = 0;
+                    }
+                },
+                { d: 300, to: top.clone().add(new THREE.Vector3(0, 0.55, 0)), arc: 0.4, e: easeOutCubic },
+                { d: 300, to: rest.clone(), arc: 1.2, e: easeInOutCubic,
+                    onEnd: function () {
+                        pickedStone = stone;
+                        handGroup.visible = false;
+                        if (onDone) { onDone(); }
+                    }
+                }
+            ];
+            anim = { segs: segs, i: 0, t: 0, speed: 1, from: rest.clone(), sign: side === 'me' ? 1 : -1, stone: function () { return stone; } };
+        }
+
         function playMove(o) {
             var side = o.side === 'peer' ? 'peer' : 'me';
             var speed = o.speed || 1;
@@ -1028,7 +1073,8 @@
             var bowl = bowlOf(side);
             var rest = restOf(side);
 
-            var stone = null;
+            var stone = o.prePicked && pickedStone ? pickedStone : null;
+            if (stone) { pickedStone = null; stone.userData.held = true; }
 
             handGroup.visible = true;
             handGroup.position.copy(rest);
@@ -1039,41 +1085,25 @@
             var sign = side === 'me' ? 1 : -1;
             var bowlTop = bowl.position.clone().add(new THREE.Vector3(0, 3.0, 0));
 
-            var segs = [
-                /* 1. 探手：从休息位伸向棋罐上方 */
+            var segs = o.prePicked && stone ? [
+                { d: 540, to: target.clone().add(new THREE.Vector3(0, 2.5, 0)), arc: 1.9, e: easeInOutCubic }
+            ] : [
                 { d: 430, to: bowlTop.clone(), arc: 2.2, e: easeInOutCubic },
-                /* 2. 伸手进入敞口棋罐取子 */
                 {
                     d: 220, to: bowlTop.clone().add(new THREE.Vector3(0, -1.5, 0)), e: easeInOutSine,
                     onEnd: function () {
-                        /* 从棋罐顶层真正取出一颗：实例数减一，手中出现同色棋子。 */
                         var inst = bowl.userData.heapMesh;
-                        if (inst && inst.count > 0) {
-                            inst.count -= 1;
-                            inst.instanceMatrix.needsUpdate = true;
-                        }
+                        if (inst && inst.count > 0) { inst.count -= 1; inst.instanceMatrix.needsUpdate = true; }
                         stone = stoneMesh(o.color);
                         stoneLayer.add(stone);
                         stone.position.copy(handGroup.position);
-                        /* 棋子中心对准指尖捏取点，沿手的轨迹自然抬出棋罐。 */
-                        stone.scale.setScalar(0.28);
-                        stone.userData.grow = 0;
                         stone.userData.held = true;
+                        stone.userData.grow = 0;
                         if (o.onGrab) { o.onGrab(); }
                     }
                 },
-                /* 3. 抬离罐口，指间捏着子 */
-                {
-                    d: 260, to: bowlTop.clone().add(new THREE.Vector3(0, 0.5, 0)), e: easeOutCubic,
-                    onStart: function () {
-                        if (stone) { stone.userData.held = true; }
-                    }
-                },
-                /* 4. 抬手离开棋罐 */
-                {
-                    d: 200, to: bowlTop.clone().add(new THREE.Vector3(0, 0.7, 0)), e: easeInOutSine,
-                },
-                /* 5. 过盘：弧线送往目标上方 */
+                { d: 260, to: bowlTop.clone().add(new THREE.Vector3(0, 0.5, 0)), arc: 0.4, e: easeOutCubic },
+                { d: 200, to: bowlTop.clone().add(new THREE.Vector3(0, 0.7, 0)), e: easeInOutSine },
                 { d: 520, to: target.clone().add(new THREE.Vector3(0, 2.4, 0)), arc: 1.9, e: easeInOutCubic },
                 /* 6. 下压对准落点 */
                 {
@@ -1299,6 +1329,15 @@
             return { x: x, y: y };
         }
 
+        function pickBowl(clientX, clientY) {
+            raycaster.setFromCamera(toNdc(clientX, clientY), camera);
+            var hits = raycaster.intersectObjects([bowlNear, bowlFar], true);
+            if (!hits.length) { return null; }
+            var node = hits[0].object;
+            while (node && node.parent !== scene) { node = node.parent; }
+            return node === bowlNear ? 'me' : (node === bowlFar ? 'peer' : null);
+        }
+
         function pickClock(clientX, clientY) {
             raycaster.setFromCamera(toNdc(clientX, clientY), camera);
             var hits = raycaster.intersectObjects([paddles.near, paddles.far, clockCase], false);
@@ -1381,6 +1420,8 @@
             worldOf: worldOf,
             pickBoard: pickBoard,
             pickClock: pickClock,
+            pickBowl: pickBowl,
+            takeStone: takeStone,
             playMove: playMove,
             isAnimating: function () { return !!anim; },
             cancelAnimation: function () {
