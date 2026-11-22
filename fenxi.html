@@ -248,14 +248,18 @@
         </div>
       </div>
       <div class="grid-2">
+        <div class="field">
+          <label>1-5归属 (B/W)</label>
+          <input id="ownersInput" type="text" value="" placeholder="BWBWB" maxlength="5" spellcheck="false" autocomplete="off">
+        </div>
         <div class="field" style="justify-content:flex-end;">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;padding:7px 9px;background:#0f1115;border:1px solid var(--border);border-radius:7px;">
             <input id="justSwapped" type="checkbox"> 刚交换
           </label>
         </div>
-        <div id="propToggleWrap" class="field hidden" style="justify-content:flex-end;">
-          <button id="btnPropMode">多打模式</button>
-        </div>
+      </div>
+      <div id="propToggleWrap" class="field hidden">
+        <button id="btnPropMode">多打模式</button>
       </div>
       <div id="propCountWrap" class="field hidden">
         <label>五手打点数</label>
@@ -685,10 +689,15 @@ async function runInference() {
   const sClk = active === 1 ? bClk : wClk;
   const oClk = active === 1 ? wClk : bClk;
 
+  const rawOwners = (document.getElementById("ownersInput").value || "").trim().toUpperCase();
   const ownerFeats = [];
   for (let s = 0; s < 5; s++) {
     if (s < state.ply) {
-      const stoneBlackOwner = justSwapped ? (s % 2 === 1) : (s % 2 === 0);
+      let stoneBlackOwner;
+      const ch = rawOwners[s];
+      if (ch === "B" || ch === "1" || ch === "黑") stoneBlackOwner = true;
+      else if (ch === "W" || ch === "2" || ch === "白") stoneBlackOwner = false;
+      else stoneBlackOwner = justSwapped ? (s % 2 === 1) : (s % 2 === 0);
       ownerFeats.push(stoneBlackOwner === (active === 1) ? 1.0 : -1.0);
     } else {
       ownerFeats.push(0.0);
@@ -826,6 +835,7 @@ function saveSettings() {
       timeControl: document.getElementById("timeControl").value,
       clocksInput: document.getElementById("clocksInput").value,
       nProposals: document.getElementById("nProposals").value,
+      ownersInput: document.getElementById("ownersInput").value,
     }));
   } catch (_) {}
 }
@@ -840,6 +850,7 @@ function loadSettings() {
     if (s.timeControl !== undefined) document.getElementById("timeControl").value = s.timeControl;
     if (s.clocksInput !== undefined) document.getElementById("clocksInput").value = s.clocksInput;
     if (s.nProposals !== undefined) document.getElementById("nProposals").value = s.nProposals;
+    if (s.ownersInput !== undefined) document.getElementById("ownersInput").value = s.ownersInput;
   } catch (_) {}
 }
 
@@ -920,7 +931,7 @@ document.getElementById("movesInput").addEventListener("input", (e) => {
   syncRoute();
   runInference();
 });
-for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput", "nProposals", "justSwapped"]) {
+for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput", "nProposals", "ownersInput", "justSwapped"]) {
   document.getElementById(id).addEventListener("change", () => {
     saveSettings();
     runInference();
