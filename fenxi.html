@@ -245,16 +245,6 @@
           <input id="clocksInput" type="text" value="95,110" spellcheck="false">
         </div>
       </div>
-      <div id="proposalInputWrap" class="field hidden">
-        <label>已选多打</label>
-        <input id="proposalsInput" type="text" value="" placeholder="h9h10" spellcheck="false" autocomplete="off">
-      </div>
-      <div class="toggles">
-        <button id="tglForbidden" class="active">禁手</button>
-        <button id="tglNumbers" class="active">手数</button>
-        <button id="tglSwap">交换</button>
-        <button id="tglProposal">多打</button>
-      </div>
     </div>
 
     <div class="card">
@@ -304,7 +294,7 @@ let proposals = [];
 let showForbidden = true;
 let showNumbers = true;
 let allowSwap = false;
-let allowProposal = false;
+let allowProposal = true;
 let lastTopMoves = [];
 let lastProposalMoves = [];
 
@@ -558,20 +548,21 @@ function drawBoard() {
       const cx = pad + x * cell;
       const cy = pad + (N - 1 - y) * cell;
       const r = cell * 0.45;
+      const isLast = state.last && state.last.x === x && state.last.y === y;
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fillStyle = v === 1 ? "#15171c" : "#f4f6f8";
       ctx.fill();
-      ctx.strokeStyle = v === 1 ? "#000" : "#94a3b8";
-      ctx.lineWidth = Math.max(1, W / 600);
+      ctx.strokeStyle = isLast ? "#ef4444" : (v === 1 ? "#000" : "#94a3b8");
+      ctx.lineWidth = isLast ? Math.max(2, W / 260) : Math.max(1, W / 600);
       ctx.stroke();
 
       if (showNumbers) {
-        ctx.fillStyle = v === 1 ? "#e2e8f0" : "#1e293b";
+        ctx.fillStyle = isLast ? (v === 1 ? "#f87171" : "#dc2626") : (v === 1 ? "#e2e8f0" : "#1e293b");
         ctx.font = `600 ${Math.round(cell * 0.36)}px sans-serif`;
         ctx.fillText(String(state.stoneNo[y * N + x]), cx, cy + 0.5);
-      } else if (state.last && state.last.x === x && state.last.y === y) {
-        ctx.fillStyle = v === 1 ? "#f87171" : "#ef4444";
+      } else if (isLast) {
+        ctx.fillStyle = "#ef4444";
         ctx.beginPath();
         ctx.arc(cx, cy, r * 0.25, 0, Math.PI * 2);
         ctx.fill();
@@ -754,7 +745,6 @@ function toggleProposalCoord(coord) {
   const idx = proposals.findIndex(p => p.x === m.x && p.y === m.y);
   if (idx >= 0) proposals.splice(idx, 1);
   else proposals.push(m);
-  document.getElementById("proposalsInput").value = proposals.map(p => p.coord).join("");
   runInference();
 }
 
@@ -778,10 +768,6 @@ document.getElementById("movesInput").addEventListener("input", (e) => {
   viewPly = allMoves.length;
   runInference();
 });
-document.getElementById("proposalsInput").addEventListener("input", (e) => {
-  proposals = parseMoves(e.target.value);
-  runInference();
-});
 for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput"]) {
   document.getElementById(id).addEventListener("change", runInference);
 }
@@ -793,29 +779,6 @@ document.getElementById("btnLast").onclick = () => { viewPly = allMoves.length; 
 document.getElementById("btnClear").onclick = () => {
   allMoves = []; viewPly = 0; proposals = [];
   document.getElementById("movesInput").value = "";
-  document.getElementById("proposalsInput").value = "";
-  runInference();
-};
-
-document.getElementById("tglForbidden").onclick = (e) => {
-  showForbidden = !showForbidden;
-  e.target.classList.toggle("active", showForbidden);
-  drawBoard();
-};
-document.getElementById("tglNumbers").onclick = (e) => {
-  showNumbers = !showNumbers;
-  e.target.classList.toggle("active", showNumbers);
-  drawBoard();
-};
-document.getElementById("tglSwap").onclick = (e) => {
-  allowSwap = !allowSwap;
-  e.target.classList.toggle("active", allowSwap);
-  runInference();
-};
-document.getElementById("tglProposal").onclick = (e) => {
-  allowProposal = !allowProposal;
-  e.target.classList.toggle("active", allowProposal);
-  document.getElementById("proposalInputWrap").classList.toggle("hidden", !allowProposal);
   runInference();
 };
 
