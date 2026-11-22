@@ -241,8 +241,8 @@
           <input id="timeControl" type="text" value="120+2" spellcheck="false">
         </div>
         <div class="field">
-          <label>时钟 (每步剩余秒)</label>
-          <input id="clocksInput" type="text" value="" placeholder="114,118,113,114" spellcheck="false">
+          <label>时钟 (空格=黑 白 / 逗号=每步)</label>
+          <input id="clocksInput" type="text" value="" placeholder="95 110 或 114,118,113" spellcheck="false">
         </div>
       </div>
       <div class="field">
@@ -638,21 +638,23 @@ async function runInference() {
   const tcParts = (document.getElementById("timeControl").value || "120+2").split("+");
   const tInit = Math.max(1, parseFloat(tcParts[0]) || 120);
   const inc = Math.max(0, parseFloat(tcParts[1]) || 0);
-  const clkParts = (document.getElementById("clocksInput").value || "")
-    .replace(/[\[\]]/g, "")
-    .split(/[,/+\s]+/)
-    .filter(Boolean)
-    .map(v => Math.max(0, parseFloat(v) || 0));
+  const rawClk = (document.getElementById("clocksInput").value || "").replace(/[\[\]]/g, "").trim();
   let bClk = tInit, wClk = tInit;
-  if (clkParts.length === 1) {
-    bClk = clkParts[0]; wClk = clkParts[0];
-  } else if (clkParts.length === 2 && state.ply > 2) {
-    bClk = clkParts[0]; wClk = clkParts[1];
-  } else if (clkParts.length >= 2) {
-    const limit = Math.min(state.ply, clkParts.length);
-    for (let i = 0; i < limit; i++) {
-      if (i % 2 === 0) bClk = clkParts[i];
-      else wClk = clkParts[i];
+  if (rawClk) {
+    if (rawClk.includes(",")) {
+      const clkParts = rawClk.split(",").map(s => s.trim()).filter(Boolean).map(v => Math.max(0, parseFloat(v) || 0));
+      const limit = Math.min(state.ply, clkParts.length);
+      for (let i = 0; i < limit; i++) {
+        if (i % 2 === 0) bClk = clkParts[i];
+        else wClk = clkParts[i];
+      }
+    } else {
+      const clkParts = rawClk.split(/\s+/).filter(Boolean).map(v => Math.max(0, parseFloat(v) || 0));
+      if (clkParts.length === 1) {
+        bClk = clkParts[0]; wClk = clkParts[0];
+      } else if (clkParts.length >= 2) {
+        bClk = clkParts[0]; wClk = clkParts[1];
+      }
     }
   }
 
@@ -755,8 +757,44 @@ async function runInference() {
   drawBoard();
 }
 
+const SETTINGS_KEY = "allie_renju_settings_v1";
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      blackElo: document.getElementById("blackElo").value,
+      whiteElo: document.getElementById("whiteElo").value,
+      timeControl: document.getElementById("timeControl").value,
+      clocksInput: document.getElementById("clocksInput").value,
+      nProposals: document.getElementById("nProposals").value,
+    }));
+  } catch (_) {}
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.blackElo !== undefined) document.getElementById("blackElo").value = s.blackElo;
+    if (s.whiteElo !== undefined) document.getElementById("whiteElo").value = s.whiteElo;
+    if (s.timeControl !== undefined) document.getElementById("timeControl").value = s.timeControl;
+    if (s.clocksInput !== undefined) document.getElementById("clocksInput").value = s.clocksInput;
+    if (s.nProposals !== undefined) document.getElementById("nProposals").value = s.nProposals;
+  } catch (_) {}
+}
+
+function syncRoute() {
+  const mStr = allMoves.slice(0, viewPly).map(m => m.coord).join("");
+  const url = new URL(window.location.href);
+  if (mStr) url.searchParams.set("m", mStr);
+  else url.searchParams.delete("m");
+  history.replaceState(null, "", url.toString());
+}
+
 function syncMovesInput() {
   document.getElementById("movesInput").value = allMoves.slice(0, viewPly).map(m => m.coord).join("");
+  syncRoute();
 }
 
 function playCoord(coord) {
@@ -807,27 +845,40 @@ document.getElementById("movesInput").addEventListener("input", (e) => {
   allMoves = parseMoves(e.target.value);
   viewPly = allMoves.length;
   proposals = [];
+  syncRoute();
   runInference();
 });
 for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput", "nProposals"]) {
-  document.getElementById(id).addEventListener("change", runInference);
+  document.getElementById(id).addEventListener("change", () => {
+    saveSettings();
+    runInference();
+  });
 }
 
-document.getElementById("btnFirst").onclick = () => { viewPly = 0; runInference(); };
-document.getElementById("btnPrev").onclick = () => { viewPly = Math.max(0, viewPly - 1); runInference(); };
-document.getElementById("btnNext").onclick = () => { viewPly = Math.min(allMoves.length, viewPly + 1); runInference(); };
-document.getElementById("btnLast").onclick = () => { viewPly = allMoves.length; runInference(); };
+document.getElementById("btnFirst").onclick = () => { viewPly = 0; syncRoute(); runInference(); };
+document.getElementById("btnPrev").onclick = () => { viewPly = Math.max(0, viewPly - 1); syncRoute(); runInference(); };
+document.getElementById("btnNext").onclick = () => { viewPly = Math.min(allMoves.length, viewPly + 1); syncRoute(); runInference(); };
+document.getElementById("btnLast").onclick = () => { viewPly = allMoves.length; syncRoute(); runInference(); };
 document.getElementById("btnClear").onclick = () => {
   allMoves = []; viewPly = 0; proposals = [];
   document.getElementById("movesInput").value = "";
+  syncRoute();
   runInference();
 };
 
 window.addEventListener("resize", drawBoard);
 
 async function init() {
+  loadSettings();
+  const params = new URLSearchParams(window.location.search);
+  const hashM = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("m");
+  const routeM = params.get("m") || hashM;
+  if (routeM !== null) {
+    document.getElementById("movesInput").value = routeM;
+  }
   allMoves = parseMoves(document.getElementById("movesInput").value);
   viewPly = allMoves.length;
+  syncRoute();
   drawBoard();
   const badge = document.getElementById("statusBadge");
   try {
