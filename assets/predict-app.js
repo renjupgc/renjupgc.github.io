@@ -204,8 +204,11 @@ function zbxWinRateInit() {
         });
     });
 
-    ia.value = names[0] || '';
-    ib.value = names[1] || '';
+    /* 默认对局双方：王鑫宇 vs 李致阳；若数据里缺任一位则回退到等级分前两名 */
+    var DEF_A = findName('王鑫宇') || names[0] || '';
+    var DEF_B = findName('李致阳') || names[1] || '';
+    ia.value = DEF_A;
+    ib.value = DEF_B;
     render();
 }
 window.ZBX_WP_INIT = zbxWinRateInit;
