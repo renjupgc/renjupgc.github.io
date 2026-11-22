@@ -488,13 +488,13 @@
                 cx.strokeStyle = '#d8b77d'; cx.lineWidth = 13; cx.strokeRect(18, 18, 964, 584);
                 cx.strokeStyle = 'rgba(242,215,169,.55)'; cx.lineWidth = 3; cx.strokeRect(39, 39, 922, 546);
                 cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#f5e5c7';
-                cx.font = '700 54px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
+                cx.font = '700 68px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
                 cx.fillText('“冠臣杯”第一届', 500, 190, 850);
                 cx.font = '700 54px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
                 cx.fillText('五子棋公开赛', 500, 275, 850);
                 cx.strokeStyle = 'rgba(226,190,128,.7)'; cx.lineWidth = 3;
                 cx.beginPath(); cx.moveTo(110, 365); cx.lineTo(890, 365); cx.stroke();
-                cx.fillStyle = '#ffe4b5'; cx.font = '700 72px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
+                cx.fillStyle = '#ffe4b5'; cx.font = '700 86px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
                 cx.fillText(String(label || '棋友').slice(0, 12), 500, 475, 820);
             }
             paint(name);
@@ -525,10 +525,11 @@
         function positionPlayerSigns() {
             var nearZ = view.seat === 'black' ? 15.5 : -15.5;
             /* 台签缩小并向桌面内侧移动，底座稳稳落在桌面上；牌面朝东（+X）。 */
-            myPlayerSign.scale.setScalar(0.72);
-            peerPlayerSign.scale.setScalar(0.72);
-            myPlayerSign.position.set(-13.8, TABLE_TOP + 2.11, nearZ * 0.62);
-            peerPlayerSign.position.set(-13.8, TABLE_TOP + 2.11, -nearZ * 0.62);
+            myPlayerSign.scale.setScalar(0.62);
+            peerPlayerSign.scale.setScalar(0.62);
+            /* 两块牌移到桌面左侧的空位，避开近/远棋罐及棋盘边缘。 */
+            myPlayerSign.position.set(-17.2, TABLE_TOP + 1.82, nearZ > 0 ? 5.0 : -5.0);
+            peerPlayerSign.position.set(-17.2, TABLE_TOP + 1.82, nearZ > 0 ? -5.0 : 5.0);
             myPlayerSign.rotation.set(0, Math.PI / 2, 0);
             peerPlayerSign.rotation.set(0, Math.PI / 2, 0);
         }
@@ -1012,13 +1013,16 @@
         function updateArmTransform(group, model, side) {
             /* 每帧以固定肩点反解整条手臂方向：完整三维四元数同时处理俯仰与偏航，
                袖管末端始终落在肩部，不会只在水平面转向而与身体脱节。 */
-            var shoulderZ = side === 'peer' ? peerGroup.position.z + 0.4 : -peerGroup.position.z - 0.4;
-            var shoulder = new THREE.Vector3(0, 32.3, shoulderZ);
-            var delta = shoulder.sub(group.position);
+            /* 对手肩点落在躯干外侧的肩峰，而非胸口中心；袖管末端嵌入肩部网格，
+               形成连续的肩-上臂-前臂-手腕结构。 */
+            var shoulder = side === 'peer'
+                ? new THREE.Vector3(-6.6, 32.0, peerGroup.position.z + 0.25)
+                : new THREE.Vector3(0, 32.0, -peerGroup.position.z - 0.25);
+            var delta = shoulder.clone().sub(group.position);
             var distance = Math.max(8, delta.length());
-            var direction = delta.normalize();
+            var direction = delta.clone().normalize();
             group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction);
-            model.scale.set(1, 1, distance / 31);
+            model.scale.set(1, 1, distance / 27.5);
             model.rotation.set(0, 0, 0);
         }
         function orientArm(group, model, side) {
