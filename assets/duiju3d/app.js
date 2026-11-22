@@ -46,6 +46,7 @@
         clocks: { 1: 0, 2: 0 },
         running: 0,
         busy: false,
+        hasStone: false,
         pendingPress: false,      // 兼容旧字段；主逻辑用 awaitingPress
         awaitingPress: 0,         // 落子后待拍钟的一方（0/1/2）——棋钟一律由人按
         aiMode: false,            // 人机对弈（房间里的机器人座位）
@@ -242,6 +243,7 @@
         S.turn = BLACK;
         S.running = 0;
         S.busy = false;
+        S.hasStone = false;
         S.pendingPress = false;
         S.awaitingPress = 0;
         S.aiThinking = false;
@@ -481,15 +483,18 @@
         if (S.phase !== 'seated') { return; }
         if (S.busy) { return; }
         if (S.awaitingPress) { toast('先拍钟，再走下一手'); DJ_AUDIO.nope(); return; }
+        if (!S.hasStone) { toast('请先点击自己一侧的棋罐取子'); DJ_AUDIO.nope(); return; }
         if (S.turn !== S.myColor) { toast('还没轮到你'); return; }
         if (cellAt(x, y)) { toast('这里已经有子了'); return; }
 
         var color = S.myColor;
         S.busy = true;
+        S.hasStone = false;
         T.setGhost(null);
 
         T.playMove({
             side: 'me',
+            prePicked: true,
             x: x, y: y,
             color: color === BLACK ? 'black' : 'white',
             speed: S.animFast ? 2.3 : 1,
@@ -1024,8 +1029,25 @@
                 else { toast('请拍当前待交接的一侧棋钟'); DJ_AUDIO.nope(); }
                 return;
             }
+            var bowlSide = T.pickBowl(e.clientX, e.clientY);
+            if (bowlSide) {
+                if (bowlSide !== 'me') { toast('请从自己一侧的棋罐取子'); DJ_AUDIO.nope(); return; }
+                if (S.awaitingPress || S.turn !== S.myColor || S.busy) {
+                    toast('现在还不能取子'); DJ_AUDIO.nope(); return;
+                }
+                if (S.hasStone) { toast('已经取好棋子，请在棋盘上落子'); return; }
+                T.takeStone('me', S.myColor === BLACK ? 'black' : 'white', function () {
+                    S.hasStone = true;
+                    toast('已取子，请点击棋盘落子');
+                    hint('已从棋罐取子。<em>点击棋盘交叉点</em>完成落子。');
+                });
+                return;
+            }
             var cell = T.pickBoard(e.clientX, e.clientY);
-            if (cell) { myMove(cell.x, cell.y); }
+            if (cell) {
+                if (!S.hasStone) { toast('请先点击自己一侧的棋罐取子'); DJ_AUDIO.nope(); return; }
+                myMove(cell.x, cell.y);
+            }
         }
         c.addEventListener('pointerup', finish);
         c.addEventListener('pointercancel', finish);
