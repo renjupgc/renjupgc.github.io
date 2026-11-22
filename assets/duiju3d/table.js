@@ -478,66 +478,58 @@
         tableBody.receiveShadow = true;
         scene.add(tableBody);
 
-        /* ---------- 双人赛事台签（位于桌面左侧） ---------- */
-        var signCanvas = canvas2d(1200, 600);
-        var signCtx = signCanvas.getContext('2d');
-        function drawPlayerSign(myName, peerName) {
-            var g = signCtx.createLinearGradient(0, 0, 1200, 600);
-            g.addColorStop(0, '#33251a');
-            g.addColorStop(0.5, '#60452b');
-            g.addColorStop(1, '#2b2017');
-            signCtx.fillStyle = g;
-            signCtx.fillRect(0, 0, 1200, 600);
-            signCtx.strokeStyle = '#d6b477';
-            signCtx.lineWidth = 12;
-            signCtx.strokeRect(18, 18, 1164, 564);
-            signCtx.strokeStyle = 'rgba(235,207,153,0.55)';
-            signCtx.lineWidth = 3;
-            signCtx.strokeRect(36, 36, 1128, 528);
-            signCtx.textAlign = 'center';
-            signCtx.textBaseline = 'middle';
-            signCtx.fillStyle = '#f5e4c3';
-            signCtx.font = '700 62px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
-            signCtx.fillText('“冠臣杯”第一届五子棋公开赛', 600, 166, 1080);
-            signCtx.strokeStyle = 'rgba(226,190,128,0.7)';
-            signCtx.lineWidth = 2;
-            signCtx.beginPath(); signCtx.moveTo(90, 286); signCtx.lineTo(1110, 286); signCtx.stroke();
-            signCtx.font = '600 48px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
-            signCtx.fillStyle = '#f0d9ad';
-            signCtx.fillText(String(myName || '棋友').slice(0, 12), 320, 430, 430);
-            signCtx.fillStyle = '#d7c6a6';
-            signCtx.font = '500 34px Georgia,serif';
-            signCtx.fillText('VS', 600, 430);
-            signCtx.fillStyle = '#f0d9ad';
-            signCtx.font = '600 48px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
-            signCtx.fillText(String(peerName || '棋友').slice(0, 12), 880, 430, 430);
-            signTexture.needsUpdate = true;
+        /* ---------- 独立选手赛事台签：分别摆在双方座位旁，牌面朝东（+X） ---------- */
+        function makePlayerSign(name) {
+            var c = canvas2d(1000, 620), cx = c.getContext('2d');
+            function paint(label) {
+                var g = cx.createLinearGradient(0, 0, 1000, 620);
+                g.addColorStop(0, '#352518'); g.addColorStop(0.52, '#6b4a2b'); g.addColorStop(1, '#2b1e14');
+                cx.fillStyle = g; cx.fillRect(0, 0, 1000, 620);
+                cx.strokeStyle = '#d8b77d'; cx.lineWidth = 13; cx.strokeRect(18, 18, 964, 584);
+                cx.strokeStyle = 'rgba(242,215,169,.55)'; cx.lineWidth = 3; cx.strokeRect(39, 39, 922, 546);
+                cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#f5e5c7';
+                cx.font = '700 54px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
+                cx.fillText('“冠臣杯”第一届', 500, 190, 850);
+                cx.font = '700 54px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
+                cx.fillText('五子棋公开赛', 500, 275, 850);
+                cx.strokeStyle = 'rgba(226,190,128,.7)'; cx.lineWidth = 3;
+                cx.beginPath(); cx.moveTo(110, 365); cx.lineTo(890, 365); cx.stroke();
+                cx.fillStyle = '#ffe4b5'; cx.font = '700 72px "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
+                cx.fillText(String(label || '棋友').slice(0, 12), 500, 475, 820);
+            }
+            paint(name);
+            var tex = texFromCanvas(c);
+            var group = new THREE.Group();
+            var frame = new THREE.Mesh(new THREE.BoxGeometry(7.2, 5.0, 0.42),
+                new THREE.MeshStandardMaterial({ color: 0x4a321d, roughness: 0.46, metalness: 0.12 }));
+            frame.castShadow = true; group.add(frame);
+            var face = new THREE.Mesh(new THREE.PlaneGeometry(6.85, 4.65),
+                new THREE.MeshStandardMaterial({ map: tex, roughness: 0.68, metalness: 0.03 }));
+            face.position.z = 0.225; group.add(face);
+            var base = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.42, 2.3),
+                new THREE.MeshStandardMaterial({ color: 0x392718, roughness: 0.56 }));
+            base.position.y = -2.72; base.castShadow = true; group.add(base);
+            group.userData.paint = paint;
+            group.userData.texture = tex;
+            return group;
         }
-        var signTexture = texFromCanvas(signCanvas);
-        drawPlayerSign('棋友', '棋友');
-        var signGroup = new THREE.Group();
-        var signFrame = new THREE.Mesh(
-            new THREE.BoxGeometry(13.2, 7.2, 0.48),
-            new THREE.MeshStandardMaterial({ color: 0x4a321d, roughness: 0.48, metalness: 0.12 })
-        );
-        signFrame.castShadow = true;
-        signGroup.add(signFrame);
-        var signFace = new THREE.Mesh(
-            new THREE.PlaneGeometry(12.75, 6.75),
-            new THREE.MeshStandardMaterial({ map: signTexture, roughness: 0.72, metalness: 0.04 })
-        );
-        signFace.position.z = 0.255;
-        signGroup.add(signFace);
-        var signBase = new THREE.Mesh(
-            new THREE.BoxGeometry(13.8, 0.55, 3.2),
-            new THREE.MeshStandardMaterial({ color: 0x3a2819, roughness: 0.58 })
-        );
-        signBase.position.y = -3.9;
-        signBase.castShadow = true;
-        signGroup.add(signBase);
-        signGroup.position.set(-16.1, TABLE_TOP + 4.6, 0);
-        signGroup.rotation.x = -0.10;
-        scene.add(signGroup);
+        var myPlayerSign = makePlayerSign('棋友');
+        var peerPlayerSign = makePlayerSign('棋友');
+        scene.add(myPlayerSign, peerPlayerSign);
+        function drawPlayerSigns(myName, peerName) {
+            myPlayerSign.userData.paint(myName || '棋友');
+            myPlayerSign.userData.texture.needsUpdate = true;
+            peerPlayerSign.userData.paint(peerName || '棋友');
+            peerPlayerSign.userData.texture.needsUpdate = true;
+        }
+        function positionPlayerSigns() {
+            var nearZ = view.seat === 'black' ? 15.5 : -15.5;
+            myPlayerSign.position.set(-20.0, TABLE_TOP + 3.3, nearZ);
+            peerPlayerSign.position.set(-20.0, TABLE_TOP + 3.3, -nearZ);
+            myPlayerSign.rotation.set(0, Math.PI / 2, 0);
+            peerPlayerSign.rotation.set(0, Math.PI / 2, 0);
+        }
+        positionPlayerSigns();
 
         var legMat = new THREE.MeshStandardMaterial({ color: 0x241a12, roughness: 0.7 });
         [[-20, -13], [20, -13], [-20, 13], [20, 13]].forEach(function (p) {
@@ -992,6 +984,25 @@
             handModel.add(cuff);
         })();
 
+        /* 对手手臂常驻显示：不再在每次落子时才突然出现。
+           独立克隆一套完整的袖管、前臂、手腕和手指，动画手臂只负责动作。 */
+        var peerIdleGroup = new THREE.Group();
+        var peerIdleModel = handModel.clone(true);
+        peerIdleGroup.add(peerIdleModel);
+        peerIdleGroup.visible = true;
+        scene.add(peerIdleGroup);
+        function orientArm(group, model, side) {
+            var rest = restOf(side);
+            var shoulderZ = side === 'peer' ? peerGroup.position.z : (view.seat === 'black' ? 27 : -27);
+            var shoulderX = side === 'peer' ? 0 : 0;
+            var dx = shoulderX - rest.x;
+            var dz = shoulderZ - rest.z;
+            group.position.copy(rest);
+            group.rotation.set(0, Math.atan2(dx, dz), 0);
+            model.scale.set(1, 1, Math.sqrt(dx * dx + dz * dz) / 31);
+            model.rotation.set(0, 0, 0);
+        }
+
         /* r128 没有色彩管理：材质里写的十六进制会被当成线性值，
            暗色一律偏灰。这里统一把颜色转成线性，深色才压得住。 */
         (function fixColors() {
@@ -1105,12 +1116,8 @@
             var stone = null;
             handGroup.visible = true;
             handGroup.position.copy(rest);
-            /* 手臂轴线从手腕指向对应座位的肩部中心，袖管因此能连续接入躯干。 */
-            var shoulderZ = ((side === 'me') === (view.seat === 'black')) ? 34 : -34;
-            var armYaw = Math.atan2(-rest.x, shoulderZ - rest.z);
-            handGroup.rotation.set(0, armYaw, 0);
-            handModel.scale.set(1, 1, 0.68);
-            handModel.rotation.set(0, 0, 0);
+            orientArm(handGroup, handModel, side);
+            if (side === 'peer') { peerIdleGroup.visible = false; }
             var segs = [
                 { d: 380, to: top.clone(), arc: 1.8, e: easeInOutCubic },
                 { d: 260, to: top.clone().add(new THREE.Vector3(0, -1.45, 0)), e: easeInOutSine,
@@ -1160,12 +1167,8 @@
 
             handGroup.visible = true;
             handGroup.position.copy(rest);
-            /* 同一套肩部朝向用于真人与机器人，避免袖管朝错方向而从躯干脱开。 */
-            var shoulderZ = ((side === 'me') === (view.seat === 'black')) ? 34 : -34;
-            var armYaw = Math.atan2(-rest.x, shoulderZ - rest.z);
-            handGroup.rotation.set(0, armYaw, 0);
-            handModel.scale.set(1, 1, 0.68);
-            handModel.rotation.set(0, 0, 0);
+            orientArm(handGroup, handModel, side);
+            if (side === 'peer') { peerIdleGroup.visible = false; }
 
             var sign = side === 'me' ? 1 : -1;
             var bowlTop = bowl.position.clone().add(new THREE.Vector3(0, 3.0, 0));
@@ -1178,6 +1181,7 @@
                 { d: 480, to: rest.clone(), arc: 1.6, e: easeInOutCubic,
                     onEnd: function () {
                         handGroup.visible = false;
+                        if (side === 'peer') { peerIdleGroup.visible = peerGroup.visible; }
                         if (o.onDone) { o.onDone(); }
                     }
                 }
@@ -1463,6 +1467,8 @@
             bowlFar.position.set(-11.6, TABLE_TOP, -nearZ);
             clockGroup.position.z = 0;
             clockGroup.rotation.y = view.seat === 'black' ? 0 : Math.PI;
+            positionPlayerSigns();
+            orientArm(peerIdleGroup, peerIdleModel, 'peer');
         }
 
         function sit() { view.mode = 'sit'; view.tYaw = 0; view.tPitch = 0; view.tZoom = 1; }
@@ -1536,10 +1542,11 @@
             setClockText: setClockText,
             setPeer: function (name, present) {
                 peerGroup.visible = !!present;
+                peerIdleGroup.visible = !!present;
                 if (name) { drawPlate(name); }
             },
             setPlayerNames: function (myName, peerName) {
-                drawPlayerSign(myName, peerName);
+                drawPlayerSigns(myName, peerName);
             },
             setPeerPlate: drawPlate
         };
