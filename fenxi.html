@@ -729,18 +729,34 @@ async function runInference() {
   }
 
   const unifiedProbs = softmax(unifiedLogits);
-  const indices = Array.from({ length: 451 }, (_, i) => i).filter(i => unifiedLogits[i] > -Infinity);
-  indices.sort((a, b) => unifiedProbs[b] - unifiedProbs[a]);
-  lastTopMoves = indices.slice(0, 8).map(idx => {
-    if (idx === ACTION_SWAP) return ["交换", unifiedProbs[idx], "swap", null];
-    if (idx >= ACTION_PROP_OFFSET) {
+
+  // Pin special actions (交换, 多打) at the very top, followed by top normal stone moves (all from unifiedProbs <= 100%)
+  const pinnedSpecial = [];
+  if (useSwap) {
+    pinnedSpecial.push(["交换", unifiedProbs[ACTION_SWAP], "swap", null]);
+  }
+  if (useProp) {
+    const propIndices = Array.from({ length: 225 }, (_, i) => ACTION_PROP_OFFSET + i)
+      .filter(idx => unifiedLogits[idx] > -Infinity)
+      .sort((a, b) => unifiedProbs[b] - unifiedProbs[a])
+      .slice(0, Math.min(nProp, 5));
+    for (const idx of propIndices) {
       const sq = idx - ACTION_PROP_OFFSET;
       const c = xyToCoord(sq % N, Math.floor(sq / N));
-      return [`多打:${c.toUpperCase()}`, unifiedProbs[idx], "prop", c];
+      pinnedSpecial.push([`多打:${c.toUpperCase()}`, unifiedProbs[idx], "prop", c]);
     }
+  }
+
+  const stoneIndices = Array.from({ length: 225 }, (_, i) => i)
+    .filter(i => unifiedLogits[i] > -Infinity)
+    .sort((a, b) => unifiedProbs[b] - unifiedProbs[a])
+    .slice(0, 5);
+  const topStoneMoves = stoneIndices.map(idx => {
     const c = xyToCoord(idx % N, Math.floor(idx / N));
     return [c.toUpperCase(), unifiedProbs[idx], "stone", c];
   });
+
+  lastTopMoves = [...pinnedSpecial, ...topStoneMoves];
 
   const listEl = document.getElementById("topMovesList");
   listEl.innerHTML = "";
