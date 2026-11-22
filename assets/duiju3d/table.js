@@ -584,6 +584,8 @@
                 stoneLayer.remove(stones[k]);
             });
             stones = {};
+            if (pickedStone && pickedStone.parent) { pickedStone.parent.remove(pickedStone); }
+            pickedStone = null;
         }
 
         /* ---------- 棋盒 ---------- */
