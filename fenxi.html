@@ -252,7 +252,7 @@
           <label>1-5归属 (B/W)</label>
           <input id="ownersInput" type="text" value="" placeholder="BWBWB" maxlength="5" spellcheck="false" autocomplete="off">
         </div>
-        <div class="field" style="justify-content:flex-end;">
+        <div id="justSwappedWrap" class="field" style="justify-content:flex-end;">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;padding:7px 9px;background:#0f1115;border:1px solid var(--border);border-radius:7px;">
             <input id="justSwapped" type="checkbox"> 刚交换
           </label>
@@ -689,7 +689,11 @@ async function runInference() {
   const sClk = active === 1 ? bClk : wClk;
   const oClk = active === 1 ? wClk : bClk;
 
-  const justSwapped = document.getElementById("justSwapped").checked;
+  const justSwappedEl = document.getElementById("justSwapped");
+  const pastFifth = state.ply >= 5;
+  document.getElementById("justSwappedWrap").classList.toggle("hidden", pastFifth);
+  if (pastFifth && justSwappedEl.checked) justSwappedEl.checked = false;
+  const justSwapped = justSwappedEl.checked;
   const rawOwners = (document.getElementById("ownersInput").value || "").trim().toUpperCase();
   const ownerFeats = [];
   for (let s = 0; s < 5; s++) {
@@ -909,7 +913,11 @@ canvas.addEventListener("click", (e) => {
   if (x < 0 || x >= N || y < 0 || y >= N) return;
   const state = buildState();
   const nProp = Math.max(0, parseInt(document.getElementById("nProposals").value, 10) || 0);
-  const justSwapped = document.getElementById("justSwapped").checked;
+  const justSwappedEl = document.getElementById("justSwapped");
+  const pastFifth = state.ply >= 5;
+  document.getElementById("justSwappedWrap").classList.toggle("hidden", pastFifth);
+  if (pastFifth && justSwappedEl.checked) justSwappedEl.checked = false;
+  const justSwapped = justSwappedEl.checked;
   const isAlreadyProp = proposals.some(p => p.x === x && p.y === y);
   if (state.ply === 4 && !justSwapped && proposalMode && (isAlreadyProp || nProp > 0)) {
     toggleProposalCoord(xyToCoord(x, y));
