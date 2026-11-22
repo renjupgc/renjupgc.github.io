@@ -690,7 +690,7 @@ async function runInference() {
 
   // Unified action softmax (stone 0..224 + 交换 225 + 多打 226..450) summing to 100%
   const nProp = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
-  const useSwap = state.ply >= 1 && state.ply <= 5;
+  const useSwap = state.ply >= 1 && state.ply <= 5 && proposals.length === 0;
   const useProp = state.ply === 4 && nProp > 0;
 
   const unifiedLogits = new Float32Array(451);
