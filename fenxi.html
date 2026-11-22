@@ -248,15 +248,18 @@
         </div>
       </div>
       <div class="grid-2">
-        <div class="field">
-          <label>五手打点数 (0=无多打)</label>
-          <input id="nProposals" type="number" value="0" min="0" max="20" step="1">
-        </div>
         <div class="field" style="justify-content:flex-end;">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;padding:7px 9px;background:#0f1115;border:1px solid var(--border);border-radius:7px;">
             <input id="justSwapped" type="checkbox"> 刚交换
           </label>
         </div>
+        <div id="propToggleWrap" class="field hidden" style="justify-content:flex-end;">
+          <button id="btnPropMode">多打模式</button>
+        </div>
+      </div>
+      <div id="propCountWrap" class="field hidden">
+        <label>五手打点数</label>
+        <input id="nProposals" type="number" value="10" min="1" max="20" step="1">
       </div>
     </div>
 
@@ -298,7 +301,7 @@ let viewPly = 0;
 let proposals = [];
 let showForbidden = true;
 let showNumbers = true;
-let showProposalPanel = false;
+let proposalMode = false;
 let lastTopMoves = [];
 let lastProposalMoves = [];
 
@@ -698,11 +701,17 @@ async function runInference() {
   document.getElementById("thinkLabel").textContent = `思考 ${thinkS.toFixed(2)}s`;
 
   // Unified action softmax (stone 0..224 + 交换 225 + 多打 226..450) summing to 100%
-  const nProp = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
   const justSwapped = document.getElementById("justSwapped").checked;
-  const inPropOnly = state.ply === 4 && proposals.length > 0 && nProp > 0 && !justSwapped;
+  const canProp = state.ply === 4 && !justSwapped;
+  if (!canProp) proposalMode = false;
+  document.getElementById("propToggleWrap").classList.toggle("hidden", !canProp);
+  document.getElementById("btnPropMode").classList.toggle("active", proposalMode);
+  document.getElementById("propCountWrap").classList.toggle("hidden", !(canProp && proposalMode));
+
+  const nProp = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
+  const useProp = canProp && proposalMode && nProp > 0;
+  const inPropOnly = useProp && proposals.length > 0;
   const useSwap = state.ply >= 1 && state.ply <= 5 && proposals.length === 0 && !justSwapped;
-  const useProp = state.ply === 4 && nProp > 0 && !justSwapped;
   const useStone = !inPropOnly;
 
   const unifiedLogits = new Float32Array(451);
@@ -862,12 +871,18 @@ canvas.addEventListener("click", (e) => {
   const nProp = Math.max(0, parseInt(document.getElementById("nProposals").value, 10) || 0);
   const justSwapped = document.getElementById("justSwapped").checked;
   const isAlreadyProp = proposals.some(p => p.x === x && p.y === y);
-  if (state.ply === 4 && !justSwapped && (isAlreadyProp || nProp > 0)) {
+  if (state.ply === 4 && !justSwapped && proposalMode && (isAlreadyProp || nProp > 0)) {
     toggleProposalCoord(xyToCoord(x, y));
   } else {
     playCoord(xyToCoord(x, y));
   }
 });
+
+document.getElementById("btnPropMode").onclick = () => {
+  proposalMode = !proposalMode;
+  if (!proposalMode) proposals = [];
+  runInference();
+};
 
 document.getElementById("movesInput").addEventListener("input", (e) => {
   allMoves = parseMoves(e.target.value);
