@@ -245,6 +245,10 @@
           <input id="clocksInput" type="text" value="95,110" spellcheck="false">
         </div>
       </div>
+      <div class="field">
+        <label>五手打点数 (0=无多打)</label>
+        <input id="nProposals" type="number" value="10" min="0" max="20" step="1">
+      </div>
     </div>
 
     <div class="card">
@@ -693,8 +697,9 @@ async function runInference() {
   }
 
   // Multi-proposal (多打)
+  const nProp = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
   const propCard = document.getElementById("proposalCard");
-  if (allowProposal && state.ply === 4) {
+  if (nProp > 0 && state.ply === 4) {
     propCard.classList.remove("hidden");
     const propLogits = new Float32Array(225);
     const propSet = new Set(proposals.map(p => p.y * N + p.x));
@@ -704,7 +709,7 @@ async function runInference() {
     }
     const propProbs = softmax(propLogits);
     const pIdx = Array.from({ length: 225 }, (_, i) => i).sort((a, b) => propProbs[b] - propProbs[a]);
-    lastProposalMoves = pIdx.slice(0, 5).map(i => [xyToCoord(i % N, Math.floor(i / N)), propProbs[i]]);
+    lastProposalMoves = pIdx.slice(0, nProp).map(i => [xyToCoord(i % N, Math.floor(i / N)), propProbs[i]]);
     const pList = document.getElementById("proposalMovesList");
     pList.innerHTML = "";
     for (const [coord, prob] of lastProposalMoves) {
@@ -768,7 +773,7 @@ document.getElementById("movesInput").addEventListener("input", (e) => {
   viewPly = allMoves.length;
   runInference();
 });
-for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput"]) {
+for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput", "nProposals"]) {
   document.getElementById(id).addEventListener("change", runInference);
 }
 
