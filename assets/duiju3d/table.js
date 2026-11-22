@@ -529,7 +529,7 @@
             myPlayerSign.rotation.set(0, Math.PI / 2, 0);
             peerPlayerSign.rotation.set(0, Math.PI / 2, 0);
         }
-        positionPlayerSigns();
+        /* 具体座位在 setSeat() 中确定后再摆放两块台签。 */
 
         var legMat = new THREE.MeshStandardMaterial({ color: 0x241a12, roughness: 0.7 });
         [[-20, -13], [20, -13], [-20, 13], [20, 13]].forEach(function (p) {
