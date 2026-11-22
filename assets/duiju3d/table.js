@@ -1004,9 +1004,10 @@
         }
 
         function restOf(side) {
+            var nearZ = view.seat === 'black' ? 19.5 : -19.5;
             return side === 'me'
-                ? new THREE.Vector3(13.2, TABLE_TOP + 3.4, 19.5)
-                : new THREE.Vector3(-13.2, TABLE_TOP + 3.4, -19.5);
+                ? new THREE.Vector3(13.2, TABLE_TOP + 3.4, nearZ)
+                : new THREE.Vector3(-13.2, TABLE_TOP + 3.4, -nearZ);
         }
 
         function worldOf(x, y) {
@@ -1031,7 +1032,8 @@
 
             handGroup.visible = true;
             handGroup.position.copy(rest);
-            handGroup.rotation.set(0, side === 'me' ? 0.5 : Math.PI + 0.5, 0);
+            var seatTurn = view.seat === 'white' ? Math.PI : 0;
+            handGroup.rotation.set(0, (side === 'me' ? 0.5 : Math.PI + 0.5) + seatTurn, 0);
             handModel.rotation.set(0, 0, 0);
 
             var sign = side === 'me' ? 1 : -1;
@@ -1322,7 +1324,12 @@
             /* 对手永远在对座 */
             peerGroup.position.z = view.seat === 'black' ? -27 : 27;
             peerGroup.rotation.y = view.seat === 'black' ? 0 : Math.PI;
+            /* 棋盒与棋钟随座位翻转，确保自己始终从身边棋罐取子。 */
+            var nearZ = view.seat === 'black' ? 9.6 : -9.6;
+            bowlNear.position.set(11.6, TABLE_TOP, nearZ);
+            bowlFar.position.set(-11.6, TABLE_TOP, -nearZ);
             clockGroup.position.z = 0;
+            clockGroup.rotation.y = view.seat === 'black' ? 0 : Math.PI;
         }
 
         function sit() { view.mode = 'sit'; view.tYaw = 0; view.tPitch = 0; view.tZoom = 1; }
