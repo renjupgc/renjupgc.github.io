@@ -184,6 +184,9 @@
         return localToName(String(sbUser.email || '').split('@')[0]);
     }
 
+    var NET_HINT = '连不上云端服务。若用了加速器/代理，请切换「全局」或关闭后重试；' +
+        '也可换网络（如手机热点）再试。配置经检查是正确的，这是当前网络到 Supabase 服务器不通。';
+
     function mapErr(err) {
         var msg = String((err && err.message) || err || '操作失败');
         var map = {
@@ -191,15 +194,15 @@
             'User already registered': '这个用户名已经被注册，换个名字或去登录。',
             'Email not confirmed': '账号还需邮箱确认：请在 Supabase 后台关闭 Confirm email。',
             'Signups not allowed for this instance': '项目关闭了注册：请在 Supabase Authentication 里开启 Allow new users to sign up。',
-            'Failed to fetch': '连不上 Supabase：检查网络，或核对 assets/supabase-config.js 里的 url。',
-            'Load failed': '连不上 Supabase：检查网络，或核对 assets/supabase-config.js 里的 url。'
+            'Failed to fetch': NET_HINT,
+            'Load failed': NET_HINT
         };
         if (map[msg]) { return new Error(map[msg]); }
         if (/failed to fetch|network\s?error|network request failed|load failed/i.test(msg)) {
-            return new Error('连不上 Supabase：检查网络，或核对 assets/supabase-config.js 里的 url。');
+            return new Error(NET_HINT);
         }
-        if (/timed?\s?out|timeout|abort/i.test(msg)) {
-            return new Error('连接 Supabase 超时，请稍后重试。');
+        if (/timed?\s?out|timeout|abort|脚本加载/i.test(msg)) {
+            return new Error(NET_HINT);
         }
         if (/duplicate key|unique/i.test(msg)) { return new Error('这个用户名已经被注册，换个名字或去登录。'); }
         if (/relation .* does not exist|schema cache/i.test(msg)) {

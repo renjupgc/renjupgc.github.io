@@ -25,14 +25,16 @@
 
     if (window.ZBX_SB_READY) { return; }
 
-    /* 国内访问 jsdelivr 偶尔不稳，备一个 unpkg，按顺序降级 */
+    /* 本地优先：SDK 随站点一起部署，不再依赖国内时常连不上的公共 CDN。
+       本地文件缺失/损坏时才依次降级到 jsdelivr、unpkg。 */
     var SDK_URLS = [
         'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
         'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js'
     ];
 
     var SDK_TIMEOUT = 12000;
-    var REQ_TIMEOUT = 15000;
+    /* 单次 9 秒 + 两次退避重试，总等待和原来接近，但多两次机会 */
+    var REQ_TIMEOUT = 9000;
 
     /* 最近一次初始化尝试；失败后置空，下一次调用重新走一遍 */
     var pending = null;
@@ -114,9 +116,14 @@
     }
 
     function fetchWithRetry(input, init) {
+        /* 网络层失败重试两次，退避 600ms / 1400ms；只有网络类错误才重试 */
         return fetchOnce(input, init).catch(function (err) {
             if (!retryable(err)) { throw err; }
-            return wait(700).then(function () { return fetchOnce(input, init); });
+            return wait(600).then(function () { return fetchOnce(input, init); })
+                .catch(function (err2) {
+                    if (!retryable(err2)) { throw err2; }
+                    return wait(1400).then(function () { return fetchOnce(input, init); });
+                });
         });
     }
 
@@ -134,7 +141,9 @@
                 throw new Error('尚未配置 Supabase：请在 assets/supabase-config.js 填入 url 与 anonKey');
             }
             if (window.supabase && window.supabase.createClient) { return null; }
-            return loadFirst(SDK_URLS);
+            /* 先试本地 vendor 里的 SDK（随站点部署，不依赖外网 CDN），
+               失败再按顺序降级到公共 CDN。 */
+            return loadFirst([base() + 'assets/vendor/supabase.js'].concat(SDK_URLS));
         }).then(function () {
             if (!(window.supabase && window.supabase.createClient)) {
                 throw new Error('Supabase SDK 未正确加载');
