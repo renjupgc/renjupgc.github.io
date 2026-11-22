@@ -28,8 +28,8 @@
     var TABLE_TOP = 23.5;         // 桌面高度 ≈ 70cm
     var BOARD_T = 0.7;
     var BOARD_TOP = TABLE_TOP + BOARD_T;
-    var STONE_R = 0.385;
-    var STONE_HALF = 0.148;
+    var STONE_R = 0.425;
+    var STONE_HALF = 0.172;
 
     var SEAT_SIGN = { black: 1, white: -1 };   // 视角在 +z / -z
 
@@ -497,15 +497,15 @@
         /* 双凸透镜形棋子，比压扁球体更接近真实云子/蛤碁石。
            按参考图做成略扁的片状：中间厚、边缘薄，整体比标准棋子更扁平。 */
         var stoneProfile = [
-            new THREE.Vector2(0.001, -0.116),
-            new THREE.Vector2(0.160, -0.140),
-            new THREE.Vector2(0.300, -0.104),
-            new THREE.Vector2(0.372, -0.038),
-            new THREE.Vector2(0.385, 0.000),
-            new THREE.Vector2(0.372, 0.038),
-            new THREE.Vector2(0.300, 0.104),
-            new THREE.Vector2(0.160, 0.140),
-            new THREE.Vector2(0.001, 0.116)
+            new THREE.Vector2(0.001, -0.140),
+            new THREE.Vector2(0.180, -0.172),
+            new THREE.Vector2(0.330, -0.132),
+            new THREE.Vector2(0.405, -0.050),
+            new THREE.Vector2(0.425, 0.000),
+            new THREE.Vector2(0.405, 0.050),
+            new THREE.Vector2(0.330, 0.132),
+            new THREE.Vector2(0.180, 0.172),
+            new THREE.Vector2(0.001, 0.140)
         ];
         var stoneGeo = new THREE.LatheGeometry(stoneProfile, 96);
         stoneGeo.computeVertexNormals();
@@ -513,8 +513,8 @@
         /* 云子质感：黑子如墨玉，白子如温润羊脂玉；清亮高光与细腻表面
            保留天然石材的通透感，避免金属或塑料质感。 */
         var blackStoneMat = new THREE.MeshPhysicalMaterial({
-            color: 0x111719,
-            roughness: 0.19,
+            color: 0x030405,
+            roughness: 0.17,
             metalness: 0.0,
             clearcoat: 0.96,
             clearcoatRoughness: 0.09,
@@ -634,8 +634,8 @@
             for (var i = 0; i < count; i++) {
                 var layer = Math.floor(i / 44);
                 var a = i * 2.399963 + rnd(-0.18, 0.18);
-                var r = Math.sqrt(Math.random()) * (2.80 - layer * 0.15);
-                var h = 0.34 + layer * 0.40 + (1 - r / 2.80) * 0.28 + rnd(-0.08, 0.08);
+                var r = Math.sqrt(Math.random()) * (2.22 - layer * 0.10);
+                var h = 0.34 + layer * 0.37 + (1 - r / 2.22) * 0.22 + rnd(-0.025, 0.025);
                 pos.set(Math.cos(a) * r, h, Math.sin(a) * r);
                 euler.set(rnd(-0.4, 0.4), rnd(0, 6.28), rnd(-0.4, 0.4));
                 quat.setFromEuler(euler);
@@ -1046,11 +1046,16 @@
                     onEnd: function () {
                         /* 从棋罐顶层真正取出一颗：实例数减一，手中出现同色棋子。 */
                         var inst = bowl.userData.heapMesh;
-                        if (inst && inst.count > 0) { inst.count -= 1; }
+                        if (inst && inst.count > 0) {
+                            inst.count -= 1;
+                            inst.instanceMatrix.needsUpdate = true;
+                        }
                         stone = stoneMesh(o.color);
                         stoneLayer.add(stone);
                         stone.position.copy(handGroup.position);
-                        stone.scale.setScalar(1);
+                        stone.position.y -= 0.42;
+                        stone.scale.setScalar(0.28);
+                        stone.userData.grow = 0;
                         stone.userData.held = true;
                         if (o.onGrab) { o.onGrab(); }
                     }
@@ -1139,6 +1144,7 @@
             var st = anim.stone();
             if (st && st.userData.held) {
                 st.position.copy(pos);
+                st.position.y -= 0.42;
                 if (st.userData.grow < 1) {
                     st.userData.grow = Math.min(1, st.userData.grow + dt * 6);
                     st.scale.setScalar(easeOutCubic(st.userData.grow));
