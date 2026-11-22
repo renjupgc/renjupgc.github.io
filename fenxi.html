@@ -319,6 +319,46 @@ function xyToCoord(x, y) {
   return String.fromCharCode(97 + x) + (y + 1);
 }
 
+function d4Transform(x, y, sym) {
+  const m = N - 1;
+  if (sym === 0) return [x, y];
+  if (sym === 1) return [m - y, x];
+  if (sym === 2) return [m - x, m - y];
+  if (sym === 3) return [y, m - x];
+  if (sym === 4) return [m - x, y];
+  if (sym === 5) return [y, x];
+  if (sym === 6) return [x, m - y];
+  return [m - y, m - x];
+}
+
+// Translation + D4 canonical shape key (catches both D4 and shifted-board symmetry)
+function canonicalProposalKey(board, px, py) {
+  const stones = [];
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const v = board[y * N + x];
+      if (v !== 0) stones.push([x, y, v]);
+    }
+  }
+  stones.push([px, py, 1]);
+
+  let best = null;
+  for (let sym = 0; sym < 8; sym++) {
+    let minX = N, minY = N;
+    const pts = stones.map(([x, y, c]) => {
+      const [tx, ty] = d4Transform(x, y, sym);
+      if (tx < minX) minX = tx;
+      if (ty < minY) minY = ty;
+      return [tx, ty, c];
+    });
+    pts.forEach(p => { p[0] -= minX; p[1] -= minY; });
+    pts.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]) || (a[2] - b[2]));
+    const key = pts.map(p => `${p[0]},${p[1]},${p[2]}`).join(";");
+    if (best === null || key < best) best = key;
+  }
+  return best;
+}
+
 // ---- Exact Renju Forbidden Move Detector (Overline, 4-4, 3-3) ----
 function countLine(board, x, y, dx, dy, color) {
   let cnt = 1;
@@ -763,7 +803,17 @@ async function runInference() {
     }
     const propProbs = softmax(propLogits);
     const pIdx = Array.from({ length: 225 }, (_, i) => i).sort((a, b) => propProbs[b] - propProbs[a]);
-    lastProposalMoves = pIdx.slice(0, nProp).map(i => [xyToCoord(i % N, Math.floor(i / N)), propProbs[i]]);
+    const seenKeys = new Set(proposals.map(p => canonicalProposalKey(state.board, p.x, p.y)));
+    lastProposalMoves = [];
+    for (const i of pIdx) {
+      if (lastProposalMoves.length >= nProp) break;
+      const cx = i % N, cy = Math.floor(i / N);
+      if (state.board[i] !== 0 || propSet.has(i)) continue;
+      const key = canonicalProposalKey(state.board, cx, cy);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      lastProposalMoves.push([xyToCoord(cx, cy), propProbs[i]]);
+    }
     const pList = document.getElementById("proposalMovesList");
     pList.innerHTML = "";
     for (const [coord, prob] of lastProposalMoves) {
