@@ -248,9 +248,16 @@
           <input id="clocksInput" type="text" value="" placeholder="95,110" spellcheck="false">
         </div>
       </div>
-      <div class="field">
-        <label>五手打点数 (0=无多打)</label>
-        <input id="nProposals" type="number" value="10" min="0" max="20" step="1">
+      <div class="grid-2">
+        <div class="field">
+          <label>五手打点数 (0=无多打)</label>
+          <input id="nProposals" type="number" value="0" min="0" max="20" step="1">
+        </div>
+        <div class="field" style="justify-content:flex-end;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;padding:7px 9px;background:#0f1115;border:1px solid var(--border);border-radius:7px;">
+            <input id="justSwapped" type="checkbox"> 刚交换
+          </label>
+        </div>
       </div>
     </div>
 
@@ -693,9 +700,10 @@ async function runInference() {
 
   // Unified action softmax (stone 0..224 + 交换 225 + 多打 226..450) summing to 100%
   const nProp = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
-  const inPropOnly = state.ply === 4 && proposals.length > 0 && nProp > 0;
-  const useSwap = state.ply >= 1 && state.ply <= 5 && proposals.length === 0;
-  const useProp = state.ply === 4 && nProp > 0;
+  const justSwapped = document.getElementById("justSwapped").checked;
+  const inPropOnly = state.ply === 4 && proposals.length > 0 && nProp > 0 && !justSwapped;
+  const useSwap = state.ply >= 1 && state.ply <= 5 && proposals.length === 0 && !justSwapped;
+  const useProp = state.ply === 4 && nProp > 0 && !justSwapped;
   const useStone = !inPropOnly;
 
   const unifiedLogits = new Float32Array(451);
@@ -832,8 +840,13 @@ function toggleProposalCoord(coord) {
   const nEl = document.getElementById("nProposals");
   const curN = Math.max(0, parseInt(nEl.value, 10) || 0);
   const idx = proposals.findIndex(p => p.x === m.x && p.y === m.y);
-  if (idx >= 0) return; // 打过的不能再打
-  if (curN <= 0) return;
+  if (idx >= 0) {
+    proposals.splice(idx, 1);
+    nEl.value = String(Math.min(20, curN + 1));
+    runInference();
+    return;
+  }
+  if (curN <= 0 || document.getElementById("justSwapped").checked) return;
   proposals.push(m);
   nEl.value = String(curN - 1);
   runInference();
@@ -848,7 +861,9 @@ canvas.addEventListener("click", (e) => {
   if (x < 0 || x >= N || y < 0 || y >= N) return;
   const state = buildState();
   const nProp = Math.max(0, parseInt(document.getElementById("nProposals").value, 10) || 0);
-  if (state.ply === 4 && nProp > 0) {
+  const justSwapped = document.getElementById("justSwapped").checked;
+  const isAlreadyProp = proposals.some(p => p.x === x && p.y === y);
+  if (state.ply === 4 && !justSwapped && (isAlreadyProp || nProp > 0)) {
     toggleProposalCoord(xyToCoord(x, y));
   } else {
     playCoord(xyToCoord(x, y));
@@ -862,7 +877,7 @@ document.getElementById("movesInput").addEventListener("input", (e) => {
   syncRoute();
   runInference();
 });
-for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput", "nProposals"]) {
+for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput", "nProposals", "justSwapped"]) {
   document.getElementById(id).addEventListener("change", () => {
     saveSettings();
     runInference();
