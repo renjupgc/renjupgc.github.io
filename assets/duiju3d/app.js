@@ -286,12 +286,12 @@
         toast(S.aiMode ? '机器人已入座' : colorName(S.myColor) + '方落座');
         if (S.aiMode) {
             hint(S.myColor === BLACK
-                ? '你执黑先行。点棋盘落子，走完自己拍钟。'
-                : '你执白。机器人执黑先行，它落子后你替它拍钟。');
+                ? '你执黑先行。先点棋罐取子，再点棋盘落子；走完拍钟。'
+                : '你执白。机器人执黑先行，它会自己取子、落子并拍钟。');
         } else {
             hint(S.myColor === BLACK
-                ? '你执黑先行。点棋盘落子。'
-                : '你执白。黑方先行，等他落子。');
+                ? '你执黑先行。先点棋罐取子，再点棋盘落子。'
+                : '你执白。黑方先行，等对方从棋罐取子并落子。');
         }
         DJ_AUDIO.tick();
         maybeAiTurn();
@@ -324,14 +324,14 @@
         }
         if (S.awaitingPress) {
             if (S.aiMode && S.awaitingPress === S.aiColor) {
-                hint('机器人落子了。<em>拍钟</em>把时间交给你。');
+                hint('机器人已经落子并拍钟，轮到你取子。');
             } else {
                 hint('这手已落下，<em>拍钟</em>把时间交给对方。');
             }
             return;
         }
         if (S.turn === S.myColor) {
-            hint('轮到你走。从右手的棋盒里取子。');
+            hint('轮到你走。先点自己一侧的棋罐取子，再点棋盘落子。');
         } else if (S.aiMode) {
             hint('轮到机器人走。');
         } else {
