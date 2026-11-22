@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Renju Allie 2.1</title>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #272c38;
+    --text: #e6e9ef;
+    --muted: #8b93a7;
+    --accent: #4f8cff;
+    --black-bar: #1e222b;
+    --draw-bar: #64748b;
+    --white-bar: #e2e8f0;
+    --board-bg: #dcb35c;
+    --board-line: #5c4318;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 12px;
+  }
+  .app {
+    width: 100%;
+    max-width: 1040px;
+    display: grid;
+    grid-template-columns: minmax(300px, 560px) 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .board-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  canvas#board {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: block;
+    border-radius: 6px;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .nav-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .head-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #232834;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .badge.ok { background: #143524; color: #4ade80; }
+  .badge.err { background: #3b181c; color: #f87171; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .field label {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    background: #0f1115;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 7px;
+    padding: 7px 9px;
+    font-size: 13px;
+    outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  .toggles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  button {
+    background: #222733;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 7px;
+    padding: 7px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:active { transform: scale(0.98); }
+  button.active {
+    background: rgba(79, 140, 255, 0.18);
+    border-color: var(--accent);
+    color: #8ab4ff;
+  }
+  .wdl-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .wdl-bar {
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    background: #0f1115;
+    border: 1px solid var(--border);
+  }
+  .wdl-b { background: #111318; transition: width 0.2s; }
+  .wdl-d { background: #64748b; transition: width 0.2s; }
+  .wdl-w { background: #f1f5f9; transition: width 0.2s; }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .move-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .move-item {
+    display: grid;
+    grid-template-columns: 74px 1fr 54px;
+    align-items: center;
+    gap: 8px;
+    background: #11141a;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 6px 9px;
+    cursor: pointer;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .move-item:hover { border-color: var(--accent); }
+  .move-coord { font-weight: 600; }
+  .prob-track {
+    height: 6px;
+    background: #1d222c;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .prob-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+  }
+  .prob-fill.prop { background: #f59e0b; }
+  .prob-val { text-align: right; color: var(--muted); font-size: 12px; }
+  .hidden { display: none !important; }
+  @media (max-width: 860px) {
+    body { padding: 8px; }
+    .app { grid-template-columns: 1fr; gap: 10px; }
+    .board-wrap { max-width: 560px; width: 100%; margin: 0 auto; }
+    .side { max-width: 560px; width: 100%; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="board-wrap">
+    <canvas id="board" width="600" height="600"></canvas>
+    <div class="nav-row">
+      <button id="btnFirst">|&lt;</button>
+      <button id="btnPrev">&lt;</button>
+      <button id="btnNext">&gt;</button>
+      <button id="btnLast">&gt;|</button>
+      <button id="btnClear">清空</button>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <div class="head-row">
+        <span>Allie 2.1</span>
+        <span id="statusBadge" class="badge">加载中</span>
+      </div>
+      <div class="field">
+        <label>局面</label>
+        <input id="movesInput" type="text" value="h8i9i8j8" placeholder="h8i9i8j8" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>黑 Elo</label>
+          <input id="blackElo" type="number" value="1650" step="10">
+        </div>
+        <div class="field">
+          <label>白 Elo</label>
+          <input id="whiteElo" type="number" value="1700" step="10">
+        </div>
+        <div class="field">
+          <label>时限</label>
+          <input id="timeControl" type="text" value="120+2" spellcheck="false">
+        </div>
+        <div class="field">
+          <label>剩余 (黑,白)</label>
+          <input id="clocksInput" type="text" value="95,110" spellcheck="false">
+        </div>
+      </div>
+      <div id="proposalInputWrap" class="field hidden">
+        <label>已选多打</label>
+        <input id="proposalsInput" type="text" value="" placeholder="h9h10" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="toggles">
+        <button id="tglForbidden" class="active">禁手</button>
+        <button id="tglNumbers" class="active">手数</button>
+        <button id="tglSwap">交换</button>
+        <button id="tglProposal">多打</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="wdl-labels">
+        <span id="lblBlack">黑 50.0%</span>
+        <span id="lblDraw">和 0.0%</span>
+        <span id="lblWhite">白 50.0%</span>
+      </div>
+      <div class="wdl-bar">
+        <div id="barBlack" class="wdl-b" style="width:50%"></div>
+        <div id="barDraw" class="wdl-d" style="width:0%"></div>
+        <div id="barWhite" class="wdl-w" style="width:50%"></div>
+      </div>
+      <div class="stat-row">
+        <span id="turnLabel" style="color:var(--muted)">黑方</span>
+        <span id="thinkLabel">思考 --</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head-row">
+        <span>着法</span>
+        <span id="inferTime" class="badge">--</span>
+      </div>
+      <div id="topMovesList" class="move-list"></div>
+    </div>
+
+    <div id="proposalCard" class="card hidden">
+      <div class="head-row">
+        <span>多打</span>
+      </div>
+      <div id="proposalMovesList" class="move-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const N = 15;
+const ACTION_SWAP = 225;
+const ACTION_PROP_OFFSET = 226;
+const DIRS = [[1,0],[0,1],[1,1],[1,-1]];
+
+let session = null;
+let allMoves = [];
+let viewPly = 0;
+let proposals = [];
+let showForbidden = true;
+let showNumbers = true;
+let allowSwap = false;
+let allowProposal = false;
+let lastTopMoves = [];
+let lastProposalMoves = [];
+
+// ---- Coordinate Helpers ----
+function parseMoves(str) {
+  const re = /[a-oA-O](?:1[0-5]|[1-9])/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(str)) !== null) {
+    const s = m[0].toLowerCase();
+    const x = s.charCodeAt(0) - 97;
+    const y = parseInt(s.slice(1), 10) - 1;
+    out.push({ x, y, coord: s });
+  }
+  return out;
+}
+function xyToCoord(x, y) {
+  return String.fromCharCode(97 + x) + (y + 1);
+}
+
+// ---- Exact Renju Forbidden Move Detector (Overline, 4-4, 3-3) ----
+function countLine(board, x, y, dx, dy, color) {
+  let cnt = 1;
+  let cx = x + dx, cy = y + dy;
+  while (cx >= 0 && cx < N && cy >= 0 && cy < N && board[cy * N + cx] === color) { cnt++; cx += dx; cy += dy; }
+  cx = x - dx; cy = y - dy;
+  while (cx >= 0 && cx < N && cy >= 0 && cy < N && board[cy * N + cx] === color) { cnt++; cx -= dx; cy -= dy; }
+  return cnt;
+}
+
+function makesExactFive(board, x, y, dx, dy) {
+  return countLine(board, x, y, dx, dy, 1) === 5;
+}
+
+function countFoursOnAxis(board, x, y, dx, dy) {
+  let fours = 0;
+  for (const dir of [-1, 1]) {
+    for (let step = 1; step <= 4; step++) {
+      const cx = x + dir * step * dx;
+      const cy = y + dir * step * dy;
+      if (cx < 0 || cx >= N || cy < 0 || cy >= N) break;
+      const v = board[cy * N + cx];
+      if (v === 2) break;
+      if (v === 0) {
+        board[cy * N + cx] = 1;
+        if (makesExactFive(board, cx, cy, dx, dy)) fours++;
+        board[cy * N + cx] = 0;
+        break;
+      }
+    }
+  }
+  // If the line itself is a straight 4 with both ends open, both ends count as 2 fours?
+  // Wait: a straight 4 on a single axis is ONE 4 (not 4-4), so cap at 1 if contiguous 4!
+  if (countLine(board, x, y, dx, dy, 1) === 4 && fours === 2) return 1;
+  return fours;
+}
+
+function isOpenThreeOnAxis(board, x, y, dx, dy) {
+  for (const dir of [-1, 1]) {
+    for (let step = 1; step <= 4; step++) {
+      const cx = x + dir * step * dx;
+      const cy = y + dir * step * dy;
+      if (cx < 0 || cx >= N || cy < 0 || cy >= N) break;
+      const v = board[cy * N + cx];
+      if (v === 2) break;
+      if (v === 0) {
+        board[cy * N + cx] = 1;
+        // Check if (cx, cy) makes an open four (2 distinct exact-5 extensions on this axis) and (cx, cy) itself isn't forbidden
+        let fiveExts = 0;
+        if (countLine(board, cx, cy, dx, dy, 1) === 4) {
+          for (const d2 of [-1, 1]) {
+            for (let s2 = 1; s2 <= 4; s2++) {
+              const ex = cx + d2 * s2 * dx;
+              const ey = cy + d2 * s2 * dy;
+              if (ex < 0 || ex >= N || ey < 0 || ey >= N) break;
+              const v2 = board[ey * N + ex];
+              if (v2 === 2) break;
+              if (v2 === 0) {
+                board[ey * N + ex] = 1;
+                if (makesExactFive(board, ex, ey, dx, dy)) fiveExts++;
+                board[ey * N + ex] = 0;
+                break;
+              }
+            }
+          }
+        }
+        board[cy * N + cx] = 0;
+        if (fiveExts === 2 && !isForbidden(board, cx, cy)) return true;
+        break;
+      }
+    }
+  }
+  return false;
+}
+
+function isForbidden(board, x, y) {
+  if (board[y * N + x] !== 0) return false;
+  board[y * N + x] = 1;
+  let overline = false;
+  for (const [dx, dy] of DIRS) {
+    const c = countLine(board, x, y, dx, dy, 1);
+    if (c === 5) { board[y * N + x] = 0; return false; }
+    if (c >= 6) overline = true;
+  }
+  if (overline) { board[y * N + x] = 0; return true; }
+
+  let fours = 0, threes = 0;
+  for (const [dx, dy] of DIRS) {
+    fours += countFoursOnAxis(board, x, y, dx, dy);
+    if (fours >= 2) { board[y * N + x] = 0; return true; }
+    if (isOpenThreeOnAxis(board, x, y, dx, dy)) {
+      threes++;
+      if (threes >= 2) { board[y * N + x] = 0; return true; }
+    }
+  }
+  board[y * N + x] = 0;
+  return false;
+}
+
+function buildState() {
+  const board = new Int8Array(N * N);
+  const stoneNo = new Int16Array(N * N);
+  let last = null;
+  const limit = Math.min(viewPly, allMoves.length);
+  for (let i = 0; i < limit; i++) {
+    const { x, y } = allMoves[i];
+    if (board[y * N + x] !== 0) continue;
+    board[y * N + x] = (i % 2 === 0) ? 1 : 2;
+    stoneNo[y * N + x] = i + 1;
+    last = { x, y };
+  }
+  const turn = (limit % 2 === 0) ? 1 : 2;
+  const forb = new Uint8Array(N * N);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      if (board[y * N + x] === 0 && isForbidden(board, x, y)) {
+        forb[y * N + x] = 1;
+      }
+    }
+  }
+  return { board, stoneNo, last, turn, forb, ply: limit };
+}
+
+// ---- Canvas Board Rendering ----
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+
+function drawBoard() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const size = Math.round(rect.width * dpr);
+  if (canvas.width !== size || canvas.height !== size) {
+    canvas.width = size;
+    canvas.height = size;
+  }
+  const W = canvas.width;
+  const pad = W * 0.058;
+  const cell = (W - 2 * pad) / (N - 1);
+
+  ctx.fillStyle = "#dcb35c";
+  ctx.fillRect(0, 0, W, W);
+
+  // Grid lines
+  ctx.strokeStyle = "#5c4318";
+  ctx.lineWidth = Math.max(1, W / 500);
+  for (let i = 0; i < N; i++) {
+    const p = pad + i * cell;
+    ctx.beginPath(); ctx.moveTo(pad, p); ctx.lineTo(W - pad, p); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p, pad); ctx.lineTo(p, W - pad); ctx.stroke();
+  }
+
+  // Coordinates
+  ctx.fillStyle = "#5c4318";
+  ctx.font = `600 ${Math.round(cell * 0.34)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i < N; i++) {
+    const letter = String.fromCharCode(65 + i);
+    const num = String(i + 1);
+    ctx.fillText(letter, pad + i * cell, W - pad * 0.42);
+    ctx.fillText(num, pad * 0.42, pad + (N - 1 - i) * cell);
+  }
+
+  // Star points
+  ctx.fillStyle = "#5c4318";
+  for (const [sx, sy] of [[3,3],[11,3],[7,7],[3,11],[11,11]]) {
+    ctx.beginPath();
+    ctx.arc(pad + sx * cell, pad + (N - 1 - sy) * cell, cell * 0.11, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const state = buildState();
+
+  // Forbidden points for Black
+  if (showForbidden && state.turn === 1) {
+    ctx.strokeStyle = "#dc2626";
+    ctx.lineWidth = Math.max(1.5, cell * 0.08);
+    const r = cell * 0.18;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        if (state.forb[y * N + x]) {
+          const cx = pad + x * cell;
+          const cy = pad + (N - 1 - y) * cell;
+          ctx.beginPath();
+          ctx.moveTo(cx - r, cy - r); ctx.lineTo(cx + r, cy + r);
+          ctx.moveTo(cx + r, cy - r); ctx.lineTo(cx - r, cy + r);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // Proposed markers
+  if (allowProposal && state.ply === 4) {
+    for (const p of proposals) {
+      if (state.board[p.y * N + p.x] !== 0) continue;
+      const cx = pad + p.x * cell;
+      const cy = pad + (N - 1 - p.y) * cell;
+      ctx.fillStyle = "rgba(245, 158, 11, 0.85)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#000";
+      ctx.font = `700 ${Math.round(cell * 0.34)}px sans-serif`;
+      ctx.fillText("P", cx, cy + 0.5);
+    }
+  }
+
+  // Top move overlays
+  lastTopMoves.forEach(([label, prob], idx) => {
+    if (label === "SWAP") return;
+    const x = label.charCodeAt(0) - 97;
+    const y = parseInt(label.slice(1), 10) - 1;
+    if (state.board[y * N + x] !== 0) return;
+    const cx = pad + x * cell;
+    const cy = pad + (N - 1 - y) * cell;
+    ctx.fillStyle = idx === 0 ? "rgba(37, 99, 235, 0.88)" : "rgba(59, 130, 246, 0.45)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, cell * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = `700 ${Math.round(cell * 0.30)}px sans-serif`;
+    ctx.fillText(Math.round(prob * 100) + "%", cx, cy + 0.5);
+  });
+
+  // Stones
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const v = state.board[y * N + x];
+      if (!v) continue;
+      const cx = pad + x * cell;
+      const cy = pad + (N - 1 - y) * cell;
+      const r = cell * 0.45;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = v === 1 ? "#15171c" : "#f4f6f8";
+      ctx.fill();
+      ctx.strokeStyle = v === 1 ? "#000" : "#94a3b8";
+      ctx.lineWidth = Math.max(1, W / 600);
+      ctx.stroke();
+
+      if (showNumbers) {
+        ctx.fillStyle = v === 1 ? "#e2e8f0" : "#1e293b";
+        ctx.font = `600 ${Math.round(cell * 0.36)}px sans-serif`;
+        ctx.fillText(String(state.stoneNo[y * N + x]), cx, cy + 0.5);
+      } else if (state.last && state.last.x === x && state.last.y === y) {
+        ctx.fillStyle = v === 1 ? "#f87171" : "#ef4444";
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// ---- ONNX Inference ----
+function softmax(arr) {
+  let max = -Infinity;
+  for (let i = 0; i < arr.length; i++) if (arr[i] > max) max = arr[i];
+  const exps = new Float32Array(arr.length);
+  let sum = 0;
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i] === -Infinity ? 0 : Math.exp(arr[i] - max);
+    exps[i] = v;
+    sum += v;
+  }
+  for (let i = 0; i < arr.length; i++) exps[i] /= (sum || 1);
+  return exps;
+}
+
+async function runInference() {
+  const state = buildState();
+  document.getElementById("turnLabel").textContent = state.turn === 1 ? "黑方" : "白方";
+  if (!session) {
+    drawBoard();
+    return;
+  }
+
+  const t0 = performance.now();
+  const boardData = new Float32Array(7 * N * N);
+  const active = state.turn;
+  const oppo = active === 1 ? 2 : 1;
+  for (let i = 0; i < N * N; i++) {
+    const v = state.board[i];
+    if (v === active) boardData[0 * 225 + i] = 1.0;
+    else if (v === oppo) boardData[1 * 225 + i] = 1.0;
+    else boardData[2 * 225 + i] = 1.0;
+    if (active === 1) boardData[4 * 225 + i] = 1.0;
+    if (state.forb[i]) boardData[5 * 225 + i] = 1.0;
+  }
+  if (state.last) {
+    boardData[3 * 225 + state.last.y * N + state.last.x] = 1.0;
+  }
+  if (state.ply === 4) {
+    for (const p of proposals) {
+      boardData[6 * 225 + p.y * N + p.x] = 1.0;
+    }
+  }
+
+  const bElo = parseFloat(document.getElementById("blackElo").value) || 1500;
+  const wElo = parseFloat(document.getElementById("whiteElo").value) || 1500;
+  const tcParts = (document.getElementById("timeControl").value || "120+2").split("+");
+  const tInit = Math.max(1, parseFloat(tcParts[0]) || 120);
+  const inc = Math.max(0, parseFloat(tcParts[1]) || 0);
+  const clkParts = (document.getElementById("clocksInput").value || "").split(/[,/+\s]+/).filter(Boolean);
+  const bClk = clkParts.length >= 1 ? Math.max(0, parseFloat(clkParts[0])) : tInit;
+  const wClk = clkParts.length >= 2 ? Math.max(0, parseFloat(clkParts[1])) : bClk;
+
+  const sElo = active === 1 ? bElo : wElo;
+  const oElo = active === 1 ? wElo : bElo;
+  const sClk = active === 1 ? bClk : wClk;
+  const oClk = active === 1 ? wClk : bClk;
+
+  const metaData = new Float32Array([
+    (sElo - 1500) / 400,
+    (oElo - 1500) / 400,
+    Math.log1p(tInit) / 8.0,
+    Math.log1p(inc) / 4.0,
+    Math.log1p(sClk) / 8.0,
+    Math.log1p(oClk) / 8.0,
+    Math.min(2.0, sClk / tInit),
+  ]);
+
+  const feeds = {
+    boards: new ort.Tensor("float32", boardData, [1, 7, 15, 15]),
+    meta: new ort.Tensor("float32", metaData, [1, 7]),
+  };
+  const out = await session.run(feeds);
+  const logitsAction = out.logits_action.data;
+  const logitsWdl = out.logits_wdl.data;
+  const logThink = out.pred_log_think.data[0];
+
+  // WDL
+  const wdl = softmax(logitsWdl);
+  const bWin = active === 1 ? wdl[0] : wdl[2];
+  const dProb = wdl[1];
+  const wWin = active === 1 ? wdl[2] : wdl[0];
+  document.getElementById("lblBlack").textContent = `黑 ${(bWin * 100).toFixed(1)}%`;
+  document.getElementById("lblDraw").textContent = `和 ${(dProb * 100).toFixed(1)}%`;
+  document.getElementById("lblWhite").textContent = `白 ${(wWin * 100).toFixed(1)}%`;
+  document.getElementById("barBlack").style.width = `${bWin * 100}%`;
+  document.getElementById("barDraw").style.width = `${dProb * 100}%`;
+  document.getElementById("barWhite").style.width = `${wWin * 100}%`;
+
+  const thinkS = Math.expm1(Math.max(0, Math.min(10, logThink)));
+  document.getElementById("thinkLabel").textContent = `思考 ${thinkS.toFixed(2)}s`;
+
+  // Top moves
+  const useSwap = allowSwap && state.ply <= 5;
+  const stoneLen = useSwap ? 226 : 225;
+  const stoneLogits = new Float32Array(stoneLen);
+  for (let i = 0; i < 225; i++) {
+    const legal = state.board[i] === 0 && !(active === 1 && state.forb[i]);
+    stoneLogits[i] = legal ? logitsAction[i] : -Infinity;
+  }
+  if (useSwap) stoneLogits[225] = logitsAction[ACTION_SWAP];
+  const stoneProbs = softmax(stoneLogits);
+  const indices = Array.from({ length: stoneLen }, (_, i) => i);
+  indices.sort((a, b) => stoneProbs[b] - stoneProbs[a]);
+  lastTopMoves = indices.slice(0, 5).map(idx => [
+    idx === 225 ? "SWAP" : xyToCoord(idx % N, Math.floor(idx / N)),
+    stoneProbs[idx]
+  ]);
+
+  const listEl = document.getElementById("topMovesList");
+  listEl.innerHTML = "";
+  for (const [coord, prob] of lastTopMoves) {
+    const item = document.createElement("div");
+    item.className = "move-item";
+    item.innerHTML = `<span class="move-coord">${coord.toUpperCase()}</span><div class="prob-track"><div class="prob-fill" style="width:${(prob*100).toFixed(1)}%"></div></div><span class="prob-val">${(prob*100).toFixed(1)}%</span>`;
+    if (coord !== "SWAP") {
+      item.onclick = () => playCoord(coord);
+    }
+    listEl.appendChild(item);
+  }
+
+  // Multi-proposal (多打)
+  const propCard = document.getElementById("proposalCard");
+  if (allowProposal && state.ply === 4) {
+    propCard.classList.remove("hidden");
+    const propLogits = new Float32Array(225);
+    const propSet = new Set(proposals.map(p => p.y * N + p.x));
+    for (let i = 0; i < 225; i++) {
+      const legal = state.board[i] === 0 && !propSet.has(i);
+      propLogits[i] = legal ? logitsAction[ACTION_PROP_OFFSET + i] : -Infinity;
+    }
+    const propProbs = softmax(propLogits);
+    const pIdx = Array.from({ length: 225 }, (_, i) => i).sort((a, b) => propProbs[b] - propProbs[a]);
+    lastProposalMoves = pIdx.slice(0, 5).map(i => [xyToCoord(i % N, Math.floor(i / N)), propProbs[i]]);
+    const pList = document.getElementById("proposalMovesList");
+    pList.innerHTML = "";
+    for (const [coord, prob] of lastProposalMoves) {
+      const item = document.createElement("div");
+      item.className = "move-item";
+      item.innerHTML = `<span class="move-coord">${coord.toUpperCase()}</span><div class="prob-track"><div class="prob-fill prop" style="width:${(prob*100).toFixed(1)}%"></div></div><span class="prob-val">${(prob*100).toFixed(1)}%</span>`;
+      item.onclick = () => toggleProposalCoord(coord);
+      pList.appendChild(item);
+    }
+  } else {
+    propCard.classList.add("hidden");
+  }
+
+  document.getElementById("inferTime").textContent = `${Math.round(performance.now() - t0)} ms`;
+  drawBoard();
+}
+
+function syncMovesInput() {
+  document.getElementById("movesInput").value = allMoves.slice(0, viewPly).map(m => m.coord).join("");
+}
+
+function playCoord(coord) {
+  const m = parseMoves(coord)[0];
+  if (!m) return;
+  const state = buildState();
+  if (state.board[m.y * N + m.x] !== 0) return;
+  if (state.turn === 1 && state.forb[m.y * N + m.x]) return;
+  allMoves = allMoves.slice(0, viewPly);
+  allMoves.push(m);
+  viewPly = allMoves.length;
+  syncMovesInput();
+  runInference();
+}
+
+function toggleProposalCoord(coord) {
+  const m = parseMoves(coord)[0];
+  if (!m) return;
+  const idx = proposals.findIndex(p => p.x === m.x && p.y === m.y);
+  if (idx >= 0) proposals.splice(idx, 1);
+  else proposals.push(m);
+  document.getElementById("proposalsInput").value = proposals.map(p => p.coord).join("");
+  runInference();
+}
+
+canvas.addEventListener("click", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const pad = rect.width * 0.058;
+  const cell = (rect.width - 2 * pad) / (N - 1);
+  const x = Math.round((e.clientX - rect.left - pad) / cell);
+  const y = N - 1 - Math.round((e.clientY - rect.top - pad) / cell);
+  if (x < 0 || x >= N || y < 0 || y >= N) return;
+  const state = buildState();
+  if (allowProposal && state.ply === 4 && e.shiftKey) {
+    toggleProposalCoord(xyToCoord(x, y));
+  } else {
+    playCoord(xyToCoord(x, y));
+  }
+});
+
+document.getElementById("movesInput").addEventListener("input", (e) => {
+  allMoves = parseMoves(e.target.value);
+  viewPly = allMoves.length;
+  runInference();
+});
+document.getElementById("proposalsInput").addEventListener("input", (e) => {
+  proposals = parseMoves(e.target.value);
+  runInference();
+});
+for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput"]) {
+  document.getElementById(id).addEventListener("change", runInference);
+}
+
+document.getElementById("btnFirst").onclick = () => { viewPly = 0; runInference(); };
+document.getElementById("btnPrev").onclick = () => { viewPly = Math.max(0, viewPly - 1); runInference(); };
+document.getElementById("btnNext").onclick = () => { viewPly = Math.min(allMoves.length, viewPly + 1); runInference(); };
+document.getElementById("btnLast").onclick = () => { viewPly = allMoves.length; runInference(); };
+document.getElementById("btnClear").onclick = () => {
+  allMoves = []; viewPly = 0; proposals = [];
+  document.getElementById("movesInput").value = "";
+  document.getElementById("proposalsInput").value = "";
+  runInference();
+};
+
+document.getElementById("tglForbidden").onclick = (e) => {
+  showForbidden = !showForbidden;
+  e.target.classList.toggle("active", showForbidden);
+  drawBoard();
+};
+document.getElementById("tglNumbers").onclick = (e) => {
+  showNumbers = !showNumbers;
+  e.target.classList.toggle("active", showNumbers);
+  drawBoard();
+};
+document.getElementById("tglSwap").onclick = (e) => {
+  allowSwap = !allowSwap;
+  e.target.classList.toggle("active", allowSwap);
+  runInference();
+};
+document.getElementById("tglProposal").onclick = (e) => {
+  allowProposal = !allowProposal;
+  e.target.classList.toggle("active", allowProposal);
+  document.getElementById("proposalInputWrap").classList.toggle("hidden", !allowProposal);
+  runInference();
+};
+
+window.addEventListener("resize", drawBoard);
+
+async function init() {
+  allMoves = parseMoves(document.getElementById("movesInput").value);
+  viewPly = allMoves.length;
+  drawBoard();
+  const badge = document.getElementById("statusBadge");
+  try {
+    session = await ort.InferenceSession.create("./allie_renju.onnx", {
+      executionProviders: ["wasm"]
+    });
+    badge.textContent = "就绪";
+    badge.classList.add("ok");
+    runInference();
+  } catch (err) {
+    badge.textContent = "加载失败";
+    badge.classList.add("err");
+    console.error(err);
+  }
+}
+init();
+</script>
+</body>
+</html>
