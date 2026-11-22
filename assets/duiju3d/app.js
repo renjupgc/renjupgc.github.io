@@ -1036,6 +1036,7 @@
                     toast('现在还不能取子'); DJ_AUDIO.nope(); return;
                 }
                 if (S.hasStone) { toast('已经取好棋子，请在棋盘上落子'); return; }
+                DJ_AUDIO.rattle();
                 T.takeStone('me', S.myColor === BLACK ? 'black' : 'white', function () {
                     S.hasStone = true;
                     toast('已取子，请点击棋盘落子');
