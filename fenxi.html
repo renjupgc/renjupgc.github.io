@@ -685,6 +685,15 @@ async function runInference() {
   const sClk = active === 1 ? bClk : wClk;
   const oClk = active === 1 ? wClk : bClk;
 
+  const ownerFeats = [];
+  for (let s = 0; s < 5; s++) {
+    if (s < state.ply) {
+      const stoneBlackOwner = justSwapped ? (s % 2 === 1) : (s % 2 === 0);
+      ownerFeats.push(stoneBlackOwner === (active === 1) ? 1.0 : -1.0);
+    } else {
+      ownerFeats.push(0.0);
+    }
+  }
   const metaData = new Float32Array([
     (sElo - 1500) / 400,
     (oElo - 1500) / 400,
@@ -693,11 +702,12 @@ async function runInference() {
     Math.log1p(sClk) / 8.0,
     Math.log1p(oClk) / 8.0,
     Math.min(2.0, sClk / tInit),
+    ...ownerFeats,
   ]);
 
   const feeds = {
     boards: new ort.Tensor("float32", boardData, [1, 7, 15, 15]),
-    meta: new ort.Tensor("float32", metaData, [1, 7]),
+    meta: new ort.Tensor("float32", metaData, [1, 12]),
   };
   const out = await session.run(feeds);
   const logitsAction = out.logits_action.data;
