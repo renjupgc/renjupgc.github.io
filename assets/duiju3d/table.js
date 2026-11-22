@@ -507,25 +507,29 @@
             new THREE.Vector2(0.160, 0.140),
             new THREE.Vector2(0.001, 0.116)
         ];
-        var stoneGeo = new THREE.LatheGeometry(stoneProfile, 64);
+        var stoneGeo = new THREE.LatheGeometry(stoneProfile, 96);
         stoneGeo.computeVertexNormals();
 
+        /* 云子质感：黑子如墨玉，白子如温润羊脂玉；清亮高光与细腻表面
+           保留天然石材的通透感，避免金属或塑料质感。 */
         var blackStoneMat = new THREE.MeshPhysicalMaterial({
-            color: 0x1c1e22,
-            roughness: 0.34,
+            color: 0x111719,
+            roughness: 0.19,
             metalness: 0.0,
-            clearcoat: 0.55,
-            clearcoatRoughness: 0.18,
-            envMapIntensity: 1.05
+            clearcoat: 0.96,
+            clearcoatRoughness: 0.09,
+            envMapIntensity: 1.42,
+            reflectivity: 0.72
         });
         var whiteStoneMat = new THREE.MeshPhysicalMaterial({
-            color: 0xf7f1e3,
+            color: 0xf4efe2,
             map: texFromCanvas(shellCanvas()),
-            roughness: 0.34,
+            roughness: 0.22,
             metalness: 0.0,
-            clearcoat: 0.5,
-            clearcoatRoughness: 0.20,
-            envMapIntensity: 0.9
+            clearcoat: 0.92,
+            clearcoatRoughness: 0.11,
+            envMapIntensity: 1.28,
+            reflectivity: 0.68
         });
         /* 棋子材质稍后才挂到实例上，这里先做色彩空间转换，避免黑子发灰。 */
         if (blackStoneMat.color.convertSRGBToLinear) { blackStoneMat.color.convertSRGBToLinear(); }
@@ -583,43 +587,6 @@
             side: THREE.DoubleSide
         });
 
-        /* 罐盖：圆形扁平盖，带一圈凸起的盖缘，可半掀斜靠 */
-        function makeLid() {
-            var lid = new THREE.Group();
-
-            var cap = new THREE.Mesh(
-                new THREE.CylinderGeometry(3.18, 3.18, 0.34, 64),
-                new THREE.MeshStandardMaterial({
-                    map: texFromCanvas(bambooCanvas(256, 128)),
-                    roughness: 0.30, metalness: 0.06, envMapIntensity: 0.55
-                })
-            );
-            cap.castShadow = true;
-            lid.add(cap);
-
-            /* 盖顶：稍小的同心圆，做出两片竹盖叠合的层次 */
-            var top = new THREE.Mesh(
-                new THREE.CylinderGeometry(2.62, 2.62, 0.08, 64),
-                new THREE.MeshStandardMaterial({
-                    color: 0xc89a58, roughness: 0.34, metalness: 0.05, envMapIntensity: 0.5
-                })
-            );
-            top.position.y = 0.21;
-            top.castShadow = true;
-            lid.add(top);
-
-            /* 盖底的暗面 */
-            var under = new THREE.Mesh(
-                new THREE.CircleGeometry(3.18, 64),
-                new THREE.MeshStandardMaterial({ color: 0x3a2512, roughness: 0.9 })
-            );
-            under.rotation.x = Math.PI / 2;
-            under.position.y = -0.17;
-            lid.add(under);
-
-            return lid;
-        }
-
         function makeBowl(px, pz) {
             var g = new THREE.Group();
             var cup = new THREE.Mesh(bowlGeo, bowlMat);
@@ -638,18 +605,6 @@
 
             var heap = new THREE.Group();
             g.add(heap);
-
-            /* 罐盖：半掀、斜靠在罐口一侧 */
-            var lid = makeLid();
-            var lidAngle = Math.random() < 0.5 ? 1 : -1;
-            lid.position.set(lidAngle * 2.9, 2.06, 0);
-            lid.rotation.z = lidAngle * 0.92;
-            lid.rotation.x = 0.18;
-            lid.castShadow = true;
-            g.add(lid);
-            g.userData.lid = lid;
-            g.userData.lidBase = lid.position.clone();
-            g.userData.lidTilt = lidAngle;
 
             g.position.set(px, TABLE_TOP, pz);
             scene.add(g);
@@ -1065,24 +1020,6 @@
          *   speed 1 = 正常，2.4 = 快速
          *   onPlace / onGrab / onDone
          */
-        /* 罐盖动画状态：lidOpen 0=合上 1=掀开 */
-        function setLidOpen(bowl, open) {
-            var lid = bowl.userData.lid;
-            if (!lid) { return; }
-            var tilt = bowl.userData.lidTilt;
-            if (open) {
-                /* 掀到一旁，几乎平放，露出罐口 */
-                lid.position.set(tilt * 3.6, 2.4, tilt * 0.6);
-                lid.rotation.z = tilt * 1.35;
-                lid.rotation.x = 0.3;
-            } else {
-                /* 回到半掀斜靠 */
-                lid.position.set(tilt * 2.9, 2.06, 0);
-                lid.rotation.z = tilt * 0.92;
-                lid.rotation.x = 0.18;
-            }
-        }
-
         function playMove(o) {
             var side = o.side === 'peer' ? 'peer' : 'me';
             var speed = o.speed || 1;
@@ -1103,10 +1040,9 @@
             var segs = [
                 /* 1. 探手：从休息位伸向棋罐上方 */
                 { d: 430, to: bowlTop.clone(), arc: 2.2, e: easeInOutCubic },
-                /* 2. 掀盖 + 下沉入罐 */
+                /* 2. 伸手进入敞口棋罐取子 */
                 {
                     d: 220, to: bowlTop.clone().add(new THREE.Vector3(0, -1.5, 0)), e: easeInOutSine,
-                    onStart: function () { setLidOpen(bowl, true); },
                     onEnd: function () {
                         /* 从棋罐顶层真正取出一颗：实例数减一，手中出现同色棋子。 */
                         var inst = bowl.userData.heapMesh;
@@ -1126,11 +1062,9 @@
                         if (stone) { stone.userData.held = true; }
                     }
                 },
-                /* 4. 盖回，手已离开 */
+                /* 4. 抬手离开棋罐 */
                 {
                     d: 200, to: bowlTop.clone().add(new THREE.Vector3(0, 0.7, 0)), e: easeInOutSine,
-                    onStart: function () { setLidOpen(bowl, false); },
-                    onEnd: function () { setLidOpen(bowl, false); }
                 },
                 /* 5. 过盘：弧线送往目标上方 */
                 { d: 520, to: target.clone().add(new THREE.Vector3(0, 2.4, 0)), arc: 1.9, e: easeInOutCubic },
