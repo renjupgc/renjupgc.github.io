@@ -554,6 +554,25 @@ function drawBoard() {
     }
   }
 
+  // Normal move weight badges on board
+  lastTopMoves.forEach(([label, prob, kind, coord], idx) => {
+    if (kind !== "stone" || !coord) return;
+    const mx = coord.charCodeAt(0) - 97;
+    const my = parseInt(coord.slice(1), 10) - 1;
+    if (state.board[my * N + mx] !== 0) return;
+    const cx = pad + mx * cell;
+    const cy = pad + (N - 1 - my) * cell;
+    ctx.fillStyle = idx === 0 || lastTopMoves.findIndex(m => m[2] === "stone") === idx
+      ? "rgba(37, 99, 235, 0.88)"
+      : "rgba(59, 130, 246, 0.45)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, cell * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = `700 ${Math.round(cell * 0.30)}px sans-serif`;
+    ctx.fillText(Math.round(prob * 100) + "%", cx, cy + 0.5);
+  });
+
   // User-selected multi-proposal markers
   if (state.ply === 4) {
     for (const p of proposals) {
