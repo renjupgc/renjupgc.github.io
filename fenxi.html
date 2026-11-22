@@ -245,9 +245,14 @@
           <input id="clocksInput" type="text" value="" placeholder="114,118,113,114" spellcheck="false">
         </div>
       </div>
-      <div class="field">
-        <label>五手打点数 (0=无多打)</label>
-        <input id="nProposals" type="number" value="10" min="0" max="20" step="1">
+      <div class="grid-2">
+        <div class="field">
+          <label>五手打点数 (0=无多打)</label>
+          <input id="nProposals" type="number" value="10" min="0" max="20" step="1">
+        </div>
+        <div class="field" style="justify-content:flex-end;">
+          <button id="btnAnalyzeProp">分析多打</button>
+        </div>
       </div>
     </div>
 
@@ -296,8 +301,7 @@ let viewPly = 0;
 let proposals = [];
 let showForbidden = true;
 let showNumbers = true;
-let allowSwap = false;
-let allowProposal = true;
+let showProposalPanel = false;
 let lastTopMoves = [];
 let lastProposalMoves = [];
 
@@ -550,31 +554,7 @@ function drawBoard() {
     }
   }
 
-  // Recommended multi-proposal markers on board (when ply === 4 and nProposals > 0)
-  const nPropCur = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
-  if (nPropCur > 0 && state.ply === 4) {
-    lastProposalMoves.forEach(([coord, prob], idx) => {
-      const mx = coord.charCodeAt(0) - 97;
-      const my = parseInt(coord.slice(1), 10) - 1;
-      if (state.board[my * N + mx] !== 0) return;
-      const cx = pad + mx * cell;
-      const cy = pad + (N - 1 - my) * cell;
-      ctx.strokeStyle = "#f59e0b";
-      ctx.lineWidth = Math.max(2, W / 260);
-      ctx.beginPath();
-      ctx.arc(cx, cy, cell * 0.40, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = "rgba(245, 158, 11, 0.92)";
-      ctx.beginPath();
-      ctx.arc(cx + cell * 0.25, cy - cell * 0.25, cell * 0.18, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#111";
-      ctx.font = `700 ${Math.round(cell * 0.22)}px sans-serif`;
-      ctx.fillText(String(idx + 1), cx + cell * 0.25, cy - cell * 0.25 + 0.5);
-    });
-  }
-
-  // User-selected proposed markers
+  // User-selected multi-proposal markers
   if (state.ply === 4) {
     for (const p of proposals) {
       if (state.board[p.y * N + p.x] !== 0) continue;
@@ -589,23 +569,6 @@ function drawBoard() {
       ctx.fillText("打", cx, cy + 0.5);
     }
   }
-
-  // Top move overlays
-  lastTopMoves.forEach(([label, prob], idx) => {
-    if (label === "交换" || label === "SWAP") return;
-    const x = label.charCodeAt(0) - 97;
-    const y = parseInt(label.slice(1), 10) - 1;
-    if (state.board[y * N + x] !== 0) return;
-    const cx = pad + x * cell;
-    const cy = pad + (N - 1 - y) * cell;
-    ctx.fillStyle = idx === 0 ? "rgba(37, 99, 235, 0.88)" : "rgba(59, 130, 246, 0.45)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, cell * 0.34, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = `700 ${Math.round(cell * 0.30)}px sans-serif`;
-    ctx.fillText(Math.round(prob * 100) + "%", cx, cy + 0.5);
-  });
 
   // Stones
   for (let y = 0; y < N; y++) {
@@ -773,10 +736,10 @@ async function runInference() {
     listEl.appendChild(item);
   }
 
-  // Multi-proposal (多打)
+  // Multi-proposal (多打): only computed & shown after clicking "分析多打"
   const nProp = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
   const propCard = document.getElementById("proposalCard");
-  if (nProp > 0 && state.ply === 4) {
+  if (showProposalPanel && nProp > 0 && state.ply === 4) {
     propCard.classList.remove("hidden");
     const propLogits = new Float32Array(225);
     const propSet = new Set(proposals.map(p => p.y * N + p.x));
@@ -833,16 +796,15 @@ function playCoord(coord) {
 function toggleProposalCoord(coord) {
   const m = parseMoves(coord)[0];
   if (!m) return;
+  const state = buildState();
+  if (state.board[m.y * N + m.x] !== 0) return;
   const nEl = document.getElementById("nProposals");
   const curN = Math.max(0, parseInt(nEl.value, 10) || 0);
   const idx = proposals.findIndex(p => p.x === m.x && p.y === m.y);
-  if (idx >= 0) {
-    proposals.splice(idx, 1);
-    nEl.value = String(Math.min(20, curN + 1));
-  } else {
-    proposals.push(m);
-    nEl.value = String(Math.max(0, curN - 1));
-  }
+  if (idx >= 0) return; // 打过的不能再打
+  if (curN <= 0) return;
+  proposals.push(m);
+  nEl.value = String(curN - 1);
   runInference();
 }
 
@@ -854,28 +816,36 @@ canvas.addEventListener("click", (e) => {
   const y = N - 1 - Math.round((e.clientY - rect.top - pad) / cell);
   if (x < 0 || x >= N || y < 0 || y >= N) return;
   const state = buildState();
-  if (allowProposal && state.ply === 4 && e.shiftKey) {
+  const nProp = Math.max(0, parseInt(document.getElementById("nProposals").value, 10) || 0);
+  if (state.ply === 4 && nProp > 0) {
     toggleProposalCoord(xyToCoord(x, y));
   } else {
     playCoord(xyToCoord(x, y));
   }
 });
 
+document.getElementById("btnAnalyzeProp").onclick = () => {
+  showProposalPanel = true;
+  runInference();
+};
+
 document.getElementById("movesInput").addEventListener("input", (e) => {
   allMoves = parseMoves(e.target.value);
   viewPly = allMoves.length;
+  showProposalPanel = false;
+  proposals = [];
   runInference();
 });
 for (const id of ["blackElo", "whiteElo", "timeControl", "clocksInput", "nProposals"]) {
   document.getElementById(id).addEventListener("change", runInference);
 }
 
-document.getElementById("btnFirst").onclick = () => { viewPly = 0; runInference(); };
-document.getElementById("btnPrev").onclick = () => { viewPly = Math.max(0, viewPly - 1); runInference(); };
-document.getElementById("btnNext").onclick = () => { viewPly = Math.min(allMoves.length, viewPly + 1); runInference(); };
-document.getElementById("btnLast").onclick = () => { viewPly = allMoves.length; runInference(); };
+document.getElementById("btnFirst").onclick = () => { viewPly = 0; showProposalPanel = false; runInference(); };
+document.getElementById("btnPrev").onclick = () => { viewPly = Math.max(0, viewPly - 1); showProposalPanel = false; runInference(); };
+document.getElementById("btnNext").onclick = () => { viewPly = Math.min(allMoves.length, viewPly + 1); showProposalPanel = false; runInference(); };
+document.getElementById("btnLast").onclick = () => { viewPly = allMoves.length; showProposalPanel = false; runInference(); };
 document.getElementById("btnClear").onclick = () => {
-  allMoves = []; viewPly = 0; proposals = [];
+  allMoves = []; viewPly = 0; proposals = []; showProposalPanel = false;
   document.getElementById("movesInput").value = "";
   runInference();
 };
