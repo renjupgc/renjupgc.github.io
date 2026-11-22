@@ -57,7 +57,7 @@
   }
   .nav-row {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
   }
   .side {
@@ -216,7 +216,6 @@
       <button id="btnPrev">&lt;</button>
       <button id="btnNext">&gt;</button>
       <button id="btnLast">&gt;|</button>
-      <button id="btnClear">清空</button>
     </div>
   </div>
 
@@ -888,12 +887,6 @@ document.getElementById("btnFirst").onclick = () => { viewPly = 0; syncRoute(); 
 document.getElementById("btnPrev").onclick = () => { viewPly = Math.max(0, viewPly - 1); syncRoute(); runInference(); };
 document.getElementById("btnNext").onclick = () => { viewPly = Math.min(allMoves.length, viewPly + 1); syncRoute(); runInference(); };
 document.getElementById("btnLast").onclick = () => { viewPly = allMoves.length; syncRoute(); runInference(); };
-document.getElementById("btnClear").onclick = () => {
-  allMoves = []; viewPly = 0; proposals = [];
-  document.getElementById("movesInput").value = "";
-  syncRoute();
-  runInference();
-};
 
 window.addEventListener("resize", drawBoard);
 
