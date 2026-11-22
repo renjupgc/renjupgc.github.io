@@ -29,7 +29,7 @@
     var BOARD_T = 0.7;
     var BOARD_TOP = TABLE_TOP + BOARD_T;
     var STONE_R = 0.385;
-    var STONE_HALF = 0.155;
+    var STONE_HALF = 0.148;
 
     var SEAT_SIGN = { black: 1, white: -1 };   // 视角在 +z / -z
 
@@ -165,6 +165,54 @@
         return c;
     }
 
+    /* 竹节纹理：横向分段、深浅相间的黄褐色竹木，带清漆光泽的底色。
+       参考实拍围棋棋罐——鼓形罐身由竹条拼接，竹节处颜色略深。 */
+    function bambooCanvas(w, h) {
+        var c = canvas2d(w, h), x = c.getContext('2d');
+
+        /* 底色：暖黄褐，带轻微纵向渐变模拟弧面受光 */
+        var g = x.createLinearGradient(0, 0, w, 0);
+        g.addColorStop(0, '#b98a4e');
+        g.addColorStop(0.5, '#cf9d5c');
+        g.addColorStop(1, '#a97b43');
+        x.fillStyle = g;
+        x.fillRect(0, 0, w, h);
+
+        /* 竹节：横向一条条，颜色深浅交替，节处压一条深线 */
+        var seg = h / 11;
+        for (var i = 0; i < 11; i++) {
+            var y0 = i * seg;
+            var tone = i % 2 ? 'rgba(120,74,30,0.28)' : 'rgba(255,214,150,0.20)';
+            x.fillStyle = tone;
+            x.fillRect(0, y0, w, seg);
+
+            /* 竹节缝 */
+            x.fillStyle = 'rgba(72,44,18,0.55)';
+            x.fillRect(0, y0 - 1.5, w, 3);
+        }
+
+        /* 细竖向竹纤维纹 */
+        for (var k = 0; k < 80; k++) {
+            var gx = Math.random() * w;
+            x.strokeStyle = Math.random() < 0.5 ? 'rgba(90,56,22,0.10)' : 'rgba(255,220,170,0.10)';
+            x.lineWidth = rnd(0.6, 1.8);
+            x.beginPath();
+            x.moveTo(gx, 0);
+            x.lineTo(gx + rnd(-3, 3), h);
+            x.stroke();
+        }
+
+        /* 清漆高光带 */
+        var hl = x.createLinearGradient(0, 0, 0, h);
+        hl.addColorStop(0, 'rgba(255,240,210,0.28)');
+        hl.addColorStop(0.5, 'rgba(255,240,210,0)');
+        hl.addColorStop(1, 'rgba(255,240,210,0.18)');
+        x.fillStyle = hl;
+        x.fillRect(0, 0, w, h);
+
+        return c;
+    }
+
     /* 白子贝壳纹理：极细的暖色生长纹，近看有材质，远看干净。 */
     function shellCanvas() {
         var w = 1024, h = 512;
@@ -284,7 +332,7 @@
         TEXTURE_ANISOTROPY = renderer.capabilities.getMaxAnisotropy();
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.18;
+        renderer.toneMappingExposure = 1.28;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -307,11 +355,13 @@
             pmrem.dispose();
         } catch (e) { /* 环境图失败不影响主体 */ }
 
-        /* ---------- 光 ---------- */
+        /* ---------- 光 ----------
+           参考图是明亮均匀的室内光：提高环境亮度，暖主光 + 冷补光，
+           让白子透亮、黑子有清晰的高光带，棋罐有柔和的清漆反光。 */
 
-        scene.add(new THREE.HemisphereLight(0x6a6254, 0x14100a, 0.72));
+        scene.add(new THREE.HemisphereLight(0x8a7f6c, 0x1c150d, 0.95));
 
-        var key = new THREE.SpotLight(0xffe3b8, 1.45, 260, 0.82, 0.85, 1.3);
+        var key = new THREE.SpotLight(0xffe3b8, 1.62, 260, 0.82, 0.85, 1.3);
         key.position.set(6, 96, 26);
         key.target.position.set(0, TABLE_TOP, 0);
         key.castShadow = true;
@@ -322,9 +372,14 @@
         key.shadow.camera.far = 220;
         scene.add(key, key.target);
 
-        var fill = new THREE.DirectionalLight(0xb8c8d8, 0.38);
+        var fill = new THREE.DirectionalLight(0xc2d2e2, 0.52);
         fill.position.set(-46, 42, -30);
         scene.add(fill);
+
+        /* 顶部柔光，补亮棋盘与棋子顶面 */
+        var top = new THREE.DirectionalLight(0xfff0d8, 0.4);
+        top.position.set(0, 80, 0);
+        scene.add(top);
 
         /* 侧后方的落地灯，给墙面一点暖 */
         var lamp = new THREE.PointLight(0xffb469, 1.0, 190, 1.6);
@@ -439,37 +494,38 @@
 
         /* ---------- 棋子 ---------- */
 
-        /* 双凸透镜形棋子，比压扁球体更接近真实云子/蛤碁石。 */
+        /* 双凸透镜形棋子，比压扁球体更接近真实云子/蛤碁石。
+           按参考图做成略扁的片状：中间厚、边缘薄，整体比标准棋子更扁平。 */
         var stoneProfile = [
-            new THREE.Vector2(0.001, -0.120),
-            new THREE.Vector2(0.160, -0.148),
-            new THREE.Vector2(0.300, -0.112),
-            new THREE.Vector2(0.372, -0.040),
+            new THREE.Vector2(0.001, -0.116),
+            new THREE.Vector2(0.160, -0.140),
+            new THREE.Vector2(0.300, -0.104),
+            new THREE.Vector2(0.372, -0.038),
             new THREE.Vector2(0.385, 0.000),
-            new THREE.Vector2(0.372, 0.040),
-            new THREE.Vector2(0.300, 0.112),
-            new THREE.Vector2(0.160, 0.148),
-            new THREE.Vector2(0.001, 0.120)
+            new THREE.Vector2(0.372, 0.038),
+            new THREE.Vector2(0.300, 0.104),
+            new THREE.Vector2(0.160, 0.140),
+            new THREE.Vector2(0.001, 0.116)
         ];
         var stoneGeo = new THREE.LatheGeometry(stoneProfile, 64);
         stoneGeo.computeVertexNormals();
 
         var blackStoneMat = new THREE.MeshPhysicalMaterial({
-            color: 0x1a1c20,
-            roughness: 0.20,
+            color: 0x1c1e22,
+            roughness: 0.34,
             metalness: 0.0,
-            clearcoat: 0.9,
-            clearcoatRoughness: 0.10,
-            envMapIntensity: 1.35
+            clearcoat: 0.55,
+            clearcoatRoughness: 0.18,
+            envMapIntensity: 1.05
         });
         var whiteStoneMat = new THREE.MeshPhysicalMaterial({
-            color: 0xf6f1e4,
+            color: 0xf7f1e3,
             map: texFromCanvas(shellCanvas()),
-            roughness: 0.30,
+            roughness: 0.34,
             metalness: 0.0,
-            clearcoat: 0.65,
-            clearcoatRoughness: 0.14,
-            envMapIntensity: 1.05
+            clearcoat: 0.5,
+            clearcoatRoughness: 0.20,
+            envMapIntensity: 0.9
         });
         /* 棋子材质稍后才挂到实例上，这里先做色彩空间转换，避免黑子发灰。 */
         if (blackStoneMat.color.convertSRGBToLinear) { blackStoneMat.color.convertSRGBToLinear(); }
@@ -508,21 +564,61 @@
 
         /* ---------- 棋盒 ---------- */
 
-        var bowlR = 3.05;
+        /* 鼓形竹罐：罐身中间微凸，罐口略收，带竹节纹理与清漆光泽。
+           比例参考实拍：罐高约 1.9，口径约 3.0，棋子直径约为口径 1/3。 */
         var bowlProfile = [
-            new THREE.Vector2(0.02, 0.02),
-            new THREE.Vector2(2.35, 0.06),
-            new THREE.Vector2(2.88, 0.5),
-            new THREE.Vector2(3.25, 1.15),
-            new THREE.Vector2(3.48, 1.82)
+            new THREE.Vector2(0.001, 0.00),
+            new THREE.Vector2(2.55, 0.04),
+            new THREE.Vector2(3.10, 0.42),
+            new THREE.Vector2(3.36, 1.00),   // 鼓肚最凸处
+            new THREE.Vector2(3.30, 1.60),
+            new THREE.Vector2(2.90, 1.92)
         ];
-        var bowlGeo = new THREE.LatheGeometry(bowlProfile, 48);
+        var bowlGeo = new THREE.LatheGeometry(bowlProfile, 64);
         var bowlMat = new THREE.MeshStandardMaterial({
-            map: texFromCanvas(woodCanvas(512, 256, '#5a3b23', '#2b1a0d', '#7b5535', 60)),
-            roughness: 0.46,
-            metalness: 0.04,
+            map: texFromCanvas(bambooCanvas(512, 256)),
+            roughness: 0.30,
+            metalness: 0.06,
+            envMapIntensity: 0.55,
             side: THREE.DoubleSide
         });
+
+        /* 罐盖：圆形扁平盖，带一圈凸起的盖缘，可半掀斜靠 */
+        function makeLid() {
+            var lid = new THREE.Group();
+
+            var cap = new THREE.Mesh(
+                new THREE.CylinderGeometry(3.18, 3.18, 0.34, 64),
+                new THREE.MeshStandardMaterial({
+                    map: texFromCanvas(bambooCanvas(256, 128)),
+                    roughness: 0.30, metalness: 0.06, envMapIntensity: 0.55
+                })
+            );
+            cap.castShadow = true;
+            lid.add(cap);
+
+            /* 盖顶：稍小的同心圆，做出两片竹盖叠合的层次 */
+            var top = new THREE.Mesh(
+                new THREE.CylinderGeometry(2.62, 2.62, 0.08, 64),
+                new THREE.MeshStandardMaterial({
+                    color: 0xc89a58, roughness: 0.34, metalness: 0.05, envMapIntensity: 0.5
+                })
+            );
+            top.position.y = 0.21;
+            top.castShadow = true;
+            lid.add(top);
+
+            /* 盖底的暗面 */
+            var under = new THREE.Mesh(
+                new THREE.CircleGeometry(3.18, 64),
+                new THREE.MeshStandardMaterial({ color: 0x3a2512, roughness: 0.9 })
+            );
+            under.rotation.x = Math.PI / 2;
+            under.position.y = -0.17;
+            lid.add(under);
+
+            return lid;
+        }
 
         function makeBowl(px, pz) {
             var g = new THREE.Group();
@@ -533,15 +629,27 @@
 
             /* 内壁的暗影 */
             var inner = new THREE.Mesh(
-                new THREE.CircleGeometry(3.2, 48),
+                new THREE.CircleGeometry(2.9, 64),
                 new THREE.MeshStandardMaterial({ color: 0x140c06, roughness: 1 })
             );
             inner.rotation.x = -Math.PI / 2;
-            inner.position.y = 0.22;
+            inner.position.y = 0.26;
             g.add(inner);
 
             var heap = new THREE.Group();
             g.add(heap);
+
+            /* 罐盖：半掀、斜靠在罐口一侧 */
+            var lid = makeLid();
+            var lidAngle = Math.random() < 0.5 ? 1 : -1;
+            lid.position.set(lidAngle * 2.9, 2.06, 0);
+            lid.rotation.z = lidAngle * 0.92;
+            lid.rotation.x = 0.18;
+            lid.castShadow = true;
+            g.add(lid);
+            g.userData.lid = lid;
+            g.userData.lidBase = lid.position.clone();
+            g.userData.lidTilt = lidAngle;
 
             g.position.set(px, TABLE_TOP, pz);
             scene.add(g);
@@ -559,7 +667,8 @@
                 heap.remove(old);
                 if (old.dispose) { old.dispose(); }
             }
-            /* 132 颗用 InstancedMesh 一次绘制，容量足且不掉帧。 */
+            /* 132 颗用 InstancedMesh 一次绘制，容量足且不掉帧。
+               堆满而蓬松：顶部略高出罐口一点，中间鼓起，边缘贴着内壁。 */
             var count = 132;
             var inst = new THREE.InstancedMesh(stoneGeo, color === 'black' ? blackStoneMat : whiteStoneMat, count);
             var mat4 = new THREE.Matrix4();
@@ -568,12 +677,12 @@
             var scl = new THREE.Vector3(1, 1, 1);
             var euler = new THREE.Euler();
             for (var i = 0; i < count; i++) {
-                var layer = Math.floor(i / 33);
-                var a = i * 2.399963 + rnd(-0.16, 0.16);
-                var r = Math.sqrt(Math.random()) * (2.72 - layer * 0.17);
-                var h = 0.58 + layer * 0.38 + (1 - r / 2.72) * 0.18 + rnd(-0.06, 0.06);
+                var layer = Math.floor(i / 44);
+                var a = i * 2.399963 + rnd(-0.18, 0.18);
+                var r = Math.sqrt(Math.random()) * (2.80 - layer * 0.15);
+                var h = 0.34 + layer * 0.40 + (1 - r / 2.80) * 0.28 + rnd(-0.08, 0.08);
                 pos.set(Math.cos(a) * r, h, Math.sin(a) * r);
-                euler.set(rnd(-0.36, 0.36), rnd(0, 6.28), rnd(-0.36, 0.36));
+                euler.set(rnd(-0.4, 0.4), rnd(0, 6.28), rnd(-0.4, 0.4));
                 quat.setFromEuler(euler);
                 mat4.compose(pos, quat, scl);
                 inst.setMatrixAt(i, mat4);
@@ -956,6 +1065,24 @@
          *   speed 1 = 正常，2.4 = 快速
          *   onPlace / onGrab / onDone
          */
+        /* 罐盖动画状态：lidOpen 0=合上 1=掀开 */
+        function setLidOpen(bowl, open) {
+            var lid = bowl.userData.lid;
+            if (!lid) { return; }
+            var tilt = bowl.userData.lidTilt;
+            if (open) {
+                /* 掀到一旁，几乎平放，露出罐口 */
+                lid.position.set(tilt * 3.6, 2.4, tilt * 0.6);
+                lid.rotation.z = tilt * 1.35;
+                lid.rotation.x = 0.3;
+            } else {
+                /* 回到半掀斜靠 */
+                lid.position.set(tilt * 2.9, 2.06, 0);
+                lid.rotation.z = tilt * 0.92;
+                lid.rotation.x = 0.18;
+            }
+        }
+
         function playMove(o) {
             var side = o.side === 'peer' ? 'peer' : 'me';
             var speed = o.speed || 1;
@@ -974,9 +1101,12 @@
             var bowlTop = bowl.position.clone().add(new THREE.Vector3(0, 3.0, 0));
 
             var segs = [
+                /* 1. 探手：从休息位伸向棋罐上方 */
                 { d: 430, to: bowlTop.clone(), arc: 2.2, e: easeInOutCubic },
+                /* 2. 掀盖 + 下沉入罐 */
                 {
-                    d: 200, to: bowlTop.clone().add(new THREE.Vector3(0, -1.5, 0)), e: easeInOutSine,
+                    d: 220, to: bowlTop.clone().add(new THREE.Vector3(0, -1.5, 0)), e: easeInOutSine,
+                    onStart: function () { setLidOpen(bowl, true); },
                     onEnd: function () {
                         /* 从棋罐顶层真正取出一颗：实例数减一，手中出现同色棋子。 */
                         var inst = bowl.userData.heapMesh;
@@ -989,19 +1119,28 @@
                         if (o.onGrab) { o.onGrab(); }
                     }
                 },
+                /* 3. 抬离罐口，指间捏着子 */
                 {
                     d: 260, to: bowlTop.clone().add(new THREE.Vector3(0, 0.5, 0)), e: easeOutCubic,
                     onStart: function () {
-                        /* 手指合拢，棋子跟随整只手抬离棋罐。 */
                         if (stone) { stone.userData.held = true; }
                     }
                 },
+                /* 4. 盖回，手已离开 */
+                {
+                    d: 200, to: bowlTop.clone().add(new THREE.Vector3(0, 0.7, 0)), e: easeInOutSine,
+                    onStart: function () { setLidOpen(bowl, false); },
+                    onEnd: function () { setLidOpen(bowl, false); }
+                },
+                /* 5. 过盘：弧线送往目标上方 */
                 { d: 520, to: target.clone().add(new THREE.Vector3(0, 2.4, 0)), arc: 1.9, e: easeInOutCubic },
+                /* 6. 下压对准落点 */
                 {
                     d: 210, to: target.clone().add(new THREE.Vector3(0, 0.62, 0)), e: easeInOutCubic,
                     onStart: function () { handModel.rotation.x = 0; },
                     onEnd: function () { handModel.rotation.x = 0; }
                 },
+                /* 7. 落子松手 */
                 {
                     d: 130, to: target.clone().add(new THREE.Vector3(0, STONE_HALF + 0.08, 0)), e: easeOutCubic,
                     onEnd: function () {
@@ -1015,6 +1154,7 @@
                         if (o.onPlace) { o.onPlace(stone); }
                     }
                 },
+                /* 8. 收手回休息位 */
                 {
                     d: 480, to: rest.clone(), arc: 1.6, e: easeInOutCubic,
                     onEnd: function () {
