@@ -899,6 +899,8 @@ function toggleProposalCoord(coord) {
     return;
   }
   if (curN <= 0 || document.getElementById("justSwapped").checked) return;
+  const newKey = canonicalProposalKey(state.board, m.x, m.y);
+  if (proposals.some(p => canonicalProposalKey(state.board, p.x, p.y) === newKey)) return;
   proposals.push(m);
   nEl.value = String(curN - 1);
   runInference();
