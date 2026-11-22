@@ -46,8 +46,12 @@
         clocks: { 1: 0, 2: 0 },
         running: 0,
         busy: false,
-        pendingPress: false,
-        autoPress: 0,
+        pendingPress: false,      // 兼容旧字段；主逻辑用 awaitingPress
+        awaitingPress: 0,         // 落子后待拍钟的一方（0/1/2）——棋钟一律由人按
+        aiMode: false,            // 人机对弈（房间里的机器人座位）
+        aiColor: 0,               // 机器人执子：1 黑 2 白
+        aiThinking: false,
+        aiTimer: 0,
         animFast: false,
         result: null,
         helloRetry: 0,
@@ -111,6 +115,7 @@
             conf: S.conf, myColor: S.myColor, peerId: S.peerId, peerName: S.peerName,
             phase: S.phase, moves: S.moves, turn: S.turn, clocks: S.clocks,
             running: S.running, pendingPress: S.pendingPress, result: S.result,
+            awaitingPress: S.awaitingPress, aiMode: S.aiMode, aiColor: S.aiColor,
             at: Date.now()
         };
         try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch (e) { /* noop */ }
@@ -120,7 +125,8 @@
         return {
             t: 'sync', to: to, from: S.id, conf: S.conf,
             moves: S.moves, clocks: S.clocks, running: S.running,
-            phase: S.phase, pendingFor: S.running && S.turn !== S.running ? S.running : 0,
+            phase: S.phase, pendingFor: S.awaitingPress,
+            aiMode: S.aiMode, aiColor: S.aiColor,
             result: S.result, at: Date.now()
         };
     }
@@ -153,9 +159,13 @@
         if (S.phase === 'seated' && S.running && conf.main > 0) {
             S.clocks[S.running] = Math.max(0, S.clocks[S.running] - Math.max(0, Date.now() - (Number(snap.at) || Date.now())));
         }
-        S.pendingPress = snap.pendingFor ? snap.pendingFor === S.myColor : !!snap.pendingPress;
-        S.autoPress = S.pendingPress ? 6 : 0;
+        S.aiMode = !!snap.aiMode;
+        S.aiColor = snap.aiColor === BLACK || snap.aiColor === WHITE ? snap.aiColor : other(S.myColor);
         S.result = snap.result || null;
+        /* 棋钟一律由人按：恢复后不设自动拍，落子待拍状态原样带回。 */
+        S.awaitingPress = snap.pendingFor === BLACK || snap.pendingFor === WHITE ? snap.pendingFor : 0;
+        S.pendingPress = S.awaitingPress === S.myColor;
+        if (el.press && S.awaitingPress) { el.press.classList.add('is-pulse'); }
         var last = S.moves[S.moves.length - 1];
         if (last) { T.markLast(last); }
         el.hud.hidden = false;
@@ -165,6 +175,8 @@
         if (S.phase === 'over' && S.result) {
             S.phase = 'seated';
             endGame(S.result.winner, S.result.reason, S.result.cells || null);
+        } else {
+            maybeAiTurn();
         }
         saveSession();
     }
@@ -231,7 +243,9 @@
         S.running = 0;
         S.busy = false;
         S.pendingPress = false;
-        S.autoPress = 0;
+        S.awaitingPress = 0;
+        S.aiThinking = false;
+        if (S.aiTimer) { window.clearTimeout(S.aiTimer); S.aiTimer = 0; }
         S.result = null;
         S.queue = [];
         S.clocks[1] = S.conf.main;
@@ -267,11 +281,18 @@
         if (el.stage && el.stage.scrollIntoView) {
             try { el.stage.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* noop */ }
         }
-        toast(colorName(S.myColor) + '方落座');
-        hint(S.myColor === BLACK
-            ? '你执黑先行。点棋盘落子。'
-            : '你执白。黑方先行，等他落子。');
+        toast(S.aiMode ? '机器人已入座' : colorName(S.myColor) + '方落座');
+        if (S.aiMode) {
+            hint(S.myColor === BLACK
+                ? '你执黑先行。点棋盘落子，走完自己拍钟。'
+                : '你执白。机器人执黑先行，它落子后你替它拍钟。');
+        } else {
+            hint(S.myColor === BLACK
+                ? '你执黑先行。点棋盘落子。'
+                : '你执白。黑方先行，等他落子。');
+        }
         DJ_AUDIO.tick();
+        maybeAiTurn();
     }
 
     function commit(x, y, color) {
@@ -295,12 +316,22 @@
 
     function updateHintForTurn() {
         if (S.phase !== 'seated') { return; }
-        if (S.pendingPress) {
-            hint('这手已落下，<em>拍钟</em>把时间交给对方。');
+        if (S.aiThinking) {
+            hint('机器人正在想…');
+            return;
+        }
+        if (S.awaitingPress) {
+            if (S.aiMode && S.awaitingPress === S.aiColor) {
+                hint('机器人落子了。<em>拍钟</em>把时间交给你。');
+            } else {
+                hint('这手已落下，<em>拍钟</em>把时间交给对方。');
+            }
             return;
         }
         if (S.turn === S.myColor) {
             hint('轮到你走。从右手的棋盒里取子。');
+        } else if (S.aiMode) {
+            hint('轮到机器人走。');
         } else {
             hint('轮到 ' + (S.peerName || '对手') + '。');
         }
@@ -313,6 +344,9 @@
         S.running = 0;
         S.busy = false;
         S.pendingPress = false;
+        S.awaitingPress = 0;
+        S.aiThinking = false;
+        if (S.aiTimer) { window.clearTimeout(S.aiTimer); S.aiTimer = 0; }
         if (el.press) { el.press.classList.remove('is-pulse'); }
         if (cells) { T.setWin(cells); }
         T.setGhost(null);
@@ -388,49 +422,55 @@
             }
         }
 
-        /* 落子后没拍钟，过一会儿替你拍，别让人白白掉时间 */
-        if (S.autoPress > 0) {
-            S.autoPress -= dt;
-            if (S.autoPress <= 0) {
-                S.autoPress = 0;
-                if (S.pendingPress) { pressClock(S.myColor, false); }
-            }
-        }
-
+        /* 棋钟一律由人按：没有自动拍钟，落子后计时留在这方，直到拍钟。 */
         renderClocks(false);
     }
 
+    /*
+     * 拍钟。color 是要拍停的那一方的钟，也总是当前 awaitingPress。
+     * 真人模式：本地只按自己的钟，对手的钟由对方的 press 消息带来（remote）。
+     * 人机模式：人既按自己的钟，也在机器人落子后替它按——钟不会自己跳。
+     */
     function pressClock(color, remote) {
         if (S.phase !== 'seated') { return; }
-        if (!remote && !S.pendingPress) {
-            toast('先落子，再拍钟');
-            DJ_AUDIO.nope();
-            return;
-        }
-        if (!remote && S.running !== color) {
-            toast('现在不是你的用时');
-            DJ_AUDIO.nope();
-            return;
-        }
-
         if (!remote) {
+            if (!S.awaitingPress) {
+                toast('先落子，再拍钟');
+                DJ_AUDIO.nope();
+                return;
+            }
+            /* 真人只拍自己那一手的钟；人机模式还要替机器人拍。 */
+            var allowed = S.aiMode
+                ? (S.awaitingPress === color && (color === S.myColor || color === S.aiColor))
+                : (color === S.myColor && S.awaitingPress === S.myColor);
+            if (!allowed) {
+                toast(S.aiMode ? '还不到拍这块钟的时候' : '这手不是你走的，等对方拍钟');
+                DJ_AUDIO.nope();
+                return;
+            }
+            if (S.running !== color) {
+                toast('现在不是这方的用时');
+                DJ_AUDIO.nope();
+                return;
+            }
             /* 本地拍钟：加秒、发出去；远端的加秒在它自己那边已经算过了 */
             S.clocks[color] += S.conf.inc;
         }
+
         S.running = other(color);
-        S.autoPress = 0;
-        if (color === S.myColor) {
-            S.pendingPress = false;
-            if (el.press) { el.press.classList.remove('is-pulse'); }
-        }
+        S.awaitingPress = 0;
+        S.pendingPress = false;
+        if (el.press) { el.press.classList.remove('is-pulse'); }
 
         T.bumpClock(color === S.myColor ? 'me' : 'peer');
         DJ_AUDIO.press();
         renderClocks(true);
 
         if (!remote) {
-            S.net.send({ t: 'press', c: color, b: S.clocks[1], w: S.clocks[2] });
+            /* 人机模式机器人是本地的，不必也没有对手可同步。 */
+            if (!S.aiMode) { S.net.send({ t: 'press', c: color, b: S.clocks[1], w: S.clocks[2] }); }
             updateHintForTurn();
+            maybeAiTurn();
         }
         saveSession();
     }
@@ -440,6 +480,7 @@
     function myMove(x, y) {
         if (S.phase !== 'seated') { return; }
         if (S.busy) { return; }
+        if (S.awaitingPress) { toast('先拍钟，再走下一手'); DJ_AUDIO.nope(); return; }
         if (S.turn !== S.myColor) { toast('还没轮到你'); return; }
         if (cellAt(x, y)) { toast('这里已经有子了'); return; }
 
@@ -456,16 +497,18 @@
             onPlace: function () {
                 DJ_AUDIO.stone();
                 commit(x, y, color);
-                S.net.send({
-                    t: 'move', x: x, y: y, c: color, n: S.moves.length,
-                    b: S.clocks[1], w: S.clocks[2]
-                });
+                if (!S.aiMode) {
+                    S.net.send({
+                        t: 'move', x: x, y: y, c: color, n: S.moves.length,
+                        b: S.clocks[1], w: S.clocks[2]
+                    });
+                }
             },
             onDone: function () {
                 S.busy = false;
                 if (S.phase === 'seated') {
+                    S.awaitingPress = color;
                     S.pendingPress = true;
-                    S.autoPress = 6;
                     if (el.press) { el.press.classList.add('is-pulse'); }
                     updateHintForTurn();
                     saveSession();
@@ -493,6 +536,9 @@
             },
             onDone: function () {
                 S.busy = false;
+                /* 真人模式：本地的 awaitingPress 只反映「我这一手待拍」，
+                   不替对方维护，避免 move/press 消息乱序时把状态设回去卡住。
+                   对方落子后的钟由对方自己拍，其 press 消息会把 running 切回来。 */
                 updateHintForTurn();
                 drainQueue();
             }
@@ -503,6 +549,112 @@
         if (S.busy || !S.queue.length) { return; }
         var m = S.queue.shift();
         peerMove(m);
+    }
+
+    /* ---------- 人机对弈 ---------- */
+
+    /* 轮到机器人、且没有待拍的钟时，想一手并落子。落子后照旧等人拍钟。 */
+    function maybeAiTurn() {
+        if (!S.aiMode || S.phase !== 'seated') { return; }
+        if (S.awaitingPress) { return; }         // 上一手还没拍钟，先等用户拍
+        if (S.turn !== S.aiColor) { return; }    // 没轮到机器人
+        if (S.aiThinking || S.busy) { return; }
+        if (cellCount() >= N * N) { return; }
+
+        S.aiThinking = true;
+        updateHintForTurn();
+        if (S.aiTimer) { window.clearTimeout(S.aiTimer); }
+        /* 思考留一点停顿，像在真人座位上抬手 */
+        S.aiTimer = window.setTimeout(function () {
+            S.aiTimer = 0;
+            if (!S.aiMode || S.phase !== 'seated' || S.turn !== S.aiColor) {
+                S.aiThinking = false;
+                return;
+            }
+            var pick = (window.DJ_BOT && window.DJ_BOT.choose)
+                ? window.DJ_BOT.choose(S.board, S.aiColor)
+                : fallbackPick();
+            if (!pick || cellAt(pick.x, pick.y)) {
+                pick = fallbackPick();
+            }
+            S.aiThinking = false;
+            if (!pick) { return; }
+
+            S.busy = true;
+            T.setGhost(null);
+            T.playMove({
+                side: 'peer',
+                x: pick.x, y: pick.y,
+                color: S.aiColor === BLACK ? 'black' : 'white',
+                speed: S.animFast ? 2.3 : 1,
+                onGrab: function () { DJ_AUDIO.rattle(); },
+                onPlace: function () {
+                    DJ_AUDIO.stone();
+                    commit(pick.x, pick.y, S.aiColor);
+                },
+                onDone: function () {
+                    S.busy = false;
+                    if (S.phase === 'seated') {
+                        /* 机器人落完子，钟停在机器人这边，由用户拍。 */
+                        S.awaitingPress = S.aiColor;
+                        if (el.press) { el.press.classList.add('is-pulse'); }
+                        updateHintForTurn();
+                        saveSession();
+                    }
+                    drainQueue();
+                }
+            });
+        }, 520);
+    }
+
+    /* 引擎没加载出来时的兜底：找天元附近第一个空点 */
+    function fallbackPick() {
+        var order = [];
+        for (var y = 0; y < N; y++) {
+            for (var x = 0; x < N; x++) {
+                order.push({ x: x, y: y, d: Math.abs(x - 7) + Math.abs(y - 7) + Math.random() });
+            }
+        }
+        order.sort(function (a, b) { return a.d - b.d; });
+        for (var i = 0; i < order.length; i++) {
+            if (!cellAt(order[i].x, order[i].y)) { return { x: order[i].x, y: order[i].y }; }
+        }
+        return null;
+    }
+
+    function cellCount() { return S.moves.length; }
+
+    /* 从大厅直接开一局人机：跳过联机座位分配，自己坐一个颜色，机器人坐对面。 */
+    function startAiGame() {
+        DJ_AUDIO.unlock();
+        var name = (el.nameInput.value || '').trim().slice(0, 12) || '棋友';
+        S.name = name;
+        S.code = (el.codeInput.value || '').toUpperCase().replace(/[^0-9A-Z]/g, '') || window.DJ_NET.newCode();
+        S.want = el.seatBtns.filter(function (b) { return b.classList.contains('is-on'); })[0].dataset.want;
+
+        var p = PRESETS.filter(function (x) { return x.id === S.preset; })[0] || PRESETS[0];
+        S.conf = { mode: p.mode, main: p.main, inc: p.inc };
+        if (S.preset === 'custom') {
+            var minutes = Math.max(1, Math.min(180, Math.round(Number(el.mainMinutes.value) || 30)));
+            var mode = selectedClockMode();
+            var inc = mode === 'increment' ? Math.max(0, Math.min(60, Math.round(Number(el.incSeconds.value) || 0))) : 0;
+            S.conf = { mode: mode, main: minutes * 60000, inc: inc * 1000 };
+        }
+
+        var myColor = S.want === 'white' ? WHITE : BLACK;   // 都行默认执黑
+        S.myColor = myColor;
+        S.aiColor = other(myColor);
+        S.peerId = 'robot';
+        S.peerName = '机器人';
+        S.aiMode = true;
+        S.aiThinking = false;
+        S.helloRetry = 0;
+
+        /* 不连实时频道：机器人就在本机这一侧 */
+        if (S.net) { S.net.close(); S.net = null; }
+        pendingRestore = null;
+        beginSeated();
+        saveSession();
     }
 
     /* ---------- 消息 ---------- */
@@ -666,7 +818,7 @@
         S.peerId = '';
         S.peerName = '';
         S.pendingPress = false;
-        S.autoPress = 0;
+        S.awaitingPress = 0;
         S.result = null;
         if (T) {
             T.setPeer(S.peerName, false);
@@ -837,8 +989,11 @@
             /* 先看是不是点了棋钟 */
             var side = T.pickClock(e.clientX, e.clientY);
             if (side) {
-                if (side === 'me') { pressClock(S.myColor, false); }
-                else { toast('那是对方的钟'); DJ_AUDIO.nope(); }
+                if (!S.awaitingPress) { toast('先落子，再拍钟'); DJ_AUDIO.nope(); return; }
+                /* 人机模式替机器人拍钟：机器人那边可能是「far」钟 */
+                var wantSide = S.awaitingPress === S.myColor ? 'me' : 'peer';
+                if (side === wantSide) { pressClock(S.awaitingPress, false); }
+                else { toast('拍这块钟'); DJ_AUDIO.nope(); }
                 return;
             }
 
@@ -952,6 +1107,17 @@
             joinRoom();
         });
 
+        if (el.aiBtn) {
+            el.aiBtn.addEventListener('click', startAiGame);
+        }
+        if (el.aiBtnWait) {
+            el.aiBtnWait.addEventListener('click', function () {
+                if (S.phase !== 'waiting') { return; }
+                /* 用当前房间号和计时设置，把等待中的房间转成人机局 */
+                startAiGame();
+            });
+        }
+
         el.codeInput.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') { joinRoom(); }
         });
@@ -962,7 +1128,8 @@
 
         el.press.addEventListener('click', function () {
             DJ_AUDIO.unlock();
-            pressClock(S.myColor, false);
+            if (S.awaitingPress) { pressClock(S.awaitingPress, false); }
+            else { toast('先落子，再拍钟'); DJ_AUDIO.nope(); }
         });
 
         el.resign.addEventListener('click', function () {
@@ -985,13 +1152,15 @@
         });
 
         el.againBtn.addEventListener('click', function () {
-            send({ t: 'again' });
+            if (!S.aiMode) { send({ t: 'again' }); }
             if (S.phase === 'over') { S.phase = 'seated'; }
             resetGame();
             S.running = BLACK;
-            saveSession();
             showOverlay(null);
+            updateHintForTurn();
+            saveSession();
             toast('新的一局');
+            maybeAiTurn();
         });
 
         el.quitBtn.addEventListener('click', leaveRoom);
@@ -1048,7 +1217,7 @@
             S.pingAt = 0;
             send({ t: 'ping' });
         }
-        if (S.phase === 'seated' && S.lastPingFromPeer && performance.now() - S.lastPingFromPeer > 20000) {
+        if (!S.aiMode && S.phase === 'seated' && S.lastPingFromPeer && performance.now() - S.lastPingFromPeer > 20000) {
             S.lastPingFromPeer = performance.now();
             send({ t: 'hello', id: S.id, name: S.name, want: S.want });
         }
@@ -1083,6 +1252,8 @@
         el.codeInput = $('dj-code');
         el.genBtn = $('dj-gen');
         el.joinBtn = $('dj-join');
+        el.aiBtn = $('dj-ai');
+        el.aiBtnWait = $('dj-ai-wait');
         el.copyBtn = $('dj-copy');
         el.copyBtn2 = $('dj-copy2');
         el.cancelBtn = $('dj-cancel');
@@ -1216,7 +1387,11 @@
         S.running = 0;
         S.busy = false;
         S.pendingPress = false;
-        S.autoPress = 0;
+        S.awaitingPress = 0;
+        S.aiThinking = false;
+        if (S.aiTimer) { window.clearTimeout(S.aiTimer); S.aiTimer = 0; }
+        S.aiMode = false;
+        S.aiColor = 0;
         S.result = null;
         S.queue = [];
         clockDigest = '';
@@ -1243,7 +1418,7 @@
             if (S.phase !== 'seated') { return; }
             if (e.key === ' ' || e.key === 'Enter') {
                 e.preventDefault();
-                pressClock(S.myColor, false);
+                if (S.awaitingPress) { pressClock(S.awaitingPress, false); }
             }
         });
 
