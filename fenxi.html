@@ -264,7 +264,6 @@
       </div>
       <div class="stat-row">
         <span id="turnLabel" style="color:var(--muted)">黑方</span>
-        <span id="swapLabel" class="badge hidden">交换 --</span>
         <span id="thinkLabel">思考 --</span>
       </div>
     </div>
@@ -593,7 +592,7 @@ function drawBoard() {
 
   // Top move overlays
   lastTopMoves.forEach(([label, prob], idx) => {
-    if (label === "SWAP") return;
+    if (label === "交换" || label === "SWAP") return;
     const x = label.charCodeAt(0) - 97;
     const y = parseInt(label.slice(1), 10) - 1;
     if (state.board[y * N + x] !== 0) return;
@@ -745,24 +744,8 @@ async function runInference() {
   const thinkS = Math.expm1(Math.max(0, Math.min(10, logThink)));
   document.getElementById("thinkLabel").textContent = `思考 ${thinkS.toFixed(2)}s`;
 
-  // Swap weight (in opening moves 1-5)
-  const swapEl = document.getElementById("swapLabel");
-  if (state.ply >= 1 && state.ply <= 5) {
-    const combined = new Float32Array(226);
-    for (let i = 0; i < 225; i++) {
-      const legal = state.board[i] === 0 && !(active === 1 && state.forb[i]);
-      combined[i] = legal ? logitsAction[i] : -Infinity;
-    }
-    combined[225] = logitsAction[ACTION_SWAP];
-    const swapProbs = softmax(combined);
-    swapEl.textContent = `交换 ${(swapProbs[225] * 100).toFixed(1)}%`;
-    swapEl.classList.remove("hidden");
-  } else {
-    swapEl.classList.add("hidden");
-  }
-
-  // Top moves
-  const useSwap = allowSwap && state.ply <= 5;
+  // Top moves (includes SWAP in opening moves 1-5 under one unified softmax <= 100%)
+  const useSwap = state.ply >= 1 && state.ply <= 5;
   const stoneLen = useSwap ? 226 : 225;
   const stoneLogits = new Float32Array(stoneLen);
   for (let i = 0; i < 225; i++) {
@@ -774,7 +757,7 @@ async function runInference() {
   const indices = Array.from({ length: stoneLen }, (_, i) => i);
   indices.sort((a, b) => stoneProbs[b] - stoneProbs[a]);
   lastTopMoves = indices.slice(0, 5).map(idx => [
-    idx === 225 ? "SWAP" : xyToCoord(idx % N, Math.floor(idx / N)),
+    idx === 225 ? "交换" : xyToCoord(idx % N, Math.floor(idx / N)),
     stoneProbs[idx]
   ]);
 
@@ -784,7 +767,7 @@ async function runInference() {
     const item = document.createElement("div");
     item.className = "move-item";
     item.innerHTML = `<span class="move-coord">${coord.toUpperCase()}</span><div class="prob-track"><div class="prob-fill" style="width:${(prob*100).toFixed(1)}%"></div></div><span class="prob-val">${(prob*100).toFixed(1)}%</span>`;
-    if (coord !== "SWAP") {
+    if (coord !== "交换" && coord !== "SWAP") {
       item.onclick = () => playCoord(coord);
     }
     listEl.appendChild(item);
