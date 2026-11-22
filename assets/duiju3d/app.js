@@ -1151,7 +1151,7 @@
         el.cancelBtn.addEventListener('click', leaveRoom);
 
         /* 拍钟只允许直接点击 3D 棋钟，不保留独立按钮。 */
-        if (el.press) { el.press.hidden = true; el.press.setAttribute('aria-hidden', 'true'); }
+        if (el.press && el.press.parentNode) { el.press.parentNode.removeChild(el.press); }
 
         el.resign.addEventListener('click', function () {
             if (S.phase !== 'seated') { return; }
