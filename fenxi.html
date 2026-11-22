@@ -511,19 +511,43 @@ function drawBoard() {
     }
   }
 
-  // Proposed markers
-  if (allowProposal && state.ply === 4) {
+  // Recommended multi-proposal markers on board (when ply === 4 and nProposals > 0)
+  const nPropCur = Math.max(0, Math.min(20, parseInt(document.getElementById("nProposals").value, 10) || 0));
+  if (nPropCur > 0 && state.ply === 4) {
+    lastProposalMoves.forEach(([coord, prob], idx) => {
+      const mx = coord.charCodeAt(0) - 97;
+      const my = parseInt(coord.slice(1), 10) - 1;
+      if (state.board[my * N + mx] !== 0) return;
+      const cx = pad + mx * cell;
+      const cy = pad + (N - 1 - my) * cell;
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = Math.max(2, W / 260);
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.40, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(245, 158, 11, 0.92)";
+      ctx.beginPath();
+      ctx.arc(cx + cell * 0.25, cy - cell * 0.25, cell * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#111";
+      ctx.font = `700 ${Math.round(cell * 0.22)}px sans-serif`;
+      ctx.fillText(String(idx + 1), cx + cell * 0.25, cy - cell * 0.25 + 0.5);
+    });
+  }
+
+  // User-selected proposed markers
+  if (state.ply === 4) {
     for (const p of proposals) {
       if (state.board[p.y * N + p.x] !== 0) continue;
       const cx = pad + p.x * cell;
       const cy = pad + (N - 1 - p.y) * cell;
-      ctx.fillStyle = "rgba(245, 158, 11, 0.85)";
+      ctx.fillStyle = "rgba(245, 158, 11, 0.92)";
       ctx.beginPath();
-      ctx.arc(cx, cy, cell * 0.28, 0, Math.PI * 2);
+      ctx.arc(cx, cy, cell * 0.30, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#000";
       ctx.font = `700 ${Math.round(cell * 0.34)}px sans-serif`;
-      ctx.fillText("P", cx, cy + 0.5);
+      ctx.fillText("打", cx, cy + 0.5);
     }
   }
 
@@ -761,9 +785,16 @@ function playCoord(coord) {
 function toggleProposalCoord(coord) {
   const m = parseMoves(coord)[0];
   if (!m) return;
+  const nEl = document.getElementById("nProposals");
+  const curN = Math.max(0, parseInt(nEl.value, 10) || 0);
   const idx = proposals.findIndex(p => p.x === m.x && p.y === m.y);
-  if (idx >= 0) proposals.splice(idx, 1);
-  else proposals.push(m);
+  if (idx >= 0) {
+    proposals.splice(idx, 1);
+    nEl.value = String(Math.min(20, curN + 1));
+  } else {
+    proposals.push(m);
+    nEl.value = String(Math.max(0, curN - 1));
+  }
   runInference();
 }
 
