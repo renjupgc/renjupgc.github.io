@@ -595,9 +595,9 @@
                 onDone: function () {
                     S.busy = false;
                     if (S.phase === 'seated') {
-                        /* 机器人落完子，钟停在机器人这边，由用户拍。 */
+                        /* 机器人落子后，自己拍下对侧棋钟并交出行棋权。 */
                         S.awaitingPress = S.aiColor;
-                        if (el.press) { el.press.classList.add('is-pulse'); }
+                        pressClock(S.aiColor, false);
                         updateHintForTurn();
                         saveSession();
                     }
@@ -944,73 +944,97 @@
     /* ---------- 交互 ---------- */
 
     var drag = null;
+    var activePointers = {};
+    var pinchDistance = 0;
 
     function bindPointer() {
         var c = el.canvas;
+        function distance(a, b) {
+            var dx = a.x - b.x, dy = a.y - b.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
 
         c.addEventListener('pointerdown', function (e) {
             if (S.phase !== 'seated') { return; }
             DJ_AUDIO.unlock();
-            drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: 0, t: performance.now() };
+            activePointers[e.pointerId] = { x: e.clientX, y: e.clientY };
             try { c.setPointerCapture(e.pointerId); } catch (err) { /* noop */ }
+            var keys = Object.keys(activePointers);
+            if (keys.length === 1) {
+                drag = { x: e.clientX, y: e.clientY, moved: 0, t: performance.now() };
+            } else if (keys.length === 2) {
+                var pts = keys.map(function (k) { return activePointers[k]; });
+                pinchDistance = distance(pts[0], pts[1]);
+                if (drag) { drag.moved = 999; }
+                T.setGhost(null);
+            }
         });
 
         c.addEventListener('pointermove', function (e) {
             if (S.phase !== 'seated') { return; }
-
-            if (drag) {
-                var dx = e.clientX - drag.x;
-                var dy = e.clientY - drag.y;
+            if (activePointers[e.pointerId]) {
+                activePointers[e.pointerId].x = e.clientX;
+                activePointers[e.pointerId].y = e.clientY;
+            }
+            var keys = Object.keys(activePointers);
+            if (keys.length >= 2) {
+                var pts = keys.slice(0, 2).map(function (k) { return activePointers[k]; });
+                var nextDistance = distance(pts[0], pts[1]);
+                if (pinchDistance > 0 && nextDistance > 0) { T.zoom(pinchDistance / nextDistance); }
+                pinchDistance = nextDistance;
+                if (drag) { drag.moved = 999; }
+                T.setGhost(null);
+                return;
+            }
+            if (drag && activePointers[e.pointerId]) {
+                var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
                 drag.moved += Math.abs(dx) + Math.abs(dy);
-                drag.x = e.clientX;
-                drag.y = e.clientY;
+                drag.x = e.clientX; drag.y = e.clientY;
                 if (drag.moved > 6) {
                     T.look(dx * 0.0022, dy * 0.0016);
                     T.setGhost(null);
                 }
                 return;
             }
-
             var cell = T.pickBoard(e.clientX, e.clientY);
             if (cell && S.turn === S.myColor && !S.busy && !cellAt(cell.x, cell.y)) {
                 T.setGhost(cell, S.myColor === BLACK ? 'black' : 'white');
-            } else {
-                T.setGhost(null);
-            }
+            } else { T.setGhost(null); }
         });
 
         function finish(e) {
-            if (!drag) { return; }
             var d = drag;
+            delete activePointers[e.pointerId];
+            var remaining = Object.keys(activePointers);
+            if (remaining.length < 2) { pinchDistance = 0; }
+            if (remaining.length) {
+                var p = activePointers[remaining[0]];
+                drag = { x: p.x, y: p.y, moved: 999, t: performance.now() };
+                return;
+            }
             drag = null;
-            if (S.phase !== 'seated') { return; }
+            if (!d || S.phase !== 'seated') { return; }
             if (d.moved > 6 || performance.now() - d.t > 700) { return; }
-
-            /* 先看是不是点了棋钟 */
+            /* 只有直接点按 3D 棋钟才能拍钟。 */
             var side = T.pickClock(e.clientX, e.clientY);
             if (side) {
                 if (!S.awaitingPress) { toast('先落子，再拍钟'); DJ_AUDIO.nope(); return; }
-                /* 人机模式替机器人拍钟：机器人那边可能是「far」钟 */
                 var wantSide = S.awaitingPress === S.myColor ? 'me' : 'peer';
                 if (side === wantSide) { pressClock(S.awaitingPress, false); }
-                else { toast('拍这块钟'); DJ_AUDIO.nope(); }
+                else { toast('请拍当前待交接的一侧棋钟'); DJ_AUDIO.nope(); }
                 return;
             }
-
             var cell = T.pickBoard(e.clientX, e.clientY);
             if (cell) { myMove(cell.x, cell.y); }
         }
-
         c.addEventListener('pointerup', finish);
-        c.addEventListener('pointercancel', function () { drag = null; });
+        c.addEventListener('pointercancel', finish);
         c.addEventListener('pointerleave', function () { if (!drag) { T.setGhost(null); } });
-
         c.addEventListener('wheel', function (e) {
             if (S.phase !== 'seated') { return; }
             e.preventDefault();
             T.zoom(e.deltaY > 0 ? 1.06 : 0.94);
         }, { passive: false });
-
     }
 
     /* ---------- 全屏 ---------- */
@@ -1126,11 +1150,8 @@
         el.copyBtn2.addEventListener('click', copyInvite);
         el.cancelBtn.addEventListener('click', leaveRoom);
 
-        el.press.addEventListener('click', function () {
-            DJ_AUDIO.unlock();
-            if (S.awaitingPress) { pressClock(S.awaitingPress, false); }
-            else { toast('先落子，再拍钟'); DJ_AUDIO.nope(); }
-        });
+        /* 拍钟只允许直接点击 3D 棋钟，不保留独立按钮。 */
+        if (el.press) { el.press.hidden = true; el.press.setAttribute('aria-hidden', 'true'); }
 
         el.resign.addEventListener('click', function () {
             if (S.phase !== 'seated') { return; }
@@ -1416,10 +1437,6 @@
                 return;
             }
             if (S.phase !== 'seated') { return; }
-            if (e.key === ' ' || e.key === 'Enter') {
-                e.preventDefault();
-                if (S.awaitingPress) { pressClock(S.awaitingPress, false); }
-            }
         });
 
         document.addEventListener('zbx:navigate', function () {
