@@ -689,6 +689,7 @@ async function runInference() {
   const sClk = active === 1 ? bClk : wClk;
   const oClk = active === 1 ? wClk : bClk;
 
+  const justSwapped = document.getElementById("justSwapped").checked;
   const rawOwners = (document.getElementById("ownersInput").value || "").trim().toUpperCase();
   const ownerFeats = [];
   for (let s = 0; s < 5; s++) {
@@ -739,7 +740,6 @@ async function runInference() {
   document.getElementById("thinkLabel").textContent = `思考 ${thinkS.toFixed(2)}s`;
 
   // Unified action softmax (stone 0..224 + 交换 225 + 多打 226..450) summing to 100%
-  const justSwapped = document.getElementById("justSwapped").checked;
   const canProp = state.ply === 4 && !justSwapped;
   if (!canProp) proposalMode = false;
   document.getElementById("propToggleWrap").classList.toggle("hidden", !canProp);
