@@ -920,13 +920,13 @@
             var forearm = bone(wrist, V(0.34, 3.45, 12.8), 1.14, 1.52, handSkin);
             handModel.add(forearm);
 
-            /* 袖管收短并贴近前臂：对手侧旋转 180° 后，袖口正好接到肩胸边缘，
-               不会整段穿进躯干后被身体完全遮住。 */
-            var sleeve = bone(V(0.22, 3.2, 4.2), V(0.62, 4.3, 8.8), 1.48, 1.9, sleeveMat);
+            /* 长袖从手腕连续延伸到肩侧；对手侧会按肩部方向旋转并缩短，
+               使袖管与对手躯干相接，而不是穿进身体后消失。 */
+            var sleeve = bone(V(0.22, 3.2, 10.4), V(1.1, 5.6, 31.0), 1.55, 2.35, sleeveMat);
             handModel.add(sleeve);
 
-            var cuff = new THREE.Mesh(new THREE.CylinderGeometry(1.52, 1.42, 1.0, 24), sleeveMat);
-            cuff.position.set(0.18, 3.1, 4.0);
+            var cuff = new THREE.Mesh(new THREE.CylinderGeometry(1.58, 1.45, 1.15, 24), sleeveMat);
+            cuff.position.set(0.18, 3.1, 9.9);
             cuff.rotation.x = Math.atan2(0.85, 8.8);
             handModel.add(cuff);
         })();
@@ -1045,7 +1045,10 @@
             handGroup.visible = true;
             handGroup.position.copy(rest);
             var turn = view.seat === 'white' ? Math.PI : 0;
-            handGroup.rotation.set(0, (side === 'me' ? 0.5 : Math.PI + 0.5) + turn, 0);
+            var peerShoulderZ = view.seat === 'black' ? -27 : 27;
+            var peerArmYaw = Math.atan2(-13.2, peerShoulderZ - rest.z);
+            handGroup.rotation.set(0, side === 'me' ? 0.5 + turn : peerArmYaw, 0);
+            handModel.scale.set(1, 1, side === 'peer' ? 0.5 : 1);
             handModel.rotation.set(0, 0, 0);
             var segs = [
                 { d: 380, to: top.clone(), arc: 1.8, e: easeInOutCubic },
@@ -1097,7 +1100,10 @@
             handGroup.visible = true;
             handGroup.position.copy(rest);
             var seatTurn = view.seat === 'white' ? Math.PI : 0;
-            handGroup.rotation.set(0, (side === 'me' ? 0.5 : Math.PI + 0.5) + seatTurn, 0);
+            var peerShoulderZ = view.seat === 'black' ? -27 : 27;
+            var peerArmYaw = Math.atan2(-13.2, peerShoulderZ - rest.z);
+            handGroup.rotation.set(0, side === 'me' ? 0.5 + seatTurn : peerArmYaw, 0);
+            handModel.scale.set(1, 1, side === 'peer' ? 0.5 : 1);
             handModel.rotation.set(0, 0, 0);
 
             var sign = side === 'me' ? 1 : -1;
