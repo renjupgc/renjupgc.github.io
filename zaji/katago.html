@@ -27,7 +27,7 @@
 
 <div class="kg-wrap">
   <div class="dapu">
-    <div class="board" data-board data-editable data-hash data-analysis="0"></div>
+    <div class="board" data-board data-editable data-analysis="0"></div>
   </div>
 </div>
 <div class="kg-status" id="kg-status">载入 KataGomo…</div>
@@ -201,6 +201,19 @@
     });
   }
 
+  /* 路由用可读坐标串：#h8i9j10（不用 p= 两字母压缩） */
+  function syncReadableHash(b) {
+    var moves = b.getMoves().slice(0, b.getCursor());
+    var code = moves.map(function (m) {
+      return window.GomokuBoard.coord(m.i, m.j).toLowerCase();
+    }).join('');
+    var bare = location.pathname + location.search;
+    var url = bare + (code ? '#' + code : '');
+    if (url !== bare + location.hash) {
+      history.replaceState(history.state, '', url);
+    }
+  }
+
   function init() {
     if (!window.ort) {
       status('onnxruntime 加载失败', true, false);
@@ -224,7 +237,13 @@
     }).then(function (sess) {
       session = sess;
       withBoard(function (b) {
-        b.onChange(function () { analyse(); });
+        var initial = window.GomokuBoard.decode(location.hash);
+        if (initial.length) b.setMoves(initial);
+        b.onChange(function () { syncReadableHash(b); analyse(); });
+        window.addEventListener('hashchange', function () {
+          b.setMoves(window.GomokuBoard.decode(location.hash));
+        });
+        syncReadableHash(b);
         status('就绪', false, true);
         analyse();
       });
