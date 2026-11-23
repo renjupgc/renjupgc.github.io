@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>杂论词云 · 连珠杂箱</title>
+<meta name="theme-color" content="#f6f2e9">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="zayu-admin.css">
+<style>
+  .wc-manage { display: flex; flex-direction: column; gap: 18px; }
+
+  /* 预览 */
+  .wcp { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+         box-shadow: var(--shadow-sm); padding: 16px 18px 8px; }
+  .wcp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+              font-family: var(--sans); font-size: 12px; color: var(--muted); }
+  .wcp-head b { font-family: var(--serif); font-size: 14px; color: var(--ink-2); letter-spacing: .08em; }
+  .wc-canvas { margin: 6px -6px 0; }
+  .wc-svg { display: block; width: 100%; height: auto; }
+  .wc-svg text { font-family: var(--serif); transition: opacity .3s ease; }
+  .wc-svg:hover text { opacity: .22; }
+  .wc-svg text:hover { opacity: 1; }
+  .wcp-empty { padding: 40px 0 46px; text-align: center; color: var(--faint); font-size: 13px; }
+
+  /* 筛选条 */
+  .fbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .fbar .search { flex: 1 1 220px; min-width: 160px; }
+  .fbar select { font: 13px/1 var(--sans); padding: 8px 10px; border: 1px solid var(--line);
+                 border-radius: 9px; background: var(--surface); color: var(--ink-2); }
+  .chip { font: 12.5px/1 var(--sans); padding: 7px 12px; border: 1px solid var(--line);
+          border-radius: 999px; background: var(--surface); color: var(--ink-3); cursor: pointer; }
+  .chip.on { background: var(--ink); color: #fff8ea; border-color: var(--ink); }
+
+  /* 词表 */
+  .wtable { max-width: 840px; border: 1px solid var(--line); border-radius: var(--radius);
+            overflow: hidden; background: var(--surface); }
+  .wtable table { width: 100%; border-collapse: collapse; font-size: 13.5px; table-layout: fixed; }
+  .wtable thead th { position: sticky; top: 0; z-index: 2; background: #f2ead9; color: var(--ink-3);
+            font: 600 12px/1 var(--sans); letter-spacing: .06em; text-align: left;
+            padding: 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; white-space: nowrap; }
+  .wtable td { padding: 7px 12px; border-bottom: 1px solid #f1ebdd; vertical-align: middle; }
+  .wtable tr.on { background: #fbf3e0; }
+  .wtable tr:hover { background: #faf5e8; }
+  .wtable td.word { font-family: var(--serif); font-size: 15.5px; letter-spacing: .04em; }
+  .wtable td.num, .wtable td.doc { font-variant-numeric: tabular-nums; color: var(--ink-3); }
+  .wtable th:nth-child(2), .wtable td:nth-child(2) { width: 88px; }
+  .wtable th:nth-child(3), .wtable td:nth-child(3) { width: 82px; }
+  .wtable th:nth-child(4), .wtable td:nth-child(4) { width: 132px; }
+  .wtable th:nth-child(5), .wtable td:nth-child(5) { width: 96px; }
+  .wtable td.num b { font-weight: 600; }
+  .wtable td.cat { width: 96px; }
+  .wtable .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px;
+                 background: #eceae2; color: #5c5749; }
+  .wtable .tag.hot { background: #f7edd8; color: #8a6a39; }
+  .wtable td.act { width: 96px; text-align: right; }
+  .sw { position: relative; display: inline-block; width: 42px; height: 22px; vertical-align: middle; }
+  .sw input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .sw i { position: absolute; inset: 0; border-radius: 999px; background: #ded5c3; transition: background .2s; }
+  .sw i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+                 border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2);
+                 transition: transform .2s; }
+  .sw input:checked + i { background: var(--gold); }
+  .sw input:checked + i::after { transform: translateX(20px); }
+  .wtable .more { padding: 12px; text-align: center; color: var(--faint); font-size: 12.5px;
+                  background: var(--surface-2); cursor: pointer; }
+  .wtable .more:hover { color: var(--ink-3); }
+  .legend { font-size: 12px; color: var(--muted); line-height: 1.9; }
+  .legend b { color: var(--ink-2); font-weight: 600; }
+  .stat .warn { color: var(--win); font-size: 12px; }
+</style>
+</head>
+<body data-base="../">
+
+<div class="container admin-container">
+
+  <header class="site-head">
+    <div class="site-head-inner">
+      <a class="brand" href="../index.html">
+        <span class="brand-mark">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <path d="M11 3v26M21 3v26M3 11h26M3 21h26" fill="none" stroke="#c9a86f" stroke-width="1.3" opacity="0.72"/>
+            <circle cx="16" cy="16" r="4.7" fill="#f2d9a8"/>
+            <circle cx="16" cy="16" r="4.7" fill="none" stroke="#17150f" stroke-width="0.9" opacity="0.28"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">连珠杂箱</span>
+          <span class="brand-sub">连珠 · 五子棋</span>
+        </span>
+      </a>
+      <nav class="site-nav">
+        <a href="../index.html">首页</a>
+        <a href="../zalun.html">杂论</a>
+        <a href="../zashi.html">杂史</a>
+        <a href="../zaxiang.html">杂想</a>
+        <a href="../zayu.html">杂豫</a>
+        <a href="../zaji.html">杂技</a>
+        <a href="../index.html#about">关于</a>
+      </nav>
+      <div class="site-user-slot" data-zbx-user="global" aria-label="账号"></div>
+    </div>
+    <nav class="admin-bar" aria-label="管理后台导航">
+      <span class="ab-tag">管理后台</span>
+      <a href="index.html">访问统计</a>
+      <a href="duiju.html">赛果录入</a>
+      <a href="zayu.html">杂豫内容</a>
+      <a href="zalun.html" class="on">杂论词云</a>
+      <a href="ops.html">运维</a>
+      <a href="../zalun.html" class="ab-side" target="_blank" rel="noopener">看站点 ↗</a>
+    </nav>
+  </header>
+
+  <main class="admin-main">
+
+    <header class="page-head">
+      <p class="eyebrow">内容管理</p>
+      <h1 class="page-title">杂论词云</h1>
+      <p class="page-desc">杂论 13 篇文章分词后的全部词条都在下面。开关一拨，这个词就进词云；字的大小由出现次数决定，不用手调。</p>
+    </header>
+
+    <div id="msg" role="status" aria-live="polite"></div>
+
+    <div id="gate">
+      <h2>需要管理员登录</h2>
+      <p id="gate-msg">请用管理员账号登录后继续。</p>
+      <button type="button" class="btn primary" data-act="login">管理员登录</button>
+    </div>
+
+    <div id="panel" hidden>
+
+      <div class="toolbar">
+        <button type="button" class="btn primary" data-act="save">保存词云</button>
+        <button type="button" class="btn" data-act="reload">重新读取</button>
+        <button type="button" class="btn" data-act="default">恢复默认</button>
+        <button type="button" class="btn" data-act="clear">全部取消</button>
+        <button type="button" class="btn" data-act="top">补选高频词</button>
+      </div>
+
+      <div class="stat" id="stat"></div>
+
+      <div class="tipbox">
+        左边是词表，右边是即时预览。挑好后点「保存词云」，访客刷新杂论页就能看到。
+        词云建议 40–100 个词：太少会空，太多会挤；出现 1–2 次的词只适合点缀。
+      </div>
+
+      <div class="wc-manage">
+
+        <section class="wcp">
+          <div class="wcp-head"><b>预览</b><span id="pcount">—</span></div>
+          <div class="wc-canvas" id="wc-canvas"></div>
+        </section>
+
+        <div class="fbar">
+          <input type="text" id="search" class="search" placeholder="搜词…">
+          <select id="cat"><option value="">全部分类</option></select>
+          <span class="chip on" data-mode="all">全部</span>
+          <span class="chip" data-mode="on">只看已选</span>
+          <span class="chip" data-mode="cand">候选（≥8 次且未选）</span>
+        </div>
+
+        <div class="wtable">
+          <table>
+            <thead>
+              <tr>
+                <th data-sort="word">词</th>
+                <th data-sort="c">次数</th>
+                <th data-sort="d">篇数</th>
+                <th data-sort="k">分类</th>
+                <th style="text-align:right">入云</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <div class="more" id="more" hidden></div>
+        </div>
+
+        <p class="legend">分类说明：<b>主题词</b> 连珠、五子棋这类栏目底色；<b>棋局术语</b> 开局、先手、活三；
+          <b>名词/意象</b> 薄雾、桂花、少年；<b>虚词/通用</b> 是「可以」「这样」这类，一般不入云。</p>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <p class="sf-copy">2026 由潘冠臣创作</p>
+  </footer>
+
+</div>
+
+<script src="../assets/account.js"></script>
+<script src="../assets/zalun-cloud.js"></script>
+<script src="zalun-words.js"></script>
+</body>
+</html>
