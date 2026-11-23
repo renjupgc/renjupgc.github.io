@@ -5,8 +5,8 @@
  * 管理员勾选的入云词表存在云数据库 zayu_docs 里：
  *     kind = 'zalun_word' , doc_id = 'cloud'
  *     data = { words: [{w, c, k}], updated, editor }
- * 访客页面只读这一行，然后本地排布成 SVG；云端读不到时保留页面里
- * 已经写好的静态词云（兜底，不闪空）。
+ * 访客页面只读这一行，然后本地排布成 SVG；云端读不到（还没保存过、
+ * 没联网）时退回本地词表里 on=1 的那批默认词，页面不空。
  *
  *   window.ZBX_WORDCLOUD.render(el, words, opt)   把词表画进容器
  *   window.ZBX_WORDCLOUD.loadData()               读全量词表（后台用）
@@ -95,14 +95,8 @@
         return 15 + (top || 64) * Math.pow(t, 0.58);
     }
 
-    function render(el, words, opt) {
-        if (!el || !words || !words.length) { return null; }
-        opt = opt || {};
-        var n = words.length;
-        var dense = n >= 34;              /* 词少的时候把画布压扁，免得四周全是空白 */
-        var narrow = el.clientWidth < 560;
-        var W = opt.width || (narrow ? 520 : 1000);
-        var H = opt.height || (narrow ? (dense ? 720 : 520) : (dense ? 560 : 400));
+    /* 把一批词排进 W×H 的画布：从中心螺旋外扩，栅格碰撞检测，返回排下的词 */
+    function layout(W, H, list, cmin, cmax, maxSize, narrow) {
         var GRID = 2;
         var gw = Math.ceil(W / GRID), gh = Math.ceil(H / GRID);
         var occ = new Uint8Array(gw * gh);
@@ -132,12 +126,8 @@
             }
         }
 
-        var list = words.slice().sort(function (a, b) { return b.c - a.c; });
-        var counts = list.map(function (d) { return d.c; });
-        var cmin = Math.min.apply(null, counts), cmax = Math.max.apply(null, counts);
         var cx = W / 2, cy = H / 2;
         var out = [];
-        var maxSize = narrow ? (dense ? 46 : 40) : (dense ? 64 : 78);
 
         for (var i = 0; i < list.length; i++) {
             var d = list[i];
@@ -167,9 +157,44 @@
                 }
             }
         }
+        return out;
+    }
 
+    function render(el, words, opt) {
+        if (!el || !words || !words.length) { return null; }
+        opt = opt || {};
+        var n = words.length;
+        var dense = n >= 34;              /* 词少的时候把画布压扁，免得四周全是空白 */
+        var narrow = el.clientWidth < 560;
+        var W = opt.width || (narrow ? 520 : 1000);
+
+        var list = words.slice().sort(function (a, b) { return b.c - a.c; });
+        var counts = list.map(function (d) { return d.c; });
+        var cmin = Math.min.apply(null, counts), cmax = Math.max.apply(null, counts);
+
+        /* 词多的时候一张画布塞不下，逐档加高、微缩字号，取第一个全排下的方案；
+           都不行就退回排得最多的那一版，宁可少几个字也不让字叠在一起 */
+        var baseH = narrow ? (dense ? 720 : 520) : (dense ? 560 : 400);
+        var baseMax = narrow ? (dense ? 46 : 40) : (dense ? 64 : 78);
+        var plans = opt.height ? [[opt.height, baseMax]] : [
+            [baseH, baseMax],
+            [Math.round(baseH * 1.16), Math.round(baseMax * 0.92)],
+            [Math.round(baseH * 1.34), Math.round(baseMax * 0.84)],
+            [Math.round(baseH * 1.5), Math.round(baseMax * 0.76)],
+            [Math.round(baseH * 1.66), Math.round(baseMax * 0.68)]
+        ];
+
+        var best = null, bestH = baseH;
+        for (var p = 0; p < plans.length; p++) {
+            var H = plans[p][0], ms = plans[p][1];
+            var laid = layout(W, H, list, cmin, cmax, ms, narrow);
+            if (!best || laid.length > best.length) { best = laid; bestH = H; }
+            if (laid.length === n) { break; }
+        }
+
+        var out = best, H2 = bestH;
         var inkI = 0, warmI = 0, greyI = 0;
-        var svg = ['<svg class="wc-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" ' +
+        var svg = ['<svg class="wc-svg" viewBox="0 0 ' + W + ' ' + H2 + '" role="img" ' +
             'aria-label="杂论栏目文章高频意象词云" xmlns="http://www.w3.org/2000/svg">'];
         out.forEach(function (o) {
             var pal, color;
@@ -188,6 +213,7 @@
         });
         svg.push('</svg>');
         el.innerHTML = svg.join('');
+        el.__wcw = el.clientWidth;
         return out.length;
     }
 
@@ -204,21 +230,40 @@
         if (!el) { return; }
         var last = null;
         var timer = null;
+        var done = false;
 
-        function paint(data) {
-            if (!data || !Array.isArray(data.words) || data.words.length < 4) { return; }
-            last = data;
-            try { render(el, data.words, {}); } catch (e) { /* 保留静态兜底 */ }
+        function paint(words) {
+            if (!words || words.length < 4) { return; }
+            last = words;
+            done = true;
+            el.__wcw = el.clientWidth;
+            try { render(el, words, {}); } catch (e) { /* 排不下就保持原样 */ }
         }
 
-        loadSelection().then(paint, function () { /* 云端不可用：保留静态词云 */ });
+        /* 云端没有配置时的兜底：用词表里默认入选的那批词 */
+        function paintLocal() {
+            loadData().then(function (d) {
+                var w = ((d && d.words) || []).filter(function (x) { return x.on; });
+                if (w.length >= 4) { paint(w); }
+            }, function () { /* 连词表也读不到，就留空 */ });
+        }
+
+        loadSelection().then(function (data) {
+            if (data && Array.isArray(data.words) && data.words.length >= 4) {
+                paint(data.words);
+            } else if (!done) {
+                paintLocal();
+            }
+        }, function () {
+            if (!done) { paintLocal(); }
+        });
 
         window.addEventListener('resize', function () {
             if (!last) { return; }
             clearTimeout(timer);
             timer = setTimeout(function () {
                 var w = el.clientWidth;
-                if (Math.abs(w - (el.__wcw || 0)) > 80) { el.__wcw = w; paint(last); }
+                if (Math.abs(w - (el.__wcw || 0)) > 80) { paint(last); }
             }, 240);
         });
         el.__wcw = el.clientWidth;

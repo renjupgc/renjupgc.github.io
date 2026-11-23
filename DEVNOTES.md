@@ -10,10 +10,11 @@
 
 ```
 index.html            首页：棋手搜索、公告、最近更新
-zalun.html  zashi.html  zayu.html  zaji.html     四个栏目页
+zalun.html  zashi.html  zaxiang.html  zayu.html  zaji.html   五个栏目页（杂论 / 杂史 / 杂想 / 杂豫 / 杂技）
+yuce.html             胜率与落子预测（挂在杂技栏目下，独立一级页面）
 404.html              找不到页面时的兜底
 
-posts/                文章页（24 篇），自成一体，只有正文在 HTML 里
+posts/                文章页（38 篇），自成一体，只有正文在 HTML 里
 zayu/                 杂豫：赛事、成绩与棋手
   t{id}.html          每场赛事一页：赛事信息 + 成绩表；名称含「高校」「大学生」的
                       页头再标「选手平均等级分 + 等级」两个徽标（只给平均分与对应等级，
@@ -32,13 +33,21 @@ zaji/                 杂技：工具页
   vcf.html            VCF 做题
   duoguan.html        绝对冠感：十人单循环的夺冠概率与现场出题的小测验
                       暗门，只敲地址（不进导航、不进 sitemap，页头 noindex）
+  katago.html         KataGomo 分析：拿 renju/ 里的模型与 onnxruntime 做局面分析
+                      同上，暗门，只敲地址
+  shida.html          开局综合判断
   english.html        连珠英语：四级词汇 + 连珠术语、五子棋阅读题，进度可备份
-bisai/index.html      单届选拔赛成绩表，浏览器里用 sql.js 读 bisai.db
+bisai/index.html      单届选拔赛成绩表（现为「暂不公开」占位），浏览器里用 sql.js 读 bisai.db
+bisai/data/           预测模型的历史版本（model_*.json）与训练用的中间结果，页面不读
 api/duiju/            只读 JSON 接口（Actions 定时生成并提交，Pages 直接发）
   index.json          赛事与轮次索引
   shanhai/r1.json     山海杯第 1 轮：逐台对局与预测概率
 
 admin/index.html      访问统计面板（暗门，需密码）
+admin/duiju.html      赛果录入：逐台点黑胜 / 和 / 白胜，提交即触发 Actions（暗门）
+admin/ops.html        运维控制台（暗门）
+admin/zayu.html       杂豫内容管理（暗门）
+admin/zalun.html      杂论词云：给 data/zalun-words.json 里的词条开开关，决定哪些进词云（暗门）
 assets/
   style.css           全站样式（唯一一份）
   layout.js           页头/页脚/音乐盒/无刷新跳转，顺带注入访问统计
@@ -58,6 +67,7 @@ assets/
   predict.js          预测模型参数与交手记录（脚本生成）
   words-cet4.js  words-renju.js   连珠英语词库（脚本生成）
   reading-articles.js 五子棋英语阅读文章与题目（脚本生成）
+  zalun-cloud.js      杂论词云：读云端入选词表（后台保存的那份），本地排布成 SVG
   english-app.js      连珠英语：账号、记忆排期、学习/复习/拼写/阅读/词表、进度备份
   jinzhao-app.mjs     棋形判断与禁手找茬：出题、判点、找全判定、本题计时、答对动效（canvas 粒子）
   jinzhao-gen.mjs     禁手找茬出题器（骨架 + 干扰子，密集档摆两三处禁手，复用 vcf-gen 的规则）
@@ -81,10 +91,16 @@ data/
   english/            连珠英语素材：cet4.txt（四级大纲）＋ renju_terms.json（术语）
                       ＋ reading.json（18 篇五子棋英语阅读、105 道题）
   rif_players.json    renju.net 抓下来的 RIF 档案（编号、段位、等级分、开局偏好、赛事与逐局记录）
+  zalun-words.json    杂论正文分词结果（1200 余条：词、次数、覆盖篇数、词性、分类、默认是否入云）
 
 tools/                构建脚本（见下）
+renju/                第三方 Otter Renju 的静态构建（原样放在这里，页面只取其中的
+                      ort/ 运行时与 katagomo_renju15.onnx 模型给 zaji/katago.html 用）
+labs/                 未上线的试验页，不进导航也不进 sitemap
+  allie.html          Renju Allie：浏览器内跑 allie_renju.onnx 的局面分析（早期实验）
 docs/ROADMAP.md       改进建议与创意清单
 docs/SUPABASE_SETUP.md  账号后端接入指南（建项目 / 跑 SQL / 填配置 / 报错对照）
+docs/final_state_stats.txt  末轮状态分档的统计底稿（一次性分析产物）
 supabase/schema.sql   账号与进度的建表脚本，在 Supabase SQL Editor 里执行一次
 ```
 
@@ -116,6 +132,24 @@ python tools/build_img_attrs.py  # 图片尺寸、懒加载
 
 ```bash
 python tools/build_english_words.py   # data/english/ -> assets/words-cet4.js、words-renju.js、reading-articles.js
+```
+
+杂论词云也另走一条（栏目页加文章之后才需要重跑；它读的是 `zalun.html` 的文章清单，
+所以新增一篇不用改脚本，只要跑一次）：
+
+```bash
+python tools/build_zalun_words.py      # 13 篇文章 -> data/zalun-words.json（需要 jieba）
+```
+
+后台 `/admin/zalun.html` 拿这份词表开开关，保存进云数据库；访客页由 `assets/zalun-cloud.js`
+读云端配置现排 SVG，读不到就用词表里 `on=1` 的那批默认词兜底。
+
+下面两个是历次比赛一次性用的生成脚本，输入写死在脚本顶部（本机路径、WHR 数据包），
+换机器要改常量：
+
+```bash
+python tools/generate_standings_and_r7.py   # 山海杯名次表 + 第 7 轮页面
+python tools/build_exact_shanhai.py         # 山海杯逐台页（骨架取 tools/predict-page.template.html）
 ```
 
 棋手的 RIF 档案（国际连珠联盟那一套编号、等级分与开局偏好）从 renju.net 抓；页面上只登「人」这一层的数字，赛事清单与逐局记录仍以本站成绩表为准：
@@ -165,6 +199,21 @@ python tools/build_players.py                    # 重跑棋手页，档案挂�
 
 术语表与阅读文章中涉及规则的英文表述，参照 renju.net 上的
 [RIF 国际规则](https://www.renju.net/rifrules/)与 [What is Renju?](https://www.renju.net/rules/)。
+
+## 杂论词云
+
+`zalun.html` 页面顶部那张词云不是写死在 HTML 里的：词条在 `data/zalun-words.json`，
+入选名单在云数据库，排布在浏览器里算。
+
+1. `tools/build_zalun_words.py` 读 `zalun.html` 列出的 13 篇文章，jieba 分词后按词性分类，
+   写进 `data/zalun-words.json`（每条给词、次数、覆盖篇数、词性、分类、默认是否入云）；
+2. `/admin/zalun.html` 把词表摊成表格，逐条开关，保存时写 `zayu_docs`
+   （`kind=zalun_word`、`doc_id=cloud`，`data.words=[{w,c,k}]`）；
+3. `assets/zalun-cloud.js` 在访客页读这一行，按次数映射字号，用螺旋排布 + 栅格碰撞
+   在本地画成内联 SVG（不引第三方词云库）。读不到云端配置时退回词表里 `on=1` 的默认词。
+
+字号只看次数：最多的一词约 79px，最少 15px；词少（< 34 个）时画布会自动压扁，
+免得四周留一大片空白。悬停可看该词的具体次数。
 
 ## 对局库与预测接口（duiju.db）
 
