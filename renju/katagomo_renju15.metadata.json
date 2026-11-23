@@ -1,0 +1,103 @@
+{
+  "checkpoint": "C:\\Users\\yaolz\\Downloads\\KataGomo-Gom2024\\KataGomo-Gom2024\\torchmodels_toexport\\renju-s9984-d29206.exported\\model.ckpt",
+  "pos_len": 15,
+  "opset": 17,
+  "use_swa": false,
+  "input_spatial_shape": [
+    "batch",
+    22,
+    15,
+    15
+  ],
+  "input_global_shape": [
+    "batch",
+    40
+  ],
+  "output_names": [
+    "main_head0",
+    "main_head1",
+    "main_head2",
+    "main_head3",
+    "main_head4",
+    "main_head5",
+    "main_head6",
+    "main_head7",
+    "main_head8",
+    "aux_head0",
+    "aux_head1",
+    "aux_head2",
+    "aux_head3",
+    "aux_head4",
+    "aux_head5",
+    "aux_head6",
+    "aux_head7",
+    "aux_head8"
+  ],
+  "model_config": {
+    "version": 102,
+    "norm_kind": "fixscaleonenorm",
+    "bnorm_epsilon": 0.0001,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": false,
+    "trunk_num_channels": 128,
+    "mid_num_channels": 128,
+    "gpool_num_channels": 32,
+    "use_attention_pool": false,
+    "num_attention_pool_heads": 4,
+    "block_kind": [
+      [
+        "rconv1",
+        "regular"
+      ],
+      [
+        "rconv2",
+        "regular"
+      ],
+      [
+        "rconv3",
+        "regular"
+      ],
+      [
+        "rconv4",
+        "regular"
+      ],
+      [
+        "rconv5",
+        "regulargpool"
+      ],
+      [
+        "rconv6",
+        "regular"
+      ],
+      [
+        "rconv7",
+        "regular"
+      ],
+      [
+        "rconv8",
+        "regulargpool"
+      ],
+      [
+        "rconv9",
+        "regular"
+      ],
+      [
+        "rconv10",
+        "regular"
+      ]
+    ],
+    "p1_num_channels": 32,
+    "g1_num_channels": 32,
+    "v1_num_channels": 32,
+    "sbv2_num_channels": 64,
+    "num_scorebeliefs": 6,
+    "v2_size": 80,
+    "bnorm_use_gamma": true,
+    "use_repvgg_linear": true,
+    "has_intermediate_head": true,
+    "intermediate_head_blocks": 10,
+    "trunk_normless": true
+  },
+  "torch_version": "2.9.1+cpu",
+  "onnx_inputs_note": "input_spatial[0] is the 0/1 board mask; board size is fixed."
+}

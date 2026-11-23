@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KataGomo 分析</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { margin: 0; background: #f6f2e9; }
+  .kg-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+  .kg-wrap .dapu { width: min(100%, 720px); }
+  /* 页面自带 KataGomo 提示，隐藏棋盘组件里的 Rapfi 分析开关与设置行 */
+  .board-switches .board-switch:last-child { display: none !important; }
+  .board-panel { display: none !important; }
+  .kg-status {
+    position: fixed; right: 12px; bottom: 12px; z-index: 9;
+    font: 12px/1.5 system-ui, sans-serif; color: #6f675b;
+    background: rgba(250,246,236,.92); border: 1px solid #d8cfba;
+    border-radius: 6px; padding: 3px 8px; pointer-events: none;
+    transition: opacity .4s ease;
+  }
+  .kg-status.is-hidden { opacity: 0; }
+  .kg-status.is-error { color: #a8453f; border-color: #d9a9a4; }
+</style>
+</head>
+<body>
+
+<div class="kg-wrap">
+  <div class="dapu">
+    <div class="board" data-board data-editable data-hash data-analysis="0"></div>
+  </div>
+</div>
+<div class="kg-status" id="kg-status">载入 KataGomo…</div>
+
+<script src="../assets/board.js"></script>
+<script src="../renju/ort/ort.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var N = 15;
+  var TOP_K = 5;
+  var MODEL_URL = new URL('../renju/katagomo_renju15.onnx', location.href).href;
+  var ORT_BASE = new URL('../renju/ort/', location.href).href;
+  var statusEl = document.getElementById('kg-status');
+  var session = null;
+  var busy = false;
+  var pending = false;
+  var board = null;
+
+  function status(text, isError, fade) {
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+    statusEl.classList.toggle('is-error', !!isError);
+    statusEl.classList.toggle('is-hidden', !!fade);
+  }
+
+  function withBoard(fn, tries) {
+    var host = document.querySelector('.board[data-board]');
+    board = host && window.GomokuBoard ? window.GomokuBoard.get(host) : null;
+    if (board) { fn(board); return; }
+    if ((tries || 0) < 30) {
+      window.setTimeout(function () { withBoard(fn, (tries || 0) + 1); }, 50);
+    } else {
+      status('棋盘加载失败', true, false);
+    }
+  }
+
+  /* ------------------------------------------------------------------
+   * KataGomo（模型版本 102 → 输入版本 101）的特征：
+   *   spatial plane 0 = 盘内，1 = 当前方子，2 = 对方子，5 = 成五点
+   *   global 3/4/5 = 规则（标准 / 连珠 / 连珠执黑为 -1）、7 = 可成五
+   * 其余平面在本版本里训练时基本为 0，这里按 C++ fillRowV101 对齐。
+   * ------------------------------------------------------------------ */
+  function buildInputs(moves, cursor) {
+    var size = N * N;
+    var spatial = new Float32Array(22 * size);
+    var global = new Float32Array(40);
+    var side = cursor % 2 === 0 ? 'b' : 'w';
+    var occ = new Int8Array(size);
+    var p, i, j, k;
+
+    /* plane 0：盘内全 1（NCHW 布局） */
+    for (p = 0; p < size; p++) spatial[p] = 1;
+
+    for (k = 0; k < cursor && k < moves.length; k++) {
+      var m = moves[k];
+      if (!m || m.i < 0 || m.i >= N || m.j < 0 || m.j >= N) continue;
+      p = (N - 1 - m.j) * N + m.i;   /* 棋盘组件 j 自上而下，模型 y 自下而上 */
+      occ[p] = m.color === 'b' ? 1 : 2;
+    }
+
+    var selfPlane = side === 'b' ? 1 : 2;
+    var oppPlane = side === 'b' ? 2 : 1;
+    for (p = 0; p < size; p++) {
+      if (occ[p] === selfPlane) spatial[size + p] = 1;
+      else if (occ[p] === oppPlane) spatial[2 * size + p] = 1;
+    }
+
+    global[3] = 0;                 /* 非标准规则 */
+    global[4] = 1;                 /* 连珠 */
+    global[5] = side === 'b' ? -1 : 1;
+
+    var win = findFive(occ, side);
+    if (win >= 0) {
+      spatial[5 * size + win] = 1;
+      global[7] = 1;
+    }
+
+    return {
+      input_spatial: new ort.Tensor('float32', spatial, [1, 22, N, N]),
+      input_global: new ort.Tensor('float32', global, [1, 40])
+    };
+  }
+
+  function fiveAt(occ, p, color) {
+    var x = p % N, y = Math.floor(p / N);
+    var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+    for (var d = 0; d < dirs.length; d++) {
+      var dx = dirs[d][0], dy = dirs[d][1];
+      var count = 1;
+      for (var s = -1; s <= 1; s += 2) {
+        var cx = x + dx * s, cy = y + dy * s;
+        while (cx >= 0 && cx < N && cy >= 0 && cy < N && occ[cy * N + cx] === color) {
+          count++;
+          cx += dx * s; cy += dy * s;
+        }
+      }
+      if (count >= 5) return true;
+    }
+    return false;
+  }
+
+  function findFive(occ, side) {
+    var color = side === 'b' ? 1 : 2;
+    for (var p = 0; p < N * N; p++) {
+      if (occ[p] !== 0) continue;
+      occ[p] = color;
+      var ok = fiveAt(occ, p, color);
+      occ[p] = 0;
+      if (ok) return p;
+    }
+    return -1;
+  }
+
+  function softmax(values) {
+    var max = -Infinity, i;
+    for (i = 0; i < values.length; i++) if (values[i] > max) max = values[i];
+    var sum = 0, out = new Float64Array(values.length);
+    for (i = 0; i < values.length; i++) {
+      out[i] = Math.exp(values[i] - max);
+      sum += out[i];
+    }
+    for (i = 0; i < out.length; i++) out[i] /= sum;
+    return out;
+  }
+
+  function analyse() {
+    if (!session || !board) return;
+    if (busy) { pending = true; return; }
+    busy = true;
+    var moves = board.getMoves().slice(0, board.getCursor());
+    var inputs = buildInputs(moves, moves.length);
+    session.run(inputs).then(function (out) {
+      var logits = out['main_head0'].data;
+      var probs = softmax(logits.subarray ? logits.subarray(0, N * N + 1) : Array.prototype.slice.call(logits, 0, N * N + 1));
+      var occ = new Int8Array(N * N);
+      for (var k = 0; k < moves.length; k++) {
+        var m = moves[k];
+        if (m && m.i >= 0 && m.i < N && m.j >= 0 && m.j < N) occ[(N - 1 - m.j) * N + m.i] = 1;
+      }
+      var candidates = [];
+      for (var p = 0; p < N * N; p++) {
+        if (occ[p]) continue;
+        candidates.push({ p: p, prob: probs[p] });
+      }
+      candidates.sort(function (a, b) { return b.prob - a.prob; });
+      var top = candidates.slice(0, TOP_K).map(function (c) {
+        return { i: c.p % N, j: N - 1 - Math.floor(c.p / N), prob: c.prob };
+      });
+
+      board.setMarks(top.map(function (t, idx) {
+        return { i: t.i, j: t.j, kind: idx === 0 ? 'good' : 'idea' };
+      }));
+      /* 只标推荐序位：该早期权重输出的 policy 很平，绝对百分比没有意义 */
+      board.setNotes(top.map(function (t, idx) {
+        return {
+          i: t.i, j: t.j,
+          text: String(idx + 1),
+          tone: idx === 0 ? 'good' : 'mute',
+          dx: 1.25, dy: -1.05
+        };
+      }));
+      status('', false, true);
+    }).catch(function (err) {
+      status('推理失败：' + (err && err.message || err), true, false);
+      console.error(err);
+    }).then(function () {
+      busy = false;
+      if (pending) { pending = false; analyse(); }
+    });
+  }
+
+  function init() {
+    if (!window.ort) {
+      status('onnxruntime 加载失败', true, false);
+      return;
+    }
+    /* 显式指定非 JSEP 的 wasm/mjs，避免部分静态服务器把 .mjs 当 text/plain */
+    ort.env.wasm.wasmPaths = {
+      mjs: new URL('ort-wasm-simd-threaded.mjs', ORT_BASE).href,
+      wasm: new URL('ort-wasm-simd-threaded.wasm', ORT_BASE).href
+    };
+    ort.env.wasm.numThreads = 1;
+    fetch(MODEL_URL).then(function (r) {
+      if (!r.ok) throw new Error('模型下载失败 ' + r.status);
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      status('初始化模型…', false, false);
+      return ort.InferenceSession.create(buf, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'basic'
+      });
+    }).then(function (sess) {
+      session = sess;
+      withBoard(function (b) {
+        b.onChange(function () { analyse(); });
+        status('就绪', false, true);
+        analyse();
+      });
+    }).catch(function (err) {
+      status('模型加载失败：' + (err && err.message || err), true, false);
+      console.error(err);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
