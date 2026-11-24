@@ -1,0 +1,60 @@
+name: Bump Version
+
+# 每次推 main 抬一次小版本（y）：0.28.1 -> 0.28.2 -> …
+# 提交说明里写 [x] 表示这次是大改动：抬 x、y 归零（0.29.0）。
+# 最前面的 0 不动。VERSION 是唯一来源，页脚读它显示版本号。
+#
+# 用 GITHUB_TOKEN 推的提交不会再次触发工作流（GitHub 的默认行为），
+# 所以自己不会套自己；提交说明再带一个 [skip version] 双保险。
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump-version
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    if: "!contains(github.event.head_commit.message, '[skip version]')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Bump VERSION
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          python - <<'PY'
+          import os, re
+
+          raw = open('VERSION', encoding='utf-8').read().strip()
+          m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', raw)
+          if not m:
+              raise SystemExit('VERSION 内容不是 0.x.y：%r' % raw)
+          major, x, y = (int(g) for g in m.groups())
+
+          msg = os.environ.get('COMMIT_MSG', '') or ''
+          if '[x]' in msg or '版本:x' in msg:
+              x, y = x + 1, 0          # 大改动：抬 x，y 归零
+          else:
+              y += 1                   # 小改动：抬 y
+
+          new = '%d.%d.%d' % (major, x, y)
+          with open('VERSION', 'w', encoding='utf-8', newline='') as f:
+              f.write(new + '\n')
+          print('%s -> %s' % (raw, new))
+          PY
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore(version): $(cat VERSION) [skip version]"
+          git push

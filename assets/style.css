@@ -318,6 +318,15 @@ header > nav {
     color: var(--faint);
 }
 
+/* 站点版本号：跟在署名后面，Actions 每次推送自动更新 VERSION */
+.site-footer .sf-ver {
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+}
+
 .site-footer .sf-links {
     display: flex;
     align-items: center;

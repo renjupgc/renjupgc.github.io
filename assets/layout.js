@@ -120,8 +120,32 @@
         }).join('');
 
         el.innerHTML =
-            '<p class="sf-copy">' + FOOTER.copy + '</p>' +
+            '<p class="sf-copy">' + FOOTER.copy +
+            '<span class="sf-ver" id="site-ver" hidden></span></p>' +
             '<p class="sf-links"><span class="sf-k">友情链接</span>' + links + '</p>';
+        showVersion();
+    }
+
+    /*
+     * 站点版本：根目录 VERSION 是唯一来源，Actions（bump-version.yml）每次推送抬一次，
+     * 页脚读它显示。读不到（本地 file:// 打开、或文件缺失）就整段隐藏，不留空档。
+     */
+    function showVersion() {
+        var el = document.getElementById('site-ver');
+        if (!el || !window.fetch) {
+            return;
+        }
+        /* 带时间戳绕过 Pages 的 CDN 缓存，推完刷新就能看到新号 */
+        fetch(base + 'VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) {
+            return r.ok ? r.text() : '';
+        }).then(function (txt) {
+            var v = String(txt || '').split('\n')[0].trim();
+            if (!/^\d+\.\d+\.\d+$/.test(v)) {
+                return;
+            }
+            el.textContent = ' · v' + v;
+            el.hidden = false;
+        })['catch'](function () { });
     }
 
     /*
