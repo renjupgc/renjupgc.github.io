@@ -59,7 +59,7 @@
         { text: '首页', href: 'index.html' },
         { text: '杂论', href: 'zalun.html' },
         { text: '杂史', href: 'zashi.html' },
-        { text: '杂想', href: 'zaxiang.html', adminOnly: true },
+        { text: '杂想', href: 'zaxiang.html' },
         { text: '杂豫', href: 'zayu.html' },
         { text: '杂技', href: 'zaji.html' },
         { text: '关于', href: 'index.html#about' }
@@ -73,7 +73,6 @@
             var isActive = item.text === active;
             var href = item.href === '#' ? '#' : base + item.href;
             return '<a href="' + href + '"' +
-                (item.adminOnly ? ' data-admin-only="1"' : '') +
                 (isActive ? ' class="active"' : '') +
                 '>' + item.text + '</a>';
         }).join('');
@@ -99,19 +98,6 @@
         }
         watchSticky();
     }
-
-    /* 杂想入口只给管理员：账号模块可能晚于本脚本，事件与轮询都兜住 */
-    function syncAdminOnly() {
-        var acc = window.ZBX_ACCOUNT;
-        var admin = !!(acc && typeof acc.isAdmin === 'function' && acc.isAdmin());
-        document.body.classList.toggle('zbx-admin', admin);
-    }
-    document.addEventListener('zbx:account', syncAdminOnly);
-    (function pollAdmin() {
-        syncAdminOnly();
-        if (window.__zbxAdminTries === undefined) { window.__zbxAdminTries = 0; }
-        if (window.__zbxAdminTries++ < 40) { setTimeout(pollAdmin, 150); }
-    })();
 
     /* 页脚只挂在最外层容器末尾；无刷新换页不动 <main> 以外的部分，所以只渲染一次 */
     function renderFooter() {
@@ -1082,8 +1068,6 @@
             var url;
             try { url = new URL(a.href, location.href); } catch (err) { return; }
             if (url.origin !== location.origin || !/\.html?$/.test(url.pathname)) { return; }
-            if (/zaxiang\.html$/.test(url.pathname) &&
-                !(document.body.classList.contains('zbx-admin'))) { return; }
             var now = Date.now();
             if (now - last < 250 || seen[url.href]) { return; }
             last = now;

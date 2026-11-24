@@ -79,13 +79,11 @@
         settled = true;
         gate.hidden = true;
         content.hidden = false;
-        document.body.classList.add('zbx-admin');
     }
     function block(text) {
         settled = true;
         content.hidden = true;
         gate.hidden = false;
-        document.body.classList.remove('zbx-admin');
         if (note && text) { note.textContent = text; }
     }
     function loadScript(src, done) {
