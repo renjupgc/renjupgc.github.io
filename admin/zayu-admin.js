@@ -414,6 +414,18 @@
   function afterRender() {
     if (S.kind === 'qipu' && $('chess-host')) { mountChess(); }
     if (S.kind === 'person_page' && $('rt-content')) { mountRichText(); }
+    if (S.kind === 'qipu') {
+      /* 胜负下拉框写的是棋手姓名：改了姓名，选项文字跟着换 */
+      var pane = $('pane');
+      var rsel = pane.querySelector('select[data-bind="_result"]');
+      var p1i = pane.querySelector('input[data-bind="p1"]');
+      var p2i = pane.querySelector('input[data-bind="p2"]');
+      var refresh = function () {
+        refreshResultLabels(rsel, p1i ? p1i.value : '', p2i ? p2i.value : '');
+      };
+      if (p1i) { p1i.addEventListener('input', refresh); }
+      if (p2i) { p2i.addEventListener('input', refresh); }
+    }
   }
 
   /* ---------- 通用控件模板 ---------- */
@@ -610,9 +622,7 @@
       field('白方（后手）姓名', 'p2', w.p2 || '', 'text', 'placeholder="例如：张晋超"') +
       '</div>';
     var ex = selectField('规则', 'rules', w.rules || '', ruleList(w.rules || ''));
-    var result = selectField('胜负结果', '_result', resultKey(w), [
-      ['p1', '黑方（先手）胜'], ['p2', '白方（后手）胜'], ['draw', '和棋'], ['', '未定']
-    ]);
+    var result = selectField('胜负结果（按胜者录）', '_result', resultKey(w), resultChoices(w.p1, w.p2));
     var swap = '<div id="swap-box">' + swapField(w.rules || '', w.swap || '') + '</div>';
     var m5a = field('5A（第五手被拿掉的点）', 'm5a', w.m5a || '', 'text',
       'placeholder="坐标 H8 或 第5手，多个用空格分开"');
@@ -620,7 +630,7 @@
       '<p class="hint" style="color:var(--muted);font-size:12px">交换情况按规则填：' +
       '五手两打填 1 位，塔拉山口-10 填前五手共 5 位；+ 表示交换，- 表示不交换。' +
       '5A 填被拿掉的那一点：棋盘坐标（H8）或第几手（5、第五手）都行，多个用空格分开。' +
-      '选好胜负会自动填写结果文字和胜者。</p>';
+      '胜负按胜者录：下拉框里是谁的名字就是谁赢，不再分黑白——对局临时换先也不怕记错人。</p>';
     var board = '<h3>在棋盘上录入落子<span class="badge">点交叉点落子，黑先白后自动交替</span></h3>' +
       '<div class="steps"><span><b>1</b> 填好双方姓名</span><span><b>2</b> 点棋盘落子</span>' +
       '<span><b>3</b> 选规则与胜负</span><span><b>4</b> 点「保存修改」</span></div>' +
@@ -646,6 +656,25 @@
     if (w.result === '0-1' || w.winner === w.p2) { return 'p2'; }
     if (w.result === '1/2-1/2' || w.result === 'draw') { return 'draw'; }
     return '';
+  }
+  /*
+   * 赛果按「谁赢了」录：选项文字是棋手姓名，不是黑方/白方。
+   * 对局最后临时换先时黑白会反，记姓名就不会把胜方记到对手头上。
+   * 值仍用 p1 / p2（先手 / 后手这一台的定义），落库时按这一台的先后手换算。
+   */
+  function resultChoices(p1, p2) {
+    var a = String(p1 || '').trim() || '先手';
+    var b = String(p2 || '').trim() || '后手';
+    return [['p1', a + ' 胜'], ['p2', b + ' 胜'], ['draw', '和棋'], ['', '未定']];
+  }
+  /* 姓名改了，下拉框上的名字跟着改，别停在旧名字上 */
+  function refreshResultLabels(sel, p1, p2) {
+    if (!sel) { return; }
+    var map = {};
+    resultChoices(p1, p2).forEach(function (o) { map[o[0]] = o[1]; });
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (Object.prototype.hasOwnProperty.call(map, o.value)) { o.textContent = map[o.value]; }
+    });
   }
 
   /* ---------- 编辑器：人物介绍卡片 ---------- */
@@ -915,10 +944,10 @@
       return '<option value="' + esc(o[0]) + '"' + (o[0] === v ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
     }).join('');
   }
-  function resultOptions(v) {
-    return [['p1', '黑方（先手）胜'], ['p2', '白方（后手）胜'], ['draw', '和棋'], ['', '未定']]
+  function resultOptions(v, p1, p2) {
+    return resultChoices(p1, p2)
       .map(function (o) {
-        return '<option value="' + o[0] + '"' + (o[0] === v ? ' selected' : '') + '>' + o[1] + '</option>';
+        return '<option value="' + o[0] + '"' + (o[0] === v ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
       }).join('');
   }
 
@@ -1002,7 +1031,7 @@
       '<div class="swap-line"><button type="button" class="btn sm" data-act="rec-swap">⇅ 交换先后手</button>' +
       '<span class="vs">黑先白后</span></div>' +
       '<div class="grid2">' +
-      '<div class="field"><label>胜负</label><select id="rec-result">' + resultOptions(rk) + '</select></div>' +
+      '<div class="field"><label>胜负（按胜者录）</label><select id="rec-result">' + resultOptions(rk, black, white) + '</select></div>' +
       '<div class="field"><label>规则</label><select id="rec-rules">' + ruleOptions(doc ? (doc.rules || '') : '') + '</select></div>' +
       '</div>' +
       '<div id="rec-swap-box">' +
@@ -1015,7 +1044,7 @@
       }).join('') + '</select></div>' +
       '<div class="tipbox">点棋盘落子，黑先白后自动交替，最后一手标红。双击某颗子回退到那一手，' +
       '也可以用上面的「悔一步」。点「保存并关联」后，棋谱会按编号存好，并挂到这一台；' +
-      '这里的胜负和先后手会一起写回成绩表。</div>' +
+      '胜负按人记（选了谁的名字就是谁赢），先后手临时换了点「⇅ 交换先后手」，胜方不会跟着换人。</div>' +
       '<div class="rec-foot">' +
       '<button type="button" class="btn primary" data-act="rec-save">保存并关联</button>' +
       '<button type="button" class="btn" data-act="rec-close">取消</button>' +
@@ -1046,6 +1075,15 @@
     REC.p1 = black; REC.p2 = white; REC.rk = rk; REC.rules = doc ? (doc.rules || '') : '';
     REC.m5a = doc ? (doc.m5a || '') : '';
     REC.swap = doc ? (doc.swap || '') : '';
+    /* 改了姓名，胜负下拉框里的名字立刻跟上 */
+    var rsel = $('rec-result');
+    var syncResultLabels = function () {
+      refreshResultLabels(rsel, (($('rec-p1') || {}).value || ''), (($('rec-p2') || {}).value || ''));
+    };
+    ['rec-p1', 'rec-p2'].forEach(function (id) {
+      var el = $(id);
+      if (el) { el.addEventListener('input', syncResultLabels); }
+    });
     bindRecSwap();
     var rr = $('rec-rules');
     if (rr) {
@@ -1069,10 +1107,11 @@
     if (!a || !b) { return; }
     var t = a.value; a.value = b.value; b.value = t;
     REC.p1 = a.value; REC.p2 = b.value;
-    /* 先后手换了，胜负跟着反过来 */
+    /* 先后手换了：胜方还是原来那个人，所以把选择换到同一个人的位置上，
+     * 下拉框上的名字也随之更新（p1/p2 只是「这一台的先手/后手」，不代表人）。 */
     var r = $('rec-result');
     if (r && r.value === 'p1') { r.value = 'p2'; } else if (r && r.value === 'p2') { r.value = 'p1'; }
-    if (r) { REC.rk = r.value; }
+    if (r) { REC.rk = r.value; refreshResultLabels(r, a.value, b.value); }
   }
 
   function switchRecLink(v) {
@@ -1090,7 +1129,7 @@
     if (!REC) { throw new Error('请先选择要录入的对局'); }
     var p1 = (($('rec-p1') || {}).value || '').trim();
     var p2 = (($('rec-p2') || {}).value || '').trim();
-    if (!p1 || !p2) { throw new Error('请先填好黑方和白方的姓名'); }
+    if (!p1 || !p2) { throw new Error('请先填好双方姓名'); }
     var moves = movesOfBoard(REC.board);
     if (!moves.length) { throw new Error('棋盘上还没有落子，先点几手再保存'); }
 
@@ -1200,8 +1239,8 @@
        * 否则保留原有结果，避免改落子时把已有胜负清掉。 */
       if (Object.prototype.hasOwnProperty.call(w, '_result')) {
         var k = w._result || '';
-        if (k === 'p1') { w.result = '1-0'; w.resultText = '先胜'; w.winner = w.p1 || '黑方'; }
-        else if (k === 'p2') { w.result = '0-1'; w.resultText = '后胜'; w.winner = w.p2 || '白方'; }
+        if (k === 'p1') { w.result = '1-0'; w.resultText = '先胜'; w.winner = w.p1 || '先手'; }
+        else if (k === 'p2') { w.result = '0-1'; w.resultText = '后胜'; w.winner = w.p2 || '后手'; }
         else if (k === 'draw') { w.result = '1/2-1/2'; w.resultText = '和棋'; w.winner = ''; }
         else { w.result = ''; w.resultText = ''; w.winner = ''; }
         delete w._result;
