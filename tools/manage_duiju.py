@@ -11,8 +11,8 @@
     python tools/manage_duiju.py export
     python tools/manage_duiju.py sync
     python tools/manage_duiju.py all data/shanhai/2026-r1.json
-    python tools/manage_duiju.py result --tid 2026-shanhai --round 1 --table 3 --value B
-    python tools/manage_duiju.py apply --tid 2026-shanhai --round 1 --results "1=B,2=W,5=-"
+    python tools/manage_duiju.py result --tid 2026-shanhai --round 1 --table 3 --value "#3"
+    python tools/manage_duiju.py apply --tid 2026-shanhai --round 1 --results "1=#3,2=@李四,5=-"
     python tools/manage_duiju.py show --tid 2026-shanhai
 
 命令：
@@ -20,13 +20,16 @@
     export  从库导出 API：api/duiju/index.json、api/duiju/<slug>/r<N>.json
     sync    把 data/<赛事>/ 下的所有轮次 JSON 重录一遍再导出
     all     record 之后接着 export
-    result  写入某一台的赛果（B 黑胜 / W 白胜 / D 和棋 / - 清空）
-    apply   一次写入多台赛果，如 "1=B,2=W,5=-"
+    result  写入某一台的赛果（#编号 / @姓名 按胜者；也认 B 黑胜 / W 白胜 / D 和棋；- 清空）
+    apply   一次写入多台赛果，如 "1=#3,2=@李四,5=D,7=-"
     show    打印库内赛事与轮次概况
 
 一台对局一旦有了赛果，它的概率就定死：之后再 record / sync，JSON 里的预测不再覆盖它
 （赛果为 null 的台照常更新）。赛果可以用命令行补，也可以在暗门页 admin/duiju.html
 点按钮，页面会触发 update-duiju 工作流把结果写进库。
+
+赛果按「谁赢了」记：录入时可以写 #编号 或 @姓名，落库时再按这一台的黑白换算成 B/W。
+先后手临时交换过（实际执黑与名单不符）时，按姓名录不会把胜方记到别人头上。
 
 后端不靠服务器：`sync` 由 .github/workflows/update-duiju.yml 定时（以及手动、推送时）
 在 Actions 里跑，重出 api/duiju/ 并提交；GitHub Pages 直接把这些 JSON 当接口发出去。
@@ -56,6 +59,7 @@ import argparse
 import json
 import math
 import os
+import re
 import sqlite3
 import sys
 
@@ -354,38 +358,87 @@ def _opt_float(value):
 
 # ---------------------------------------------------------------- result
 
+def _winner_text(row, res):
+    """赛果翻译成人话：谁赢了。"""
+    if res in ('B', 'WF'):
+        return '%s 胜' % row['black_name']
+    if res in ('W', 'BF'):
+        return '%s 胜' % row['white_name']
+    if res == 'D':
+        return '和棋'
+    return '未出结果'
+
+
+def _winner_side(row, raw, table):
+    """把一项赛果解析成库里的 B / W / D / BF / WF / None。
+
+    除了 B/W/D，还认「#编号」与「@姓名」——按胜者录，不按色位录。
+    先后手临时交换过时，界面上的黑白可能和实际不符，但「谁赢了」不会错，
+    所以录入时优先用编号或姓名，落库时再按这一台的黑白换算成 B/W。
+    """
+    value = (raw or '').strip()
+    if not value or value == '-':
+        return None
+    key = value.upper()
+    if key in RESULTS:
+        return key
+
+    prefix = value[0] if value[0] in '#＃@' else ''
+    who = value[1:].strip() if prefix else value
+    b_no, b_name = row['black_no'], row['black_name']
+    w_no, w_name = row['white_no'], row['white_name']
+    if not who:
+        die('第 %d 台的赛果只有前缀没有内容：%r' % (table, raw))
+    if prefix and who.isdigit():
+        no = int(who)
+        if b_no is not None and no == int(b_no):
+            return 'B'
+        if w_no is not None and no == int(w_no):
+            return 'W'
+    if who == b_name:
+        return 'B'
+    if who == w_name:
+        return 'W'
+    die('第 %d 台找不到这个胜者：%r（黑 #%s %s / 白 #%s %s；'
+        '写 #编号 或 @姓名，也可以用 B/W/D）' % (
+            table, raw, b_no, b_name, w_no, w_name))
+
+
 def set_result(conn, tid, rnd, table, value):
-    """写一台的赛果；value 为 '-' 表示清掉（回到未出结果）。"""
-    value = (value or '').strip() or '-'
-    if value != '-' and value not in RESULTS:
-        die('result 只能是 B / W / D / -（- 表示清空）')
+    """写一台的赛果；'-' 表示清掉（回到未出结果）。
+
+    value 可以是 #编号 / @姓名（按胜者，推荐），也可以是 B / W / D。
+    """
     row = conn.execute(
-        'SELECT black_name, white_name, result FROM games'
+        'SELECT black_no, black_name, white_no, white_name, result FROM games'
         ' WHERE tournament_id=? AND round=? AND table_no=?',
         (tid, rnd, table),
     ).fetchone()
     if not row:
         die('库里没有这一台：%s 第 %d 轮 第 %d 台' % (tid, rnd, table))
-    new_value = None if value == '-' else value
+    new_value = _winner_side(row, value, table)
+    pair = '第 %d 台 黑 %s — 白 %s' % (table, row['black_name'], row['white_name'])
     if row['result'] == new_value:
-        print('第 %d 台 %s — %s：%s（未变化）' % (
-            table, row['black_name'], row['white_name'], new_value or '未出结果'))
+        print('%s：%s（未变化）' % (pair, _winner_text(row, new_value)))
         return False
     conn.execute(
         'UPDATE games SET result=? WHERE tournament_id=? AND round=? AND table_no=?',
         (new_value, tid, rnd, table),
     )
     conn.commit()
-    print('第 %d 台 %s — %s：%s' % (
-        table, row['black_name'], row['white_name'], new_value or '清空'))
+    print('%s：%s' % (pair, _winner_text(row, new_value)))
     return True
 
 
 def apply_results(conn, tid, rnd, spec):
-    """批量写赛果：spec 形如 "1=B,2=W,5=D,7=-"（- 清空）。"""
-    items = [s.strip() for s in (spec or '').split(',') if s.strip()]
+    """批量写赛果：spec 形如 "1=#3,2=@李四,5=D,7=-"（- 清空）。
+
+    按胜者填最稳：#编号 或 @姓名。也照样接受 1=B,2=W 的老写法。
+    多项之间用逗号、分号或空格分隔都行。
+    """
+    items = [s for s in re.split(r'[,;，；\s]+', (spec or '').strip()) if s]
     if not items:
-        die('没有可写的赛果：--results "1=B,2=W"')
+        die('没有可写的赛果：--results "1=#3,2=@李四"')
     changed = 0
     for item in items:
         for sep in ('=', ':'):
@@ -393,12 +446,12 @@ def apply_results(conn, tid, rnd, spec):
                 table_s, value_s = item.split(sep, 1)
                 break
         else:
-            die('看不懂这一项：%r（应为 台次=B/W/D/-）' % item)
+            die('看不懂这一项：%r（应为 台次=#编号 / 台次=@姓名 / 台次=D / 台次=-）' % item)
         try:
             table = int(table_s.strip())
         except ValueError:
             die('台次不是数字：%r' % table_s)
-        if set_result(conn, tid, rnd, table, value_s.strip().upper()):
+        if set_result(conn, tid, rnd, table, value_s):
             changed += 1
     print('共 %d 项，%d 台有改动' % (len(items), changed))
 
@@ -895,13 +948,14 @@ def main(argv=None):
 
     sub.add_parser('predict', help='给还没概率的台补预测（sync/all 已自带）')
 
-    p_res = sub.add_parser('result', help='写入某一台的赛果')
+    p_res = sub.add_parser('result', help='写入某一台的赛果（按胜者：#编号 / @姓名）')
     p_res.add_argument('--tid', required=True)
     p_res.add_argument('--round', type=int, required=True)
     p_res.add_argument('--table', type=int, required=True)
-    p_res.add_argument('--value', required=True, choices=RESULTS + ('-',))
+    p_res.add_argument('--value', required=True,
+                       help='#编号 或 @姓名（按胜者，推荐）；也认 B/W/D；- 清空')
 
-    p_apply = sub.add_parser('apply', help='一次写入多台赛果，如 1=B,2=W,5=-')
+    p_apply = sub.add_parser('apply', help='一次写入多台赛果，如 1=#3,2=@李四,5=D,7=-')
     p_apply.add_argument('--tid', required=True)
     p_apply.add_argument('--round', type=int, required=True)
     p_apply.add_argument('--results', required=True)

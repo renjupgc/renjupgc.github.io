@@ -45,24 +45,25 @@
   th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; }
   th { font-size: 12px; color: var(--muted); font-weight: 500; background: var(--chip); }
   td.no { width: 46px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  td.res { width: 84px; }
-  td.ops { width: 250px; white-space: nowrap; }
+  td.res { width: 96px; }
+  td.ops { width: 320px; }
+  .ops-in { display: flex; flex-wrap: wrap; gap: 4px; }
   .player b { font-weight: 600; }
   .player small { color: var(--muted); margin-left: 4px; }
   .btn {
     font: inherit; font-size: 13px; line-height: 1.2; cursor: pointer;
     background: var(--bg); color: var(--fg);
     border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; margin-right: 4px;
+    white-space: nowrap;
   }
   .btn:hover { border-color: var(--accent); }
-  .btn.on[data-v=B] { border-color: var(--win); color: var(--win); background: transparent; font-weight: 600; }
+  .btn.on[data-v=B], .btn.on[data-v=W] { border-color: var(--win); color: var(--win); background: transparent; font-weight: 600; }
   .btn.on[data-v=D] { border-color: var(--draw); color: var(--draw); background: transparent; font-weight: 600; }
-  .btn.on[data-v=W] { border-color: var(--lose); color: var(--lose); background: transparent; font-weight: 600; }
   .btn.clear { color: var(--muted); }
   .btn.clear.on { border-color: var(--muted); color: var(--fg); font-weight: 600; }
   .chip { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 12px;
           background: var(--chip); color: var(--muted); }
-  .chip.B { color: var(--win); } .chip.D { color: var(--draw); } .chip.W { color: var(--lose); }
+  .chip.B, .chip.W { color: var(--win); } .chip.D { color: var(--draw); }
   .foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
   .submit {
     font: inherit; font-size: 14px; cursor: pointer; padding: 7px 16px;
@@ -75,6 +76,36 @@
   .msg.ok { color: var(--win); }
   .tip { font-size: 12px; color: var(--muted); margin-top: 22px; line-height: 1.8; }
   .tip code { background: var(--chip); padding: 1px 4px; border-radius: 4px; }
+  .side-tag { display: none; }
+  /* 窄屏：一张对局一张卡，姓名不再竖排，按钮换行 */
+  @media (max-width: 640px) {
+    body { padding: 18px 12px 48px; }
+    table { border: 0; background: transparent; display: block; }
+    thead { display: none; }
+    tbody, tr, td { display: block; width: auto; }
+    tr {
+      position: relative; background: var(--card);
+      border: 1px solid var(--line); border-radius: 10px;
+      padding: 10px 12px; margin-bottom: 8px;
+    }
+    td { border: 0; padding: 1px 0; }
+    td.no {
+      position: absolute; top: 10px; right: 12px; width: auto;
+      font-size: 12px; color: var(--muted);
+    }
+    td.no::before { content: '第 '; }
+    td.no::after { content: ' 台'; }
+    td.player { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+    td.player b { white-space: nowrap; }
+    td.player small { margin-left: 0; }
+    .side-tag {
+      display: inline-block; padding: 0 5px; border-radius: 4px; font-size: 11px;
+      background: var(--chip); color: var(--muted);
+    }
+    td.res { margin: 6px 0 2px; }
+    .ops-in { margin-top: 4px; }
+    .btn { padding: 5px 10px; }
+  }
 </style>
 </head>
 <body>
@@ -92,7 +123,7 @@
   </nav>
 
   <h1>赛果录入</h1>
-  <div class="sub">改完点提交，页面触发 <code>update-duiju</code> 工作流把结果写进 duiju.db 并重出接口。</div>
+  <div class="sub">按「谁赢了」录：按钮上是棋手姓名，不是黑白。改完点提交，页面触发 <code>update-duiju</code> 工作流把结果写进 duiju.db 并重出接口。</div>
 
   <div class="bar">
     <div class="tk">
@@ -106,7 +137,7 @@
 
   <table>
     <thead>
-      <tr><th class="no">台</th><th>黑方</th><th>白方</th><th class="res">赛果</th><th class="ops">设定</th></tr>
+      <tr><th class="no">台</th><th>黑方</th><th>白方</th><th class="res">赛果</th><th class="ops">按胜者录</th></tr>
     </thead>
     <tbody id="rows"><tr><td colspan="5" style="color:var(--muted)">载入中…</td></tr></tbody>
   </table>
@@ -120,6 +151,8 @@
   <p class="tip">
     token 只存在本机浏览器。fine-grained token 只需对本仓库开 <code>Actions: Read and write</code>；
     classic token 需要 <code>repo</code> + <code>workflow</code>。<br>
+    <b>录法</b>：点棋手姓名表示他胜，和棋点「和棋」。提交时按编号写库（如 <code>1=#3</code>），
+    所以对局临时换先、名单上的黑白与实际不符时也不会把胜方记到别人头上。<br>
     已出赛果的对局，概率在库里就此定死，后续 JSON 里的预测不会再覆盖它；<code>×</code> 可把一台退回未出结果。
   </p>
 </div>
@@ -198,13 +231,13 @@
 
       var tdBlack = document.createElement('td');
       tdBlack.className = 'player';
-      tdBlack.innerHTML = '<b></b><small></small>';
+      tdBlack.innerHTML = '<span class="side-tag">黑</span><b></b><small></small>';
       tdBlack.querySelector('b').textContent = g.black.name;
       tdBlack.querySelector('small').textContent = '#' + g.black.no + ' · ' + fmt(g.black.score);
 
       var tdWhite = document.createElement('td');
       tdWhite.className = 'player';
-      tdWhite.innerHTML = '<b></b><small></small>';
+      tdWhite.innerHTML = '<span class="side-tag">白</span><b></b><small></small>';
       tdWhite.querySelector('b').textContent = g.white.name;
       tdWhite.querySelector('small').textContent = '#' + g.white.no + ' · ' + fmt(g.white.score);
 
@@ -212,19 +245,26 @@
       tdRes.className = 'res';
       var chip = document.createElement('span');
       chip.className = 'chip ' + (v || '');
-      chip.textContent = v ? label(v) : '未出';
+      chip.textContent = label(g, v);
       tdRes.appendChild(chip);
 
       var tdOps = document.createElement('td');
       tdOps.className = 'ops';
-      ['B', 'D', 'W'].forEach(function (val) {
+      var box = document.createElement('div');
+      box.className = 'ops-in';
+      [
+        { val: 'B', text: g.black.name + ' 胜', tip: '记 ' + g.black.name + ' 胜（名单上执黑）' },
+        { val: 'D', text: '和棋', tip: '记和棋' },
+        { val: 'W', text: g.white.name + ' 胜', tip: '记 ' + g.white.name + ' 胜（名单上执白）' }
+      ].forEach(function (o) {
         var b = document.createElement('button');
         b.type = 'button';
-        b.className = 'btn' + (v === val ? ' on' : '');
-        b.setAttribute('data-v', val);
-        b.textContent = val === 'B' ? '黑胜' : val === 'D' ? '和' : '白胜';
-        b.onclick = function () { pick(g.table, val); };
-        tdOps.appendChild(b);
+        b.className = 'btn' + (v === o.val ? ' on' : '');
+        b.setAttribute('data-v', o.val);
+        b.textContent = o.text;
+        b.title = o.tip;
+        b.onclick = function () { pick(g.table, o.val); };
+        box.appendChild(b);
       });
       var clr = document.createElement('button');
       clr.type = 'button';
@@ -232,7 +272,8 @@
       clr.textContent = '×';
       clr.title = '退回未出结果';
       clr.onclick = function () { pick(g.table, ''); };
-      tdOps.appendChild(clr);
+      box.appendChild(clr);
+      tdOps.appendChild(box);
 
       tr.appendChild(tdNo); tr.appendChild(tdBlack); tr.appendChild(tdWhite);
       tr.appendChild(tdRes); tr.appendChild(tdOps);
@@ -241,20 +282,56 @@
     $('submit').disabled = !state.token;
   }
 
-  function label(v) { return v === 'B' ? '黑胜' : v === 'D' ? '和' : '白胜'; }
+  /* 赛果说成人话：谁赢了。BF/WF 是弃权，等效胜方按弃权处理。 */
+  function label(g, v) {
+    if (!v) { return '未出'; }
+    if (v === 'D') { return '和棋'; }
+    if (v === 'B') { return g.black.name + ' 胜'; }
+    if (v === 'W') { return g.white.name + ' 胜'; }
+    if (v === 'WF') { return g.black.name + ' 胜（白弃权）'; }
+    if (v === 'BF') { return g.white.name + ' 胜（黑弃权）'; }
+    return v;
+  }
   function fmt(n) { return (n === 0 || n) ? (n + ' 分') : '—'; }
 
+  function gameOf(table) {
+    return state.games.filter(function (x) { return x.table === table; })[0] || null;
+  }
+
   function pick(table, val) {
-    var g = state.games.filter(function (x) { return x.table === table; })[0];
+    var g = gameOf(table);
     var cur = g ? (g.result || '') : '';
     var key = String(table);
     if (val === cur) delete state.pending[key]; else state.pending[key] = val;
     render();
   }
 
+  /* 写库用编号（#3），不写黑白：换先时黑白会变，编号和姓名不会。
+     没有编号的老数据退回姓名（@张三）。 */
+  function token(g, v) {
+    if (v === 'D') { return 'D'; }
+    if (!g) { return v; }
+    var p = v === 'B' ? g.black : g.white;
+    if (p && p.no !== null && p.no !== undefined && p.no !== '') { return '#' + p.no; }
+    return '@' + (p ? p.name : '');
+  }
+
+  function changedTables() {
+    return Object.keys(state.pending).sort(function (a, b) { return (+a) - (+b); });
+  }
+
   function spec() {
-    return Object.keys(state.pending).sort(function (a, b) { return (+a) - (+b); })
-      .map(function (k) { return k + '=' + (state.pending[k] || '-'); }).join(',');
+    return changedTables().map(function (k) {
+      return k + '=' + (state.pending[k] ? token(gameOf(+k), state.pending[k]) : '-');
+    }).join(',');
+  }
+
+  /* 提交成功后给一句人话：「第 3 台 张三 胜；第 5 台 清空」 */
+  function readable() {
+    return changedTables().map(function (k) {
+      var v = state.pending[k] || '';
+      return '第 ' + k + ' 台 ' + (v ? label(gameOf(+k), v) : '清空');
+    }).join('；');
   }
 
   function dispatch() {
@@ -275,7 +352,7 @@
       })
     }).then(function (r) {
       if (r.status === 204) {
-        setMsg('已提交 ' + s + '，工作流已触发，稍候自动生效', 'ok');
+        setMsg('已提交：' + readable() + '（' + s + '），工作流已触发，稍候自动生效', 'ok');
         pollRun(0);
         return true;
       }
