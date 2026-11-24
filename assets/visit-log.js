@@ -198,9 +198,9 @@
         }
         /* 多备几个：国内网络下 ipify 未必通，ipip 一般可达 */
         var list = [
-            'https://api.ipify.org?format=json',
             'https://myip.ipip.net/json',
             'https://ipinfo.io/json',
+            'https://api.ipify.org?format=json',
             'https://api64.ipify.org?format=json'
         ];
         (function next(i) {

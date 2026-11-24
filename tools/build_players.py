@@ -799,11 +799,8 @@ def page(name, rec, events, games, reports, index, total_players, arts,
         base_attr=' data-base="../../"',
         body='\n'.join(body))
 
-    # 成绩卡脚本只挂在棋手页；二维码模块由它按需加载，不占首屏
-    return html.replace(
-        '<script src="../../assets/layout.js"></script>',
-        '<script src="../../assets/layout.js"></script>' + chr(10) +
-        '<script src="../../assets/playercard.js"></script>')
+    # 成绩卡脚本由 layout.js 在点按「存为成绩卡」时才加载，不占首屏
+    return html
 
 
 
