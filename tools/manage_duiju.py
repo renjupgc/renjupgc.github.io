@@ -868,6 +868,18 @@ def dump_json(path, obj):
 
 # ---------------------------------------------------------------- sync
 
+def _looks_like_round(path):
+    """data/<目录>/ 里不全是轮次文件（比如 data/english/ 是词库），
+    只有带 tournament 与 games 的才当轮次处理，其余跳过。"""
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return False
+    return (isinstance(data, dict) and isinstance(data.get('tournament'), dict)
+            and isinstance(data.get('games'), list))
+
+
 def sync_sources(conn):
     """把 data/<赛事>/ 下的每一轮 JSON 重录一遍，再重出接口。
 
@@ -881,8 +893,13 @@ def sync_sources(conn):
         if not os.path.isdir(folder):
             continue
         for name in sorted(os.listdir(folder)):
-            if name.endswith('.json'):
-                files.append(os.path.join(folder, name))
+            if not name.endswith('.json'):
+                continue
+            path = os.path.join(folder, name)
+            if not _looks_like_round(path):
+                print('跳过 %s：不是轮次文件' % os.path.relpath(path, ROOT))
+                continue
+            files.append(path)
     if not files:
         die('data/ 下没有可录的对局 JSON')
 

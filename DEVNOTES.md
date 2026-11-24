@@ -265,6 +265,8 @@ python tools/manage_duiju.py show                            # 库里有什么
 （另外在推送 `data/shanhai/`、`tools/manage_duiju.py` 或手动触发时）跑一次
 `python tools/manage_duiju.py sync`，把仓库里的轮次 JSON 重录进 `duiju.db`、重出
 `api/duiju/`，有变化就由 `github-actions[bot]` 提交回 main；Pages 随即把新的 JSON 发出去。
+`sync` 只把 `data/<目录>/` 里带 `tournament` 与 `games` 的 JSON 当轮次（`data/english/`
+下的词库会被跳过），否则一个不相干的 JSON 就会让整条流水线中断、赛果写不进库。
 做法照搬 renju4433.github.io 的 `update-bisai.yml`：定时 + 手动 + 路径触发，`contents: write`，
 同一个 concurrency 组防并发。
 
