@@ -40,6 +40,70 @@ const $ = id => document.getElementById(id);
 /* ---------- 进度档案 ---------- */
 function prog() { return window.ZBX_PROGRESS || null; }
 function moduleKey(s) { return s.mode === 'shape' ? 'jz_shape' : 'jz_forbid'; }
+
+/* ---------- 错题本 ----------
+ * pid = 局面 + 答案点 + 题型 + 玩法。同一盘题重来、从错题本重做，
+ * 认的都是同一个 pid，分数只结一次；做对了就把这条从本子里拿走。 */
+function pidOf(p, mode) {
+    const sig = Array.from(p.board).join(',') + '|' + (p.answers || []).join(',') +
+        '|' + (p.label || '') + '|' + mode;
+    let h = 5381;
+    for (let i = 0; i < sig.length; i++) { h = ((h << 5) + h + sig.charCodeAt(i)) >>> 0; }
+    return 'jz-' + (mode === 'shape' ? 's' : 'f') + '-' + h.toString(36);
+}
+
+function paintBook(s) {
+    const el = $('jz-book');
+    if (!el || !window.ZBX_WRONG) { return; }
+    const st = s || state();
+    window.ZBX_WRONG.paint(el, moduleKey(st), {
+        empty: st.mode === 'shape' ? '还没有错题。棋形点错的会收到这里。' : '还没有错题。禁手找错的会收到这里。',
+        label: e => e.k || '错题',
+        sub: e => {
+            const d = e.d || {};
+            const at = (d.at != null && d.at >= 0) ? '点错 ' + pname(d.at) : '看了答案';
+            const why = d.why ? ' · ' + d.why : '';
+            return at + (d.need > 1 ? ' · ' + d.need + ' 处' : '') + why;
+        },
+        onRedo: redoBook
+    });
+}
+
+function markWrong(k, why) {
+    const s = state();
+    if (!s.puzzle || !s.pid || !window.ZBX_WRONG) { return; }
+    window.ZBX_WRONG.add(moduleKey(s), {
+        pid: s.pid,
+        k: (s.mode === 'shape' ? '棋形 · ' : '禁手 · ') +
+            (s.puzzle.label || s.kind || '') + (s.need > 1 ? '×' + s.need : ''),
+        d: {
+            mode: s.mode, board: Array.from(s.puzzle.board), answers: s.answers.slice(),
+            need: s.need, label: s.puzzle.label, def: s.puzzle.def, cite: s.puzzle.cite,
+            tip: s.puzzle.tip, shape: s.puzzle.shape, kinds: s.puzzle.kinds,
+            diff: s.diff, par: s.par, at: k, why: why || ''
+        }
+    });
+    paintBook(s);
+}
+
+/* 从错题本重做：本子记得的那盘原样摆回来，不重新出题 */
+function redoBook(e) {
+    const s = state();
+    const d = (e && e.d) || {};
+    if (!d.board || !d.board.length || s.busy) { return; }
+    exitChallenge();
+    setMode(d.mode === 'shape' ? 'shape' : 'forbid', false);
+    s.genId++;
+    s.busy = false;
+    const idx = Number($('jz-level') ? $('jz-level').value : 1) || 0;
+    load({
+        board: d.board, answers: d.answers || [], need: d.need,
+        label: d.label, def: d.def, cite: d.cite, tip: d.tip,
+        shape: d.shape, kinds: d.kinds, pid: e.pid, book: true
+    }, '错题', idx);
+    if (d.diff) { s.diff = d.diff; s.par = d.par || s.par; stat(); }
+    say('从错题本重做这一题。做对就出本，重做本身不再计分。', '');
+}
 /* 难度分：档位、要找的处数、盘上子数、白子干扰、类型混合都算进去，
  * 同类题也会因局面不同而分数参差。最低 1000。
  * par 是「满分时间线」，题越难给的时间越宽，慢也能拿满分。 */
@@ -83,6 +147,7 @@ function state() {
     S = {
         mode: 'forbid',
         puzzle: null,
+        pid: '',
         board: new Int8Array(225),
         marks: [],          /* {k, kind:'bad'|'hint'|'ans'|'got'|'line'} */
         answers: [],        /* 本题所有答案点 */
@@ -699,6 +764,7 @@ function load(p, levelName, levelIdx) {
     const s = state();
     s.puzzle = p;
     s.board = Int8Array.from(p.board);
+    s.pid = p.pid || pidOf(p, s.mode);
     s.answers = (p.answers && p.answers.length) ? p.answers.slice() : [p.answer];
     s.need = s.answers.length;
     s.found = new Set();
@@ -814,12 +880,21 @@ function hit(k) {
         : '，最快 ' + fmtTime(rec.best);
     const subTime = (rec.rec && rec.old) ? '新纪录 ' + secs + ' 秒' : secs + ' 秒';
     if (!s.cleared) { s.cleared = true; cnt().done++; s.streak++; }
-    /* 记分：答对加分，快（<=par）拿满；写完提示导出存档 */
+    /* 记分：答对加分，快（<=par）拿满；同一盘题只结一次账，重来做对不再加分 */
     let gain = null;
     const pr = prog();
-    if (pr) { gain = pr.commit(moduleKey(s), { ok: true, ms: ms, diff: s.diff, par: s.par }); pr.changed(); }
-    if (s.chal) { s.chal.results.push({ ok: true, ms: ms, delta: gain ? gain.delta : 0 }); chalProgress(); }
-    const gainText = gain ? '，分数 ' + (gain.delta >= 0 ? '+' : '') + gain.delta + '（现 ' + gain.after + '）' : '';
+    if (pr) {
+        gain = pr.commit(moduleKey(s), { ok: true, ms: ms, diff: s.diff, par: s.par, pid: s.pid });
+        pr.changed();
+    }
+    const scored = !!(gain && !gain.dup);
+    /* 做对了就出本（重做对了也出，不管这题还结不结账） */
+    if (s.pid && window.ZBX_WRONG) {
+        window.ZBX_WRONG.done(moduleKey(s), s.pid);
+        paintBook(s);
+    }
+    if (s.chal) { s.chal.results.push({ ok: true, ms: ms, delta: scored ? gain.delta : 0 }); chalProgress(); }
+    const gainText = scored ? '，分数 ' + (gain.delta >= 0 ? '+' : '') + gain.delta + '（现 ' + gain.after + '）' : '';
     const saveTip = (pr && pr.ready()) ? '分数已同步到云端。' : '先在右上角登录，分数才记得住。';
     stat();
     paintTime();
@@ -832,7 +907,7 @@ function hit(k) {
         const five = s.need === 1 && s.puzzle.shape === 'five';
         title = five ? '连五！赢了' : (s.need > 1 ? s.need + ' 处全中！' : '漂亮！' + s.puzzle.label);
         sub = (s.streak >= 2 ? '连对 ' + s.streak + ' 题' : (s.need > 1 ? s.puzzle.label + '，全找齐' : '正解')) +
-            ' · ' + subTime + (gain ? ' · ' + (gain.delta >= 0 ? '+' : '') + gain.delta + ' 分' : '');
+            ' · ' + subTime + (scored ? ' · ' + (gain.delta >= 0 ? '+' : '') + gain.delta + ' 分' : '');
         say(s.need > 1
             ? '全找齐了！' + s.need + ' 处都能做出' + s.puzzle.label + '（' + s.puzzle.def + '）：' + all +
               '。' + s.puzzle.tip + '用时 ' + secs + ' 秒' + speed + gainText + '。点「下一题」继续，' + saveTip
@@ -844,7 +919,7 @@ function hit(k) {
         const kinds = s.puzzle.kinds || [s.puzzle.label];
         title = s.need > 1 ? '全找到了！' : '找到了！';
         sub = (s.need > 1 ? s.need + ' 处禁手' : s.puzzle.label + '禁手') + ' · ' + subTime +
-            (gain ? ' · ' + (gain.delta >= 0 ? '+' : '') + gain.delta + ' 分' : '');
+            (scored ? ' · ' + (gain.delta >= 0 ? '+' : '') + gain.delta + ' 分' : '');
         say(s.need > 1
             ? s.need + ' 处禁手都找到了：' +
               s.answers.map((q, i) => pname(q) + '（' + kinds[i] + '）').join('、') +
@@ -906,17 +981,23 @@ function miss(k) {
 
     let lose = null;
     const pr = prog();
-    if (pr) { lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par }); pr.changed(); }
-    if (s.chal) { s.chal.results.push({ ok: false, ms: ms, delta: lose ? lose.delta : 0 }); chalProgress(); }
-    const loseText = lose
+    if (pr) {
+        lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par, pid: s.pid });
+        pr.changed();
+    }
+    const punished = !!(lose && !lose.dup);
+    if (s.chal) { s.chal.results.push({ ok: false, ms: ms, delta: punished ? lose.delta : 0 }); chalProgress(); }
+    const loseText = punished
         ? '分数 ' + lose.delta + '（现 ' + lose.after + '）。'
-        : (pr && pr.ready() ? '' : '先在右上角登录，分数才记得住。');
+        : (pr && pr.ready() ? '这题已经结过账，不再扣分。' : '先在右上角登录，分数才记得住。');
+    /* 错题入本：题目、答案、点错的那一点一起存，方便原样重做 */
+    markWrong(k, why);
 
     const all = s.answers.map(pname).join('、');
     const answerText = s.mode === 'shape'
         ? '这盘能做出' + s.puzzle.label + '的在 ' + all + '（红圈）。'
         : (s.need > 1 ? '答案是 ' + all : '答案在 ' + all + '，' + s.puzzle.label + '禁手') + '（红圈）。';
-    flash('答错了', (lose ? '' + lose.delta + ' 分 · ' : '') + secs + ' 秒', 'bad', k);
+    flash('答错了', (punished ? '' + lose.delta + ' 分 · ' : '') + secs + ' 秒', 'bad', k);
     say(pname(k) + '：' + why + ' ' + answerText + ' 用时 ' + secs + ' 秒，' + loseText +
         ' 点「下一题」继续' + (s.chal ? '，挑战接着走。' : '，记得导出存档。'), 'bad');
     stat();
@@ -979,10 +1060,16 @@ function reveal() {
     /* 看答案按放弃算，扣一次分 */
     let lose = null;
     const pr = prog();
-    if (pr) { lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par }); pr.changed(); stat(); }
-    if (s.chal) { s.chal.results.push({ ok: false, ms: ms, delta: lose ? lose.delta : 0 }); chalProgress(); }
-    const loseText = lose ? ' 分数 ' + lose.delta + '（现 ' + lose.after + '）。' :
-        (pr && pr.ready() ? '' : ' 先登录账号才能记分。');
+    if (pr) {
+        lose = pr.commit(moduleKey(s), { ok: false, ms: ms, diff: s.diff, par: s.par, pid: s.pid });
+        pr.changed();
+        stat();
+    }
+    const punished = !!(lose && !lose.dup);
+    if (s.chal) { s.chal.results.push({ ok: false, ms: ms, delta: punished ? lose.delta : 0 }); chalProgress(); }
+    const loseText = punished ? ' 分数 ' + lose.delta + '（现 ' + lose.after + '）。' :
+        (pr && pr.ready() ? ' 这题已经结过账，不再扣分。' : ' 先登录账号才能记分。');
+    markWrong(-1, '看了答案');
     s.marks = s.marks.filter(m => m.kind !== 'bad' && m.kind !== 'hint');
 
     const rest = s.answers.filter(k => !s.found.has(k));
@@ -1040,6 +1127,7 @@ function setMode(mode, fresh) {
     const ask = $('jz-ask');
     if (ask) { ask.textContent = mode === 'shape' ? '黑先 · 下出棋形' : '黑先 · 找出禁手点'; }
     stat();
+    paintBook(s);
     if (fresh) {
         s.no = 0;
         newPuzzle();
@@ -1090,12 +1178,14 @@ export function boot() {
     if (!layout(s)) { return; }
     canvas.dataset.booted = '1';
     paintTime();
+    paintBook(s);
     draw();
 
     if (!canvas.dataset.bound) {
         canvas.dataset.bound = '1';
         canvas.addEventListener('click', clickCell);
-        document.addEventListener('zbx:user', function () { stat(); });
+        document.addEventListener('zbx:user', function () { stat(); paintBook(); });
+        document.addEventListener('zbx:account', function () { paintBook(); });
         /* 切到后台就停表：数的是做题的那段时间，不是开着页面的时间 */
         document.addEventListener('visibilitychange', function () {
             if (document.hidden) { clockPause(); } else { clockResume(); }

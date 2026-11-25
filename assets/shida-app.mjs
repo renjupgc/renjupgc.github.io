@@ -119,6 +119,77 @@ const S = {
 
 const bucketOf = (key) => BUCKETS.filter((b) => b.key === key)[0];
 
+/* ---------- 错题本 ----------
+ * 这一页不记分，只收错题：书里哪一页、第几问、你选了什么、书里是什么。
+ * pid 由「玩法 + 书页 + 第五手 + 第几问」拼成，同一问只占一条；
+ * 点「重做」回到原局原问，答对就出本。 */
+const BOOK = 'shida';
+
+function bookPid(d) {
+    return 'sd-' + d.mode + '-' + d.page + '-' + d.q + '-' +
+        (d.five && d.five.length ? d.five.join('x') : 'n');
+}
+
+function paintBook() {
+    const el = document.getElementById('sd-book');
+    if (!el || !window.ZBX_WRONG) { return; }
+    window.ZBX_WRONG.paint(el, BOOK, {
+        empty: '还没有错题。答错的局会收到这里（擦边算半对，不进来）。',
+        label: e => e.k || '错题',
+        sub: e => {
+            const d = e.d || {};
+            const q = d.q === 'a' ? '第一问 · 打数'
+                : d.q === 'b' ? '第二问 · 局面'
+                    : d.q === 's' ? '第一问 · 交换' : '第二问 · 两打';
+            const five = (d.mode === 'st' && d.five) ? '第五手 ' + coord(d.five[0], d.five[1]) + ' · ' : '';
+            const mine = d.ansText ? '你选 ' + d.ansText : '';
+            const truth = d.truth ? '应 ' + d.truth : '';
+            return q + ' · ' + five + [mine, truth].filter(Boolean).join(' · ');
+        },
+        onRedo: redoBook
+    });
+}
+
+function markWrong(o) {
+    if (!window.ZBX_WRONG) { return; }
+    const d = {
+        mode: o.mode, page: o.page, q: o.q, five: o.five || null,
+        ansText: o.ansText || '', truth: o.truth || ''
+    };
+    window.ZBX_WRONG.add(BOOK, { pid: bookPid(d), k: o.label || '错题', d: d });
+    paintBook();
+}
+
+/* 从错题本重做：书页和第五手都记着，原样摆回去 */
+function redoBook(e) {
+    const d = (e && e.d) || {};
+    if (!d.page) { return; }
+    const op = OPEN.filter((o) => o.p === d.page)[0];
+    if (!op) { return; }
+    if (d.mode === 'ws') {
+        setMode('ws');
+        W.op = op;
+        W.phase = 0;
+        W.swap = null;
+        W.picks = [];
+        W.res = null;
+        W.msg = '';
+        W.swapOnly = op.f === '彗星' || op.f === '游星';
+        wsRender();
+        return;
+    }
+    setMode('st');
+    const c = (op.c || []).filter((x) => d.five && x[0] === d.five[0] && x[1] === d.five[1])[0];
+    if (!c) { return; }
+    S.cur = op;
+    S.five = c;
+    S.n5 = c[2];
+    S.phase = 0;
+    S.ansA = null;
+    S.ansB = null;
+    render();
+}
+
 /* 书里的「黑败」念出来太生硬，正文里补一句同义 */
 function say(r) {
     if (r === '黑败') {
@@ -497,8 +568,17 @@ function bindSide() {
                 S.ansA = Number(btn.getAttribute('data-a'));
                 S.phase = 1;
                 S.stats.a += 1;
-                if (S.ansA === (OK_TEN.has(cat(tenResult(S.cur))) ? 1 : 0)) {
+                const can = OK_TEN.has(cat(tenResult(S.cur))) ? 1 : 0;
+                if (S.ansA === can) {
                     S.stats.aOk += 1;
+                } else {
+                    markWrong({
+                        mode: 'st', page: S.cur.p, q: 'a',
+                        five: [S.five[0], S.five[1]],
+                        ansText: S.ansA ? '能给十打' : '不能给',
+                        truth: can ? '能给十打' : '不能给',
+                        label: famName(S.cur.f) + ' · ' + S.cur.n
+                    });
                 }
                 render();
             });
@@ -522,6 +602,14 @@ function bindSide() {
                 } else if (g === 'mid') {
                     S.stats.bOk += 0.5;
                     S.stats.bMid += 1;
+                } else {
+                    markWrong({
+                        mode: 'st', page: S.cur.p, q: 'b',
+                        five: [S.five[0], S.five[1]],
+                        ansText: bucketOf(key).name,
+                        truth: bucketOf(CORE[truth] || 3).name,
+                        label: famName(S.cur.f) + ' · ' + S.cur.n
+                    });
                 }
                 render();
             });
@@ -724,8 +812,16 @@ function wsAnswerSwap(word) {
     const op = W.op;
     W.swap = word;
     W.stats.s += 1;
-    if (swapRule(op.f).take.indexOf(word) >= 0) {
+    const rule = swapRule(op.f);
+    if (rule.take.indexOf(word) >= 0) {
         W.stats.sOk += 1;
+    } else {
+        markWrong({
+            mode: 'ws', page: op.p, q: 's',
+            ansText: SWAP_WORD[word],
+            truth: rule.take.map((w) => SWAP_WORD[w]).join(' / '),
+            label: famName(op.f) + ' · ' + op.n
+        });
     }
     /* 彗星、游星整局白必胜，不讨论底下的打点，答完交换就结束 */
     W.phase = W.swapOnly ? 2 : 1;
@@ -820,6 +916,13 @@ function wsGrade() {
     } else if (!bad.length) {
         W.stats.tOk += 0.5;
         W.stats.tMid += 1;
+    } else {
+        markWrong({
+            mode: 'ws', page: op.p, q: 't',
+            ansText: W.picks.map((p) => coord(p.i, p.j)).join('、'),
+            truth: top.map((c) => coord(c.i, c.j)).join('、'),
+            label: famName(op.f) + ' · ' + op.n
+        });
     }
 }
 
@@ -1114,6 +1217,10 @@ export function boot() {
         moves: [],
         editable: false
     });
+
+    /* 错题本：登录 / 退出后本子跟着换 */
+    paintBook();
+    document.addEventListener('zbx:account', paintBook);
 
     /* 盘上点两下就是两打 */
     host.addEventListener('click', function (e) {

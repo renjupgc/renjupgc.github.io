@@ -114,6 +114,7 @@ function state() {
         puzzle: null,      /* { moves, depth, attacker } */
         board: new Int8Array(225),
         attacker: BLACK,
+        pid: '',           /* 这一题的身份证：同一题只结一次账 */
         played: [],        /* 本次尝试按顺序落下的点，攻守交替 */
         hint: -1,
         no: 0,
@@ -138,6 +139,74 @@ function boardOf(moves) {
     const bd = new Int8Array(225);
     moves.forEach((k, i) => { bd[k] = i % 2 === 0 ? BLACK : WHITE; });
     return bd;
+}
+
+/* ---------- 错题本 ----------
+ * pid 由「落子序列 + 胜手数 + 攻方」算出来：同一道题不管重来几次、
+ * 从错题本里重做几次，认的都是同一个 pid，分数只结一次。 */
+const BOOK = 'vcf';
+
+function pidOf(p) {
+    if (!p || !p.moves || !p.moves.length) { return ''; }
+    const s = p.moves.join(',') + '|' + p.depth + '|' + p.attacker;
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; }
+    return 'vcf-' + p.depth + '-' + p.attacker + '-' + h.toString(36);
+}
+
+function paintBook() {
+    const el = $('vcf-book');
+    if (!el || !window.ZBX_WRONG) { return; }
+    window.ZBX_WRONG.paint(el, BOOK, {
+        empty: '还没有错题。走错的题会自动收进来。',
+        label: e => e.k || 'VCF 错题',
+        sub: e => {
+            const d = e.d || {};
+            const at = (d.at != null && d.at >= 0) ? '卡在 ' + pname(d.at) : '';
+            return [at, d.why || ''].filter(Boolean).join(' · ');
+        },
+        onRedo: redoBook
+    });
+}
+
+/* 走错一手就记一笔，同一题只占一条 */
+function markWrong(k, why) {
+    const s = state();
+    if (!s.puzzle || !s.pid || !window.ZBX_WRONG) { return; }
+    window.ZBX_WRONG.add(BOOK, {
+        pid: s.pid,
+        k: 'VCF ' + s.depth + ' 手胜 · ' + (s.attacker === BLACK ? '黑攻' : '白攻'),
+        d: {
+            moves: s.puzzle.moves.slice(), depth: s.depth, attacker: s.attacker,
+            at: k, why: why
+        }
+    });
+    paintBook();
+}
+
+/* 从错题本重做：题目原样摆回去，不重新生成 */
+function redoBook(e) {
+    const s = state();
+    if (s.busy || !e) { return; }
+    const d = e.d || {};
+    if (!d.moves || !d.moves.length) { return; }
+    cancelGen();
+    s.chal = null;
+    const startBtn = $('vcf-chal-start');
+    if (startBtn) { startBtn.disabled = false; }
+    updateChalTip('按你的分数配难度，五题一组，越做越难；做完给平均用时和分数变化。');
+    paintChallenge();
+    s.no = 0;
+    load({
+        moves: d.moves.slice(),
+        depth: d.depth || 3,
+        attacker: d.attacker || BLACK,
+        attempts: 0,
+        pid: e.pid,
+        book: true
+    }, '错题');
+    if ($('vcf-count')) { $('vcf-count').textContent = '错题重做 · ' + s.depth + ' 手胜'; }
+    say('从错题本重做这一题。做对就出本，重做本身不再计分。', '');
 }
 
 /* ---------- 画布 ---------- */
@@ -446,6 +515,7 @@ function load(p, levelName) {
     s.puzzle = p;
     s.board = boardOf(p.moves);
     s.attacker = p.attacker;
+    s.pid = p.pid || pidOf(p);
     s.played = [];
     s.hint = -1;
     s.over = false;
@@ -497,6 +567,7 @@ function play(k) {
         s.tries++;
         stat();
         say(pname(k) + ' 是黑棋禁手（三三 / 四四 / 长连），不能走。', 'bad');
+        markWrong(k, '走了禁手');
         draw();
         return;
     }
@@ -519,6 +590,7 @@ function play(k) {
         s.tries++;
         stat();
         say(pname(k) + ' 不是冲四。每一手都要做出一个只有一个补五点的四。', 'bad');
+        markWrong(k, '不是冲四');
         draw();
         return;
     }
@@ -538,6 +610,7 @@ function play(k) {
         s.tries++;
         stat();
         say(pname(k) + ' 之后对方挡在 ' + pname(block) + '，后面接不上杀，退回来重走。', 'bad');
+        markWrong(k, '挡在 ' + pname(block) + ' 后面接不上');
         draw();
         return;
     }
@@ -550,18 +623,32 @@ function play(k) {
 function finish(text) {
     const s = state();
     s.over = true;
-    if (!s.cleared) {
+    const first = !s.cleared;
+    if (first) {
         s.cleared = true;
         s.done++;
     }
     clockStop();
     const ms = Math.round(s.tAcc);
     const secs = (ms / 1000).toFixed(1);
-    /* 记分：做对加分，快（<=par）拿满；难题 par 宽 */
+    /* 记分：做对加分，快（<=par）拿满；难题 par 宽。
+       同一道题只结一次账——重来、错题本重做都不再给分，也不扣分。 */
     let gain = null;
     const pr = prog();
-    if (pr) { gain = pr.commit('vcf', { ok: true, ms: ms, diff: difficulty(s.depth, s.puzzle), par: parTime(s.depth) }); pr.changed(); }
-    const d = gain ? (gain.delta >= 0 ? '+' : '') + gain.delta : '';
+    if (pr && first) {
+        gain = pr.commit('vcf', {
+            ok: true, ms: ms, diff: difficulty(s.depth, s.puzzle),
+            par: parTime(s.depth), pid: s.pid
+        });
+        pr.changed();
+    }
+    const scored = !!(gain && !gain.dup);
+    /* 做对了就出本 */
+    if (first && s.pid && window.ZBX_WRONG) {
+        window.ZBX_WRONG.done(BOOK, s.pid);
+        paintBook();
+    }
+    const d = scored ? (gain.delta >= 0 ? '+' : '') + gain.delta : '';
     stat();
     draw();
     flash('赢了！', (s.depth + ' 手胜 · ' + secs + ' 秒') + (d ? ' · ' + d + ' 分' : ''));
@@ -569,15 +656,16 @@ function finish(text) {
     try { if (navigator.vibrate) { navigator.vibrate([12, 40, 18]); } } catch (e) { /* ignore */ }
     const btn = $('vcf-next');
     if (btn) { btn.classList.add('is-hot'); }
+    const repeat = first ? '' : ' 这题已经结过账，重做只练手，不再加分。';
 
     if (s.chal) {
-        s.chal.results.push({ ok: true, ms: ms, depth: s.depth, delta: gain ? gain.delta : 0 });
+        s.chal.results.push({ ok: true, ms: ms, depth: s.depth, delta: scored ? gain.delta : 0 });
         paintChallenge();
         say(text + ' 第 ' + s.chal.results.length + '/' + s.chal.total + ' 题。' +
-            (gain ? '分数 ' + d + '。' : '') + '点「下一题」继续。', 'ok');
+            (scored ? '分数 ' + d + '。' : '') + repeat + '点「下一题」继续。', 'ok');
     } else {
-        say(text + (gain ? ' 用时 ' + secs + ' 秒，分数 ' + d + '（现 ' + gain.after + '）。' : '') +
-            ' 点「下一题」继续，' + (pr && pr.ready() ? '分数已同步到云端。' : '先在右上角登录，分数才记得住。'), 'ok');
+        say(text + (scored ? ' 用时 ' + secs + ' 秒，分数 ' + d + '（现 ' + gain.after + '）。' : '') +
+            repeat + '点「下一题」继续，' + (pr && pr.ready() ? '分数已同步到云端。' : '先在右上角登录，分数才记得住。'), 'ok');
     }
 }
 
@@ -608,9 +696,12 @@ function showHint() {
 function reset() {
     const s = state();
     if (s.busy || !s.puzzle) { return; }
+    const wasDone = s.over;
     s.played = [];
     rebuild(s);
-    say('回到本题开局，表也从头开始走。', '');
+    say(wasDone
+        ? '回到本题开局，表也从头走。这题已经结过账，重做只练手，不再加分。'
+        : '回到本题开局，表也从头开始走。', '');
     clockStart();
     draw();
 }
@@ -630,12 +721,14 @@ export async function boot() {
     s.hint = -1;
     s.played = s.played || [];
     paintTime();
+    paintBook();
     draw();
 
     if (!canvas.dataset.bound) {
         canvas.dataset.bound = '1';
         canvas.addEventListener('click', clickCell);
-        document.addEventListener('zbx:user', function () { stat(); });
+        document.addEventListener('zbx:user', function () { stat(); paintBook(); });
+        document.addEventListener('zbx:account', function () { paintBook(); });
         /* 切到后台就停表：数的是做题的那段时间，不是开着页面的时间 */
         document.addEventListener('visibilitychange', function () {
             if (document.hidden) { clockPause(); } else { clockResume(); }

@@ -7279,3 +7279,132 @@ table.ratings .r-name a:hover {
         padding: 7px 11px;
     }
 }
+
+/* ---------- 错题本（VCF 做题 / 棋形判断与禁手找茬 / 开局综合判断 共用） ----------
+ * 三个做题页共用同一套面板：VCF 和禁手找茬塞在侧栏，开局综合判断横在棋盘下面。
+ * 一整条只占一行高，题多了在框里滚，不把侧栏顶长。 */
+.vb-box {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.vb-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 4px;
+}
+
+.vb-head b {
+    font: 700 13px var(--sans);
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+}
+
+.vb-head span {
+    font: 11.5px var(--sans);
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.vb-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 13.5em;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.vb-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-top: 1px dashed var(--line-soft);
+}
+
+.vb-item:first-child {
+    border-top: 0;
+}
+
+.vb-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.vb-main b {
+    display: block;
+    font: 600 12.5px/1.5 var(--sans);
+    color: var(--ink-2);
+}
+
+.vb-main span {
+    display: block;
+    font: 11.5px/1.5 var(--sans);
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vb-acts {
+    display: flex;
+    flex: none;
+    gap: 6px;
+}
+
+.vb-acts button {
+    cursor: pointer;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 4px 9px;
+    background: var(--surface);
+    font: 600 12px var(--sans);
+    color: var(--ink-2);
+    transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.vb-acts button:hover {
+    border-color: rgba(176, 141, 87, 0.6);
+    background: #fffdf7;
+    color: var(--gold-deep);
+}
+
+.vb-acts button.vb-del:hover {
+    border-color: rgba(168, 69, 63, 0.5);
+    color: var(--win);
+}
+
+.vb-empty {
+    padding: 2px 0;
+    font: 11.5px/1.6 var(--sans);
+    color: var(--muted);
+}
+
+.vb-tip {
+    margin: 7px 0 0;
+    font: 11.5px/1.6 var(--sans);
+    color: var(--muted);
+}
+
+/* 开局综合判断那一块横在棋盘下面，宽一点，条目排两栏 */
+.sd-book .vb-list {
+    max-height: 15em;
+}
+
+@media (min-width: 900px) {
+    .sd-book .vb-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 20px;
+    }
+
+    .sd-book .vb-item:nth-child(2) {
+        border-top: 0;
+    }
+}

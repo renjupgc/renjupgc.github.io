@@ -18,6 +18,9 @@
     var BASE = 1000;
     var STYLE_ID = 'zbx-progress-style';
     var NAME_RE = /^[一-龥A-Za-z0-9_-]{2,20}$/;
+    /* 错题本每模块最多留多少条；同一题（pid）只记一次分数，见过的 pid 留这么多个 */
+    var BOOK_MAX = 80;
+    var SEEN_MAX = 600;
 
     var MODULES = [
         { k: 'jz_forbid', name: '禁手找茬' },
@@ -32,7 +35,47 @@
     function blankProfile() {
         var scores = {}, stats = {};
         MODULES.forEach(function (m) { scores[m.k] = BASE; stats[m.k] = blankStats(); });
-        return { scores: scores, stats: stats, hist: [] };
+        return { scores: scores, stats: stats, hist: [], book: {}, seen: {} };
+    }
+
+    /* 错题本的一条：pid 认题，k 是给人看的标题，d 是页面自己认得的结构 */
+    function normEntry(e) {
+        return {
+            pid: String(e.pid).slice(0, 64),
+            t: Math.max(0, Math.round(Number(e.t) || 0)),
+            k: String(e.k == null ? '' : e.k).slice(0, 48),
+            d: e.d && typeof e.d === 'object' ? e.d : {}
+        };
+    }
+
+    /* 错题本按「本子名」分（jz_forbid / jz_shape / vcf / shida …），
+     * 不一定都是计分模块，所以这里不按 MODULES 过滤，只认键名。 */
+    function normBook(raw) {
+        var out = {};
+        if (!raw || typeof raw !== 'object') { return out; }
+        Object.keys(raw).forEach(function (k) {
+            if (!/^[a-z_]{2,16}$/.test(k)) { return; }
+            var arr = raw[k];
+            if (!Array.isArray(arr)) { return; }
+            var list = arr.filter(function (e) {
+                return e && typeof e === 'object' && typeof e.pid === 'string' && e.pid;
+            }).slice(0, BOOK_MAX).map(normEntry);
+            if (list.length) { out[k] = list; }
+        });
+        return out;
+    }
+
+    function normSeen(raw) {
+        var out = {};
+        if (!raw || typeof raw !== 'object') { return out; }
+        MODULES.forEach(function (m) {
+            var v = raw[m.k];
+            if (!v || typeof v !== 'object') { return; }
+            var keys = Object.keys(v).slice(-SEEN_MAX), one = {};
+            keys.forEach(function (k) { one[String(k).slice(0, 64)] = 1; });
+            if (keys.length) { out[m.k] = one; }
+        });
+        return out;
     }
 
     function normalizeProfile(raw) {
@@ -71,6 +114,8 @@
                 };
             }).slice(-2000);
         }
+        d.book = normBook(raw.book);
+        d.seen = normSeen(raw.seen);
         return d;
     }
 
@@ -324,6 +369,12 @@
         return Math.max(0.35, 1 - (x - 1) * 0.325);
     }
 
+    /*
+     * 一道题只结一次账。
+     * 带 pid 的题（VCF / 禁手找茬 / 棋形判断）记下 pid 之后，再把同一道题
+     * 重来一遍、从错题本里重做一遍，都只走 dup 分支：不加分也不扣分，
+     * 免得「重做做对」反复刷分。
+     */
     function commit(module, opt) {
         var P = profile();
         if (!P || !MODULES.some(function (m) { return m.k === module; })) { return null; }
@@ -332,6 +383,21 @@
         var ms = Math.max(0, Math.round(Number(opt.ms) || 0));
         var diff = Math.max(1000, Math.round(Number(opt.diff) || 1000));
         var par = Math.max(0, Math.round(Number(opt.par) || 0));
+        var pid = opt.pid ? String(opt.pid).slice(0, 64) : '';
+        if (pid) {
+            if (!P.seen[module]) { P.seen[module] = {}; }
+            if (P.seen[module][pid]) {
+                return {
+                    delta: 0, before: P.scores[module], after: P.scores[module],
+                    diff: diff, ms: ms, ok: ok, dup: true
+                };
+            }
+            P.seen[module][pid] = 1;
+            var keys = Object.keys(P.seen[module]);
+            if (keys.length > SEEN_MAX) {
+                for (var q = 0; q < keys.length - SEEN_MAX; q++) { delete P.seen[module][keys[q]]; }
+            }
+        }
         var d = ok
             ? Math.max(1, Math.round(14 * (diff / 1000) * speedFactor(ms, par)))
             : -Math.max(1, Math.round(7 * (diff / 1000)));
@@ -346,6 +412,51 @@
         if (P.hist.length > 2000) { P.hist.shift(); }
         save();
         return { delta: after - before, before: before, after: after, diff: diff, ms: ms, ok: ok };
+    }
+
+    /* ---------- 错题本 ----------
+     * 存在进度档案里，跟分数一起上云端：换设备登录还是这一本。
+     * 同一道题（pid）只占一条，重做错了就更新时间往前挪，
+     * 订正做对由页面调 bookDel 把这条拿走。 */
+    function bookList(module) {
+        var P = profile();
+        var list = P && P.book && P.book[module];
+        return Array.isArray(list) ? list.slice() : [];
+    }
+
+    function bookAdd(module, entry) {
+        var P = profile();
+        if (!P || !entry || !entry.pid) { return false; }
+        if (!P.book[module]) { P.book[module] = []; }
+        var list = P.book[module];
+        var pid = String(entry.pid).slice(0, 64);
+        for (var i = list.length - 1; i >= 0; i--) {
+            if (list[i].pid === pid) { list.splice(i, 1); }
+        }
+        list.unshift(normEntry({ pid: pid, t: Date.now(), k: entry.k, d: entry.d }));
+        if (list.length > BOOK_MAX) { list.length = BOOK_MAX; }
+        save();
+        return true;
+    }
+
+    function bookDel(module, pid) {
+        var P = profile();
+        if (!P || !P.book[module] || !pid) { return false; }
+        var list = P.book[module];
+        for (var i = list.length - 1; i >= 0; i--) {
+            if (list[i].pid === pid) { list.splice(i, 1); }
+        }
+        if (!list.length) { delete P.book[module]; }
+        save();
+        return true;
+    }
+
+    function bookClear(module) {
+        var P = profile();
+        if (!P) { return false; }
+        delete P.book[module];
+        save();
+        return true;
     }
 
     function avgMs(module) {
@@ -791,6 +902,11 @@
         recommendLevel: recommendLevel,
         score: function (m) { var P = profile(); return (P && P.scores[m]) || BASE; },
         stats: function (m) { var P = profile(); return (P && P.stats[m]) || blankStats(); },
+        bookList: bookList,
+        bookAdd: bookAdd,
+        bookDel: bookDel,
+        bookClear: bookClear,
+        bookCount: function (m) { return bookList(m).length; },
         user: userName,
         setUser: setUser,
         userNames: userNames,
