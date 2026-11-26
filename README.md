@@ -14,6 +14,7 @@
 | --- | --- |
 | 搞清楚站点怎么搭的、每个目录放什么 | [DEVNOTES.md](DEVNOTES.md) |
 | 本地跑起来预览 | `python -m http.server 8000`（必须走 http，不能双击打开） |
+| 改完内容重新生成并校验 | `python tools/build_all.py`（末尾自动跑 `tools/check.py`） |
 | 改了赛事数据要重新生成页面 | [DEVNOTES.md 的「构建」一节](DEVNOTES.md#构建) |
 | 接账号 / 云端进度 | [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) |
 | 还没做的想法 | [docs/ROADMAP.md](docs/ROADMAP.md) |

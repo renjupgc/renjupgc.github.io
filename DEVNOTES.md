@@ -95,6 +95,8 @@ data/
   zalun-words.json    杂论正文分词结果（1200 余条：词、次数、覆盖篇数、词性、分类、默认是否入云）
 
 tools/                构建脚本（见下）
+  build_all.py        按固定顺序重出全站，末尾跑 check.py
+  check.py            只读校验：死链 / 布局结构 / sitemap / canonical / 图片属性
 renju/                第三方 Otter Renju 的静态构建（原样放在这里，页面只取其中的
                       ort/ 运行时与 katagomo_renju15.onnx 模型给 zaji/katago.html 用）
 labs/                 未上线的试验页，不进导航也不进 sitemap
@@ -116,13 +118,28 @@ python -m http.server 8000
 
 ## 构建
 
-页面分两类：手写的（首页、栏目页、文章页、工具页）和生成的（赛事页、棋手页、索引数据）。改了 `data/renju.db` 之后按顺序跑：
+页面分两类：手写的（首页、栏目页、文章页、工具页）和生成的（赛事页、棋手页、索引数据）。改完内容最省事的是跑统一入口，顺序已经写死，末尾自动做一致性校验：
 
 ```bash
-python tools/build_zayu.py            # 赛事页 + 等级分表 + zayu.html
+python tools/build_all.py
+```
+
+可选开关：`--with-english`（连词库/阅读文章）、`--with-zalun`（杂论词云，需 jieba）、`--with-eval`（棋谱复盘跑引擎，需要 node）、`--no-check`（只生成不校验）。
+
+单独校验（只读，不改文件）：
+
+```bash
+python tools/check.py          # 死链、布局结构、sitemap、canonical/og、图片属性
+python tools/check.py --strict # 有警告也返回非零，适合放进 CI
+```
+
+想手工分步时，按下面顺序跑（`build_all.py` 就是这串命令）：
+
+```bash
+python tools/build_zayu.py --rebuild  # 赛事页 + 等级分表 + zayu.html
 python tools/build_rating_history.py  # 按比赛日先验重放，导出等级分时序 JSON
 python tools/build_players.py         # 棋手主页（含走势图），并给等级分表里的姓名补内链
-python tools/build_qipu.py            # 从 matches.board_record 导出棋谱 JSON
+python tools/build_qipu.py            # 从 matches.board_record 导出棋谱 JSON（--no-eval 跳过引擎）
 python tools/build_openings.py        # 导出有手顺的对局语料（开局命名 / 同型检索）
 python tools/build_predict.py    # 预测页的模型参数与交手记录
 python tools/build_seo.py        # canonical / og: / sitemap / robots / feed / 分享图

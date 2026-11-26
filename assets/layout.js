@@ -68,12 +68,49 @@
     var base = document.body.getAttribute('data-base') || '';
     var active = document.body.getAttribute('data-nav') || '';
 
+    /*
+     * 跳过导航：键盘与读屏用户第一个 Tab 就能直达正文。
+     * 页面共用一个 <main>，无刷新换页只换内容，所以 id 与 tabindex 只补一次。
+     */
+    function renderSkipLink() {
+        var main = document.querySelector('main');
+        if (!main) {
+            return;
+        }
+        if (!main.id) {
+            main.id = 'main';
+        }
+        if (!main.hasAttribute('tabindex')) {
+            main.setAttribute('tabindex', '-1');
+        }
+        var link = document.querySelector('.skip-link');
+        if (link) {
+            link.href = '#' + main.id;
+            return;
+        }
+        link = document.createElement('a');
+        link.className = 'skip-link';
+        link.href = '#' + main.id;
+        link.textContent = '跳到正文';
+        link.addEventListener('click', function () {
+            /* 锚点只移动滚动位置，手动把焦点交给正文，Tab 才不会又绕回导航 */
+            window.setTimeout(function () {
+                try {
+                    main.focus({ preventScroll: true });
+                } catch (err) {
+                    main.focus();
+                }
+            }, 0);
+        });
+        document.body.insertBefore(link, document.body.firstChild);
+    }
+
     function renderHeader() {
         var navHtml = NAV.map(function (item) {
             var isActive = item.text === active;
             var href = item.href === '#' ? '#' : base + item.href;
             return '<a href="' + href + '"' +
-                (isActive ? ' class="active"' : '') +
+                (isActive ? ' class="active" aria-current="page"' : '') +
                 '>' + item.text + '</a>';
         }).join('');
 
@@ -87,7 +124,7 @@
             '        <span class="brand-sub">' + SITE.sub + '</span>\n' +
             '      </span>\n' +
             '    </a>\n' +
-            '    <nav class="site-nav">' + navHtml + '</nav>\n' +
+            '    <nav class="site-nav" aria-label="主导航">' + navHtml + '</nav>\n' +
             '    <div class="site-user-slot" data-zbx-user="global" aria-label="用户名"></div>\n' +
             '  </div>\n' +
             '</header>';
@@ -283,6 +320,7 @@
         progMeasure();
     }
 
+    renderSkipLink();
     renderHeader();
     renderFooter();
     renderIcon();
@@ -293,6 +331,7 @@
         renderHeader: function () {
             base = document.body.getAttribute('data-base') || '';
             active = document.body.getAttribute('data-nav') || '';
+            renderSkipLink();
             renderHeader();
             renderFooter();
             renderProgress();
@@ -828,6 +867,60 @@
             injected[s.src] = 1;
         }
     });
+
+    /*
+     * 悬停/聚焦站内链接时预取目标页。GitHub Pages 不能设缓存头，
+     * 但同一会话里预取过的 HTML 会命中 HTTP 缓存，点下去基本即时。
+     * 只预取同源的 .html 或目录首页，不碰外站、锚点与下载链接。
+     */
+    var prefetched = {};
+    function prefetchLink(a) {
+        if (!a || a.target === '_blank' || a.hasAttribute('download')) {
+            return;
+        }
+        var href = a.getAttribute('href');
+        if (!href || href.charAt(0) === '#' || /^(mailto:|tel:|javascript:)/i.test(href)) {
+            return;
+        }
+        var url;
+        try {
+            url = new URL(href, location.href);
+        } catch (err) {
+            return;
+        }
+        if (url.origin !== location.origin || url.href === location.href) {
+            return;
+        }
+        var path = url.pathname;
+        if (!/\.html?$/i.test(path) && path.charAt(path.length - 1) !== '/') {
+            return;
+        }
+        if (prefetched[url.href]) {
+            return;
+        }
+        prefetched[url.href] = 1;
+        var link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.as = 'document';
+        link.href = url.href;
+        document.head.appendChild(link);
+    }
+
+    function prefetchNear(e) {
+        var el = e.target;
+        while (el && el.nodeType === 1 && el.nodeName.toLowerCase() !== 'a') {
+            el = el.parentNode;
+        }
+        if (el && el.nodeName.toLowerCase() === 'a') {
+            prefetchLink(el);
+        }
+    }
+
+    if (!window.__zbxPrefetchBound) {
+        window.__zbxPrefetchBound = 1;
+        document.addEventListener('pointerover', prefetchNear, { passive: true });
+        document.addEventListener('focusin', prefetchNear);
+    }
 
     /* 无刷新换页时，把目标页 <head> 里的内联 <style> 也带过来。
      * 全站只有少数页面（如末轮计算器）有页面专属样式；只换 <main> 会丢掉这些样式，

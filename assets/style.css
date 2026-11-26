@@ -9,9 +9,13 @@
 
 :root {
     --paper: #f6f2e9;
+    --paper-rgb: 246, 242, 233;
     --paper-deep: #efe8d9;
     --surface: #fffdf7;
+    --surface-rgb: 255, 253, 247;
+    --glass-rgb: 255, 255, 255;
     --surface-2: #faf6ec;
+    --surface-2-rgb: 250, 246, 236;
 
     --ink: #1e1b16;
     --ink-2: #3a352d;
@@ -25,6 +29,7 @@
     --gold: #b08d57;
     --gold-deep: #8a6a39;
     --gold-tint: #f5ecd8;
+    --gold-tint-rgb: 245, 236, 216;
 
     --win: #a8453f;
     --loss: #4d7256;
@@ -108,11 +113,45 @@ a:hover {
 
 a:focus-visible,
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
     outline: 2px solid rgba(176, 141, 87, 0.6);
     outline-offset: 2px;
     border-radius: 4px;
 }
+
+/* 跳过导航：平时移出视口，键盘聚焦时落下 */
+.skip-link {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 200;
+    padding: 10px 16px;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.2;
+    color: var(--paper);
+    background: var(--ink);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    text-decoration: none;
+    transform: translateY(-180%);
+    transition: transform 0.18s ease;
+}
+
+.skip-link:focus {
+    transform: none;
+    color: var(--paper);
+    text-decoration: none;
+}
+
+main:focus {
+    outline: none;
+}
+
+
 
 .container {
     max-width: 920px;
@@ -156,7 +195,7 @@ main.is-entering > * {
     /* 这里原来叠了 backdrop-filter: blur(12px)。sticky 页头横跨整屏，
        模糊区随滚动逐帧重算，低端机上是掉帧主因；背景本来就是接近不透明的
        暖纸色，改成高不透明度单色后观感几乎无差，滚动明显更顺。 */
-    background: rgba(246, 242, 233, 0.97);
+    background: rgba(var(--paper-rgb), 0.97);
     border-bottom: 1px solid transparent;
     transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
@@ -433,7 +472,7 @@ li {
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background:
-        radial-gradient(120% 140% at 100% 0%, #fffdf7 0%, rgba(255, 253, 247, 0) 58%),
+        radial-gradient(120% 140% at 100% 0%, #fffdf7 0%, rgba(var(--surface-rgb), 0) 58%),
         linear-gradient(150deg, #fbf6ea 0%, #fffdf7 46%, #f8f2e3 100%);
     box-shadow: var(--shadow-sm);
 }
@@ -487,7 +526,7 @@ li {
     padding: 12px 14px 13px;
     border: 1px solid var(--line-soft);
     border-radius: 11px;
-    background: rgba(255, 255, 255, 0.66);
+    background: rgba(var(--glass-rgb), 0.66);
     box-shadow: inset 0 1px 0 #ffffff;
     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
@@ -513,7 +552,7 @@ li {
 .hero-link:hover {
     text-decoration: none;
     border-color: rgba(176, 141, 87, 0.55);
-    background: #fffdf7;
+    background: var(--surface);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
 }
@@ -721,7 +760,7 @@ a.nt-item:focus-visible {
 
 .vcf-next-top:hover {
     border-color: rgba(176, 141, 87, 0.6);
-    background: #fffdf7;
+    background: var(--surface);
 }
 
 .vcf-next-top:active { transform: translateY(1px); }
@@ -733,7 +772,7 @@ a.nt-item:focus-visible {
     padding: 10px 12px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(var(--glass-rgb), 0.45);
 }
 
 .vcf-challenge button {
@@ -761,7 +800,7 @@ a.nt-item:focus-visible {
     padding: 10px 12px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(var(--glass-rgb), 0.45);
 }
 
 .jz-challenge button {
@@ -851,7 +890,7 @@ a.nt-item:focus-visible {
     padding: 2px 9px;
     border: 1px solid var(--line-soft);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.62);
+    background: rgba(var(--glass-rgb), 0.62);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
@@ -918,7 +957,7 @@ a.nt-item:focus-visible {
     padding: 7px 8px;
     border: 1px solid var(--line-soft);
     border-radius: 9px;
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(var(--glass-rgb), 0.72);
     font-family: var(--sans);
     font-size: 13px;
     color: var(--ink-2);
@@ -940,7 +979,7 @@ a.nt-item:focus-visible {
     padding: 9px 10px;
     border: 1px solid var(--line-soft);
     border-radius: 9px;
-    background: rgba(255, 255, 255, 0.62);
+    background: rgba(var(--glass-rgb), 0.62);
 }
 
 .vcf-stats dt {
@@ -1009,7 +1048,7 @@ a.nt-item:focus-visible {
 
 .vcf-btns button:hover {
     border-color: rgba(176, 141, 87, 0.6);
-    background: #fffdf7;
+    background: var(--surface);
     color: var(--gold-deep);
 }
 
@@ -1078,7 +1117,7 @@ a.nt-item:focus-visible {
 
 .jz-next-top:hover {
     border-color: rgba(176, 141, 87, 0.6);
-    background: #fffdf7;
+    background: var(--surface);
 }
 
 .jz-next-top:active {
@@ -1096,7 +1135,7 @@ a.nt-item:focus-visible {
     padding: 4px;
     border: 1px solid var(--line);
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(var(--glass-rgb), 0.6);
 }
 
 .jz-tab {
@@ -1318,7 +1357,7 @@ a.nt-item:focus-visible {
     padding: 2px 9px;
     border: 1px solid var(--line-soft);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.62);
+    background: rgba(var(--glass-rgb), 0.62);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
@@ -1396,7 +1435,7 @@ a.nt-item:focus-visible {
     padding: 7px 8px;
     border: 1px solid var(--line-soft);
     border-radius: 9px;
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(var(--glass-rgb), 0.72);
     font-family: var(--sans);
     font-size: 13px;
     color: var(--ink-2);
@@ -1425,7 +1464,7 @@ a.nt-item:focus-visible {
     padding: 9px 10px;
     border: 1px solid var(--line-soft);
     border-radius: 9px;
-    background: rgba(255, 255, 255, 0.62);
+    background: rgba(var(--glass-rgb), 0.62);
 }
 
 .jz-stats dt {
@@ -1494,7 +1533,7 @@ a.nt-item:focus-visible {
 
 .jz-btns button:hover {
     border-color: rgba(176, 141, 87, 0.6);
-    background: #fffdf7;
+    background: var(--surface);
     color: var(--gold-deep);
 }
 
@@ -1586,7 +1625,7 @@ a.nt-item:focus-visible {
 
 .post-list li:hover,
 .tournament-list li:hover {
-    background: rgba(255, 253, 247, 0.92);
+    background: rgba(var(--surface-rgb), 0.92);
     padding-left: 10px;
 }
 
@@ -1749,7 +1788,7 @@ main > article {
     padding: 4px 11px;
     border: 1px solid var(--line-soft);
     border-radius: 999px;
-    background: rgba(255, 253, 247, 0.75);
+    background: rgba(var(--surface-rgb), 0.75);
 }
 
 .article-meta a {
@@ -1785,7 +1824,7 @@ main > article {
     padding: 16px 20px;
     border: 1px solid var(--line-soft);
     border-radius: var(--radius);
-    background: linear-gradient(180deg, rgba(255, 253, 247, 0.94), rgba(250, 246, 236, 0.72));
+    background: linear-gradient(180deg, rgba(var(--surface-rgb), 0.94), rgba(var(--surface-2-rgb), 0.72));
     font-family: var(--sans);
     font-size: 14.5px;
     line-height: 1.95;
@@ -1909,7 +1948,7 @@ h3.subhead {
 }
 
 .rank-list li:first-child {
-    background: linear-gradient(90deg, rgba(245, 236, 216, 0.85), rgba(255, 253, 247, 0.4));
+    background: linear-gradient(90deg, rgba(var(--gold-tint-rgb), 0.85), rgba(var(--surface-rgb), 0.4));
 }
 
 .rank-list .medal {
@@ -1935,7 +1974,7 @@ h3.subhead {
     border-color: var(--gold-deep);
     background: var(--gold-deep);
     color: #fdf8ec;
-    box-shadow: 0 0 0 2px rgba(245, 236, 216, 0.95);
+    box-shadow: 0 0 0 2px rgba(var(--gold-tint-rgb), 0.95);
 }
 
 .rank-list .medal.r2 {
@@ -1955,7 +1994,7 @@ h3.subhead {
     padding: 16px 18px;
     border: 1px solid var(--line-soft);
     border-radius: var(--radius);
-    background: rgba(250, 246, 236, 0.8);
+    background: rgba(var(--surface-2-rgb), 0.8);
     font-family: var(--sans);
     font-size: 12.5px;
     line-height: 1.9;
@@ -1994,13 +2033,13 @@ h3.subhead {
     padding: 7px 15px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: rgba(255, 253, 247, 0.8);
+    background: rgba(var(--surface-rgb), 0.8);
     color: var(--ink-3);
 }
 
 .back-link a:hover {
     border-color: var(--gold);
-    background: #fffdf7;
+    background: var(--surface);
     color: var(--gold-deep);
     text-decoration: none;
 }
@@ -2336,7 +2375,7 @@ table.ratings .r-name a:hover {
     padding: 4px 11px;
     border: 1px solid var(--line-soft);
     border-radius: 999px;
-    background: rgba(255, 253, 247, 0.7);
+    background: rgba(var(--surface-rgb), 0.7);
 }
 
 .event-info .k,
@@ -2363,7 +2402,7 @@ table.ratings .r-name a:hover {
     border: 1px solid var(--line);
     border-left: 3px solid var(--gold);
     border-radius: 0 var(--radius) var(--radius) 0;
-    background: rgba(255, 253, 247, 0.8);
+    background: rgba(var(--surface-rgb), 0.8);
     color: var(--ink-2);
     transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -2371,7 +2410,7 @@ table.ratings .r-name a:hover {
 .banner:hover {
     border-color: rgba(176, 141, 87, 0.6);
     border-left-color: var(--gold);
-    background: #fffdf7;
+    background: var(--surface);
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
     text-decoration: none;
@@ -2685,7 +2724,7 @@ table.ratings .r-name a:hover {
     padding: 5px 12px;
     border: 1px solid var(--line-soft);
     border-radius: 999px;
-    background: rgba(255, 253, 247, 0.75);
+    background: rgba(var(--surface-rgb), 0.75);
     color: var(--muted);
 }
 
@@ -2716,7 +2755,7 @@ table.ratings .r-name a:hover {
 .rh-jump a {
     padding: 2px 9px;
     border-radius: 999px;
-    background: rgba(245, 236, 216, 0.9);
+    background: rgba(var(--gold-tint-rgb), 0.9);
     color: var(--gold-deep);
 }
 
@@ -3593,7 +3632,7 @@ table.ratings .r-name a:hover {
     align-items: center;
     gap: 11px;
     padding: 9px 11px 9px 10px;
-    background: rgba(255, 253, 247, 0.97);
+    background: rgba(var(--surface-rgb), 0.97);
     /* 音乐盒是常驻 fixed 元素，背景模糊会随每次滚动重算，去掉后几乎看不出差别 */
     border: 1px solid var(--line);
     border-radius: 12px;
@@ -3933,7 +3972,7 @@ table.ratings .r-name a:hover {
 }
 
 .board-btn:hover:not(:disabled) {
-    background: #fffdf7;
+    background: var(--surface);
     border-color: var(--gold);
     color: var(--gold-deep);
 }
@@ -4668,7 +4707,7 @@ table.ratings .r-name a:hover {
 
 .scan-pick span:hover {
     border-color: var(--gold-deep);
-    background: #fffdf7;
+    background: var(--surface);
 }
 
 .scan-pick input:focus-visible + span {
@@ -5442,7 +5481,7 @@ table.ratings .r-name a:hover {
     border-left: 3px solid var(--gold);
     border-radius: 0 var(--radius) var(--radius) 0;
     background:
-        radial-gradient(130% 170% at 0% 0%, rgba(245, 236, 216, 0.95), rgba(255, 253, 247, 0) 68%),
+        radial-gradient(130% 170% at 0% 0%, rgba(var(--gold-tint-rgb), 0.95), rgba(var(--surface-rgb), 0) 68%),
         var(--surface);
     box-shadow: var(--shadow-sm);
     font-family: var(--sans);
@@ -6844,7 +6883,7 @@ table.ratings .r-name a:hover {
 
 .sd-next:hover:not(:disabled) {
     border-color: rgba(176, 141, 87, 0.7);
-    background: #fffdf7;
+    background: var(--surface);
 }
 
 .sd-next:active:not(:disabled) {
@@ -6864,7 +6903,7 @@ table.ratings .r-name a:hover {
 
 .sd-ghost:hover:not(:disabled) {
     border-color: rgba(176, 141, 87, 0.55);
-    background: #fffdf7;
+    background: var(--surface);
 }
 
 .sd {
@@ -6961,7 +7000,7 @@ table.ratings .r-name a:hover {
     padding: 7px 11px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: #fffdf7;
+    background: var(--surface);
     font-family: var(--sans);
     text-align: left;
     cursor: pointer;
@@ -7218,7 +7257,7 @@ table.ratings .r-name a:hover {
     padding: 3px;
     border: 1px solid var(--line);
     border-radius: 12px;
-    background: #fffdf7;
+    background: var(--surface);
 }
 
 .sd-tab {
@@ -7288,7 +7327,7 @@ table.ratings .r-name a:hover {
     padding: 10px 12px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(var(--glass-rgb), 0.45);
 }
 
 .vb-head {
@@ -7371,7 +7410,7 @@ table.ratings .r-name a:hover {
 
 .vb-acts button:hover {
     border-color: rgba(176, 141, 87, 0.6);
-    background: #fffdf7;
+    background: var(--surface);
     color: var(--gold-deep);
 }
 
@@ -7406,5 +7445,130 @@ table.ratings .r-name a:hover {
 
     .sd-book .vb-item:nth-child(2) {
         border-top: 0;
+    }
+}
+
+
+/* ==========================================================================
+   深色模式（跟随系统，不另设开关）
+   --------------------------------------------------------------------------
+   站内绝大多数颜色已经走 CSS 变量；这里只需覆盖纸面、卡片与少数写死的
+   浅色渐变。照片、棋盘与棋子保持原色，不做反相。
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+
+        --paper: #14120e;
+        --paper-rgb: 20, 18, 14;
+        --paper-deep: #1b1812;
+        --surface: #201c15;
+        --surface-rgb: 32, 28, 21;
+        --glass-rgb: 48, 42, 31;
+        --surface-2: #262117;
+        --surface-2-rgb: 38, 33, 23;
+
+        --ink: #f1e9d8;
+        --ink-2: #d9d0bf;
+        --ink-3: #b8ad99;
+        --muted: #938977;
+        --faint: #7e7462;
+
+        --line: #3a3327;
+        --line-soft: #2d271f;
+
+        --gold: #c9a86f;
+        --gold-deep: #dcc08d;
+        --gold-tint: #2e2618;
+        --gold-tint-rgb: 46, 38, 24;
+
+        --win: #e08078;
+        --loss: #84b894;
+        --draw: #a9a08e;
+
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 18px 40px -28px rgba(0, 0, 0, 0.8);
+    }
+
+    html {
+        color-scheme: dark;
+    }
+
+    /* 用 html body 压过页面 <style> 里写的 body 背景 */
+    html body {
+        background:
+            radial-gradient(1100px 520px at 50% -8%, #211c13 0%, rgba(33, 28, 19, 0) 62%),
+            var(--paper);
+        color: var(--ink-2);
+    }
+
+    body::before {
+        background-image:
+            linear-gradient(to right, rgba(201, 168, 111, 0.045) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(201, 168, 111, 0.045) 1px, transparent 1px);
+    }
+
+    .site-head {
+        background: rgba(var(--paper-rgb), 0.97);
+    }
+
+    .site-head.is-stuck {
+        box-shadow: 0 12px 30px -26px rgba(0, 0, 0, 0.9);
+    }
+
+    .site-nav a:hover {
+        background: rgba(201, 168, 111, 0.14);
+    }
+
+    .hero {
+        background:
+            radial-gradient(120% 140% at 100% 0%, #2a2418 0%, rgba(var(--surface-rgb), 0) 58%),
+            linear-gradient(150deg, #1f1b13 0%, #241f16 46%, #1b1710 100%);
+    }
+
+    .hero-link {
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .nt-label {
+        background: linear-gradient(180deg, #332a1b, #2a2317);
+    }
+
+    .mention-card,
+    .rh-rules,
+    .lead {
+        border-color: var(--line);
+        background: var(--surface-2);
+    }
+
+    .vcf-msg.is-wait,
+    .jz-msg.is-wait {
+        background: repeating-linear-gradient(135deg,
+            #241f16, #241f16 10px, #2c261b 10px, #2c261b 20px);
+    }
+
+    .music-box {
+        box-shadow:
+            0 12px 30px -16px rgba(0, 0, 0, 0.7),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    /* KataGomo 页的状态条写在页面内联样式里，用更高特异性压过去 */
+    html .kg-status {
+        color: var(--muted);
+        background: rgba(var(--surface-rgb), 0.92);
+        border-color: var(--line);
+    }
+
+    .rank-list .medal.r3 {
+        border-color: #4a3f2a;
+        background: #332a1b;
+        color: #d8c49a;
+    }
+
+    .skip-link {
+        color: var(--paper);
+        background: var(--ink);
     }
 }

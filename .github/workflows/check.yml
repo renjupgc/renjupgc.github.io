@@ -1,0 +1,31 @@
+name: Site Check
+
+# 只做只读校验，不生成、不提交：死链、布局结构、sitemap、canonical/og、图片属性。
+# 生成物忘了重跑时，这里会直接红灯。
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Check site consistency
+        run: python tools/check.py --strict

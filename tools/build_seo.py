@@ -45,7 +45,11 @@ RE_LASTMOD = re.compile(r'<span class="date">(\d{4}-\d{2}-\d{2})</span>')
 # 不参与 sitemap 的页面。时光机只在等级分表的角落里挂一个入口，不单独列出，
 # 也不进搜索（页头另有 noindex）。
 SKIP_SITEMAP = {'404.html', 'zayu/shiguang.html', 'zaji/duoguan.html',
-                'zaji/predict.html', 'posts/2026-shanhai.html'}
+                'zaji/katago.html', 'zaji/predict.html', 'posts/2026-shanhai.html'}
+
+# 第三方构建、后台、模板与静态片段一律不进 sitemap；另有 noindex 的页面也跳过。
+SKIP_SITEMAP_PREFIX = ('admin/', 'renju/', 'labs/', 'assets/', 'tools/', 'docs/')
+NOINDEX_RE = re.compile(r'<meta[^>]+name=["\']robots["\'][^>]*\bnoindex\b', re.I)
 
 # 暗门页（录入赛果、看访问统计用）：不链在导航上，不进 sitemap，也不做 SEO 注入。
 ADMIN_PAGES = {'admin/duiju.html', 'admin/index.html'}
@@ -182,7 +186,9 @@ def build_sitemap(post_dates):
     rows = []
     for path in sorted(html_files(), key=rel):
         r = rel(path)
-        if r in SKIP_SITEMAP or r in ADMIN_PAGES:
+        if r in SKIP_SITEMAP or r in ADMIN_PAGES or r.startswith(SKIP_SITEMAP_PREFIX):
+            continue
+        if NOINDEX_RE.search(read(path)):
             continue
         loc = url_of(path)
         lastmod = post_dates.get(os.path.basename(r)) if r.startswith('posts/') else None
